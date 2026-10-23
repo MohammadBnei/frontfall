@@ -1,4 +1,4 @@
-import type { WorldGrid } from "../world-grid.ts";
+import type { Topology } from "../topology.ts";
 
 /** Owner of tiles that nobody holds. Player ids start at 1. */
 export const NEUTRAL = 0;
@@ -36,7 +36,7 @@ export class TerritoryMap {
   private overflowed = false;
 
   constructor(
-    readonly grid: WorldGrid,
+    readonly grid: Topology,
     readonly maxPlayers: number,
     changeLogCapacity = 1 << 16,
   ) {

@@ -1,4 +1,4 @@
-import type { WorldGrid } from "../world-grid.ts";
+import type { Topology } from "../topology.ts";
 
 /**
  * Breadth-first fill that gives up once more than `limit` tiles match. It
@@ -16,7 +16,7 @@ export class BoundedFloodFill {
   private readonly around = new Int32Array(4);
   private found = 0;
 
-  constructor(readonly grid: WorldGrid) {
+  constructor(readonly grid: Topology) {
     this.stamps = new Uint16Array(grid.size);
   }
 
