@@ -78,6 +78,24 @@ export function clientAddress(request: IncomingMessage): string {
   return forwarded || (request.socket.remoteAddress ?? "unknown");
 }
 
+/** WebSocket close reasons are capped at 123 bytes of UTF-8; ws throws on longer ones. */
+const MAX_CLOSE_REASON_BYTES = 123;
+
+/**
+ * Cuts a reason to fit a close frame, on a character boundary. Decoding errors
+ * quote what the client sent, which may be anything.
+ */
+export function closeReason(text: string): string {
+  let reason = "";
+  let bytes = 0;
+  for (const char of text) {
+    bytes += Buffer.byteLength(char);
+    if (bytes > MAX_CLOSE_REASON_BYTES) break;
+    reason += char;
+  }
+  return reason;
+}
+
 function toFrame(data: RawData, isBinary: boolean): Frame {
   const bytes = Array.isArray(data)
     ? Buffer.concat(data)
@@ -252,7 +270,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     session.closing = true;
     metrics.rejected.inc({ reason: label });
     logger.warn("connection_rejected", { client: session.client, reason: label });
-    session.socket.close(code, reason.slice(0, 120));
+    session.socket.close(code, closeReason(reason));
   }
 
   /** The seat of this connection, if it still holds one in a game. */

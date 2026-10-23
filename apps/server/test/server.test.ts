@@ -382,6 +382,19 @@ describe("WebSocket", () => {
     expect(await closed(text.socket)).toBe(CloseCode.invalidMessage);
   });
 
+  it("closes with a shortened reason when the error quotes non-ASCII input", async () => {
+    const client = await player(await start(), "Accent");
+    const reason = new Promise<Buffer>((resolve) =>
+      client.socket.once("close", (_code: number, text: Buffer) => {
+        resolve(text);
+      }),
+    );
+    client.socket.send(`{"type":"play","${"é".repeat(80)}":1}`);
+    const text = await reason;
+    expect(text.byteLength).toBeLessThanOrEqual(123);
+    expect(text.toString("utf8")).toMatch(/^✖ Unrecognized key: "é+$/);
+  });
+
   it("closes oversized frames", async () => {
     const client = await player(await start(), "Big");
     client.socket.send("x".repeat(2048));
