@@ -21,6 +21,8 @@ export interface Topology {
   neighborsInto(tile: number, out: Int32Array): number;
   /** Manhattan distance, taking the shorter way around a wrapping map. */
   distance(a: number, b: number): number;
+  /** Square of the straight-line distance in tiles, the shorter way around a wrapping map. Exact integer. */
+  squaredDistance(a: number, b: number): number;
   /** Every tile at a distance of `radius` or less from `center`, in row order. */
   tilesWithin(center: number, radius: number): readonly number[];
   /** Centre of a tile on an equirectangular projection, in degrees. For rendering only. */

@@ -57,6 +57,12 @@ describe("WorldGrid", () => {
     expect(grid.distance(grid.index(1, 1), grid.index(6, 4))).toBe(8);
   });
 
+  it("measures straight-line distance squared, the short way around a cylinder only", () => {
+    expect(grid.squaredDistance(grid.index(0, 0), grid.index(9, 1))).toBe(2);
+    expect(flat.squaredDistance(flat.index(0, 0), flat.index(9, 1))).toBe(82);
+    expect(grid.squaredDistance(grid.index(1, 0), grid.index(4, 4))).toBe(25);
+  });
+
   it("lists the tiles within a radius across the seam", () => {
     expect(grid.tilesWithin(grid.index(0, 0), 1)).toEqual([0, 1, 9, 10]);
     expect(flat.tilesWithin(flat.index(0, 0), 1)).toEqual([0, 1, 10]);

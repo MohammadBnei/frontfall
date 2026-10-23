@@ -39,9 +39,10 @@ export function installAttacks(game: Game): void {
 
   // Each attack's front for the current tick: tiles to take, closest to its aim first.
   const fronts: number[][] = [];
-  const frontDistances: number[][] = [];
+  const frontPriorities: number[][] = [];
   const speeds: number[] = [];
   const attacksOf = new Map<number, number[]>();
+  const ownAround = new Int32Array(4);
 
   /**
    * Plans every attack's front for this tick before any of them moves: up to
@@ -55,7 +56,7 @@ export function installAttacks(game: Game): void {
     for (let a = 0; a < attacks.length; a++) {
       const attack = attacks[a] as Attack;
       (fronts[a] ??= []).length = 0;
-      (frontDistances[a] ??= []).length = 0;
+      (frontPriorities[a] ??= []).length = 0;
       const alive = game.player(attack.player)?.alive === true;
       speeds[a] =
         alive && attack.troops > 0
@@ -80,31 +81,45 @@ export function installAttacks(game: Game): void {
           const a = own.find((index) => (attacks[index] as Attack).target === owner);
           if (a === undefined) continue;
           seen[tile] = scan;
-          shortlist(a, tile, topology.distance(tile, (attacks[a] as Attack).aim));
+          shortlist(a, tile, priority(player, tile, (attacks[a] as Attack).aim));
         }
       }
     }
   }
 
-  /** Inserts a tile into an attack's front, kept sorted by distance then tile and cut at its speed. */
-  function shortlist(a: number, tile: number, distance: number): void {
+  /**
+   * Lower comes first: the straight-line distance to the aim, less
+   * B-ATTACK-SPREAD for each side the tile shares with the player's land.
+   * Tiles in the hollows of the front catch up with its tip, so an attack
+   * spreads as a wedge towards its aim instead of a thin line.
+   */
+  function priority(player: number, tile: number, aim: number): number {
+    let sides = 0;
+    const count = topology.neighborsInto(tile, ownAround);
+    for (let k = 0; k < count; k++)
+      if (territory.ownerOf(ownAround[k] as number) === player) sides++;
+    return isqrt(topology.squaredDistance(tile, aim)) - balance.attackSpread * sides;
+  }
+
+  /** Inserts a tile into an attack's front, kept sorted by priority then tile and cut at its speed. */
+  function shortlist(a: number, tile: number, rank: number): void {
     const tiles = fronts[a] as number[];
-    const distances = frontDistances[a] as number[];
+    const ranks = frontPriorities[a] as number[];
     const limit = speeds[a] as number;
     let at = tiles.length;
     while (
       at > 0 &&
-      ((distances[at - 1] as number) > distance ||
-        ((distances[at - 1] as number) === distance && (tiles[at - 1] as number) > tile))
+      ((ranks[at - 1] as number) > rank ||
+        ((ranks[at - 1] as number) === rank && (tiles[at - 1] as number) > tile))
     ) {
       at--;
     }
     if (at >= limit) return;
     tiles.splice(at, 0, tile);
-    distances.splice(at, 0, distance);
+    ranks.splice(at, 0, rank);
     if (tiles.length > limit) {
       tiles.pop();
-      distances.pop();
+      ranks.pop();
     }
   }
 

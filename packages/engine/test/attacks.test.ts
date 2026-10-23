@@ -12,6 +12,8 @@ const balance: Balance = {
   neutralCost: 10,
   reliefCostTenths: [10, 20, 30],
   attackSpeedDivisor: 1000,
+  // Fronts go straight for the aim, so tests can tell which tile is taken next.
+  attackSpread: 0,
   defenseDensityTenths: 10,
 };
 
@@ -90,6 +92,21 @@ describe("expansion into unowned land", () => {
     ada.troops = 10;
     run([attack(1, grid.index(9, 1), 10)]);
     expect(game.territory.ownerOf(grid.index(9, 1))).toBe(1);
+  });
+
+  it("fills the hollows of its front before pushing the tip further (B-ATTACK-SPREAD)", () => {
+    // Ada holds column 0 and (1, 1); the aim is straight east along row 1.
+    const straight = newGame({ 1: [0] });
+    const wide = newGame({ 1: [0] }, undefined, { attackSpread: 4 });
+    for (const { grid, game, ada, run, attack } of [straight, wide]) {
+      game.territory.setOwner(grid.index(1, 1), 1);
+      ada.troops = 100;
+      run([attack(1, grid.index(5, 1), 50)]);
+    }
+    expect(straight.game.territory.ownerOf(straight.grid.index(2, 1))).toBe(1);
+    // (1, 0) shares two sides with Ada's land, the tip (2, 1) only one.
+    expect(wide.game.territory.ownerOf(wide.grid.index(2, 1))).toBe(NEUTRAL);
+    expect(wide.game.territory.tileCount(1)).toBe(5);
   });
 
   it("speeds up with more troops (B-ATTACK-SPEED)", () => {

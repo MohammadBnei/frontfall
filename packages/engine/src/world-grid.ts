@@ -77,6 +77,13 @@ export class WorldGrid implements Topology {
     return (this.wrapsX ? Math.min(dx, this.width - dx) : dx) + Math.abs(this.y(a) - this.y(b));
   }
 
+  squaredDistance(a: number, b: number): number {
+    const across = Math.abs(this.x(a) - this.x(b));
+    const dx = this.wrapsX ? Math.min(across, this.width - across) : across;
+    const dy = this.y(a) - this.y(b);
+    return dx * dx + dy * dy;
+  }
+
   tilesWithin(center: number, radius: number): number[] {
     if (!Number.isInteger(radius) || radius < 0) {
       throw new RangeError(`invalid radius ${String(radius)}`);
