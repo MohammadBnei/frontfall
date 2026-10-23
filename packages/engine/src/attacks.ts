@@ -1,6 +1,7 @@
 import type { Game, Player } from "./game.ts";
 import { divFloor, isqrt, mulDiv } from "./integer-math.ts";
 import { TileKind } from "./terrain.ts";
+import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /** A wave of troops pushing into the land of one opponent, or into unowned land. */
@@ -34,6 +35,8 @@ export function installAttacks(game: Game): Attacks {
   const seen = new Uint32Array(topology.size);
   let scan = 0;
   const around = new Int32Array(4);
+  const pocketFill = new BoundedFloodFill(topology);
+  const nextToCapture = new Int32Array(4);
 
   /** Tiles of `target` that touch the player's territory, best first. */
   function frontline(attack: Attack, limit: number): number[] {
@@ -121,6 +124,33 @@ export function installAttacks(game: Game): Attacks {
       attack.troops -= cost;
       if (defender) defender.troops -= Math.min(defender.troops, defenderDensity(defender));
       territory.setOwner(tile, attack.player);
+      if (defender) captureEnclosedPockets(tile, attack.player, defender.id);
+    }
+  }
+
+  /**
+   * R-ATTACK-08: after `tile` changes hands, any piece of the defender's land
+   * next to it that is now enclosed by the attacker alone goes to the attacker.
+   */
+  function captureEnclosedPockets(tile: number, attacker: number, defender: number): void {
+    const count = topology.neighborsInto(tile, nextToCapture);
+    for (let i = 0; i < count; i++) {
+      const start = nextToCapture[i] as number;
+      if (territory.ownerOf(start) !== defender) continue;
+      const pocket = { open: false };
+      const size = pocketFill.fill(
+        start,
+        (candidate) => {
+          const owner = territory.ownerOf(candidate);
+          if (owner === defender) return true;
+          // Any land not held by the attacker means the pocket still has a way out.
+          if (owner !== attacker && terrain.isOwnable(candidate)) pocket.open = true;
+          return false;
+        },
+        balance.encircleMaxTiles,
+      );
+      if (pocket.open || size <= 0) continue;
+      for (const captured of Array.from(pocketFill.tiles())) territory.setOwner(captured, attacker);
     }
   }
 

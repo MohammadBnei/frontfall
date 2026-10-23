@@ -29,6 +29,8 @@ export interface Balance {
   attackSpeedDivisor: number;
   /** B-DEFENSE-DENSITY, in tenths: share of the defender's troops per tile added to the cost of a tile */
   defenseDensityTenths: number;
+  /** B-ENCIRCLE-MAX, largest pocket in tiles captured at once by encirclement */
+  encircleMaxTiles: number;
   /** B-WIN-SHARE, percent of all ownable land */
   winSharePercent: number;
   /** B-MAX-DURATION, in ticks */
@@ -49,6 +51,7 @@ export const DEFAULT_BALANCE: Balance = {
   reliefCostTenths: [10, 15, 25],
   attackSpeedDivisor: 8,
   defenseDensityTenths: 10,
+  encircleMaxTiles: 4000,
   winSharePercent: 75,
   maxDurationTicks: 3600 * 10,
 };

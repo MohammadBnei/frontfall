@@ -163,3 +163,48 @@ describe("attacks between players", () => {
     expect(game.territory.ownerOf(grid.index(5, 0))).toBe(NEUTRAL);
   });
 });
+
+describe("encirclement", () => {
+  /** Columns 0-4 of a 10 x 3 flat strip: Ada around a pocket of Bea. */
+  function pocketGame(pocketOwner: number, extra: Record<number, number[]> = {}) {
+    const built = newGame({ 1: [0, 1, 2, 3, 4], ...extra });
+    const { grid, game } = built;
+    game.territory.setOwner(grid.index(2, 1), pocketOwner);
+    game.territory.setOwner(grid.index(3, 1), pocketOwner);
+    game.territory.setOwner(grid.index(4, 1), 2);
+    game.territory.setOwner(grid.index(5, 1), 2);
+    return built;
+  }
+
+  it("captures the defender's land left enclosed by the attacker (R-ATTACK-08)", () => {
+    const { grid, game, ada, bea, run, attack } = pocketGame(2);
+    ada.troops = 1000;
+    bea.troops = 10;
+    // Taking (4, 1) cuts (2-3, 1) off from the rest of Bea's land at (5, 1).
+    run([attack(1, grid.index(4, 1), 100)]);
+    expect(game.territory.ownerOf(grid.index(4, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(5, 1))).toBe(2);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(3, 1))).toBe(1);
+  });
+
+  it("leaves a pocket that still touches a third party", () => {
+    const { grid, game, ada, run, attack } = pocketGame(2);
+    game.territory.setOwner(grid.index(2, 0), NEUTRAL);
+    ada.troops = 1000;
+    run([attack(1, grid.index(4, 1), 100)]);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(2);
+  });
+
+  it("leaves pockets larger than the limit (B-ENCIRCLE-MAX)", () => {
+    const built = newGame({ 1: [0, 1, 2, 3, 4] }, undefined, { encircleMaxTiles: 1 });
+    const { grid, game, ada, run, attack } = built;
+    game.territory.setOwner(grid.index(2, 1), 2);
+    game.territory.setOwner(grid.index(3, 1), 2);
+    game.territory.setOwner(grid.index(4, 1), 2);
+    game.territory.setOwner(grid.index(5, 1), 2);
+    ada.troops = 1000;
+    run([attack(1, grid.index(4, 1), 100)]);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(2);
+  });
+});

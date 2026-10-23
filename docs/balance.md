@@ -41,6 +41,7 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 | `B-RELIEF-COST`      | 1 / 1.5 / 2.5 | multiplier                  | `R-MAP-06`    | Plains / hills / mountains                  |
 | `B-DEFENSE-DENSITY`  |           1.0 | defender troops/tile weight | `R-ATTACK-03` | Cost of a tile grows with defender density  |
 | `B-ATTACK-SPEED`     |             8 | divisor                     | `R-ATTACK-03` | Tiles taken per tick: 1 + isqrt(troops) / 8 |
+| `B-ENCIRCLE-MAX`     |          4000 | tiles                       | `R-ATTACK-08` | Larger pockets must be conquered            |
 | `B-RETREAT-PENALTY`  |            25 | % of returning troops       | `R-ATTACK-06` |                                             |
 
 ## Diplomacy

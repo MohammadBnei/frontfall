@@ -52,7 +52,7 @@ Words used throughout:
 - **R-ATTACK-05** An attack ends when its troops run out, when no reachable target tile remains, or when its player retreats.
 - **R-ATTACK-06** Retreating returns the attack's remaining troops to the player, minus a penalty (`B-RETREAT-PENALTY`).
 - **R-ATTACK-07** Two attacks between the same players in opposite directions cancel out first: troops fight troops before any tile changes hands.
-- **R-ATTACK-08** Territory that ends up surrounded by one other player, with no border to any third party, is captured by that player at once.
+- **R-ATTACK-08** Territory that ends up surrounded by one other player, with no border to any third party, is captured by that player at once. Water and impassable land count as part of the surrounding; pockets larger than `B-ENCIRCLE-MAX` tiles are not captured this way.
 - **R-ATTACK-09** Players can attack across water only with ships (`R-UNIT-02`).
 
 ## 5. Diplomacy
