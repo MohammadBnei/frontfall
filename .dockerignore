@@ -4,3 +4,5 @@ coverage
 .git
 .github
 *.md
+**/test-results
+**/playwright-report

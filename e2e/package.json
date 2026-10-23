@@ -1,0 +1,15 @@
+{
+  "name": "@frontfall/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end tests of the built game, served at / and under a path prefix.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

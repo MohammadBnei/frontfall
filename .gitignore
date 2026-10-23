@@ -10,3 +10,5 @@ coverage/
 # Editors
 .vscode/
 .idea/
+test-results/
+playwright-report/
