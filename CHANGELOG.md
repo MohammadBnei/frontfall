@@ -16,6 +16,7 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 - WebSocket connections are limited per player address, and the number of open games is capped.
 - Pre-commit hook that formats and lints staged files.
 - Map proposal issue form.
+- **The README is now the project's front page**, in English and French: brand banner, a Play now section, the milestone table, an architecture diagram, self-hosting and a four-step contribution guide. Bug and feature forms label new issues for triage.
 
 ### Changed
 

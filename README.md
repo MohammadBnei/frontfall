@@ -86,11 +86,11 @@ flowchart LR
 | zod schemas            | Every message is validated on arrival, on both sides                                |
 | Single small container | Read-only filesystem, non-root user, multi-arch image scanned before every release  |
 
-Each choice is argued in an architecture decision record under [docs/adr](docs/adr/).
+Each choice is argued in an architecture decision record under [docs/adr](docs/adr/), and the tick, frame and memory budgets the engine and renderer are held to are in [docs/performance.md](docs/performance.md).
 
 ## Run it locally
 
-Requirements: Node.js 24 LTS (22.12 at minimum) and pnpm 10, which `corepack enable` provides.
+Requirements: Node.js 24 LTS and pnpm 10, which `corepack enable` provides.
 
 ```sh
 git clone https://github.com/nic0lasm/frontfall.git

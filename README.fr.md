@@ -86,11 +86,11 @@ flowchart LR
 | Schémas zod                 | Chaque message est validé à l'arrivée, des deux côtés                                                          |
 | Un seul petit conteneur     | Système de fichiers en lecture seule, utilisateur non root, image multi-arch analysée avant chaque publication |
 
-Chaque choix est justifié dans une fiche de décision d'architecture, dans [docs/adr](docs/adr/) (en anglais).
+Chaque choix est justifié dans une fiche de décision d'architecture, dans [docs/adr](docs/adr/), et les budgets de durée de tick, de temps de rendu et de mémoire imposés au moteur et au rendu sont dans [docs/performance.md](docs/performance.md) (en anglais).
 
 ## Lancer en local
 
-Prérequis : Node.js 24 LTS (22.12 au minimum) et pnpm 10, fourni par `corepack enable`.
+Prérequis : Node.js 24 LTS et pnpm 10, fourni par `corepack enable`.
 
 ```sh
 git clone https://github.com/nic0lasm/frontfall.git
