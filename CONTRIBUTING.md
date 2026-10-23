@@ -90,4 +90,6 @@ Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## How changes reach main
 
-`main` only accepts commits that are already green. CI and CodeQL run on every pushed branch; a branch is merged, by squashing a pull request or by fast-forwarding `main`, only after both pass on its last commit. Force-pushes and deletion of `main` are blocked, and its history stays linear.
+CI and CodeQL run on every pushed branch, and a branch is merged, by squashing a pull request or by fast-forwarding `main`, only once both have passed on it. Force-pushes and deletion of `main` are blocked, and its history stays linear.
+
+When `main` has moved since the branch went green, rebase it. If the rebase is clean, run `pnpm typecheck && pnpm lint && pnpm test` locally; when they pass, the branch can be fast-forwarded without waiting for CI to run again on the rebased commit. Watch the run on `main` after the push and fix it straight away if it fails. A branch that only changes documentation is merged as soon as it is rebased.
