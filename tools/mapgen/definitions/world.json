@@ -1,0 +1,14 @@
+{
+  "id": "world",
+  "name": { "en": "World", "fr": "Monde" },
+  "version": 1,
+  "width": 2048,
+  "height": 1024,
+  "topology": "cylinder",
+  "bounds": { "west": -180, "east": 180, "south": -90, "north": 90 },
+  "ice": { "north": 80, "south": -60 },
+  "minIslandTiles": 4,
+  "minLakeTiles": 4,
+  "players": { "min": 2, "recommended": 24, "max": 64 },
+  "nations": { "count": 64, "minDistance": 24 }
+}

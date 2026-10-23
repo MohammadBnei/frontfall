@@ -1,0 +1,45 @@
+name: Maps
+
+# Rebuilds every map from its pinned sources and fails if a single byte differs
+# from the committed files, or if a map changed without a new version.
+on:
+  pull_request:
+    paths: &map-paths
+      - "tools/mapgen/**"
+      - "tools/src/mapgen/**"
+      - "apps/client/public/maps/**"
+      - "packages/engine/src/map/**"
+      - ".github/workflows/maps.yml"
+  push:
+    branches-ignore: ["dependabot/**"]
+    paths: *map-paths
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    name: Rebuild maps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Downloads the sources, checks their SHA-256, builds and times the loader.
+      - run: pnpm maps --check
+      - name: Compare with the committed maps
+        run: |
+          git status --porcelain -- apps/client/public/maps tools/mapgen
+          git diff --exit-code --stat -- apps/client/public/maps tools/mapgen
+          test -z "$(git status --porcelain -- apps/client/public/maps tools/mapgen)"

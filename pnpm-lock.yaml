@@ -119,7 +119,21 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
 
-  tools: {}
+  tools:
+    dependencies:
+      '@frontfall/engine':
+        specifier: workspace:*
+        version: link:../packages/engine
+      '@frontfall/protocol':
+        specifier: workspace:*
+        version: link:../packages/protocol
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
 
 packages:
 

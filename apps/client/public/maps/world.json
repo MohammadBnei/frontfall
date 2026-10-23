@@ -1,0 +1,359 @@
+{
+  "format": 1,
+  "id": "world",
+  "name": {
+    "en": "World",
+    "fr": "Monde"
+  },
+  "version": 1,
+  "width": 2048,
+  "height": 1024,
+  "topology": "cylinder",
+  "projection": {
+    "type": "equirectangular",
+    "west": -180,
+    "east": 180,
+    "south": -90,
+    "north": 90
+  },
+  "terrain": {
+    "file": "world.bin",
+    "bytes": 2097168,
+    "sha256": "d21e3101fdf744a9639edeb58ab47d44f486c402c3d3bf29abc7dd4867a0f5b2"
+  },
+  "thumbnail": "world.png",
+  "players": {
+    "min": 2,
+    "recommended": 24,
+    "max": 64
+  },
+  "nations": [
+    {
+      "name": "Japan",
+      "capital": "Tokyo",
+      "tile": 632603
+    },
+    {
+      "name": "Mexico",
+      "capital": "Mexico City",
+      "tile": 821708
+    },
+    {
+      "name": "Bangladesh",
+      "capital": "Dhaka",
+      "tile": 773634
+    },
+    {
+      "name": "Argentina",
+      "capital": "Buenos Aires",
+      "tile": 1450675
+    },
+    {
+      "name": "Egypt",
+      "capital": "Cairo",
+      "tile": 699569
+    },
+    {
+      "name": "China",
+      "capital": "Beijing",
+      "tile": 585366
+    },
+    {
+      "name": "Philippines",
+      "capital": "Manila",
+      "tile": 878256
+    },
+    {
+      "name": "Russia",
+      "capital": "Moscow",
+      "tile": 398549
+    },
+    {
+      "name": "France",
+      "capital": "Paris",
+      "tile": 480269
+    },
+    {
+      "name": "South Korea",
+      "capital": "Seoul",
+      "tile": 612050
+    },
+    {
+      "name": "Indonesia",
+      "capital": "Jakarta",
+      "tile": 1121887
+    },
+    {
+      "name": "United Kingdom",
+      "capital": "London",
+      "tile": 449535
+    },
+    {
+      "name": "Peru",
+      "capital": "Lima",
+      "tile": 1188425
+    },
+    {
+      "name": "Iran",
+      "capital": "Tehran",
+      "tile": 634148
+    },
+    {
+      "name": "Congo (Kinshasa)",
+      "capital": "Kinshasa",
+      "tile": 1098839
+    },
+    {
+      "name": "Colombia",
+      "capital": "Bogota",
+      "tile": 993882
+    },
+    {
+      "name": "Taiwan",
+      "capital": "Taipei",
+      "tile": 757427
+    },
+    {
+      "name": "Thailand",
+      "capital": "Bangkok",
+      "tile": 888379
+    },
+    {
+      "name": "Chile",
+      "capital": "Santiago",
+      "tile": 1438318
+    },
+    {
+      "name": "Spain",
+      "capital": "Madrid",
+      "tile": 578539
+    },
+    {
+      "name": "Singapore",
+      "capital": "Singapore",
+      "tile": 1033806
+    },
+    {
+      "name": "Angola",
+      "capital": "Luanda",
+      "tile": 1152075
+    },
+    {
+      "name": "Iraq",
+      "capital": "Baghdad",
+      "tile": 660732
+    },
+    {
+      "name": "Sudan",
+      "capital": "Khartoum",
+      "tile": 867513
+    },
+    {
+      "name": "Saudi Arabia",
+      "capital": "Riyadh",
+      "tile": 761097
+    },
+    {
+      "name": "Vietnam",
+      "capital": "Hanoi",
+      "tile": 804442
+    },
+    {
+      "name": "United States of America",
+      "capital": "Washington,  D.C.",
+      "tile": 594505
+    },
+    {
+      "name": "Ivory Coast",
+      "capital": "Abidjan",
+      "tile": 986089
+    },
+    {
+      "name": "Brazil",
+      "capital": "Brasília",
+      "tile": 1231599
+    },
+    {
+      "name": "Turkey",
+      "capital": "Ankara",
+      "tile": 582842
+    },
+    {
+      "name": "Germany",
+      "capital": "Berlin",
+      "tile": 437324
+    },
+    {
+      "name": "Algeria",
+      "capital": "Algiers",
+      "tile": 621585
+    },
+    {
+      "name": "Italy",
+      "capital": "Rome",
+      "tile": 560199
+    },
+    {
+      "name": "Afghanistan",
+      "capital": "Kabul",
+      "tile": 646537
+    },
+    {
+      "name": "Greece",
+      "capital": "Athens",
+      "tile": 605319
+    },
+    {
+      "name": "South Africa",
+      "capital": "Cape Town",
+      "tile": 1442921
+    },
+    {
+      "name": "Ethiopia",
+      "capital": "Addis Ababa",
+      "tile": 943324
+    },
+    {
+      "name": "Kenya",
+      "capital": "Nairobi",
+      "tile": 1064145
+    },
+    {
+      "name": "Venezuela",
+      "capital": "Caracas",
+      "tile": 926339
+    },
+    {
+      "name": "Tanzania",
+      "capital": "Dar es Salaam",
+      "tile": 1127646
+    },
+    {
+      "name": "Portugal",
+      "capital": "Lisbon",
+      "tile": 596939
+    },
+    {
+      "name": "Ukraine",
+      "capital": "Kyiv",
+      "tile": 461997
+    },
+    {
+      "name": "Senegal",
+      "capital": "Dakar",
+      "tile": 877470
+    },
+    {
+      "name": "Syria",
+      "capital": "Damascus",
+      "tile": 658638
+    },
+    {
+      "name": "Tunisia",
+      "capital": "Tunis",
+      "tile": 619577
+    },
+    {
+      "name": "Austria",
+      "capital": "Vienna",
+      "tile": 486493
+    },
+    {
+      "name": "Libya",
+      "capital": "Tripoli",
+      "tile": 666698
+    },
+    {
+      "name": "Uzbekistan",
+      "capital": "Tashkent",
+      "tile": 568714
+    },
+    {
+      "name": "Cuba",
+      "capital": "Havana",
+      "tile": 778795
+    },
+    {
+      "name": "Dominican Republic",
+      "capital": "Santo Domingo",
+      "tile": 832114
+    },
+    {
+      "name": "Azerbaijan",
+      "capital": "Baku",
+      "tile": 578843
+    },
+    {
+      "name": "Kuwait",
+      "capital": "Kuwait City",
+      "tile": 703760
+    },
+    {
+      "name": "Yemen",
+      "capital": "Sanaa",
+      "tile": 869627
+    },
+    {
+      "name": "Romania",
+      "capital": "Bucharest",
+      "tile": 531604
+    },
+    {
+      "name": "Paraguay",
+      "capital": "Asunción",
+      "tile": 1342136
+    },
+    {
+      "name": "Belarus",
+      "capital": "Minsk",
+      "tile": 421020
+    },
+    {
+      "name": "Poland",
+      "capital": "Warsaw",
+      "tile": 439415
+    },
+    {
+      "name": "Morocco",
+      "capital": "Rabat",
+      "tile": 652249
+    },
+    {
+      "name": "Ecuador",
+      "capital": "Quito",
+      "tile": 1051201
+    },
+    {
+      "name": "Madagascar",
+      "capital": "Antananarivo",
+      "tile": 1269006
+    },
+    {
+      "name": "Cameroon",
+      "capital": "Yaoundé",
+      "tile": 1002561
+    },
+    {
+      "name": "Bolivia",
+      "capital": "La Paz",
+      "tile": 1239676
+    },
+    {
+      "name": "Nigeria",
+      "capital": "Abuja",
+      "tile": 943146
+    },
+    {
+      "name": "Zimbabwe",
+      "capital": "Harare",
+      "tile": 1256624
+    }
+  ],
+  "credits": [
+    {
+      "title": "Natural Earth 5.1.2",
+      "url": "https://www.naturalearthdata.com/",
+      "license": "Public domain"
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+# Maps
+
+Every map in Frontfall is generated from public-domain geographic data by a
+script in this repository. Nothing is drawn by hand and nothing is copied
+from another game. The file layout is specified in
+[`map-format.md`](map-format.md).
+
+| Map    | Size        | Topology                           | Nations | Players (min / recommended / max) |
+| ------ | ----------- | ---------------------------------- | ------- | --------------------------------- |
+| World  | 2048 × 1024 | Cylinder, wraps east to west       | 64      | 2 / 24 / 64                       |
+| Europe | 1280 × 1080 | Flat, 25° W to 45° E, 33° to 72° N | 40      | 2 / 12 / 32                       |
+
+## Building the maps
+
+```sh
+pnpm maps            # downloads the sources once, then rebuilds every map
+pnpm maps --check    # same, but fails if a map changed without a new version
+```
+
+The generated files are committed in `apps/client/public/maps/`, so the game,
+the tests and the container build never need the network. `pnpm maps`
+rebuilds them byte for byte: two runs on two machines give the same files,
+and CI checks it on every change to the generator or to a map definition.
+
+Sources are downloaded into `node_modules/.cache/mapgen/` (or the folder in
+`FRONTFALL_MAP_CACHE`) and are never committed. Each one is pinned by URL and
+SHA-256 in [`tools/mapgen/sources.json`](../tools/mapgen/sources.json): a
+file whose checksum differs is refused, so an upstream change can never alter
+a map silently.
+
+### Why the generated files are committed
+
+The World terrain file is 2 MB raw and about 130 kB compressed, Europe 1.4 MB
+and about 55 kB, and git stores them compressed. In exchange, a fresh clone
+plays offline, the container build needs no download, and every change to a
+map shows up in review. A map only changes when its version is bumped, so the
+history grows by one such file per published version.
+
+## Sources
+
+All layers come from [Natural Earth](https://www.naturalearthdata.com/)
+version 5.1.2, at 1:10 million scale, as published in the
+[natural-earth-vector](https://github.com/nvkelso/natural-earth-vector)
+repository. Natural Earth is in the public domain.
+
+| Layer                                         | Used for                             |
+| --------------------------------------------- | ------------------------------------ |
+| `ne_10m_land`                                 | Land and water                       |
+| `ne_10m_lakes`                                | Lakes cut out of the land            |
+| `ne_10m_glaciated_areas`                      | Impassable ice (Greenland, glaciers) |
+| `ne_10m_geography_regions_polys`              | Mountain ranges, plateaus, foothills |
+| `ne_10m_geography_regions_elevation_points`   | Summit heights, to grade the ranges  |
+| `ne_10m_bathymetry_K_200`, `I_2000`, `G_4000` | Water depth                          |
+| `ne_10m_populated_places_simple`              | Capitals, for the starting nations   |
+
+## How a map is made
+
+A map definition in [`tools/mapgen/definitions/`](../tools/mapgen/definitions)
+gives the id, names, version, size, topology, bounds and a few thresholds.
+The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
+
+1. **Rasterises** the land polygons onto the grid: a tile is land when its
+   centre lies inside a land polygon (even-odd rule, so holes such as the
+   Caspian Sea stay water). Lakes are cut out the same way. Columns are evenly
+   spaced in longitude and rows in latitude. Only additions, multiplications
+   and divisions are used, so the result is identical on every machine.
+2. **Cleans the coast**: islands and lakes smaller than `minIslandTiles` and
+   `minLakeTiles` are removed, except where they touch the edge of a flat map
+   and continue beyond it.
+3. **Opens the straits** listed in
+   [`tools/mapgen/straits.json`](../tools/mapgen/straits.json): waterways
+   narrower than a tile, such as the Bosporus and the Dardanelles, would
+   otherwise cut the Black Sea off from the ocean (R-MAP-05). Each is a path
+   of points carved as a one-tile channel. Seas left enclosed on purpose,
+   such as the Caspian, stay lakes.
+4. **Adds relief and depth** (see below).
+5. **Freezes the poles**: land on a glacier, or beyond the `ice` latitudes of
+   the definition, becomes impassable (R-MAP-02). On the World map, that is
+   north of 80° N and south of 60° S, which covers Antarctica.
+6. **Marks the shore**: the shore bit is set on land tiles with a water
+   neighbour, across the seam on a cylinder.
+7. **Places nations**: capitals from Natural Earth, most populous first, one
+   per country. Each moves to the nearest tile a player can own (at most 12
+   tiles away) and must be at least `nations.minDistance` tiles from the
+   nations already placed, until `nations.count` are placed.
+8. **Writes** the terrain file, a 256-pixel-wide thumbnail, the manifest with
+   the terrain's SHA-256, and `index.json`, the list of maps for the menu.
+
+### The east-west seam
+
+On a cylinder, the first column starts at 180° W and the last one ends at
+180° E, so both are sampled from neighbouring longitude bands and nothing
+special happens at the seam. Natural Earth splits polygons that cross the
+date line, such as Chukotka or Fiji, and each half fills its own side. A test
+checks that column 0 and the last column differ no more than the most
+different pair of neighbouring columns elsewhere on the map.
+
+### Relief and depth
+
+Natural Earth has no elevation grid, so relief comes from its named physical
+regions. Elevation and bathymetry rasters such as NOAA ETOPO would be more
+detailed; they can replace this step later without changing the format.
+
+| Land band | Source                                                                                |
+| --------- | ------------------------------------------------------------------------------------- |
+| 0         | Everything else: plains                                                               |
+| 10        | Plateaus and foothills                                                                |
+| 13        | Ranges whose highest listed summit is under 1,500 m, or minor ranges without a summit |
+| 20        | Ranges with a summit from 1,500 m, or major ranges without one                        |
+| 24        | Ranges with a summit from 2,500 m                                                     |
+| 28        | Ranges with a summit from 4,000 m                                                     |
+| 31        | Glaciers and land beyond the ice latitudes                                            |
+
+When regions overlap, the higher band wins. The engine reads 10 to 19 as
+hills and 20 to 30 as mountains.
+
+| Water band | Depth             |
+| ---------- | ----------------- |
+| 0          | Less than 200 m   |
+| 8          | 200 to 2,000 m    |
+| 16         | 2,000 to 4,000 m  |
+| 24         | More than 4,000 m |
+
+## Versions and checks
+
+[`tools/mapgen/published.json`](../tools/mapgen/published.json) records the
+SHA-256 of every published version of every map. `pnpm maps` adds the new
+versions it builds; `pnpm maps --check` fails when a definition builds bytes
+that differ from what its version was published with. Changing a threshold,
+the generator or a source therefore needs a new `version` in the definitions
+it affects.
+
+`pnpm maps --check` also measures how long the engine takes to load each map
+and fails above 100 ms. CI runs it whenever `tools/mapgen`,
+`tools/src/mapgen` or the map files change, then checks that the rebuilt
+files are identical to the committed ones.
+
+The tests in [`tools/test/published-maps.test.ts`](../tools/test/published-maps.test.ts)
+check every committed map: manifest and checksum, the seam, ice beyond the
+polar limits, every nation on land a player can own, the Himalayas, the Andes
+and the Alps among the mountains, the Black Sea, the Sea of Azov, the Baltic
+and the Mediterranean reachable from the ocean, thumbnails under 40 kB.
+
+## Adding a map
+
+1. Add a definition in `tools/mapgen/definitions/<id>.json`, starting from
+   `europe.json` for a region.
+2. Run `pnpm maps` and look at `apps/client/public/maps/<id>.png`.
+3. Commit the definition, the generated files and `published.json`, and add
+   the map to the table above.
+
+Bounds are in degrees. For a regional map, choose the size so that a tile
+covers about the same distance east-west as north-south at the middle
+latitude: `width / height ≈ (east − west) × cos(latitude) / (north − south)`.

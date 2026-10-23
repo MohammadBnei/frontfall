@@ -1,0 +1,14 @@
+{
+  "id": "europe",
+  "name": { "en": "Europe", "fr": "Europe" },
+  "version": 1,
+  "width": 1280,
+  "height": 1080,
+  "topology": "flat",
+  "bounds": { "west": -25, "east": 45, "south": 33, "north": 72 },
+  "ice": { "north": 90, "south": -90 },
+  "minIslandTiles": 6,
+  "minLakeTiles": 6,
+  "players": { "min": 2, "recommended": 12, "max": 32 },
+  "nations": { "count": 40, "minDistance": 30 }
+}

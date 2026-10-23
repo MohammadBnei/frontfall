@@ -1,0 +1,45 @@
+{
+  "dataset": {
+    "title": "Natural Earth 5.1.2",
+    "url": "https://www.naturalearthdata.com/",
+    "license": "Public domain"
+  },
+  "files": {
+    "land": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_land.geojson",
+      "sha256": "1ac90796408bc6ad6911d69448485d3c4dbf2190370080368a09976e1c9f7416"
+    },
+    "lakes": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_lakes.geojson",
+      "sha256": "2d036f53dedec578001c5c30c2959ee7d4eebc1306900fa4367c49929ec8f2d9"
+    },
+    "glaciers": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_glaciated_areas.geojson",
+      "sha256": "04fd2303d5f0ece2cf482af19d06731d745db9690501d7b0a2a4b7fe23a7726f"
+    },
+    "regions": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_geography_regions_polys.geojson",
+      "sha256": "b7b26e50ea917d3696aec87f932def2bf5f890f5770e441d59c162c6f4c92a77"
+    },
+    "peaks": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_geography_regions_elevation_points.geojson",
+      "sha256": "f98a16867867146ec4146d6d4b18c823eeedb2825947de666116cf9a4e3f43cb"
+    },
+    "places": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_populated_places_simple.geojson",
+      "sha256": "fd3fa867a320cbd5c5b6bb5bc550afeec2939fb2cef688e508007282a55ac42f"
+    },
+    "depth200": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_bathymetry_K_200.geojson",
+      "sha256": "5c6c182da8608153ea2dce22dfb32c987e5390e0bd4a122266143ba181a7b636"
+    },
+    "depth2000": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_bathymetry_I_2000.geojson",
+      "sha256": "cdedc746ce06e1a051cb8905e8f07855225ccbd3560ce3a66607651fc6953ce2"
+    },
+    "depth4000": {
+      "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_bathymetry_G_4000.geojson",
+      "sha256": "ad876e6b6b686494a0e89f0096880a6755aee77af3d738794bbbc92216afcf3d"
+    }
+  }
+}

@@ -2,10 +2,19 @@
   "name": "@frontfall/tools",
   "version": "0.0.0",
   "private": true,
-  "description": "Repository checks: package boundaries, determinism rules, clean-room scan.",
+  "description": "Repository checks and the map generator.",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "maps": "tsx src/mapgen/cli.ts"
+  },
+  "dependencies": {
+    "@frontfall/engine": "workspace:*",
+    "@frontfall/protocol": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
   }
 }

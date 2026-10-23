@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "maps": [
+    {
+      "id": "europe",
+      "name": {
+        "en": "Europe",
+        "fr": "Europe"
+      },
+      "width": 1280,
+      "height": 1080,
+      "topology": "flat",
+      "players": {
+        "min": 2,
+        "recommended": 12,
+        "max": 32
+      },
+      "manifest": "europe.json",
+      "thumbnail": "europe.png"
+    },
+    {
+      "id": "world",
+      "name": {
+        "en": "World",
+        "fr": "Monde"
+      },
+      "width": 2048,
+      "height": 1024,
+      "topology": "cylinder",
+      "players": {
+        "min": 2,
+        "recommended": 24,
+        "max": 64
+      },
+      "manifest": "world.json",
+      "thumbnail": "world.png"
+    }
+  ]
+}
