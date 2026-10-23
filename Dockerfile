@@ -8,13 +8,18 @@ COPY apps/client/package.json apps/client/
 COPY apps/server/package.json apps/server/
 COPY packages/engine/package.json packages/engine/
 COPY packages/protocol/package.json packages/protocol/
+COPY tools/package.json tools/
+COPY e2e/package.json e2e/
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter @frontfall/client --filter @frontfall/server build
 
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS run
+# Commit the image was built from, reported by /healthz.
+ARG FRONTFALL_VERSION=dev
 WORKDIR /app
 ENV NODE_ENV=production \
+    FRONTFALL_VERSION=$FRONTFALL_VERSION \
     PORT=8080 \
     FRONTFALL_STATIC=/app/public
 # Package managers are not needed at runtime.
