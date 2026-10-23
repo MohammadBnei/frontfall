@@ -1,0 +1,45 @@
+name: Map proposal
+description: Suggest a map to add to the game.
+labels: ["type: feature", "area: maps", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Maps are generated from open geographic data, such as Natural Earth, so anyone can rebuild them. Proposals based on maps from other games cannot be accepted: see the [clean-room policy](https://github.com/nic0lasm/frontfall/blob/main/docs/clean-room.md).
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: The part of the world the map covers, or "whole world".
+      placeholder: Mediterranean basin
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would play well
+      description: Chokepoints, coastlines, islands, number of players it suits.
+    validations:
+      required: true
+  - type: dropdown
+    id: wrap
+    attributes:
+      label: East-west wrap
+      options:
+        - "No: the map has four edges"
+        - "Yes: the map wraps around (whole-world maps)"
+    validations:
+      required: true
+  - type: input
+    id: players
+    attributes:
+      label: Suggested number of players
+      placeholder: 8 to 20
+  - type: textarea
+    id: source
+    attributes:
+      label: Data source
+      description: Where the coastlines, relief and names would come from, with its license.
+      placeholder: Natural Earth 1:10m, public domain
+    validations:
+      required: true
