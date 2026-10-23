@@ -33,10 +33,15 @@ export function installAttacks(game: Game): void {
   const pocketFill = new BoundedFloodFill(topology);
   const nextToCapture = new Int32Array(4);
 
-  /** Tiles of `target` that touch the player's territory, best first. */
+  /**
+   * The `limit` tiles of the attack's target that touch the player's territory
+   * and lie closest to its aim, closest first. Only the best few are kept while
+   * scanning the border, so a long front costs one pass and no sort.
+   */
   function frontline(attack: Attack, limit: number): number[] {
     scan++;
-    const found: { tile: number; distance: number }[] = [];
+    const tiles: number[] = [];
+    const distances: number[] = [];
     const borders = territory.borderCount(attack.player);
     for (let i = 0; i < borders; i++) {
       const count = topology.neighborsInto(territory.borderTile(attack.player, i), around);
@@ -45,11 +50,39 @@ export function installAttacks(game: Game): void {
         if (seen[tile] === scan || territory.ownerOf(tile) !== attack.target) continue;
         if (!terrain.isOwnable(tile)) continue;
         seen[tile] = scan;
-        found.push({ tile, distance: topology.distance(tile, attack.aim) });
+        const distance = topology.distance(tile, attack.aim);
+        // Insertion into the sorted shortlist, ties broken by tile index.
+        let at = tiles.length;
+        while (
+          at > 0 &&
+          ((distances[at - 1] as number) > distance ||
+            ((distances[at - 1] as number) === distance && (tiles[at - 1] as number) > tile))
+        ) {
+          at--;
+        }
+        if (at >= limit) continue;
+        tiles.splice(at, 0, tile);
+        distances.splice(at, 0, distance);
+        if (tiles.length > limit) {
+          tiles.pop();
+          distances.pop();
+        }
       }
     }
-    found.sort((a, b) => a.distance - b.distance || a.tile - b.tile);
-    return found.slice(0, limit).map((candidate) => candidate.tile);
+    return tiles;
+  }
+
+  /** Whether any land of `target` touches the player's territory. */
+  function touches(player: number, target: number): boolean {
+    const borders = territory.borderCount(player);
+    for (let i = 0; i < borders; i++) {
+      const count = topology.neighborsInto(territory.borderTile(player, i), around);
+      for (let j = 0; j < count; j++) {
+        const tile = around[j] as number;
+        if (territory.ownerOf(tile) === target && terrain.isOwnable(tile)) return true;
+      }
+    }
+    return false;
   }
 
   /** Troops it costs to take one tile (R-ATTACK-03, R-ATTACK-04, R-MAP-06). */
@@ -90,7 +123,7 @@ export function installAttacks(game: Game): void {
       troops: 0,
     };
     // R-ATTACK-09: without a shared border, only ships can reach the target.
-    if (frontline({ ...attack, aim: order.target }, 1).length === 0) return false;
+    if (!touches(player.id, target)) return false;
     player.troops -= order.troops;
     attack.troops += order.troops;
     attack.aim = order.target;
