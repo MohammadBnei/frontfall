@@ -1,9 +1,10 @@
-import { MAPS, loadMap } from "../game/maps.ts";
+import { generateMap, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
 import {
   LANGUAGES,
   applyTranslations,
   getLanguage,
+  onLanguageChange,
   setLanguage,
   type Language,
 } from "../i18n/index.ts";
@@ -20,8 +21,9 @@ const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 export class Menu {
   readonly element: HTMLElement;
   private setup: GameSetup;
+  private readonly cleanups: (() => void)[] = [];
 
-  constructor(initial: GameSetup, onPlay: (setup: GameSetup) => void) {
+  constructor(initial: GameSetup, mapList: readonly MapInfo[], onPlay: (setup: GameSetup) => void) {
     this.setup = { ...initial };
 
     const name = h("input", {
@@ -42,7 +44,7 @@ export class Menu {
       role: "radiogroup",
       "aria-labelledby": "map-label",
     });
-    for (const info of MAPS) {
+    for (const info of mapList) {
       const input = h("input", { type: "radio", name: "map", value: info.id });
       input.checked = info.id === this.setup.map;
       input.addEventListener("change", () => {
@@ -58,8 +60,8 @@ export class Menu {
           "label",
           { class: "map-card" },
           input,
-          thumbnail(info.id),
-          h("span", { class: "map-name", "data-i18n": `map.${info.id}` }),
+          thumbnail(info),
+          this.mapName(info),
           h("span", {
             class: "map-size",
             "data-i18n": "map.size",
@@ -167,11 +169,32 @@ export class Menu {
     );
     applyTranslations(this.element);
   }
+
+  dispose(): void {
+    for (const cleanup of this.cleanups.splice(0)) cleanup();
+    this.element.remove();
+  }
+
+  /** Published maps bring their names in every language; generated ones use the catalogues. */
+  private mapName(info: MapInfo): HTMLElement {
+    const { name } = info;
+    if (!name) return h("span", { class: "map-name", "data-i18n": `map.${info.id}` });
+    const element = h("span", { class: "map-name" }, name[getLanguage()]);
+    this.cleanups.push(
+      onLanguageChange((language) => {
+        element.textContent = name[language];
+      }),
+    );
+    return element;
+  }
 }
 
-/** Small picture of a map, drawn from its terrain. */
-function thumbnail(id: string): HTMLCanvasElement {
-  const map = loadMap(id);
+/** Small picture of a map: the published thumbnail, or drawn from a generated terrain. */
+function thumbnail(info: MapInfo): HTMLElement {
+  if (info.thumbnail) {
+    return h("img", { class: "map-thumb", src: info.thumbnail, alt: "", loading: "lazy" });
+  }
+  const map = generateMap(info.id);
   const scale = Math.max(1, Math.ceil(map.width / 160));
   const width = Math.floor(map.width / scale);
   const height = Math.floor(map.height / scale);

@@ -1,4 +1,5 @@
-import { TileKind, WorldGrid } from "@frontfall/engine";
+import { TileKind, WorldGrid, loadMap } from "@frontfall/engine";
+import { MapCatalog, MapManifest } from "@frontfall/protocol";
 import { generateLand } from "../terrain.ts";
 
 /** Everything the simulation and the renderer need to know about a map. */
@@ -18,6 +19,10 @@ export interface MapInfo {
   readonly wrapsX: boolean;
   /** Bots suggested for a game that fills the map without crowding it. */
   readonly suggestedBots: number;
+  /** Published maps only: their name, absolute URLs of the manifest and thumbnail. */
+  readonly name?: { readonly en: string; readonly fr: string };
+  readonly manifest?: string;
+  readonly thumbnail?: string;
 }
 
 interface GeneratedMap extends MapInfo {
@@ -63,15 +68,68 @@ const GENERATED: readonly GeneratedMap[] = [
   },
 ];
 
-export const MAPS: readonly MapInfo[] = GENERATED;
+export const GENERATED_MAPS: readonly MapInfo[] = GENERATED;
 
-export const DEFAULT_MAP = "continents";
+/** The first published map, the World when it is there, is the default. */
+export const PREFERRED_MAP = "world";
 
-export function findMap(id: string): MapInfo | undefined {
-  return GENERATED.find((map) => map.id === id);
+/** Bots are capped by the names available; a map's recommendation counts the human too. */
+const MAX_SUGGESTED_BOTS = 24;
+
+/**
+ * Maps listed in `maps/index.json` under `base`, then the generated test
+ * maps. A missing or invalid catalogue leaves only the generated ones: the
+ * game stays playable while a deployment is half done.
+ */
+export async function fetchMaps(base: string, fetcher: typeof fetch = fetch): Promise<MapInfo[]> {
+  const published: MapInfo[] = [];
+  try {
+    const url = new URL("maps/index.json", base);
+    const response = await fetcher(url);
+    if (!response.ok) throw new Error(`HTTP ${String(response.status)}`);
+    const catalog = MapCatalog.parse(await response.json());
+    for (const map of catalog.maps) {
+      published.push({
+        id: map.id,
+        width: map.width,
+        height: map.height,
+        wrapsX: map.topology === "cylinder",
+        suggestedBots: Math.min(MAX_SUGGESTED_BOTS, Math.max(1, map.players.recommended - 1)),
+        name: map.name,
+        manifest: new URL(map.manifest, url).href,
+        thumbnail: new URL(map.thumbnail, url).href,
+      });
+    }
+  } catch (error) {
+    console.warn("map catalogue unavailable, offering generated maps only", error);
+  }
+  published.sort((a, b) => Number(b.id === PREFERRED_MAP) - Number(a.id === PREFERRED_MAP));
+  return [...published, ...GENERATED];
 }
 
-export function loadMap(id: string): MapData {
+/** Terrain of a map: downloaded and checked for a published one, generated otherwise. */
+export async function fetchMapData(info: MapInfo, fetcher: typeof fetch = fetch): Promise<MapData> {
+  if (!info.manifest) return generateMap(info.id);
+  const manifestUrl = new URL(info.manifest);
+  const manifestResponse = await fetcher(manifestUrl);
+  if (!manifestResponse.ok)
+    throw new Error(`map ${info.id}: HTTP ${String(manifestResponse.status)}`);
+  const manifest = MapManifest.parse(await manifestResponse.json());
+  const terrainResponse = await fetcher(new URL(manifest.terrain.file, manifestUrl));
+  if (!terrainResponse.ok)
+    throw new Error(`map ${info.id}: HTTP ${String(terrainResponse.status)}`);
+  const bytes = new Uint8Array(await terrainResponse.arrayBuffer());
+  const { topology, terrain } = loadMap(bytes, manifest);
+  return {
+    id: info.id,
+    width: topology.width,
+    height: topology.height,
+    wrapsX: topology.wrapsX,
+    kinds: terrain.kinds,
+  };
+}
+
+export function generateMap(id: string): MapData {
   const map = GENERATED.find((candidate) => candidate.id === id);
   if (!map) throw new RangeError(`unknown map ${id}`);
   const grid = new WorldGrid(map.width, map.height, { wrapsX: map.wrapsX });

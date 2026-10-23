@@ -6,7 +6,7 @@ export interface TerritoryLayerOptions {
   readonly height: number;
   /** Owner of every tile, row 0 at the north pole. Shared, never copied. */
   readonly owners: Uint16Array;
-  /** Terrain class of every tile, 0 for water. Uploaded once. */
+  /** TileKind of every tile, 0 for water. Uploaded once. */
   readonly terrain: Uint8Array;
   /** Highest owner id the palette must hold. */
   readonly maxOwner: number;
@@ -43,6 +43,8 @@ const fragmentShader = /* glsl */ `
   uniform vec2 worldSize;
   uniform vec3 waterColor;
   uniform vec3 landColor;
+  uniform vec3 highColor;
+  uniform vec3 peakColor;
   uniform float fillOpacity;
 
   uint ownerAt(ivec2 tile) {
@@ -57,7 +59,13 @@ const fragmentShader = /* glsl */ `
     tile.x = (tile.x % int(worldSize.x) + int(worldSize.x)) % int(worldSize.x);
     tile.y = clamp(tile.y, 0, int(worldSize.y) - 1);
 
-    vec3 color = texelFetch(terrain, tile, 0).r == 0u ? waterColor : landColor;
+    // TileKind: water, plains, hills, mountains, impassable (ice caps, glaciers).
+    uint kind = texelFetch(terrain, tile, 0).r;
+    vec3 color = kind == 0u ? waterColor
+      : kind == 1u ? landColor
+      : kind == 2u ? mix(landColor, highColor, 0.6)
+      : kind == 3u ? mix(highColor, peakColor, 0.15)
+      : peakColor;
 
     uint owner = ownerAt(tile);
     if (owner != 0u) {
@@ -143,6 +151,9 @@ export class TerritoryLayer {
         worldSize: { value: new THREE.Vector2(width, height) },
         waterColor: { value: new THREE.Color(MAP_COLORS.ocean) },
         landColor: { value: new THREE.Color(MAP_COLORS.land) },
+        highColor: { value: new THREE.Color(MAP_COLORS.landHigh) },
+        // Secondary text of the brand: light enough to read as rock and ice.
+        peakColor: { value: new THREE.Color("#8DA2B6") },
         fillOpacity: { value: 0.55 },
       },
     });

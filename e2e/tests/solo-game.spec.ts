@@ -72,3 +72,18 @@ test("pauses and shows the controls", async ({ page }) => {
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("offers the World first and starts a game on it", async ({ page }) => {
+  test.setTimeout(60_000);
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  await page.goto("./");
+  await expect(page.locator('input[name="map"]').first()).toHaveValue("world");
+  await page.locator('input[name="map"][value="world"]').check({ force: true });
+  await page.locator("#play").click();
+  await expect(page.locator(".banner")).toContainText("choose where you start", {
+    timeout: 30_000,
+  });
+  await expect(page.locator("#map canvas")).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});

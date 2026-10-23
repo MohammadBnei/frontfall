@@ -1,4 +1,4 @@
-import { DEFAULT_MAP, MAPS, findMap } from "../game/maps.ts";
+import type { MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty, type SoloOptions } from "../game/solo-game.ts";
 
 /** What the player chooses in the menu; the seed is drawn when the game starts. */
@@ -8,16 +8,23 @@ const STORAGE_KEY = "frontfall.setup";
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 export const MAX_NAME_LENGTH = 20;
 
-export function defaultSetup(): GameSetup {
-  const map = findMap(DEFAULT_MAP) ?? MAPS[0];
+/** The first map of the list, with its suggested number of bots. */
+export function defaultSetup(maps: readonly MapInfo[]): GameSetup {
+  const map = maps[0];
   if (!map) throw new Error("no map available");
   return { map: map.id, bots: map.suggestedBots, difficulty: "normal", playerName: "" };
 }
 
 /** Keeps only values that make sense; anything else falls back to `base`. */
-export function sanitizeSetup(input: Record<string, unknown>, base: GameSetup): GameSetup {
+export function sanitizeSetup(
+  input: Record<string, unknown>,
+  base: GameSetup,
+  maps: readonly MapInfo[],
+): GameSetup {
   const setup = { ...base };
-  if (typeof input.map === "string" && findMap(input.map)) setup.map = input.map;
+  if (typeof input.map === "string" && maps.some((map) => map.id === input.map)) {
+    setup.map = input.map;
+  }
   const bots = Number(input.bots);
   if (input.bots !== undefined && input.bots !== "" && Number.isInteger(bots)) {
     setup.bots = Math.max(1, Math.min(MAX_BOTS, bots));
@@ -38,16 +45,20 @@ export function cleanName(name: string): string {
 }
 
 /** Last setup from storage, then the query string on top, so shared links win. */
-export function initialSetup(search: string, storage: Storage | undefined): GameSetup {
-  let setup = defaultSetup();
+export function initialSetup(
+  search: string,
+  storage: Storage | undefined,
+  maps: readonly MapInfo[],
+): GameSetup {
+  let setup = defaultSetup(maps);
   try {
     const saved = storage?.getItem(STORAGE_KEY);
-    if (saved) setup = sanitizeSetup(JSON.parse(saved) as Record<string, unknown>, setup);
+    if (saved) setup = sanitizeSetup(JSON.parse(saved) as Record<string, unknown>, setup, maps);
   } catch {
     // Storage disabled or corrupted: the defaults will do.
   }
   const params = Object.fromEntries(new URLSearchParams(search));
-  return sanitizeSetup(params, setup);
+  return sanitizeSetup(params, setup, maps);
 }
 
 export function saveSetup(setup: GameSetup, storage: Storage | undefined): void {

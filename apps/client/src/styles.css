@@ -46,15 +46,15 @@ canvas {
 
 .status {
   position: fixed;
-  top: 12px;
+  bottom: 12px;
   left: 12px;
   margin: 0;
-  padding: 4px 10px;
+  padding: 2px 8px;
   border: 1px solid var(--ff-night-500);
   border-radius: var(--ff-radius);
   background: rgb(10 19 28 / 80%);
-  color: var(--ff-text);
-  font-size: 13px;
+  color: var(--ff-slate-300);
+  font-size: 12px;
   pointer-events: none;
 }
 
@@ -592,4 +592,14 @@ input[type="range"] {
 
 .icon-help::before {
   content: "?";
+}
+
+.map-surface {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+}
+
+.map-surface:focus {
+  outline: none;
 }

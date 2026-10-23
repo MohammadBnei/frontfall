@@ -1,6 +1,6 @@
 import { TileKind } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
-import { MAPS, loadMap } from "../src/game/maps.ts";
+import { GENERATED_MAPS, generateMap } from "../src/game/maps.ts";
 import { HUMAN_ID, SoloGame, type SoloOptions } from "../src/game/solo-game.ts";
 
 const options: SoloOptions = {
@@ -11,28 +11,32 @@ const options: SoloOptions = {
   playerName: "Ada",
 };
 
+function newGame(game: SoloOptions): SoloGame {
+  return new SoloGame(game, generateMap(game.map));
+}
+
 function firstLand(map: string): number {
-  return loadMap(map).kinds.findIndex((kind) => kind !== TileKind.Water);
+  return generateMap(map).kinds.findIndex((kind) => kind !== TileKind.Water);
 }
 
 describe("maps", () => {
   it("generates every listed map identically twice", () => {
-    for (const { id, width, height } of MAPS) {
-      const map = loadMap(id);
+    for (const { id, width, height } of GENERATED_MAPS) {
+      const map = generateMap(id);
       expect(map.kinds).toHaveLength(width * height);
-      expect(loadMap(id).kinds).toEqual(map.kinds);
+      expect(generateMap(id).kinds).toEqual(map.kinds);
       expect(map.kinds.some((kind) => kind !== TileKind.Water)).toBe(true);
     }
   });
 
   it("rejects an unknown map", () => {
-    expect(() => loadMap("atlantis")).toThrow(RangeError);
+    expect(() => generateMap("atlantis")).toThrow(RangeError);
   });
 });
 
 describe("SoloGame", () => {
   it("places the human where they click and reports the tiles that changed", () => {
-    const solo = new SoloGame(options);
+    const solo = newGame(options);
     const tile = firstLand(options.map);
     const update = solo.step([{ type: "spawn", tile }]);
     expect(update.phase).toBe("spawn");
@@ -52,7 +56,7 @@ describe("SoloGame", () => {
 
   it("places everyone at the end of the spawn phase and gives the same result twice", () => {
     const run = (): number[] => {
-      const solo = new SoloGame(options);
+      const solo = newGame(options);
       let update = solo.step([]);
       while (update.phase === "spawn") update = solo.step([]);
       expect(update.spawnTicksLeft).toBe(0);
@@ -64,7 +68,7 @@ describe("SoloGame", () => {
   });
 
   it("plays a whole game against hard bots to a winner, then stops (R-WIN-01)", () => {
-    const solo = new SoloGame({ ...options, difficulty: "hard" });
+    const solo = newGame({ ...options, difficulty: "hard" });
     let update = solo.step([]);
     while (update.winner === undefined && update.tick < 6000) update = solo.step([]);
     expect(update.winner).toBeDefined();
@@ -75,7 +79,7 @@ describe("SoloGame", () => {
 
 describe("SoloGame attacks", () => {
   it("expands into unowned land after a click once the spawn phase is over", () => {
-    const solo = new SoloGame({ ...options, bots: 1 });
+    const solo = newGame({ ...options, bots: 1 });
     const start = firstLand(options.map);
     let update = solo.step([{ type: "spawn", tile: start }]);
     while (update.phase === "spawn") update = solo.step([]);
@@ -95,7 +99,7 @@ describe("SoloGame attacks", () => {
 
 describe("SoloGame clicks", () => {
   it("turns a click into the order the phase allows", () => {
-    const solo = new SoloGame(options);
+    const solo = newGame(options);
     const land = firstLand(options.map);
     expect(solo.orderForClick(land, 30)).toEqual({ type: "spawn", tile: land });
     expect(solo.orderForClick(0, 30)).toBeUndefined();

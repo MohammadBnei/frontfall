@@ -1,9 +1,9 @@
 import { LocalSession } from "../game/local-session.ts";
-import { loadMap } from "../game/maps.ts";
+import type { MapData, MapInfo } from "../game/maps.ts";
 import type { GameSession } from "../game/session.ts";
 import { HUMAN_ID, type GameUpdate, type SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
-import { onLanguageChange, t } from "../i18n/index.ts";
+import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { FlatCamera } from "../render/camera.ts";
 import { MapView } from "../render/map-view.ts";
@@ -13,6 +13,8 @@ import { Hud } from "./hud.ts";
 export interface GameScreenActions {
   onNewGame(): void;
   onMenu(): void;
+  /** The game could not start; the key names the message to show. */
+  onFailure(key: MessageKey): void;
 }
 
 /**
@@ -22,9 +24,10 @@ export interface GameScreenActions {
  */
 export class GameScreen {
   readonly element: HTMLElement;
-  private readonly owners: Uint16Array;
+  private owners = new Uint16Array(0);
   private readonly camera: FlatCamera;
-  private readonly view: MapView;
+  private readonly surface: HTMLElement;
+  private view: MapView | undefined;
   private readonly input: InputController;
   private readonly hud: Hud;
   private readonly session: GameSession;
@@ -41,23 +44,18 @@ export class GameScreen {
 
   constructor(
     readonly options: SoloOptions,
+    map: MapInfo,
     private readonly actions: GameScreenActions,
   ) {
-    const map = loadMap(options.map);
-    this.owners = new Uint16Array(map.width * map.height);
     this.camera = new FlatCamera({ width: map.width, height: map.height });
-    this.view = new MapView({
-      width: map.width,
-      height: map.height,
-      kinds: map.kinds,
-      owners: this.owners,
-      maxOwner: options.bots + 1,
-    });
-    for (let id = 1; id <= options.bots + 1; id++) {
-      this.view.setPlayerColor(id, playerColor(id - 1).hex);
-    }
-    this.view.canvas.classList.add("map-canvas");
-    this.view.canvas.id = "map";
+    // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
+    this.surface = document.createElement("div");
+    this.surface.className = "map-surface";
+    this.surface.id = "map";
+    this.surface.setAttribute("role", "application");
+    this.surface.dataset.i18nAttr = "aria-label:game.map";
+    this.surface.setAttribute("aria-label", t("game.map"));
+    this.surface.setAttribute("aria-busy", "true");
 
     this.hud = new Hud({
       onPause: () => {
@@ -69,16 +67,17 @@ export class GameScreen {
     });
     this.element = document.createElement("div");
     this.element.className = "game";
-    this.element.append(this.view.canvas, this.hud.element);
+    this.element.append(this.surface, this.hud.element);
 
-    this.input = new InputController(this.view.canvas, this.camera, {
+    this.input = new InputController(this.surface, this.camera, {
       onTileClick: (tile) => {
         this.click(tile);
       },
     });
 
-    this.session = new LocalSession(options, {
+    this.session = new LocalSession(options, map, {
       onStart: (info) => {
+        this.showMap(info.map);
         this.ticksPerSecond = info.ticksPerSecond;
         this.ownableTiles = info.ownableTiles;
         this.hud.setOwnableTiles(info.ownableTiles);
@@ -88,6 +87,7 @@ export class GameScreen {
       },
       onError: (message) => {
         console.error(message);
+        this.actions.onFailure("game.failed");
       },
     });
 
@@ -107,6 +107,7 @@ export class GameScreen {
         window.removeEventListener("resize", resize);
       },
       onLanguageChange(() => {
+        applyTranslations(this.surface);
         this.hud.refresh();
       }),
     );
@@ -119,7 +120,7 @@ export class GameScreen {
     const frame = (now: number): void => {
       this.input.update(now - last);
       last = now;
-      this.view.render(this.camera.view());
+      this.view?.render(this.camera.view());
       this.frameHandle = requestAnimationFrame(frame);
     };
     this.frameHandle = requestAnimationFrame(frame);
@@ -130,27 +131,54 @@ export class GameScreen {
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.session.dispose();
     this.input.dispose();
-    this.view.dispose();
+    this.view?.dispose();
     this.element.remove();
+  }
+
+  private showMap(map: MapData): void {
+    this.owners = new Uint16Array(map.width * map.height);
+    let view: MapView;
+    try {
+      view = new MapView({
+        width: map.width,
+        height: map.height,
+        kinds: map.kinds,
+        owners: this.owners,
+        maxOwner: this.options.bots + 1,
+      });
+    } catch (error) {
+      // Most likely the WebGL context, lost or refused after the check of the menu.
+      console.error(error);
+      this.actions.onFailure("webgl.missing");
+      return;
+    }
+    for (let id = 1; id <= this.options.bots + 1; id++) {
+      view.setPlayerColor(id, playerColor(id - 1).hex);
+    }
+    view.canvas.classList.add("map-canvas");
+    this.surface.append(view.canvas);
+    this.surface.removeAttribute("aria-busy");
+    this.view = view;
+    this.resize();
   }
 
   private resize(): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    this.view.resize(width, height);
+    this.view?.resize(width, height);
     this.camera.resize(width, height);
   }
 
   private apply(update: GameUpdate): void {
     if (update.owners) {
       this.owners.set(update.owners);
-      this.view.markAllChanged();
+      this.view?.markAllChanged();
     } else if (update.changedTiles.length > 0) {
       const { changedTiles, changedOwners } = update;
       for (let i = 0; i < changedTiles.length; i++) {
         this.owners[changedTiles[i] as number] = changedOwners[i] as number;
       }
-      this.view.markChanged(changedTiles);
+      this.view?.markChanged(changedTiles);
     }
     const human = update.players.find((player) => player.id === HUMAN_ID);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
@@ -243,7 +271,7 @@ export class GameScreen {
       this.paused = false;
       this.session.setPaused(false);
     }
-    this.view.canvas.focus();
+    this.surface.focus();
   }
 
   private showEnd(update: GameUpdate): void {

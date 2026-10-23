@@ -59,5 +59,8 @@
   "help.pause": "P : pause · H : cette aide · Échap : fermer",
   "help.close": "Retour au jeu",
   "hud.cap": "/ {cap}",
-  "webgl.missing": "Frontfall a besoin de WebGL 2 pour dessiner la carte, et ce navigateur ne le fournit pas. Essayez de mettre à jour votre navigateur, ou d'activer l'accélération matérielle dans ses réglages."
+  "webgl.missing": "Frontfall a besoin de WebGL 2 pour dessiner la carte, et ce navigateur ne le fournit pas. Essayez de mettre à jour votre navigateur, ou d'activer l'accélération matérielle dans ses réglages.",
+  "game.map": "Carte de la partie",
+  "game.loading": "Chargement de la carte…",
+  "game.failed": "La partie n'a pas pu démarrer. Réessayez, ou choisissez une autre carte."
 }

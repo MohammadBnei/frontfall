@@ -26,7 +26,11 @@ export class Hud {
   private readonly troopsCap = h("span", { class: "stat-cap" });
   private readonly gold = h("strong", { class: "stat-value" });
   private readonly land = h("strong", { class: "stat-value" });
-  private readonly banner = h("p", { class: "banner", role: "status", "aria-live": "polite" });
+  private readonly banner = h(
+    "p",
+    { class: "banner", role: "status", "aria-live": "polite" },
+    t("game.loading"),
+  );
   private readonly leaders = h("ol", { class: "leaderboard-list" });
   private readonly ratioInput = h("input", {
     id: "attack-ratio",

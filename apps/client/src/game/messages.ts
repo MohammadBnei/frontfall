@@ -1,9 +1,10 @@
 import type { Order } from "@frontfall/engine";
+import type { MapData, MapInfo } from "./maps.ts";
 import type { GameUpdate, SoloOptions } from "./solo-game.ts";
 
 /** From the page to the simulation worker. */
 export type WorkerRequest =
-  | { type: "start"; options: SoloOptions }
+  | { type: "start"; options: SoloOptions; map: MapInfo }
   | { type: "order"; order: Order }
   /** A click on the map, turned into an order by the worker, which knows the game. */
   | { type: "click"; tile: number; ratio: number }
@@ -11,7 +12,7 @@ export type WorkerRequest =
 
 /** From the simulation worker to the page. */
 export type WorkerReply =
-  | { type: "started"; ownableTiles: number; ticksPerSecond: number }
+  | { type: "started"; map: MapData; ownableTiles: number; ticksPerSecond: number }
   | { type: "update"; update: GameUpdate }
   | { type: "error"; message: string };
 

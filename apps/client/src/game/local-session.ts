@@ -1,6 +1,7 @@
 import type { Order } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
+import type { MapInfo } from "./maps.ts";
 import type { SoloOptions } from "./solo-game.ts";
 
 /**
@@ -11,7 +12,7 @@ import type { SoloOptions } from "./solo-game.ts";
 export class LocalSession implements GameSession {
   private readonly worker: Worker;
 
-  constructor(options: SoloOptions, events: SessionEvents) {
+  constructor(options: SoloOptions, map: MapInfo, events: SessionEvents) {
     this.worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     this.worker.onmessage = (event: MessageEvent<WorkerReply>) => {
       const reply = event.data;
@@ -22,7 +23,7 @@ export class LocalSession implements GameSession {
     this.worker.onerror = (event) => {
       events.onError(event.message);
     };
-    this.post({ type: "start", options });
+    this.post({ type: "start", options, map });
   }
 
   sendOrder(order: Order): void {

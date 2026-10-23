@@ -30,9 +30,11 @@ covers the conventions that are not obvious from the code.
   compute the same moves.
 - Only `apps/client/src/render` imports Three.js. The interface talks to the
   `Camera` contract (ADR 0003), never to a Three.js camera.
-- Until the maps built from open data land, the menu offers generated test
-  maps (`game/maps.ts`), reduced to their largest landmass so every player can
-  reach every other by land.
+- The menu lists the maps of `maps/index.json`, the World first, then small
+  generated test maps (`game/maps.ts`), reduced to their largest landmass. The
+  worker downloads a published map and checks it against its manifest
+  (`loadMap` of the engine) before the game starts, then hands the page a copy
+  of the terrain to draw. Without a catalogue, only the generated maps remain.
 - The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard`),
   so a link starts the same game, and the last one is remembered in
   `localStorage` when storage is available.

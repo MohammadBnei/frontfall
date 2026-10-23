@@ -5,6 +5,7 @@ import {
   type MessageKey,
   type Params,
 } from "./i18n/index.ts";
+import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { OnlineClient, socketUrl } from "./net/online.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
@@ -12,15 +13,17 @@ import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 
 const storage = safeStorage();
+let maps: readonly MapInfo[] = [];
 let menu: Menu | undefined;
 let game: GameScreen | undefined;
-let setup = initialSetup(location.search, storage);
+let setup: GameSetup;
 
 function showMenu(): void {
   game?.dispose();
   game = undefined;
+  menu?.dispose();
   document.body.classList.remove("playing");
-  menu = new Menu(setup, play);
+  menu = new Menu(setup, maps, play);
   document.body.prepend(menu.element);
   menu.element.querySelector<HTMLButtonElement>("#play")?.focus();
 }
@@ -34,27 +37,27 @@ function play(chosen: GameSetup): void {
     showNotice("webgl.missing");
     return;
   }
+  const map = maps.find((candidate) => candidate.id === setup.map);
+  if (!map) return;
   game?.dispose();
   const seed = Math.floor(Math.random() * 0x7fffffff);
-  try {
-    game = new GameScreen(
-      { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed },
-      {
-        onNewGame: () => {
-          play(setup);
-        },
-        onMenu: showMenu,
+  game = new GameScreen(
+    { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed },
+    map,
+    {
+      onNewGame: () => {
+        play(setup);
       },
-    );
-  } catch (error) {
-    // Most likely the WebGL context, lost or refused after the check above.
-    console.error(error);
-    game = undefined;
-    showNotice("webgl.missing");
-    return;
-  }
-  menu?.element.remove();
+      onMenu: showMenu,
+      onFailure: (key) => {
+        showMenu();
+        showNotice(key);
+      },
+    },
+  );
+  menu?.dispose();
   menu = undefined;
+  document.querySelector(".notice")?.remove();
   document.body.classList.add("playing");
   document.body.prepend(game.element);
   game.start();
@@ -77,7 +80,11 @@ document.addEventListener("gesturestart", (event) => {
 });
 
 applyTranslations(document);
-showMenu();
+void fetchMaps(location.href).then((list) => {
+  maps = list;
+  setup = initialSetup(location.search, storage, maps);
+  showMenu();
+});
 
 const status = document.querySelector<HTMLElement>("#status");
 let shownStatus: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };

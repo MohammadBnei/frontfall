@@ -1,5 +1,6 @@
 import type { Order } from "@frontfall/engine";
 import { transferables, type WorkerReply, type WorkerRequest } from "./messages.ts";
+import { fetchMapData } from "./maps.ts";
 import { SoloGame } from "./solo-game.ts";
 
 interface WorkerScope {
@@ -26,21 +27,27 @@ function tick(): void {
   }
 }
 
+async function start(request: Extract<WorkerRequest, { type: "start" }>): Promise<void> {
+  const map = await fetchMapData(request.map);
+  game = new SoloGame(request.options, map);
+  const { ticksPerSecond } = game.game.balance;
+  // The page draws the terrain too: it gets its own copy.
+  const view = { ...map, kinds: map.kinds.slice() };
+  scope.postMessage(
+    { type: "started", map: view, ownableTiles: game.ownableTiles, ticksPerSecond },
+    [view.kinds.buffer],
+  );
+  timer = setInterval(tick, 1000 / ticksPerSecond);
+}
+
 scope.onmessage = (event) => {
   const request = event.data;
   switch (request.type) {
-    case "start": {
-      try {
-        game = new SoloGame(request.options);
-      } catch (error) {
+    case "start":
+      start(request).catch((error: unknown) => {
         scope.postMessage({ type: "error", message: String(error) });
-        return;
-      }
-      const { ticksPerSecond } = game.game.balance;
-      scope.postMessage({ type: "started", ownableTiles: game.ownableTiles, ticksPerSecond });
-      timer = setInterval(tick, 1000 / ticksPerSecond);
+      });
       break;
-    }
     case "order":
       pending.push(request.order);
       break;

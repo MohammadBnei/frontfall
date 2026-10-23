@@ -9,7 +9,7 @@ import {
   type Order,
   type Phase,
 } from "@frontfall/engine";
-import { loadMap } from "./maps.ts";
+import type { MapData } from "./maps.ts";
 
 export const HUMAN_ID = 1;
 
@@ -91,8 +91,10 @@ export class SoloGame {
   readonly ownableTiles: number;
   private readonly clock: TurnClock;
 
-  constructor(readonly options: SoloOptions) {
-    const map = loadMap(options.map);
+  constructor(
+    readonly options: SoloOptions,
+    map: MapData,
+  ) {
     const grid = new WorldGrid(map.width, map.height, { wrapsX: map.wrapsX });
     const terrain = new Terrain(grid, map.kinds);
     const bots = Math.max(0, Math.min(MAX_BOTS, Math.floor(options.bots)));

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GENERATED_MAPS as maps } from "../src/game/maps.ts";
 import {
   cleanName,
   defaultSetup,
@@ -29,31 +30,31 @@ const throwing = {
 
 describe("game setup", () => {
   it("starts the setup of a shared link", () => {
-    const setup = initialSetup("?map=pangaea&bots=8&difficulty=hard", undefined);
+    const setup = initialSetup("?map=pangaea&bots=8&difficulty=hard", undefined, maps);
     expect(setup).toMatchObject({ map: "pangaea", bots: 8, difficulty: "hard" });
-    expect(initialSetup(setupQuery(setup), undefined)).toEqual(setup);
+    expect(initialSetup(setupQuery(setup), undefined, maps)).toEqual(setup);
   });
 
   it("ignores values it does not know", () => {
-    const base = defaultSetup();
-    expect(sanitizeSetup({ map: "atlantis", bots: "lots", difficulty: "insane" }, base)).toEqual(
-      base,
-    );
-    expect(sanitizeSetup({ bots: "999" }, base).bots).toBe(25);
-    expect(sanitizeSetup({ bots: "0" }, base).bots).toBe(1);
+    const base = defaultSetup(maps);
+    expect(
+      sanitizeSetup({ map: "atlantis", bots: "lots", difficulty: "insane" }, base, maps),
+    ).toEqual(base);
+    expect(sanitizeSetup({ bots: "999" }, base, maps).bots).toBe(25);
+    expect(sanitizeSetup({ bots: "0" }, base, maps).bots).toBe(1);
   });
 
   it("remembers the last setup, and lets the link override it", () => {
     const storage = new MemoryStorage() as unknown as Storage;
-    saveSetup({ ...defaultSetup(), playerName: "Ada", bots: 4 }, storage);
-    expect(initialSetup("", storage)).toMatchObject({ playerName: "Ada", bots: 4 });
-    expect(initialSetup("?bots=6", storage)).toMatchObject({ playerName: "Ada", bots: 6 });
+    saveSetup({ ...defaultSetup(maps), playerName: "Ada", bots: 4 }, storage);
+    expect(initialSetup("", storage, maps)).toMatchObject({ playerName: "Ada", bots: 4 });
+    expect(initialSetup("?bots=6", storage, maps)).toMatchObject({ playerName: "Ada", bots: 6 });
   });
 
   it("works with storage disabled", () => {
-    expect(initialSetup("?bots=3", throwing).bots).toBe(3);
+    expect(initialSetup("?bots=3", throwing, maps).bots).toBe(3);
     expect(() => {
-      saveSetup(defaultSetup(), throwing);
+      saveSetup(defaultSetup(maps), throwing);
     }).not.toThrow();
   });
 
