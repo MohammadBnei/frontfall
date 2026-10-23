@@ -2,8 +2,10 @@ name: CodeQL
 
 on:
   pull_request:
+  # Every branch, so a commit is known to be green before main is fast-forwarded to it.
+  # Dependabot branches are covered by their pull request run.
   push:
-    branches: [main]
+    branches-ignore: ["dependabot/**"]
   schedule:
     - cron: "23 5 * * 1"
 
