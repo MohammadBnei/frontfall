@@ -3,6 +3,7 @@ name: Publish
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -14,6 +15,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
+  SITE: https://nclsmgr.com/frontfall/
 
 jobs:
   # Each architecture builds on a native runner, then is scanned before any tag is set.
@@ -40,11 +42,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - id: version
+        run: echo "commit=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
       # Pushed by digest only: nothing is tagged before the scan passes.
       - id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
+          build-args: FRONTFALL_VERSION=${{ steps.version.outputs.commit }}
           platforms: linux/${{ matrix.arch }}
           provenance: true
           sbom: true
@@ -97,15 +102,19 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         working-directory: digests
+        # Every build is tagged with its commit; main also moves latest, a v1.2.3 tag adds 1.2.3.
         run: |
-          docker buildx imagetools create -t "$IMAGE:$TAG" -t "$IMAGE:latest" \
-            $(printf "$IMAGE@sha256:%s " *)
+          tags=(-t "$IMAGE:$TAG")
+          if [ "$GITHUB_REF" = refs/heads/main ]; then tags+=(-t "$IMAGE:latest"); fi
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tags+=(-t "$IMAGE:${GITHUB_REF_NAME#v}"); fi
+          docker buildx imagetools create "${tags[@]}" $(printf "$IMAGE@sha256:%s " *)
           docker buildx imagetools inspect "$IMAGE:$TAG"
 
   deploy:
     name: Deploy
     needs: manifest
-    if: vars.DEPLOIEMENT_ACTIF == 'true'
+    # Releases are tagged from commits already deployed from main.
+    if: vars.DEPLOIEMENT_ACTIF == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: production
     steps:
@@ -129,3 +138,39 @@ jobs:
       - name: Clean up
         if: always()
         run: rm -f ~/.ssh/deploy
+      - name: Wait for the new version to answer
+        env:
+          TAG: ${{ needs.manifest.outputs.tag }}
+        run: |
+          for _ in $(seq 12); do
+            version=$(curl -fsS -o /dev/null -D - "${SITE}healthz" \
+              | tr -d '\r' | awk -F': ' 'tolower($1) == "x-frontfall-version" { print $2 }') || true
+            if [ "$version" = "$TAG" ]; then
+              echo "${SITE} serves $TAG"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::${SITE}healthz does not report $TAG after 60 s (last answer: ${version:-none})"
+          exit 1
+
+  smoke:
+    name: Smoke test in production
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @frontfall/e2e
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
+      # Loads the live page through Cloudflare and plays on a real WebSocket.
+      - run: pnpm test:e2e
+        env:
+          E2E_BASE_URL: ${{ env.SITE }}
