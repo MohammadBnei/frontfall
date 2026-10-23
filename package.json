@@ -23,7 +23,8 @@
     "clean-room": "node tools/src/clean-room-cli.ts",
     "bench": "pnpm --filter @frontfall/bench engine",
     "bench:render": "pnpm --filter @frontfall/bench render",
-    "maps": "pnpm --filter @frontfall/tools maps"
+    "maps": "pnpm --filter @frontfall/tools maps",
+    "sim": "pnpm --filter @frontfall/bench sim"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -8,6 +8,7 @@
   "scripts": {
     "engine": "node --import tsx --expose-gc engine/run.ts",
     "render": "tsx render/run.ts",
+    "sim": "tsx sim/run.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

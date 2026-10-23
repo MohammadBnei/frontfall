@@ -46,6 +46,18 @@ Every order is validated before it runs (`orderError` gives the reason for a ref
 
 Computer players do not go through turns: they run inside the engine and call `game.apply(player, order)` during a tick, the same path and checks as turn orders (`R-BOT-03`).
 
+Offline, nobody relays turns: a `TurnClock` closes them from local orders. It has no timer of its own, so the page drives it at `B-TICK-RATE` and a test or a headless run drives it in a loop:
+
+```ts
+const clock = new TurnClock(game);
+clock.submit(1, { type: "attack", target: tile, troops: 500 }); // queued for the next tick
+const turn = clock.advance(); // runs the tick and returns the turn it closed
+```
+
+`pnpm sim` plays a whole game this way on a generated map with scripted players, and prints tick times, standings and the final state hash (options: `--width`, `--height`, `--players`, `--seed`, `--ticks`, `--interval`).
+
+The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`), so Node runs them without a build step.
+
 ## Reading the state
 
 | What                           | How                                                                                                            |

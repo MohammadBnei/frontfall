@@ -11,6 +11,7 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 - Large static files, map files included, are served gzipped to browsers that accept it.
 - Engine: the rules of a complete game of expansion, from `createGame`: `Topology` with flat and wrapping grids, exact integer arithmetic, the game state and its tick loop, validation of every order, the spawn phase, growth of troops and gold, expansion into unowned land, attacks between players, encirclement, retreat and victory ([docs/engine.md](docs/engine.md)).
 - Engine: `game.hash()`, a hash of the whole game state, pinned by a scripted test game.
+- Engine: `TurnClock` closes turns from local orders for solo games and tests; `pnpm sim` plays a whole game headless and reports tick times.
 - Project foundations: deterministic engine (seeded random generator, world grid that wraps east-west), turn relay server with lobbies, Three.js map view with endless east-west panning, CI, container image and automated deployment.
 - Game rules specification ([docs/rules.md](docs/rules.md)) with rule identifiers, and starting balance values ([docs/balance.md](docs/balance.md)).
 - Architecture decision records: deterministic lockstep, topology, renderer split, hosting under a sub-path.
