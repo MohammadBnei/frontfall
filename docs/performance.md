@@ -236,6 +236,96 @@ attack and tick instead of once per captured tile:
   finding each attack's front line (about half) and to enclosure fills (a
   quarter). v0.1 games have 8 to 16 players; 64 is the target of M7.
 
+## Server load
+
+The game server relays orders and closes one turn every 100 ms for every
+game ([protocol](protocol.md)). [`bench/server`](../bench/server) checks that
+it keeps that pace with many full games:
+
+```sh
+pnpm load -- --spawn-server                           # 20 games × 16 players, 30 min
+pnpm load -- --spawn-server --games 20 --players 16 --minutes 2
+pnpm load -- --games 20 --players 16 --minutes 30 --url ws://localhost:8080/ws
+pnpm load -- --spawn-server --public --json load.json
+```
+
+Each simulated player speaks protocol v1 like the browser: one player per
+game creates a private game, the others join it by id and the creator starts
+it (`--public` uses matchmaking instead). Every player then sends an order
+every 2 s on average (a spawn, then attacks on random tiles with random
+troop counts) and a state hash every 50 ticks, and checks every turn it
+receives. The report gives, per game:
+
+- **Lateness**: the time between two consecutive turns on one client, minus
+  the 100 ms tick. p50, p95 and max over every client of the game.
+- **Order latency**: from sending an order to receiving the turn that holds
+  it. Half a tick is expected on average, since an order waits for the next
+  turn to close.
+- Turns lost, reordered or desynced, which make the command exit with a
+  non-zero status.
+
+`--spawn-server` runs `createGameServer` in a child process, so its CPU time,
+memory and event loop delay are measured apart from the clients'. Without
+it, the tool connects to `--url`. Every client sends its own `X-Client-IP`
+so that the per-address connection limit does not apply; behind a reverse
+proxy that overwrites the header, the limit applies to the whole run.
+
+All the clients run in one process. Its own event loop delay is printed: a
+client process that falls behind shows up as lateness that the server did
+not cause.
+
+A 10-second run of 2 games of 8 players is part of `pnpm test`
+([`bench/test/load.test.ts`](../bench/test/load.test.ts)): every client must
+receive every turn in order, and the p95 interval must stay under 300 ms.
+
+### Results
+
+Measured on 2026-10-23 with Node 22.22.0 on the same 4-core Intel Xeon
+Processor at 2.10 GHz (cloud VM, 16 GB) as above, with the server and the
+320 clients on the same machine, using
+`pnpm load -- --spawn-server --games 20 --players 16 --minutes <n>`.
+
+| Run    | Games × players | Turns per client | Lost or reordered | Desyncs | Orders sent / seen | Interval p50 | p95      | p99      | max      | Order latency p50 / p95 / max |
+| ------ | --------------- | ---------------: | ----------------: | ------: | -----------------: | -----------: | -------- | -------- | -------- | ----------------------------- |
+| 2 min  | 20 × 16         |            1,197 |                 0 |       0 |    19,035 / 19,012 |     100.2 ms | 102.3 ms | 104.6 ms | 141.2 ms | 53.1 / 98.2 / 143.8 ms        |
+| 30 min | 20 × 16         |  17,965 – 17,966 |                 0 |       0 |  287,733 / 287,726 |     100.2 ms | 102.4 ms | 105.3 ms | 321.7 ms | 53.0 / 98.1 / 277.5 ms        |
+
+| Run    | Server CPU        | Server RSS        | Server loop delay p99 / max | Client loop delay p99 / max |
+| ------ | ----------------- | ----------------- | --------------------------- | --------------------------- |
+| 2 min  | 6.9 % of one core | 115 MiB, peak 135 | 4.0 / 53.6 ms               | 1.2 / 40.1 ms               |
+| 30 min | 5.9 % of one core | 137 MiB, peak 137 | 4.0 / 74.9 ms               | 1.7 / 168.7 ms              |
+
+- 320 players in 20 full games cost the server about 6 % of one core. Its
+  RSS was 115 MiB after 2 minutes and 137 MiB after 30, against 108 MiB for
+  a server with a single game of 2 players.
+- Turns arrive at their pace: p95 lateness was +1.1 to +3.4 ms depending on
+  the game, p99 at most +7 ms. Over 30 minutes no turn was lost, reordered
+  or desynced, and every order sent was relayed (the few missing ones were
+  in flight when the run stopped).
+- The slowest interval, 321.7 ms, came with a 168.7 ms stall of the client
+  process; the server's own event loop was never more than 74.9 ms late.
+- The mean interval is 100.2 ms, not 100: the server's `setInterval` drifts,
+  so a 30-minute game has 35 fewer turns (17,965) than 30 minutes of
+  10 ticks/s. Clients follow the turns, not the clock, so this changes only
+  the game's real duration.
+
+### Fuzzing
+
+[`apps/server/test/fuzz.test.ts`](../apps/server/test/fuzz.test.ts) feeds
+100,000 random, truncated and mutated frames (text and binary, from valid
+messages and from scratch) to the decoders in about 2.4 s on this machine, checking that they
+never throw and that every accepted binary frame is the canonical encoding of
+what it decodes to. It then opens about a thousand connections to a running
+server, 1 to 6 frames each, until 4,000 more such frames are sent, checking that `/healthz` still
+answers and that a game in progress on the same server keeps receiving its
+turns every 100 ms. The generator is seeded; `FUZZ_SEED=<n> pnpm test` tries
+other inputs.
+
+It found one crash: a decoding error quotes the client's input, and a
+non-ASCII quote could make the close reason longer than the 123 bytes a
+WebSocket close frame allows, which made `ws` throw and stopped the whole
+server. Reasons are now cut to 123 bytes.
+
 ## Next steps
 
 1. Run the render benchmark on real GPUs (a Mac laptop, a mid-range Android
@@ -251,3 +341,5 @@ attack and tick instead of once per captured tile:
 6. Bring 64-player games under budget: keep each attack's front line between
    ticks instead of rescanning the player's whole border, and share one border
    scan between the attacks of the same player.
+7. Run `pnpm load` against the production deployment, behind its reverse
+   proxy, from a machine other than the server's.
