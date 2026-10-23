@@ -54,16 +54,21 @@ export function loadMap(bytes: Uint8Array, description: MapDescription): LoadedM
   const kinds = new Uint8Array(size);
   const shore = new Uint8Array(size);
   const magnitude = new Uint8Array(size);
+  const { tiles } = file;
   for (let i = 0; i < size; i++) {
-    const tile = file.tiles[i] as number;
-    const level = tile & TILE_MAGNITUDE;
-    magnitude[i] = level;
-    if ((tile & TILE_SHORE) !== 0) shore[i] = 1;
-    kinds[i] = (tile & TILE_LAND) === 0 ? TileKind.Water : landKind(level);
+    const tile = tiles[i] as number;
+    kinds[i] = KIND_OF_BYTE[tile] as number;
+    magnitude[i] = tile & TILE_MAGNITUDE;
+    shore[i] = (tile & TILE_SHORE) >>> 6;
   }
   const topology = new WorldGrid(file.width, file.height, { wrapsX: file.wrapsX });
   return { topology, terrain: new Terrain(topology, kinds), shore, magnitude };
 }
+
+/** Tile kind of every possible tile byte, so loading a map is one lookup per tile. */
+const KIND_OF_BYTE = Uint8Array.from({ length: 256 }, (_, tile) =>
+  (tile & TILE_LAND) === 0 ? TileKind.Water : landKind(tile & TILE_MAGNITUDE),
+);
 
 function landKind(level: number): TileKind {
   if (level === MAGNITUDE_IMPASSABLE) return TileKind.Impassable;

@@ -29,7 +29,14 @@ export function sha256Hex(bytes: Uint8Array): string {
 
   const w = new Uint32Array(64);
   for (let block = 0; block < blocks; block++) {
-    for (let t = 0; t < 16; t++) w[t] = view.getUint32(block * 64 + t * 4);
+    for (let t = 0, o = block * 64; t < 16; t++, o += 4) {
+      w[t] =
+        (((padded[o] as number) << 24) |
+          ((padded[o + 1] as number) << 16) |
+          ((padded[o + 2] as number) << 8) |
+          (padded[o + 3] as number)) >>>
+        0;
+    }
     for (let t = 16; t < 64; t++) {
       const early = w[t - 15] as number;
       const late = w[t - 2] as number;

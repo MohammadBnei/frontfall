@@ -10,7 +10,8 @@ export const TileKind = {
 } as const;
 export type TileKind = (typeof TileKind)[keyof typeof TileKind];
 
-const KINDS = new Set<number>(Object.values(TileKind));
+/** Kinds are numbered from 0 without gaps, so a range check validates them. */
+const HIGHEST_KIND: number = TileKind.Impassable;
 
 /** Kind of every tile of a map, indexed like its topology. */
 export class Terrain {
@@ -23,8 +24,9 @@ export class Terrain {
         `terrain has ${String(kinds.length)} tiles, the map ${String(topology.size)}`,
       );
     }
-    for (const kind of kinds) {
-      if (!KINDS.has(kind)) throw new RangeError(`unknown tile kind ${String(kind)}`);
+    for (let i = 0; i < kinds.length; i++) {
+      const kind = kinds[i] as number;
+      if (kind > HIGHEST_KIND) throw new RangeError(`unknown tile kind ${String(kind)}`);
     }
   }
 
