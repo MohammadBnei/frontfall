@@ -1,10 +1,36 @@
+@import "@fontsource-variable/inter/wght.css";
+
+/* Design tokens from docs/brand.md. */
+:root {
+  --ff-ember: #f25c2a;
+  --ff-ember-bright: #ff7a47;
+  --ff-front: #2f80ed;
+  --ff-night-900: #060c12;
+  --ff-night-800: #0a131c;
+  --ff-night-700: #111d29;
+  --ff-night-600: #182838;
+  --ff-night-500: #23384c;
+  --ff-slate-400: #5c7389;
+  --ff-slate-300: #8da2b6;
+  --ff-text: #e7eef5;
+  --ff-success: #3ccb7f;
+  --ff-warning: #f5b83d;
+  --ff-danger: #f04c5e;
+  --ff-info: #4c9aff;
+  --ff-font: "Inter Variable", "Inter", system-ui, sans-serif;
+  --ff-radius: 6px;
+  color-scheme: dark;
+}
+
 html,
 body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #0b1d2a;
-  font-family: system-ui, sans-serif;
+  background: var(--ff-night-800);
+  color: var(--ff-text);
+  font-family: var(--ff-font);
+  font-feature-settings: "tnum";
 }
 
 canvas {
@@ -18,9 +44,10 @@ canvas {
   left: 12px;
   margin: 0;
   padding: 4px 10px;
-  border-radius: 4px;
-  background: rgb(0 0 0 / 55%);
-  color: #e8eef2;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: rgb(10 19 28 / 80%);
+  color: var(--ff-text);
   font-size: 13px;
   pointer-events: none;
 }

@@ -1,14 +1,17 @@
 import { WorldGrid } from "@frontfall/engine";
 import * as THREE from "three";
 import { connect, socketUrl } from "./connection.ts";
+import { MAP_COLORS, hexToRgb } from "./palette.ts";
 import { generateLand } from "./terrain.ts";
 
 const grid = new WorldGrid(512, 256);
 const land = generateLand(grid, 2026);
 
+const landRgb = hexToRgb(MAP_COLORS.land);
+const oceanRgb = hexToRgb(MAP_COLORS.ocean);
 const pixels = new Uint8Array(grid.size * 4);
 for (let i = 0; i < grid.size; i++) {
-  const [r, g, b] = land[i] === 1 ? [92, 128, 76] : [24, 58, 86];
+  const [r, g, b] = land[i] === 1 ? landRgb : oceanRgb;
   // Textures start at the bottom row; the grid starts at the north pole.
   const row = grid.height - 1 - grid.y(i);
   const offset = (row * grid.width + grid.x(i)) * 4;

@@ -14,6 +14,7 @@ describe("loadStaticFile", () => {
     await writeFile(join(root, "index.html"), "<!doctype html>");
     await writeFile(join(root, "assets", "app.js"), "export {}");
     await writeFile(join(root, "assets", "data.bin"), "x");
+    await writeFile(join(root, "manifest.webmanifest"), "{}");
     await writeFile(join(base, "secret.txt"), "do not serve");
   });
 
@@ -29,6 +30,9 @@ describe("loadStaticFile", () => {
     );
     expect((await loadStaticFile(root, "/assets/data.bin"))?.contentType).toBe(
       "application/octet-stream",
+    );
+    expect((await loadStaticFile(root, "/manifest.webmanifest"))?.contentType).toBe(
+      "application/manifest+json",
     );
   });
 
