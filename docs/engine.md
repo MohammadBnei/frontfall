@@ -57,6 +57,8 @@ const turn = clock.advance(); // runs the tick and returns the turn it closed
 
 `pnpm sim` plays a whole game this way on a generated map with scripted players, and prints tick times, standings and the final state hash (options: `--width`, `--height`, `--players`, `--seed`, `--ticks`, `--interval`).
 
+`pnpm determinism` plays 10,000 ticks of eight bots on World twice in Node and once in a Chromium worker, and fails unless every run reaches the same state hash; CI runs it on every push. Hashes are compared every 1,000 ticks, so a failure names the stretch where the runs parted.
+
 The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`), so Node runs them without a build step.
 
 ## Reading the state

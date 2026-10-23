@@ -25,6 +25,7 @@
     "bench:render": "pnpm --filter @frontfall/bench render",
     "maps": "pnpm --filter @frontfall/tools maps",
     "sim": "pnpm --filter @frontfall/bench sim",
+    "determinism": "pnpm --filter @frontfall/bench determinism",
     "load": "pnpm --filter @frontfall/bench load"
   },
   "devDependencies": {

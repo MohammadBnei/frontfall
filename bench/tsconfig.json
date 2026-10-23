@@ -4,5 +4,5 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["node", "vite/client"]
   },
-  "include": ["engine", "render", "server", "sim", "test"]
+  "include": ["determinism", "engine", "render", "server", "sim", "test"]
 }

@@ -10,7 +10,8 @@
     "render": "tsx render/run.ts",
     "sim": "tsx sim/run.ts",
     "load": "node --import tsx server/run.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "determinism": "tsx determinism/run.ts"
   },
   "dependencies": {
     "@frontfall/engine": "workspace:*",
