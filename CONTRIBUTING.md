@@ -77,3 +77,7 @@ Prettier formats, ESLint checks. Name things precisely, keep functions small, an
 ## Conduct
 
 Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## How changes reach main
+
+`main` only accepts commits that are already green. CI and CodeQL run on every pushed branch; a branch is merged, by squashing a pull request or by fast-forwarding `main`, only after both pass on its last commit. Force-pushes and deletion of `main` are blocked, and its history stays linear.
