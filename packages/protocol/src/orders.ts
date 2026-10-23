@@ -14,12 +14,14 @@ const amount = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
 export const ORDER_KINDS = [
   { type: "spawn", fields: ["tile"] },
   { type: "attack", fields: ["target", "troops"] },
+  { type: "retreat", fields: ["attack"] },
 ] as const;
 
 /** An order from a player. The server relays orders; every client executes them. */
 export const Order = z.discriminatedUnion("type", [
   z.object({ type: z.literal("spawn"), tile }).strict(),
   z.object({ type: z.literal("attack"), target: tile, troops: amount }).strict(),
+  z.object({ type: z.literal("retreat"), attack: amount }).strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 

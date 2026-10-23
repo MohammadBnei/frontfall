@@ -59,6 +59,13 @@ describe("frames", () => {
     });
   });
 
+  it("carries a retreat with its attack id", () => {
+    expect(decodeFrame(encodeOrderFrame({ type: "retreat", attack: 3 }))).toEqual({
+      kind: "order",
+      order: { type: "retreat", attack: 3 },
+    });
+  });
+
   it("numbers decoded turns from the first tick", () => {
     const frame = encodeTurnsFrame(41, [
       encodeTurnBody([]),
