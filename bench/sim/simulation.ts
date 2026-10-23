@@ -2,6 +2,7 @@ import {
   createGame,
   NEUTRAL,
   Random,
+  reachableCoasts,
   Terrain,
   TileKind,
   TurnClock,
@@ -14,6 +15,8 @@ export interface SimulationOptions {
   readonly height: number;
   readonly players: number;
   readonly seed: number;
+  /** A real map to play on; without it, one is generated at the given size. */
+  readonly terrain?: Terrain;
   /** Ticks each player waits between two attack orders. */
   readonly orderInterval: number;
 }
@@ -58,6 +61,8 @@ export function generateTerrain(width: number, height: number, seed: number): Te
  * A whole game played by simple scripted players through a TurnClock, the way
  * the page will drive it. Each player in turn sends a third of its troops at
  * the land next to a random tile of its border, preferring unowned land.
+ * Every other order goes for a neighbouring player instead. A player with
+ * nothing left to take by land ships troops to one of the nearest coasts.
  */
 export class Simulation {
   readonly game: Game;
@@ -68,7 +73,7 @@ export class Simulation {
 
   constructor(options: SimulationOptions) {
     this.options = options;
-    const terrain = generateTerrain(options.width, options.height, options.seed);
+    const terrain = options.terrain ?? generateTerrain(options.width, options.height, options.seed);
     this.game = createGame({
       terrain,
       seed: options.seed,
@@ -89,10 +94,22 @@ export class Simulation {
     if (game.phase === "play" && game.winner === undefined) {
       for (const player of game.players()) {
         if (!player.alive || (game.tick + player.id) % this.options.orderInterval !== 0) continue;
-        const target = this.pickTarget(player.id);
         const troops = Math.floor(player.troops / 3);
-        if (target === undefined || troops <= 0) continue;
-        this.clock.submit(player.id, { type: "attack", target, troops });
+        if (troops <= 0) continue;
+        // Every other order goes for a neighbour rather than unowned land, so empires meet.
+        const preferEnemy = Math.floor(game.tick / this.options.orderInterval) % 2 === 1;
+        const target = this.pickTarget(player.id, preferEnemy);
+        if (target !== undefined) {
+          this.clock.submit(player.id, { type: "attack", target, troops });
+          sent++;
+          continue;
+        }
+        const coasts = reachableCoasts(game, player.id, 8);
+        const coast =
+          coasts.find((tile) => (game.territory.ownerOf(tile) !== NEUTRAL) === preferEnemy) ??
+          coasts[0];
+        if (coast === undefined) continue;
+        this.clock.submit(player.id, { type: "embark", target: coast, troops });
         sent++;
       }
     }
@@ -100,19 +117,20 @@ export class Simulation {
     return sent;
   }
 
-  private pickTarget(player: number): number | undefined {
+  /** Land next to a few random border tiles, of the preferred kind if any is found. */
+  private pickTarget(player: number, preferEnemy: boolean): number | undefined {
     const { territory, terrain } = this.game;
     const topology = terrain.topology;
     const borders = territory.borderCount(player);
     let fallback: number | undefined;
-    for (let attempt = 0; attempt < 8 && borders > 0; attempt++) {
+    for (let attempt = 0; attempt < 32 && borders > 0; attempt++) {
       const from = territory.borderTile(player, this.random.nextInt(0, borders));
       const count = topology.neighborsInto(from, this.around);
       for (let i = 0; i < count; i++) {
         const tile = this.around[i] as number;
         const owner = territory.ownerOf(tile);
         if (owner === player || !terrain.isOwnable(tile)) continue;
-        if (owner === NEUTRAL) return tile;
+        if ((owner !== NEUTRAL) === preferEnemy) return tile;
         fallback ??= tile;
       }
     }

@@ -1,4 +1,6 @@
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
+import { loadMap, type MapDescription } from "@frontfall/engine";
 import { summarize } from "../engine/stats.ts";
 import { Simulation } from "./simulation.ts";
 
@@ -6,6 +8,8 @@ const { values } = parseArgs({
   // `pnpm sim -- --players 8` forwards the separator too.
   args: process.argv.slice(2).filter((arg) => arg !== "--"),
   options: {
+    // A published map by id (apps/client/public/maps), instead of a generated one.
+    map: { type: "string" },
     width: { type: "string", default: "512" },
     height: { type: "string", default: "256" },
     players: { type: "string", default: "16" },
@@ -26,9 +30,17 @@ const integer = (name: keyof typeof values): number => {
   return value;
 };
 
+function publishedMap(id: string) {
+  const maps = new URL("../../apps/client/public/maps/", import.meta.url);
+  const manifest = JSON.parse(readFileSync(new URL(`${id}.json`, maps), "utf8")) as MapDescription;
+  return loadMap(readFileSync(new URL(`${id}.bin`, maps)), manifest).terrain;
+}
+
 const ticks = integer("ticks");
 const setupStart = performance.now();
+const terrain = values.map === undefined ? undefined : publishedMap(values.map);
 const sim = new Simulation({
+  ...(terrain ? { terrain } : {}),
   width: integer("width"),
   height: integer("height"),
   players: integer("players"),
