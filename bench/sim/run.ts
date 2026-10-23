@@ -45,10 +45,11 @@ while (game.tick < ticks && game.winner === undefined) {
   const start = performance.now();
   orders += sim.step();
   durations.push(performance.now() - start);
-  if (game.tick % 600 === 0) {
+  if (game.tick % 100 === 0) {
     const alive = game.players().filter((p) => p.alive).length;
     console.log(
-      `tick ${String(game.tick)}: ${String(alive)} alive, ${String(game.attacks.length)} attacks`,
+      `tick ${String(game.tick)}: ${String(alive)} alive, ${String(game.attacks.length)} attacks, ` +
+        `p95 ${summarize(durations.slice(-200)).p95.toFixed(2)} ms`,
     );
   }
 }
