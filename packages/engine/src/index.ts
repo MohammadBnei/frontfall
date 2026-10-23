@@ -3,6 +3,12 @@ export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 export { createGame } from "./create-game.ts";
 export { installEconomy, populationCap } from "./economy.ts";
 export {
+  installBots,
+  BOT_DIFFICULTIES,
+  type BotDifficulty,
+  type BotParameters,
+} from "./bots/index.ts";
+export {
   Game,
   type GameSetup,
   type Order,

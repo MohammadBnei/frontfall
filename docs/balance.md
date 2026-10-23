@@ -63,6 +63,17 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 
 Base costs, in gold: city 120 000, port 100 000, fort 50 000, missile silo 800 000, air defense 1 000 000.
 
+## Bots
+
+Each value is given for easy / normal / hard (`R-BOT-04`).
+
+| Key                  |           Value | Unit                         | Used by    | Notes                                                                                                                                          |
+| -------------------- | --------------: | ---------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `B-BOT-INTERVAL`     |       4 / 2 / 1 | s between decisions          | `R-BOT-01` | Bots spread their decisions over the interval                                                                                                  |
+| `B-BOT-ATTACK-RATIO` |    20 / 30 / 40 | % of troops at home          | `R-BOT-01` | Sent by one expansion or attack order                                                                                                          |
+| `B-BOT-RESERVE`      |    50 / 35 / 20 | % of population cap          | `R-BOT-01` | Never sent; kept at home to defend                                                                                                             |
+| `B-BOT-BOLDNESS`     | 100 / 125 / 150 | % of the bot's troop density | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
+
 ## Victory
 
 | Key           | Value | Unit              | Used by    | Notes |
