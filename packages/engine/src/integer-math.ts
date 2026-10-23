@@ -1,21 +1,21 @@
 /**
- * Exact integer helpers for game state (R-ECO-04). Plain division and
- * multiplication of doubles lose precision past 2^53 or round a quotient up
- * to the next integer; these give the same floor on every runtime.
+ * Exact integer helpers for game state (R-ECO-04). Products of doubles lose
+ * precision past 2^53 and square roots can round up to the next integer;
+ * these give the same result on every runtime.
  */
 
 export function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
 
-/** floor(a / b) for safe integers, with b > 0. */
+/**
+ * floor(a / b) for safe integers, with b > 0. The double quotient is exact
+ * enough: when a / b is not an integer it is at least 1 / b away from one,
+ * a relative gap above 2^-53 for |a| < 2^53, so rounding never reaches it.
+ */
 export function divFloor(a: number, b: number): number {
   if (b <= 0) throw new RangeError(`divisor must be positive, got ${String(b)}`);
-  let quotient = Math.floor(a / b);
-  // The double quotient can land one off when it rounds onto an integer.
-  if (quotient * b > a) quotient--;
-  else if ((quotient + 1) * b <= a) quotient++;
-  return quotient;
+  return Math.floor(a / b);
 }
 
 /** floor(a * b / c) for safe integers, with c > 0, even when a * b exceeds 2^53. */

@@ -12,10 +12,9 @@ export function populationCap(game: Game, player: Player, cities = 0): number {
  * elimination of players left without land.
  */
 export function installEconomy(game: Game): void {
-  // Gold earned per tick is often fractional: carry the remainder, in units of
-  // 1 / goldDivisor, so small players are not rounded down to nothing.
+  // Gold earned per tick is often fractional: players carry the remainder, in
+  // units of 1 / goldDivisor, so small players are not rounded down to nothing.
   const goldDivisor = 1000 * game.balance.ticksPerSecond;
-  const goldRemainders = new Map<number, number>();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -27,10 +26,9 @@ export function installEconomy(game: Game): void {
       }
       growTroops(game, player);
 
-      const earned =
-        player.troops * game.balance.goldPerThousandTroops + (goldRemainders.get(player.id) ?? 0);
+      const earned = player.troops * game.balance.goldPerThousandTroops + player.goldRemainder;
       player.gold += Math.floor(earned / goldDivisor);
-      goldRemainders.set(player.id, earned % goldDivisor);
+      player.goldRemainder = earned % goldDivisor;
     }
   });
 }
@@ -49,4 +47,5 @@ function eliminate(player: Player): void {
   player.alive = false;
   player.troops = 0;
   player.gold = 0;
+  player.goldRemainder = 0;
 }

@@ -16,13 +16,13 @@ export interface Topology {
   index(x: number, y: number): number;
 
   /** Orthogonal neighbours, north, east, west, south, without duplicates. */
-  neighbors(tile: number): number[];
+  neighbors(tile: number): readonly number[];
   /** Same tiles in the same order as neighbors(), written into `out` (length 4 or more). Returns the count. */
   neighborsInto(tile: number, out: Int32Array): number;
   /** Manhattan distance, taking the shorter way around a wrapping map. */
   distance(a: number, b: number): number;
   /** Every tile at a distance of `radius` or less from `center`, in row order. */
-  tilesWithin(center: number, radius: number): number[];
+  tilesWithin(center: number, radius: number): readonly number[];
   /** Centre of a tile on an equirectangular projection, in degrees. For rendering only. */
   toLatLon(tile: number): { lat: number; lon: number };
 }

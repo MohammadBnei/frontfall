@@ -1,3 +1,4 @@
+import type { Attack } from "./attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
@@ -34,7 +35,11 @@ export interface Player {
   readonly name: string;
   troops: number;
   gold: number;
+  /** Fraction of a gold coin earned but not yet paid, in units of the economy's divisor. */
+  goldRemainder: number;
   alive: boolean;
+  /** Start tile, once picked or placed during the spawn phase. */
+  start: number | undefined;
 }
 
 export type Phase = "spawn" | "play";
@@ -57,7 +62,14 @@ export class Game {
   readonly territory: TerritoryMap;
   readonly random: Random;
   readonly balance: Balance;
+  /** Attacks under way, oldest first. Owned by the attack rules; read only elsewhere. */
+  readonly attacks: Attack[] = [];
+  nextAttackId = 1;
+  /** Winner once the game is decided (R-WIN), and the tick it happened. */
+  winner: number | undefined;
+  decidedAt: number | undefined;
   private readonly playersById = new Map<number, Player>();
+  private readonly sortedPlayers: readonly Player[];
   private readonly handlers: OrderHandler[] = [];
   private readonly systems: TickSystem[] = [];
   private currentTick = 0;
@@ -72,9 +84,18 @@ export class Game {
         throw new RangeError(`invalid player id ${String(id)}`);
       }
       if (this.playersById.has(id)) throw new RangeError(`duplicate player id ${String(id)}`);
-      this.playersById.set(id, { id, name, troops: 0, gold: 0, alive: true });
+      this.playersById.set(id, {
+        id,
+        name,
+        troops: 0,
+        gold: 0,
+        goldRemainder: 0,
+        alive: true,
+        start: undefined,
+      });
       highest = Math.max(highest, id);
     }
+    this.sortedPlayers = [...this.playersById.values()].sort((a, b) => a.id - b.id);
     this.territory = new TerritoryMap(setup.terrain.topology, highest);
   }
 
@@ -92,8 +113,45 @@ export class Game {
   }
 
   /** Players in ascending id order, so iteration is the same everywhere. */
-  players(): Player[] {
-    return [...this.playersById.values()].sort((a, b) => a.id - b.id);
+  players(): readonly Player[] {
+    return this.sortedPlayers;
+  }
+
+  /**
+   * 32-bit FNV-1a hash of the whole game state. Two clients that ran the same
+   * turns must report the same hash for the same tick (R-FAIR-01).
+   */
+  hash(): number {
+    let hash = 0x811c9dc5;
+    const mix = (value: number): void => {
+      // Feeds the value as two 32-bit halves, so counts above 2^32 are not truncated.
+      for (const word of [value >>> 0, Math.floor(value / 2 ** 32) >>> 0]) {
+        for (let shift = 0; shift < 32; shift += 8) {
+          hash = Math.imul(hash ^ ((word >>> shift) & 0xff), 0x01000193);
+        }
+      }
+    };
+    mix(this.currentTick);
+    for (const word of this.random.state()) mix(word);
+    for (const owner of this.territory.owners) hash = Math.imul(hash ^ owner, 0x01000193);
+    for (const p of this.sortedPlayers) {
+      for (const value of [
+        p.id,
+        p.troops,
+        p.gold,
+        p.goldRemainder,
+        p.alive ? 1 : 0,
+        p.start ?? -1,
+      ]) {
+        mix(value);
+      }
+    }
+    mix(this.nextAttackId);
+    for (const a of this.attacks)
+      for (const value of [a.id, a.player, a.target, a.aim, a.troops]) mix(value);
+    mix(this.winner ?? 0);
+    mix(this.decidedAt ?? -1);
+    return hash >>> 0;
   }
 
   /** Valid orders are offered to handlers in turn until one carries them out. */

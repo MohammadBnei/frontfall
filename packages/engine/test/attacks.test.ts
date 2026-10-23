@@ -31,7 +31,8 @@ function newGame(
     ],
     balance: { ...balance, ...overrides },
   });
-  const attacks = installAttacks(game);
+  installAttacks(game);
+  const attacks = { list: () => game.attacks };
   for (const [player, columns] of Object.entries(owners)) {
     for (const x of columns) {
       for (let y = 0; y < 3; y++) game.territory.setOwner(grid.index(x, y), Number(player));

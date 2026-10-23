@@ -22,7 +22,7 @@ describe("divFloor", () => {
     ]);
   });
 
-  it("is exact where the double quotient rounds onto an integer", () => {
+  it("is exact for any safe integers", () => {
     // 2^53 - 1 divided by 2^53 - 2 is just above one; 2^53 - 2 by 2^53 - 1 just below.
     expect(divFloor(MAX, MAX - 1)).toBe(1);
     expect(divFloor(MAX - 1, MAX)).toBe(0);

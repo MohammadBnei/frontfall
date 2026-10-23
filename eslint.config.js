@@ -27,6 +27,15 @@ export const determinism = {
       { object: "Math", property: "random", message: "Use the seeded Random instead." },
       ...IMPRECISE_MATH.map((property) => ({ object: "Math", property, message: mathMessage })),
     ],
+    "no-restricted-syntax": [
+      "error",
+      {
+        // Constants such as 2 ** 32 are exact; anything else is computed at run time.
+        selector:
+          "BinaryExpression[operator='**']:not([left.type='Literal'][right.type='Literal']), AssignmentExpression[operator='**=']",
+        message: "Exponentiation can differ between browsers. Multiply integers instead.",
+      },
+    ],
     "no-restricted-globals": [
       "error",
       { name: "Date", message: clockMessage },

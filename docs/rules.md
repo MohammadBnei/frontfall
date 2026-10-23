@@ -30,15 +30,15 @@ Words used throughout:
 ## 2. Joining and spawning
 
 - **R-SPAWN-01** A game starts with a spawn phase lasting `B-SPAWN-PHASE`. During it, each player picks a land tile to start from. Picking again moves the start.
-- **R-SPAWN-02** A start tile must be unowned land, not impassable, and at least `B-SPAWN-DISTANCE` tiles from every other start.
-- **R-SPAWN-03** A player who has not picked when the phase ends is placed on a random valid tile, drawn from the game's seed.
+- **R-SPAWN-02** A start tile must be unowned land (or land the player already holds from a previous pick), not impassable, and at least `B-SPAWN-DISTANCE` tiles from every other start.
+- **R-SPAWN-03** A player who has not picked when the phase ends is placed on a random valid tile, drawn from the game's seed. If no tile is far enough from the others, the spacing of `R-SPAWN-02` is dropped; if no land is free at all, the player is not placed and is eliminated when play starts (`R-ECO-05`).
 - **R-SPAWN-04** Each player starts with the tiles within `B-SPAWN-RADIUS` of their start tile, and `B-START-TROOPS` troops.
 - **R-SPAWN-05** Nobody can attack or build during the spawn phase.
 
 ## 3. Economy
 
 - **R-ECO-01** Each player has a population cap that grows with territory and cities (`B-POP-PER-TILE`, `B-POP-PER-CITY`).
-- **R-ECO-02** Troops grow every tick. Growth is fastest when the player is far below the cap and falls to zero at the cap (`B-GROWTH-RATE`).
+- **R-ECO-02** Troops grow every tick. Growth is fastest when the player is far below the cap and falls to zero at the cap (`B-GROWTH-RATE`); below the cap, a player always gains at least one troop per tick, so the cap is reached.
 - **R-ECO-03** A player earns gold every tick in proportion to the troops they hold back from attacks (`B-GOLD-RATE`). Trade adds to this income (`R-UNIT-03`).
 - **R-ECO-04** Troops and gold are whole numbers. When a computation produces a fraction, it is rounded down.
 - **R-ECO-05** A player whose territory drops to zero tiles is eliminated. Their troops and gold are lost.

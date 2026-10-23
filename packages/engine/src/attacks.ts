@@ -15,21 +15,16 @@ export interface Attack {
   troops: number;
 }
 
-export interface Attacks {
-  /** Attacks under way, oldest first. */
-  list(): readonly Readonly<Attack>[];
-}
-
 /**
  * Expansion and attacks (R-ATTACK-01 to R-ATTACK-07). Troops leave the player
  * when the attack starts, take tiles along the shared border each tick, and
- * whatever is left returns to the player when the attack ends.
+ * whatever is left returns to the player when the attack ends. Attacks under
+ * way live in `game.attacks`.
  */
-export function installAttacks(game: Game): Attacks {
+export function installAttacks(game: Game): void {
   const { territory, terrain, balance } = game;
   const topology = terrain.topology;
-  let attacks: Attack[] = [];
-  let nextId = 1;
+  const attacks = game.attacks;
 
   // Scratch space reused every tick: tiles already listed as candidates in the current scan.
   const seen = new Uint32Array(topology.size);
@@ -88,7 +83,7 @@ export function installAttacks(game: Game): Attacks {
     if (target !== NEUTRAL && !game.player(target)?.alive) return false;
     const existing = attacks.find((a) => a.player === player.id && a.target === target);
     const attack = existing ?? {
-      id: nextId,
+      id: game.nextAttackId,
       player: player.id,
       target,
       aim: order.target,
@@ -101,7 +96,7 @@ export function installAttacks(game: Game): Attacks {
     attack.aim = order.target;
     if (!existing) {
       attacks.push(attack);
-      nextId++;
+      game.nextAttackId++;
     }
     return true;
   });
@@ -111,7 +106,10 @@ export function installAttacks(game: Game): Attacks {
     cancelOpposingAttacks(attacks);
     for (const attack of attacks) advance(attack);
     // Troops of a finished attack went back to its player in finish(); a fallen player's are lost.
-    attacks = attacks.filter((attack) => attack.troops > 0 && game.player(attack.player)?.alive);
+    for (let i = attacks.length - 1; i >= 0; i--) {
+      const attack = attacks[i] as Attack;
+      if (attack.troops <= 0 || !game.player(attack.player)?.alive) attacks.splice(i, 1);
+    }
   });
 
   /** Takes up to the attack's speed in tiles; an attack that cannot go on is marked done. */
@@ -170,8 +168,6 @@ export function installAttacks(game: Game): Attacks {
     if (player?.alive) player.troops += attack.troops;
     attack.troops = 0;
   }
-
-  return { list: () => attacks };
 }
 
 /** R-ATTACK-07: two attacks between the same players in opposite directions fight each other first. */

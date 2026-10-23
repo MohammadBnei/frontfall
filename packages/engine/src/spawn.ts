@@ -7,14 +7,12 @@ const PLACEMENT_ATTEMPTS = 1000;
 /**
  * The spawn phase (R-SPAWN-01 to R-SPAWN-05). Players pick a start tile, and
  * may pick again until the phase ends; whoever has not picked by then is
- * placed at random. Returns the start tile of each player, by id.
+ * placed at random. Each player's start is kept in `player.start`.
  */
-export function installSpawn(game: Game): ReadonlyMap<number, number> {
-  const starts = new Map<number, number>();
-
+export function installSpawn(game: Game): void {
   game.onOrder((_, player, order) => {
-    if (order.type !== "spawn" || !isValidStart(game, starts, player, order.tile)) return false;
-    place(game, starts, player, order.tile);
+    if (order.type !== "spawn" || !isValidStart(game, player, order.tile)) return false;
+    place(game, player, order.tile);
     return true;
   });
 
@@ -22,17 +20,14 @@ export function installSpawn(game: Game): ReadonlyMap<number, number> {
     // The system runs before the tick counter moves: this is the last tick of the phase.
     if (game.tick !== game.balance.spawnPhaseTicks - 1) return;
     for (const player of game.players()) {
-      if (player.alive && !starts.has(player.id)) placeAtRandom(game, starts, player);
+      if (player.alive && player.start === undefined) placeAtRandom(game, player);
     }
   });
-
-  return starts;
 }
 
-/** R-SPAWN-02: unowned ownable land, far enough from every other player's start. */
+/** R-SPAWN-02: unowned ownable land, or the player's own, far enough from every other start. */
 function isValidStart(
   game: Game,
-  starts: ReadonlyMap<number, number>,
   player: Player,
   tile: number,
   minDistance = game.balance.spawnDistance,
@@ -41,18 +36,18 @@ function isValidStart(
   const owner = game.territory.ownerOf(tile);
   if (owner !== NEUTRAL && owner !== player.id) return false;
   const topology = game.terrain.topology;
-  for (const [id, start] of starts) {
-    if (id !== player.id && topology.distance(start, tile) < minDistance) return false;
+  for (const other of game.players()) {
+    if (other === player || other.start === undefined) continue;
+    if (topology.distance(other.start, tile) < minDistance) return false;
   }
   return true;
 }
 
 /** R-SPAWN-04: the tiles around the start, and the starting troops. Moving the start releases the old area. */
-function place(game: Game, starts: Map<number, number>, player: Player, tile: number): void {
+function place(game: Game, player: Player, tile: number): void {
   const { territory, terrain } = game;
-  const previous = starts.get(player.id);
-  if (previous !== undefined) {
-    for (const old of terrain.topology.tilesWithin(previous, game.balance.spawnRadius)) {
+  if (player.start !== undefined) {
+    for (const old of terrain.topology.tilesWithin(player.start, game.balance.spawnRadius)) {
       if (territory.ownerOf(old) === player.id) territory.setOwner(old, NEUTRAL);
     }
   }
@@ -61,29 +56,30 @@ function place(game: Game, starts: Map<number, number>, player: Player, tile: nu
       territory.setOwner(claimed, player.id);
     }
   }
-  starts.set(player.id, tile);
+  player.start = tile;
   player.troops = game.balance.startTroops;
 }
 
 /**
  * R-SPAWN-03: a random valid tile drawn from the game's seed. On a crowded map
  * where no tile is far enough from the others, spacing is relaxed rather than
- * leaving the player out; a map with no free land at all leaves them unplaced.
+ * leaving the player out; on a map with no free land at all the player stays
+ * unplaced, and is eliminated when play starts (R-ECO-05).
  */
-function placeAtRandom(game: Game, starts: Map<number, number>, player: Player): void {
+function placeAtRandom(game: Game, player: Player): void {
   const size = game.terrain.topology.size;
   for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
     const tile = game.random.nextInt(0, size);
-    if (isValidStart(game, starts, player, tile)) {
-      place(game, starts, player, tile);
+    if (isValidStart(game, player, tile)) {
+      place(game, player, tile);
       return;
     }
   }
   const offset = game.random.nextInt(0, size);
   for (let i = 0; i < size; i++) {
     const tile = (offset + i) % size;
-    if (isValidStart(game, starts, player, tile, 0)) {
-      place(game, starts, player, tile);
+    if (isValidStart(game, player, tile, 0)) {
+      place(game, player, tile);
       return;
     }
   }

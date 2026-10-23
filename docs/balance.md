@@ -18,7 +18,7 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 
 | Key                | Value | Unit   | Used by      | Notes                                           |
 | ------------------ | ----: | ------ | ------------ | ----------------------------------------------- |
-| `B-SPAWN-DISTANCE` |    30 | tiles  | `R-SPAWN-02` | Scaled down on small maps, never below 10       |
+| `B-SPAWN-DISTANCE` |    30 | tiles  | `R-SPAWN-02` |                                                 |
 | `B-SPAWN-RADIUS`   |     3 | tiles  | `R-SPAWN-04` | Diamond of 25 tiles                             |
 | `B-START-TROOPS`   |  2500 | troops | `R-SPAWN-04` | Enough for a first expansion of about 100 tiles |
 

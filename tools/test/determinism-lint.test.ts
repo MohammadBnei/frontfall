@@ -26,6 +26,7 @@ describe("determinism rules for the engine", () => {
     ["Math.sin(1)", "differ between browsers"],
     ["Math.atan2(1, 2)", "differ between browsers"],
     ["Math.pow(2, 0.5)", "differ between browsers"],
+    ["x ** 2", "differ between browsers"],
     ["Date.now()", "clock"],
     ["new Date()", "clock"],
     ["performance.now()", "clock"],

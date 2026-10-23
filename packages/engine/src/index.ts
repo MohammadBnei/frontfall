@@ -1,6 +1,6 @@
-export { installAttacks, type Attack, type Attacks } from "./attacks.ts";
+export { installAttacks, type Attack } from "./attacks.ts";
 export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
-export { createGame, type CreatedGame } from "./create-game.ts";
+export { createGame } from "./create-game.ts";
 export { installEconomy, populationCap } from "./economy.ts";
 export {
   Game,
@@ -21,7 +21,7 @@ export { Terrain, TileKind } from "./terrain.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.ts";
 export type { Topology } from "./topology.ts";
-export { installVictory, type Victory } from "./victory.ts";
+export { installVictory } from "./victory.ts";
 export { WorldGrid, type WorldGridOptions } from "./world-grid.ts";
 export {
   HILLS_FROM,

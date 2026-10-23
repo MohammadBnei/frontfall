@@ -9,7 +9,7 @@ import { createGame, Terrain, TileKind, WorldGrid } from "@frontfall/engine";
 
 const grid = new WorldGrid(1000, 500); // wraps east-west; { wrapsX: false } for a flat map
 const terrain = new Terrain(grid, kinds); // one TileKind per tile, from the map loader
-const { game, starts, attacks, victory } = createGame({
+const game = createGame({
   terrain,
   seed, // from the server: every client must use the same one
   players: [
@@ -42,7 +42,7 @@ Every order is validated before it runs (`orderError` gives the reason for a ref
 | ------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `{ type: "spawn", tile }`            | `R-SPAWN-01` to `-05`  | During the spawn phase: start at `tile`, or move the start there.                                                                    |
 | `{ type: "attack", target, troops }` | `R-ATTACK-01` to `-09` | After the spawn phase: send `troops` against the owner of `target` (a player, or unowned land). The front advances towards `target`. |
-| `{ type: "retreat", attack }`        | `R-ATTACK-06`          | Call back one of your attacks by id (`attacks.list()`); its troops return, minus `B-RETREAT-PENALTY`.                                |
+| `{ type: "retreat", attack }`        | `R-ATTACK-06`          | Call back one of your attacks by id (`game.attacks`); its troops return, minus `B-RETREAT-PENALTY`.                                  |
 
 Computer players do not go through turns: they run inside the engine and call `game.apply(player, order)` during a tick, the same path and checks as turn orders (`R-BOT-03`).
 
@@ -75,4 +75,4 @@ The state objects are live: read them, never write them. A renderer reads after 
 
 ## Extending the engine
 
-A new rule is a function `installX(game)` that registers order handlers (`game.onOrder`) and tick systems (`game.onTick`), cites its rule identifiers, and is added to `createGame` in the right place. It keeps its state in typed arrays or plain objects, draws randomness from `game.random`, and comes with tests that name the rules they cover.
+A new rule is a function `installX(game)` that registers order handlers (`game.onOrder`) and tick systems (`game.onTick`), cites its rule identifiers, and is added to `createGame` in the right place. Its state lives on `Game` or `Player`, never in a closure, so that `game.hash()` covers it and a game can later be saved and restored. It draws randomness from `game.random` and comes with tests that name the rules they cover. A change to any outcome changes the pinned hash in `test/hash.test.ts`: update it on purpose, and record the change in the changelog.

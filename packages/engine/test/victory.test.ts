@@ -17,64 +17,64 @@ function newGame(players = 2, overrides: Partial<Balance> = {}) {
     players: Array.from({ length: players }, (_, i) => ({ id: i + 1, name: `P${String(i)}` })),
     balance: { ...balance, ...overrides },
   });
-  const victory = installVictory(game);
+  installVictory(game);
   const run = () => game.step({ tick: game.tick, orders: [] });
-  return { game, victory, run };
+  return { game, run };
 }
 
 describe("victory", () => {
   it("goes to the player holding the winning share of land (R-WIN-01)", () => {
-    const { game, victory, run } = newGame();
+    const { game, run } = newGame();
     for (let tile = 0; tile < 49; tile++) game.territory.setOwner(tile, 2);
     run();
-    expect(victory.winner()).toBeUndefined();
+    expect(game.winner).toBeUndefined();
     game.territory.setOwner(49, 2);
     run();
-    expect([victory.winner(), victory.decidedAt()]).toEqual([2, 1]);
+    expect([game.winner, game.decidedAt]).toEqual([2, 1]);
   });
 
   it("goes to the last player standing, and never changes afterwards (R-WIN-01)", () => {
-    const { game, victory, run } = newGame(3);
+    const { game, run } = newGame(3);
     game.territory.setOwner(0, 3);
     (game.player(1) as Player).alive = false;
     (game.player(2) as Player).alive = false;
     run();
-    expect(victory.winner()).toBe(3);
+    expect(game.winner).toBe(3);
     game.territory.setOwner(1, 1);
     (game.player(1) as Player).alive = true;
     run();
-    expect(victory.winner()).toBe(3);
+    expect(game.winner).toBe(3);
   });
 
   it("does not end a game played alone before its time is up", () => {
-    const { game, victory, run } = newGame(1);
+    const { game, run } = newGame(1);
     game.territory.setOwner(0, 1);
     run();
-    expect(victory.winner()).toBeUndefined();
+    expect(game.winner).toBeUndefined();
   });
 
   it("goes to the largest territory when time is up, lowest id on a tie (R-WIN-02)", () => {
-    const { game, victory, run } = newGame(3, { maxDurationTicks: 2 });
+    const { game, run } = newGame(3, { maxDurationTicks: 2 });
     game.territory.setOwner(0, 2);
     game.territory.setOwner(1, 3);
     run();
-    expect(victory.winner()).toBeUndefined();
+    expect(game.winner).toBeUndefined();
     run();
-    expect([victory.winner(), victory.decidedAt()]).toEqual([2, 1]);
+    expect([game.winner, game.decidedAt]).toEqual([2, 1]);
   });
 
   it("waits for the spawn phase to end", () => {
-    const { game, victory, run } = newGame(2, { spawnPhaseTicks: 5 });
+    const { game, run } = newGame(2, { spawnPhaseTicks: 5 });
     for (let tile = 0; tile < 60; tile++) game.territory.setOwner(tile, 1);
     run();
-    expect(victory.winner()).toBeUndefined();
+    expect(game.winner).toBeUndefined();
   });
 });
 
 describe("createGame", () => {
   /** Two players spawn, then the first sends everything at the second until the game is decided. */
   function play(seed: number) {
-    const { game, attacks, victory, starts } = createGame({
+    const game = createGame({
       terrain: plains(),
       seed,
       players: [
@@ -88,7 +88,7 @@ describe("createGame", () => {
       if (tick < 2 || tick % 20 !== 0) return [];
       // Half of the troops at Bea, half at the unowned land nearest to her.
       const ada = game.player(1) as Player;
-      const bea = starts.get(2) ?? 0;
+      const bea = game.player(2)?.start ?? 0;
       const troops = Math.floor(ada.troops / 2);
       const neutral = grid
         .tilesWithin(bea, grid.width)
@@ -102,15 +102,15 @@ describe("createGame", () => {
       }
       return result;
     };
-    while (victory.winner() === undefined && game.tick < 5000) {
+    while (game.winner === undefined && game.tick < 5000) {
       game.step({ tick: game.tick, orders: orders(game.tick) });
     }
     return {
-      winner: victory.winner(),
+      winner: game.winner,
       tick: game.tick,
       owners: Array.from(game.territory.owners),
       players: game.players().map((p) => ({ ...p })),
-      attacks: attacks.list().length,
+      attacks: game.attacks.length,
     };
   }
 
