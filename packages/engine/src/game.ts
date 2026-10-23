@@ -83,6 +83,7 @@ export class Game {
     this.terrain = setup.terrain;
     this.random = new Random(setup.seed);
     this.balance = setup.balance ?? DEFAULT_BALANCE;
+    checkBalance(this.balance);
     let highest = 1;
     for (const { id, name } of setup.players) {
       if (!Number.isInteger(id) || id < 1 || id > MAX_PLAYER_ID) {
@@ -128,17 +129,22 @@ export class Game {
    */
   hash(): number {
     let hash = 0x811c9dc5;
-    const mix = (value: number): void => {
-      // Feeds the value as two 32-bit halves, so counts above 2^32 are not truncated.
-      for (const word of [value >>> 0, Math.floor(value / 2 ** 32) >>> 0]) {
-        for (let shift = 0; shift < 32; shift += 8) {
-          hash = Math.imul(hash ^ ((word >>> shift) & 0xff), 0x01000193);
-        }
+    const mixWord = (word: number): void => {
+      for (let shift = 0; shift < 32; shift += 8) {
+        hash = Math.imul(hash ^ ((word >>> shift) & 0xff), 0x01000193);
       }
+    };
+    // Feeds the value as two 32-bit halves, so counts above 2^32 are not truncated.
+    const mix = (value: number): void => {
+      mixWord(value >>> 0);
+      mixWord(Math.floor(value / 2 ** 32) >>> 0);
     };
     mix(this.currentTick);
     for (const word of this.random.state()) mix(word);
-    for (const owner of this.territory.owners) hash = Math.imul(hash ^ owner, 0x01000193);
+    const owners = this.territory.owners;
+    for (let tile = 0; tile < owners.length; tile++) {
+      hash = Math.imul(hash ^ (owners[tile] as number), 0x01000193);
+    }
     for (const p of this.sortedPlayers) {
       for (const value of [
         p.id,
@@ -200,4 +206,25 @@ export class Game {
     this.currentTick++;
     return applied;
   }
+}
+
+/** Refuses balance values the rules cannot run with, before the first tick rather than during one. */
+function checkBalance(balance: Balance): void {
+  const atLeastOne: (keyof Balance)[] = [
+    "ticksPerSecond",
+    "attackSpeedDivisor",
+    "encircleMaxTiles",
+    "boatSpeed",
+    "boatMax",
+    "boatRange",
+    "maxDurationTicks",
+  ];
+  for (const key of atLeastOne) {
+    const value = balance[key];
+    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
+      throw new RangeError(`balance ${key} must be a positive integer`);
+    }
+  }
+  // Ship routes keep their distances in 16 bits.
+  if (balance.boatRange > 0xffff) throw new RangeError("balance boatRange is above 65535");
 }

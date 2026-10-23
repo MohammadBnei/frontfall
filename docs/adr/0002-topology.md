@@ -13,10 +13,16 @@ All geometry goes through a `Topology` interface, owned by the engine. Nothing e
 ```ts
 interface Topology {
   readonly size: number; // number of tiles; a tile is an integer in [0, size)
-  neighbors(tile: number): readonly number[];
+  readonly width: number;
+  readonly height: number;
+  readonly wrapsX: boolean; // whether east of the last column is the first one
+  x(tile: number): number;
+  y(tile: number): number;
+  index(x: number, y: number): number; // any column is accepted on a wrapping map
+  neighbors(tile: number): readonly number[]; // north, east, west, south
   neighborsInto(tile: number, out: Int32Array): number; // allocation-free, returns the count
   distance(a: number, b: number): number; // integer, shortest way round
-  tilesWithin(center: number, radius: number): Iterable<number>;
+  tilesWithin(center: number, radius: number): readonly number[]; // in row order
   toLatLon(tile: number): { lat: number; lon: number }; // for rendering only
 }
 ```
@@ -24,7 +30,9 @@ interface Topology {
 Two implementations exist from the first version:
 
 - `flat`: a rectangle with four edges.
-- `cylinder`: the east-west seam is invisible; north and south are edges. Today's `WorldGrid` is this implementation and becomes it in M1.
+- `cylinder`: the east-west seam is invisible; north and south are edges.
+
+`WorldGrid` implements both, chosen by its `wrapsX` option (cylinder by default).
 
 Pathfinding, spatial indexes and radius queries are built on the interface, never on raw coordinates. Tests for each geometric rule run against both implementations.
 

@@ -36,6 +36,11 @@ function publishedMap(id: string) {
   return loadMap(readFileSync(new URL(`${id}.bin`, maps)), manifest).terrain;
 }
 
+const budget = values.budget === undefined ? undefined : Number(values.budget);
+if (budget !== undefined && !(budget > 0)) {
+  console.error("--budget must be a positive number of milliseconds");
+  process.exit(2);
+}
 const ticks = integer("ticks");
 const setupStart = performance.now();
 const terrain = values.map === undefined ? undefined : publishedMap(values.map);
@@ -83,7 +88,7 @@ console.log(
 console.table(standings);
 console.log(`state hash: ${game.hash().toString(16).padStart(8, "0")}`);
 
-if (values.budget !== undefined && tick.p95 > Number(values.budget)) {
-  console.error(`tick p95 ${tick.p95.toFixed(2)} ms is over the ${values.budget} ms budget`);
+if (budget !== undefined && tick.p95 > budget) {
+  console.error(`tick p95 ${tick.p95.toFixed(2)} ms is over the ${String(budget)} ms budget`);
   process.exit(1);
 }

@@ -52,6 +52,15 @@ describe("Game", () => {
     expect(game.territory.tileCount(0)).toBe(grid.size);
   });
 
+  it("rejects balance values the rules cannot run with", () => {
+    const withBalance = (change: Partial<typeof DEFAULT_BALANCE>) =>
+      setup({ balance: { ...DEFAULT_BALANCE, ...change } });
+    expect(() => new Game(withBalance({ attackSpeedDivisor: 0 }))).toThrow(/attackSpeedDivisor/);
+    expect(() => new Game(withBalance({ encircleMaxTiles: 1.5 }))).toThrow(/encircleMaxTiles/);
+    expect(() => new Game(withBalance({ boatRange: 70_000 }))).toThrow(/boatRange/);
+    expect(() => new Game(withBalance({ boatSpeed: 3 }))).not.toThrow();
+  });
+
   it("rejects invalid or duplicate player ids", () => {
     expect(() => new Game(setup({ players: [{ id: 0, name: "N" }] }))).toThrow(RangeError);
     expect(() => new Game(setup({ players: [{ id: 1.5, name: "N" }] }))).toThrow(RangeError);
