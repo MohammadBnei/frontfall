@@ -3,6 +3,7 @@ packages:
   - packages/*
   - tools
   - e2e
+  - bench
 
 onlyBuiltDependencies:
   - esbuild

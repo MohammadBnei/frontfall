@@ -20,7 +20,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "pnpm --filter @frontfall/e2e test",
-    "clean-room": "node tools/src/clean-room-cli.ts"
+    "clean-room": "node tools/src/clean-room-cli.ts",
+    "bench": "pnpm --filter @frontfall/bench engine",
+    "bench:render": "pnpm --filter @frontfall/bench render"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
