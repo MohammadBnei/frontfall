@@ -5,6 +5,9 @@
   "description": "Lobby and turn relay server.",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "node dist/server.mjs",

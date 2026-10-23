@@ -88,13 +88,25 @@ importers:
       '@frontfall/engine':
         specifier: workspace:*
         version: link:../packages/engine
+      '@frontfall/protocol':
+        specifier: workspace:*
+        version: link:../packages/protocol
+      '@frontfall/server':
+        specifier: workspace:*
+        version: link:../apps/server
       three:
         specifier: ^0.186.1
         version: 0.186.1
+      ws:
+        specifier: ^8.22.0
+        version: 8.22.0
     devDependencies:
       '@types/three':
         specifier: ^0.186.0
         version: 0.186.0
+      '@types/ws':
+        specifier: ^8.18.2
+        version: 8.18.2
       playwright-core:
         specifier: ^1.64.1
         version: 1.64.1
