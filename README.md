@@ -25,7 +25,7 @@
 
 The current build runs at **[nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/)**, no account and no install. Every push to `main` is deployed there within minutes.
 
-Be warned: this is a development build, not a game yet. Today it shows a generated test world that you can drag and zoom endlessly east to west, connected live to the turn server. The rules engine arrives with M1 and the first solo game in the browser with M3; [the roadmap](#roadmap) has the full sequence.
+Be warned: this is a development build, not a game yet. Today it shows a generated test world that you can drag and zoom endlessly east to west, connected live to the turn server. The first playable version, v0.1, is a solo game against bots on a map of the Earth; [the roadmap](#roadmap) has the full sequence.
 
 ## At a glance
 
@@ -40,21 +40,21 @@ Be warned: this is a development build, not a game yet. Today it shows a generat
 
 ## Roadmap
 
-Development runs in milestones. Each one ends with something you can try on the public server.
+Development runs in playable versions. Each one ends with something you can play on the public server.
 
-| Milestone | Goal                                                                                   | Status      |
-| --------- | -------------------------------------------------------------------------------------- | ----------- |
-| M0        | Foundations and specification: engine skeleton, turn relay, CI, deployment, game rules | In progress |
-| M1        | Simulation core: territory, troops and attacks, tested headless                        | Planned     |
-| M2        | Maps from open geographic data                                                         | Planned     |
-| M3        | Solo game in the browser, against bots                                                 | Planned     |
-| M4        | Online multiplayer: public lobbies, rejoin, desync detection                           | Planned     |
-| M5        | Full game and v1.0, the first public release                                           | Planned     |
-| M6        | 3D globe                                                                               | Planned     |
-| M7        | Performance, and switching between map and globe during a game                         | Planned     |
-| M8        | Community and launch                                                                   | Planned     |
+| Version | Goal                                                                                 | Status      |
+| ------- | ------------------------------------------------------------------------------------ | ----------- |
+| M0      | Foundations and specification: engine skeleton, turn relay, CI, deployment, rules    | Done        |
+| v0.1    | Solo game in the browser against bots, on a map of the Earth                         | In progress |
+| v0.2    | Online with friends: private invite links, lockstep in a worker, desync detection    | In progress |
+| v0.3    | Deeper game: cities and forts, alliances, nations, relief, rejoin after a disconnect | Planned     |
+| v0.4    | Sea and missiles: ships, naval combat, missiles, team games, replays                 | Planned     |
+| v1.0    | First public release: balance pass and monitored server                              | Planned     |
+| M6      | 3D globe                                                                             | Planned     |
+| M7      | Performance, and switching between map and globe during a game                       | Planned     |
+| M8      | Community and launch                                                                 | Planned     |
 
-The scope and exit criteria of each milestone are in [docs/roadmap.md](docs/roadmap.md). Open work is tracked in [milestones](https://github.com/nic0lasm/frontfall/milestones).
+The scope and "playable when" checks of each version are in [docs/roadmap.md](docs/roadmap.md). Open work is tracked in [milestones](https://github.com/nic0lasm/frontfall/milestones).
 
 ## How it works
 

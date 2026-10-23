@@ -25,7 +25,7 @@
 
 La version en cours tourne sur **[nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/)**, sans compte ni installation. Chaque push sur `main` y est déployé en quelques minutes.
 
-Attention : c'est une version de développement, pas encore un jeu. Elle affiche aujourd'hui un monde de test généré, que l'on fait défiler et zoomer sans fin d'est en ouest, connecté en direct au serveur de tours. Le moteur de règles arrive avec M1 et la première partie solo dans le navigateur avec M3 ; [la feuille de route](#feuille-de-route) donne toute la suite.
+Attention : c'est une version de développement, pas encore un jeu. Elle affiche aujourd'hui un monde de test généré, que l'on fait défiler et zoomer sans fin d'est en ouest, connecté en direct au serveur de tours. La première version jouable, v0.1, est une partie solo contre des bots sur une carte de la Terre ; [la feuille de route](#feuille-de-route) donne toute la suite.
 
 ## En un coup d'œil
 
@@ -40,21 +40,21 @@ Attention : c'est une version de développement, pas encore un jeu. Elle affiche
 
 ## Feuille de route
 
-Le développement avance par jalons. Chacun se termine par quelque chose d'essayable sur le serveur public.
+Le développement avance par versions jouables. Chacune se termine par quelque chose de jouable sur le serveur public.
 
-| Jalon | Objectif                                                                                     | État     |
-| ----- | -------------------------------------------------------------------------------------------- | -------- |
-| M0    | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement, règles | En cours |
-| M1    | Cœur de la simulation : territoire, troupes et attaques, testés sans affichage               | Prévu    |
-| M2    | Cartes issues de données géographiques ouvertes                                              | Prévu    |
-| M3    | Partie solo dans le navigateur, contre des bots                                              | Prévu    |
-| M4    | Multijoueur en ligne : salons publics, reconnexion, détection de désynchronisation           | Prévu    |
-| M5    | Jeu complet et v1.0, première version publique                                               | Prévu    |
-| M6    | Globe 3D                                                                                     | Prévu    |
-| M7    | Performance, et bascule entre carte et globe en cours de partie                              | Prévu    |
-| M8    | Communauté et lancement                                                                      | Prévu    |
+| Version | Objectif                                                                                 | État     |
+| ------- | ---------------------------------------------------------------------------------------- | -------- |
+| M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement     | Terminé  |
+| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre                | En cours |
+| v0.2    | En ligne entre amis : liens d'invitation, lockstep dans un worker, détection des désyncs | En cours |
+| v0.3    | Jeu plus riche : villes et forts, alliances, nations, relief, reconnexion                | Prévu    |
+| v0.4    | Mer et missiles : navires, combat naval, missiles, parties en équipes, replays           | Prévu    |
+| v1.0    | Première version publique : équilibrage et serveur surveillé                             | Prévu    |
+| M6      | Globe 3D                                                                                 | Prévu    |
+| M7      | Performance, et bascule entre carte et globe en cours de partie                          | Prévu    |
+| M8      | Communauté et lancement                                                                  | Prévu    |
 
-Le périmètre et les critères de sortie de chaque jalon sont dans [docs/roadmap.md](docs/roadmap.md) (en anglais). Le travail ouvert est suivi dans les [milestones](https://github.com/nic0lasm/frontfall/milestones).
+Le périmètre et les critères « jouable » de chaque version sont dans [docs/roadmap.md](docs/roadmap.md) (en anglais). Le travail ouvert est suivi dans les [milestones](https://github.com/nic0lasm/frontfall/milestones).
 
 ## Comment ça marche
 

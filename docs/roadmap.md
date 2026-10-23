@@ -1,53 +1,47 @@
 # Roadmap
 
-Frontfall is built in two phases. Phase 1 (M0 to M5) delivers the complete game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/). Phase 2 (M6 to M8) puts the same game on a 3D globe and opens it to contributors. The rules do not change between the two: the globe is a new view, not a new game.
+Frontfall is built in two phases. Phase 1 delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/). Phase 2 (M6 to M8) puts the same game on a 3D globe and opens it to contributors. The rules do not change between the two: the globe is a new view, not a new game.
 
-This page lists 71 issues across M1 to M8, about 197 days of focused work. Each milestone has a player outcome, a short list of checks that say when it is done, and the issues that get it there. Issues are tracked on the [milestones page](https://github.com/nic0lasm/frontfall/milestones).
+Phase 1 ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
 ## Overview
 
-| Milestone                                                            | Phase | Player outcome                                                                                                       | Issues | Estimate    |
-| -------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------- | ------ | ----------- |
-| M0 · Foundations and specification                                   | 1     | Repository, rules specification, CI and deployment in place                                                          | 9      | In progress |
-| [M1 · Simulation core](#m1--simulation-core)                         | 1     | A complete game of expansion and attacks runs headless and gives exactly the same result on every machine.           | 11     | 31 days     |
-| [M2 · Maps from open data](#m2--maps-from-open-data)                 | 1     | Play on a recognisable Earth and on continent maps, with coasts and mountains, and no visible seam at the date line. | 8      | 22 days     |
-| [M3 · Solo game in the browser](#m3--solo-game-in-the-browser)       | 1     | Open the site, pick a map, play a whole game against bots, and win or lose.                                          | 11     | 29 days     |
-| [M4 · Online multiplayer](#m4--online-multiplayer)                   | 1     | Share a link, friends join, and the same game plays out on every screen.                                             | 9      | 29 days     |
-| [M5 · Full game and v1.0](#m5--full-game-and-v10)                    | 1     | A complete strategy game: build, sail, strike, ally and betray. First public release.                                | 10     | 32 days     |
-| [M6 · 3D globe](#m6--3d-globe)                                       | 2     | The same game on a planet you can spin. No edge, no seam.                                                            | 7      | 21 days     |
-| [M7 · Performance and view switch](#m7--performance-and-view-switch) | 2     | Smooth on a modest laptop, and players switch between the flat map and the globe in the middle of a game.            | 8      | 20 days     |
-| [M8 · Community and launch](#m8--community-and-launch)               | 2     | Players and contributors find the game, add maps and translations, and follow each release.                          | 7      | 13 days     |
+| Version                                                              | You can                                                                                     | Issues | Estimate |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -----: | -------: |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.    |     21 |  63 days |
+| [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.       |      9 |  27 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop. |     11 |  31 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                    | Sail, fight at sea, launch missiles, play in teams and watch replays.                       |      5 |  19 days |
+| [v1.0 · First release](#v10--first-release)                          | A balanced, monitored public release.                                                       |      3 |   5 days |
+| [M6 · 3D globe](#m6--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                   |      7 |  21 days |
+| [M7 · Performance and view switch](#m7--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.          |      8 |  20 days |
+| [M8 · Community and launch](#m8--community-and-launch)               | Players and contributors find the game, add maps and translations, and follow each release. |      7 |  13 days |
+
+M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
 
 ```mermaid
 flowchart LR
   subgraph P1["Phase 1: flat world, online"]
-    M0["M0 · Foundations and specification"]
-    M1["M1 · Simulation core"]
-    M2["M2 · Maps from open data"]
-    M3["M3 · Solo game in the browser"]
-    M4["M4 · Online multiplayer"]
-    M5["M5 · Full game and v1.0"]
+    V01["v0.1 · Solo, on a real map"]
+    V02["v0.2 · Online with friends"]
+    V03["v0.3 · Deeper game"]
+    V04["v0.4 · Sea and missiles"]
+    V10["v1.0 · First release"]
   end
   subgraph P2["Phase 2: globe and community"]
     M6["M6 · 3D globe"]
     M7["M7 · Performance and view switch"]
     M8["M8 · Community and launch"]
   end
-  M0 --> M1
-  M1 --> M2
-  M2 --> M3
-  M3 --> M4
-  M4 --> M5
-  M5 --> M6
-  M6 --> M7
-  M7 --> M8
-  M0 -. "map generator" .-> M2
-  M3 -. "rendering contracts" .-> M6
+  V01 --> V02 --> V03 --> V04 --> V10 --> M6 --> M7 --> M8
+  V01 -. "rendering contracts" .-> M6
 ```
 
-A solid arrow means the later milestone cannot be finished before the earlier one. A dotted arrow marks work that starts early: the map generator (M2-01, M2-03) needs nothing from the engine and runs alongside M1, and the globe renderer (M6-01) can begin as soon as the rendering contracts of M3 (M3-01) exist.
+A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 need nothing from the client and are built alongside v0.1, and the globe renderer (M6-01) can start as soon as the rendering contracts of v0.1 (M3-01) exist.
 
-## How to read the estimates
+## How to read this page
+
+Each version has a player outcome, a "Playable when" list that decides when it ships, and the issues that get it there. A version ships when every check passes, not when its issues are closed. It is tagged (`v0.1.0`, `v0.2.0`, ...), deployed to the public server and described in the [changelog](../CHANGELOG.md).
 
 | Size | Meaning                                                  |
 | ---- | -------------------------------------------------------- |
@@ -55,138 +49,143 @@ A solid arrow means the later milestone cannot be finished before the earlier on
 | M    | 2 to 3 days                                              |
 | L    | 4 to 5 days. Anything larger is split before work starts |
 
-Milestone estimates add up S = 1, M = 3 and L = 5 days. They measure scope, not a calendar: there are no dates on this page. A milestone is done when every check in its "Done when" list passes, not when its issues are closed.
+Estimates add up S = 1, M = 3 and L = 5 days of focused work. They measure scope, not a calendar: the engine, maps, client and server move in parallel, so a version takes less time than its total. There are no dates on this page.
+
+Issue IDs such as `M3-01` were given when the work was first split into milestones M1 to M5. They stay as stable references in issue bodies and commits; the prefix no longer says which version an issue belongs to. GitHub milestones carry the version.
 
 Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier (`R-ATTACK-01`) and take every number from [`docs/balance.md`](balance.md). Architecture choices are recorded in [`docs/adr/`](adr/).
 
-## M1 · Simulation core
+## v0.1 · Solo, on a real map
 
-**Outcome.** A complete game of expansion and attacks runs headless and gives exactly the same result on every machine.
+**Outcome.** Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.
 
-**Done when**
+**Playable when**
 
-1. A scripted 4-player game of 10,000 ticks on a 1,000 x 500 grid ends with the same state hash in Node.js, Chromium, Firefox and WebKit, checked in CI.
-2. One tick on a 2,000,000-tile map with 32 players takes under 8 ms (median) on the CI runner.
-3. Every `R-MAP`, `R-SPAWN`, `R-ECO` and `R-ATTACK` rule of `docs/rules.md` is covered by at least one test that names its identifier.
-4. Engine line coverage stays at or above 90 %.
+1. From the public server, a player starts a solo game on the World map with 8 or more bots in two clicks, picks a start tile, expands, attacks and reaches the end screen, by winning (`R-WIN-01`) or by being eliminated.
+2. The same run passes as a Playwright test in Chromium and Firefox with no console error, in CI and against the public server after deployment.
+3. A scripted game of 10,000 ticks with 8 bots on the World map gives the same final state hash twice in Node.js and once in Chromium.
+4. Three people outside the project each finish a game without help; what blocked them is filed as issues.
 
-| ID    | Issue                                           | Size | Depends on   |
-| ----- | ----------------------------------------------- | ---- | ------------ |
-| M1-01 | Topology interface with flat and cylinder modes | M    | None         |
-| M1-02 | Deterministic integer maths helpers             | S    | None         |
-| M1-03 | Game state and tick loop                        | M    | M1-01, M1-02 |
-| M1-04 | Intent validation and execution                 | M    | M1-03        |
-| M1-05 | Spawn phase                                     | S    | M1-04        |
-| M1-06 | Population, troops and gold growth              | M    | M1-03        |
-| M1-07 | Expansion into neutral land                     | L    | M1-04, M1-06 |
-| M1-08 | Attacks between players                         | L    | M1-07        |
-| M1-09 | State hash and cross-runtime determinism suite  | M    | M1-08        |
-| M1-10 | Run the engine in a Web Worker                  | M    | M1-04        |
-| M1-11 | Headless runner and engine benchmark            | S    | M1-08        |
+**Rules in scope.** `R-MAP-01` to `R-MAP-04` (land, water and impassable ice; relief is drawn but costs nothing extra yet), `R-SPAWN`, `R-ECO-01` to `R-ECO-05` (cities aside), `R-ATTACK-01` to `R-ATTACK-08`, `R-BOT-01`, `R-BOT-03`, `R-BOT-04`, `R-WIN-01` to `R-WIN-03`, `R-MODE-01`, `R-FAIR-02`.
+
+**Left for later on purpose.** The Web Worker (the engine runs in the page behind an interface the worker will implement unchanged), more than one map, thumbnails, French, relief costs, nations, structures.
+
+| ID    | Issue                                                                                                   | Size | Depends on |
+| ----- | ------------------------------------------------------------------------------------------------------- | ---- | ---------- |
+| M1-01 | [#4](https://github.com/nic0lasm/frontfall/issues/4) Topology interface with flat and cylinder modes    | M    | None       |
+| M1-02 | [#5](https://github.com/nic0lasm/frontfall/issues/5) Deterministic integer maths helpers                | S    | None       |
+| M1-03 | [#6](https://github.com/nic0lasm/frontfall/issues/6) Game state and tick loop                           | M    | #4, #5     |
+| M1-04 | [#7](https://github.com/nic0lasm/frontfall/issues/7) Intent validation and execution                    | M    | #6         |
+| M1-05 | [#8](https://github.com/nic0lasm/frontfall/issues/8) Spawn phase                                        | S    | #7         |
+| M1-06 | [#9](https://github.com/nic0lasm/frontfall/issues/9) Population, troops and gold growth                 | M    | #6         |
+| M1-07 | [#10](https://github.com/nic0lasm/frontfall/issues/10) Expansion into neutral land                      | L    | #7, #9     |
+| M1-08 | [#11](https://github.com/nic0lasm/frontfall/issues/11) Attacks between players                          | L    | #10        |
+| M1-11 | [#14](https://github.com/nic0lasm/frontfall/issues/14) Game session runner, in the page and headless    | M    | #7         |
+| M2-01 | [#15](https://github.com/nic0lasm/frontfall/issues/15) Map format v1 specification                      | S    | None       |
+| M2-02 | [#16](https://github.com/nic0lasm/frontfall/issues/16) Map loader in the engine                         | M    | #15, #6    |
+| M2-03 | [#17](https://github.com/nic0lasm/frontfall/issues/17) Map generator: land and water from Natural Earth | L    | #15        |
+| M2-05 | [#19](https://github.com/nic0lasm/frontfall/issues/19) Coasts, small islands and the east-west seam     | M    | #17        |
+| M3-01 | [#23](https://github.com/nic0lasm/frontfall/issues/23) Renderer and Camera contracts                    | M    | #14        |
+| M3-02 | [#24](https://github.com/nic0lasm/frontfall/issues/24) Territory rendering with a data texture          | L    | #23, #16   |
+| M3-03 | [#25](https://github.com/nic0lasm/frontfall/issues/25) Mouse, touch and keyboard input                  | M    | #23        |
+| M3-04 | [#26](https://github.com/nic0lasm/frontfall/issues/26) In-game interface                                | M    | #24        |
+| M3-05 | [#27](https://github.com/nic0lasm/frontfall/issues/27) Main menu and game setup                         | M    | #16        |
+| M3-06 | [#28](https://github.com/nic0lasm/frontfall/issues/28) Bots                                             | L    | #11, #8    |
+| M3-08 | [#30](https://github.com/nic0lasm/frontfall/issues/30) Victory, defeat and end screen                   | S    | #11        |
+| M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) First playtest round                             | S    | #30        |
+
+21 issues, about 63 days of work in four parallel streams: engine (27), maps (12), client (19) and bots (5).
+
+## v0.2 · Online with friends
+
+**Outcome.** Share a link, two to eight friends join, and the same game plays out on every screen.
+
+**Playable when**
+
+1. A player creates a private game from the menu, picks one of at least three maps and a number of bots, and shares the link; the others join from it.
+2. Four players on two networks and two browsers finish a game on `nclsmgr.com/frontfall` with zero desyncs, and the engine never blocks the page (it runs in a worker).
+3. A deliberate desync in a test is detected within 10 seconds and reported to the server with the tick and both hashes.
+4. A scripted 4-player game ends with the same state hash in Node.js, Chromium, Firefox and WebKit, checked in CI.
+5. Every map rebuilds byte for byte from its pinned sources, checked in CI.
+
+| ID    | Issue                                                                                                      | Size | Depends on |
+| ----- | ---------------------------------------------------------------------------------------------------------- | ---- | ---------- |
+| M1-09 | [#12](https://github.com/nic0lasm/frontfall/issues/12) State hash and cross-runtime determinism suite      | M    | #11        |
+| M1-10 | [#13](https://github.com/nic0lasm/frontfall/issues/13) Run the engine in a Web Worker                      | M    | #14        |
+| M2-07 | [#21](https://github.com/nic0lasm/frontfall/issues/21) First map set                                       | M    | #19        |
+| M2-08 | [#22](https://github.com/nic0lasm/frontfall/issues/22) Map build and checksum check in CI                  | S    | #21        |
+| M4-01 | [#34](https://github.com/nic0lasm/frontfall/issues/34) Protocol v1: version handshake and compact encoding | M    | None       |
+| M4-02 | [#35](https://github.com/nic0lasm/frontfall/issues/35) Lobby lifecycle                                     | M    | #34        |
+| M4-03 | [#36](https://github.com/nic0lasm/frontfall/issues/36) Public games list and private invite links          | M    | #35, #27   |
+| M4-04 | [#37](https://github.com/nic0lasm/frontfall/issues/37) Lockstep client                                     | L    | #13, #34   |
+| M4-05 | [#38](https://github.com/nic0lasm/frontfall/issues/38) Desync detection and reports                        | M    | #12, #37   |
+
+9 issues, about 27 days. The protocol and the lobby (#34, #35) start during v0.1.
+
+## v0.3 · Deeper game
+
+**Outcome.** Build cities and forts, ally and betray, face named nations on hills and mountains, and rejoin a game after a dropped connection.
+
+**Playable when**
+
+1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-05` and `R-BOT-02` is implemented and covered by a test that names it.
+2. A player who loses the connection for 30 seconds rejoins and catches up in under 10 seconds.
+3. Load test: 20 games of 16 simulated players hold for 30 minutes under 50 % of one vCPU and 512 MB on the server; fuzzed and oversized messages never crash it or affect other games.
+4. Every interface string exists in English and French.
+
+| ID    | Issue                                                                                              | Size | Depends on |
+| ----- | -------------------------------------------------------------------------------------------------- | ---- | ---------- |
+| M2-04 | [#18](https://github.com/nic0lasm/frontfall/issues/18) Relief and impassable terrain               | M    | #17        |
+| M2-06 | [#20](https://github.com/nic0lasm/frontfall/issues/20) Manifests, thumbnails and nation positions  | M    | #19        |
+| M3-07 | [#29](https://github.com/nic0lasm/frontfall/issues/29) Nations                                     | M    | #28, #20   |
+| M3-09 | [#31](https://github.com/nic0lasm/frontfall/issues/31) English and French interface                | S    | None       |
+| M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility                  | S    | #26        |
+| M4-06 | [#39](https://github.com/nic0lasm/frontfall/issues/39) Reconnection and catch-up                   | L    | #37        |
+| M4-07 | [#40](https://github.com/nic0lasm/frontfall/issues/40) Abuse protection on the game server         | M    | #35        |
+| M4-08 | [#41](https://github.com/nic0lasm/frontfall/issues/41) Server metrics and structured logs          | S    | #35        |
+| M4-09 | [#42](https://github.com/nic0lasm/frontfall/issues/42) Load test and message fuzzing               | M    | #37, #40   |
+| M5-01 | [#43](https://github.com/nic0lasm/frontfall/issues/43) Structures: cities, ports and defence posts | L    | #26        |
+| M5-05 | [#47](https://github.com/nic0lasm/frontfall/issues/47) Alliances, betrayal and embargoes           | M    | #26        |
 
 11 issues, about 31 days.
 
-## M2 · Maps from open data
+## v0.4 · Sea and missiles
 
-**Outcome.** Play on a recognisable Earth and on continent maps, with coasts and mountains, and no visible seam at the date line.
+**Outcome.** Sail, fight at sea, launch missiles, play in teams and watch a game again.
 
-**Done when**
-
-1. `pnpm maps` rebuilds every map byte for byte from pinned public-domain sources, checked by checksum in CI.
-2. The World map is at least 2,048 x 1,024 tiles and its compressed download is under 2 MB.
-3. Column 0 and the last column of every cylinder map join without a terrain break (automated test).
-4. Each map ships with a manifest, a thumbnail and a line in `CREDITS.md`.
-
-| ID    | Issue                                            | Size | Depends on          |
-| ----- | ------------------------------------------------ | ---- | ------------------- |
-| M2-01 | Map format v1 specification                      | S    | None                |
-| M2-02 | Map loader in the engine                         | M    | M2-01, M1-03        |
-| M2-03 | Map generator: land and water from Natural Earth | L    | M2-01               |
-| M2-04 | Relief and impassable terrain                    | M    | M2-03               |
-| M2-05 | Coasts, small islands and the east-west seam     | M    | M2-03               |
-| M2-06 | Manifests, thumbnails and nation positions       | M    | M2-05               |
-| M2-07 | First map set                                    | M    | M2-04, M2-05, M2-06 |
-| M2-08 | Map build and checksum check in CI               | S    | M2-07               |
-
-8 issues, about 22 days.
-
-## M3 · Solo game in the browser
-
-**Outcome.** Open the site, pick a map, play a whole game against bots, and win or lose.
-
-**Done when**
-
-1. From the menu to the end screen without a console error in current Chrome, Firefox and Safari (Playwright run in CI).
-2. 60 frames per second on the World map at 1080p on the reference laptop (MacBook Air M1).
-3. Five playtesters each finish a game without help; their notes are filed as issues.
-4. Every interface string exists in English and French.
-
-| ID    | Issue                                   | Size | Depends on   |
-| ----- | --------------------------------------- | ---- | ------------ |
-| M3-01 | Renderer and Camera contracts           | M    | M1-10        |
-| M3-02 | Territory rendering with a data texture | L    | M3-01, M2-02 |
-| M3-03 | Mouse, touch and keyboard input         | M    | M3-01        |
-| M3-04 | In-game interface                       | M    | M3-02        |
-| M3-05 | Main menu and game setup                | M    | M2-07        |
-| M3-06 | Bots                                    | L    | M1-08, M1-05 |
-| M3-07 | Nations                                 | M    | M3-06, M2-06 |
-| M3-08 | Victory, defeat and end screen          | S    | M1-08        |
-| M3-09 | English and French interface            | S    | None         |
-| M3-10 | Settings and accessibility              | S    | M3-04        |
-| M3-11 | First playtest round                    | S    | M3-08        |
-
-11 issues, about 29 days.
-
-## M4 · Online multiplayer
-
-**Outcome.** Share a link, friends join, and the same game plays out on every screen.
-
-**Done when**
-
-1. Eight players on three browsers and two networks finish a game on `nclsmgr.com/frontfall` with zero desyncs.
-2. A player who loses the connection for 30 seconds rejoins and catches up in under 10 seconds.
-3. Load test: 20 games of 16 simulated players hold for 30 minutes under 50 % of one vCPU and 512 MB on the server.
-4. Fuzzed and oversized messages never crash the server or affect other games.
-
-| ID    | Issue                                               | Size | Depends on   |
-| ----- | --------------------------------------------------- | ---- | ------------ |
-| M4-01 | Protocol v1: version handshake and compact encoding | M    | None         |
-| M4-02 | Lobby lifecycle                                     | M    | M4-01        |
-| M4-03 | Public games list and private invite links          | M    | M4-02, M3-05 |
-| M4-04 | Lockstep client                                     | L    | M1-10, M4-01 |
-| M4-05 | Desync detection and reports                        | M    | M1-09, M4-04 |
-| M4-06 | Reconnection and catch-up                           | L    | M4-04        |
-| M4-07 | Abuse protection on the game server                 | M    | M4-02        |
-| M4-08 | Server metrics and structured logs                  | S    | M4-02        |
-| M4-09 | Load test and message fuzzing                       | M    | M4-04, M4-07 |
-
-9 issues, about 29 days.
-
-## M5 · Full game and v1.0
-
-**Outcome.** A complete strategy game: build, sail, strike, ally and betray. First public release.
-
-**Done when**
+**Playable when**
 
 1. Every rule of `docs/rules.md` v1 is implemented and covered by a test that names it.
-2. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`.
-3. The public server stays above 99 % uptime over the 14 days before the announcement, measured by an external check.
-4. The README shows screenshots and a short clip of a real game.
+2. A team game of 4 against 4 is played to the end on the public server.
+3. A finished game can be replayed from its link and ends with the same hash.
 
-| ID    | Issue                                       | Size | Depends on          |
-| ----- | ------------------------------------------- | ---- | ------------------- |
-| M5-01 | Structures: cities, ports and defence posts | L    | M3-04               |
-| M5-02 | Transport boats and water pathfinding       | L    | M5-01               |
-| M5-03 | Warships and naval combat                   | M    | M5-02               |
-| M5-04 | Missiles and air defence                    | L    | M5-01               |
-| M5-05 | Alliances, betrayal and embargoes           | M    | M3-04               |
-| M5-06 | Team games                                  | M    | M4-02, M5-05        |
-| M5-07 | Balance pass with headless games            | M    | M5-03, M5-04, M5-05 |
-| M5-08 | Replays                                     | M    | M4-05               |
-| M5-09 | Uptime monitoring and alerts                | S    | None                |
-| M5-10 | Release v1.0                                | S    | M5-07, M5-08, M5-09 |
+| ID    | Issue                                                                                        | Size | Depends on |
+| ----- | -------------------------------------------------------------------------------------------- | ---- | ---------- |
+| M5-02 | [#44](https://github.com/nic0lasm/frontfall/issues/44) Transport boats and water pathfinding | L    | #43        |
+| M5-03 | [#45](https://github.com/nic0lasm/frontfall/issues/45) Warships and naval combat             | M    | #44        |
+| M5-04 | [#46](https://github.com/nic0lasm/frontfall/issues/46) Missiles and air defence              | L    | #43        |
+| M5-06 | [#48](https://github.com/nic0lasm/frontfall/issues/48) Team games                            | M    | #35, #47   |
+| M5-08 | [#50](https://github.com/nic0lasm/frontfall/issues/50) Replays                               | M    | #38        |
 
-10 issues, about 32 days.
+5 issues, about 19 days.
+
+## v1.0 · First release
+
+**Outcome.** A balanced, monitored public release.
+
+**Playable when**
+
+1. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`.
+2. The public server stays above 99 % uptime over the 14 days before the announcement, measured by an external check.
+3. The README shows screenshots and a short clip of a real game.
+
+| ID    | Issue                                                                                   | Size | Depends on    |
+| ----- | --------------------------------------------------------------------------------------- | ---- | ------------- |
+| M5-07 | [#49](https://github.com/nic0lasm/frontfall/issues/49) Balance pass with headless games | M    | #45, #46, #47 |
+| M5-09 | [#51](https://github.com/nic0lasm/frontfall/issues/51) Uptime monitoring and alerts     | S    | None          |
+| M5-10 | [#52](https://github.com/nic0lasm/frontfall/issues/52) Release v1.0                     | S    | #49, #50, #51 |
+
+3 issues, about 5 days.
 
 ## M6 · 3D globe
 
@@ -257,6 +256,10 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 | M8-07 | Launch announcement            | S    | M7-07, M8-06 |
 
 7 issues, about 13 days.
+
+## Good first issues
+
+Small issues opened for newcomers (keyboard panning, zoom towards the cursor, WebGL 2 message, link previews, touch controls, protocol documentation) carry no version. Any of them is welcome at any time and ships with the next tag after it is merged.
 
 ## Not planned yet
 

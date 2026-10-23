@@ -20,6 +20,7 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 
 ### Changed
 
+- The roadmap now ships phase 1 as playable versions instead of milestones M1 to M5: v0.1 is a solo game against bots on a map of the Earth, v0.2 online games with friends, v0.3 structures, diplomacy and nations, v0.4 ships and missiles, then v1.0. Each version lists the checks that make it playable ([docs/roadmap.md](docs/roadmap.md)).
 - The engine compiles without browser or Node types, and its lint rules also reject `Date`, `crypto` and floating-point `Math` functions whose results vary between browsers.
 - Node.js 24 is required.
 - Static files are served with cache headers: hashed assets are immutable, the page is revalidated.
