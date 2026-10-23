@@ -11,12 +11,17 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
 /**
  * Version of the messages below. A client and a server only talk when their
  * versions are equal; the `hello` message keeps its shape in every version so
- * that a mismatch can always be reported.
+ * that a mismatch can always be reported. Adding an order kind changes the
+ * turn frames, so it bumps this version too; a test pins the order kinds of
+ * the current version.
  */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
+
+/** Clients send a hash of their state after every tick that is a multiple of this. */
+export const HASH_INTERVAL = 50;
 
 /** Codes a server closes a WebSocket with, besides the standard 1000 to 1015. */
 export const CloseCode = {
@@ -127,7 +132,10 @@ export const ServerMessage = z.discriminatedUnion("type", [
   /** Two clients reported different state hashes for this tick. */
   z.object({ type: z.literal("desync"), tick }),
   /** The game is over for this connection, which may join another one. */
-  z.object({ type: z.literal("ended"), reason: z.enum(["abandoned", "timeout", "left"]) }),
+  z.object({
+    type: z.literal("ended"),
+    reason: z.enum(["abandoned", "timeout", "expired", "left"]),
+  }),
   z.object({ type: z.literal("error"), code: ErrorCode, message: z.string() }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;

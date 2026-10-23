@@ -5,6 +5,7 @@ import { get } from "node:http";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
+  PROTOCOL_VERSION,
   CloseCode,
   encodeClientMessage,
   parseServerMessage,
@@ -82,7 +83,7 @@ function closed(socket: WebSocket): Promise<number> {
 async function player(host: string, name: string, autoPong = true) {
   const client = open(host, {}, autoPong);
   await opened(client.socket);
-  client.send({ type: "hello", version: 1, name });
+  client.send({ type: "hello", version: PROTOCOL_VERSION, name });
   await client.next("welcome");
   return client;
 }
@@ -162,6 +163,24 @@ describe("HTTP", () => {
       expect(plain.headers["content-encoding"]).toBeUndefined();
       expect(plain.body.length).toBe(map.length);
     }
+  });
+
+  it("lets browsers revalidate files with their ETag", async () => {
+    writeFileSync(join(staticRoot, "world.json"), JSON.stringify({ id: "world" }));
+    const host = await start();
+    const first = await fetch(`http://${host}/world.json`);
+    const etag = first.headers.get("etag");
+    expect(etag).toMatch(/^W\/"[\w-]{22}"$/);
+    const again = await fetch(`http://${host}/world.json`, {
+      headers: { "if-none-match": `"other", ${etag?.slice(2) ?? ""}` },
+    });
+    expect(again.status).toBe(304);
+    expect(again.headers.get("etag")).toBe(etag);
+    expect(await again.text()).toBe("");
+    const changed = await fetch(`http://${host}/world.json`, {
+      headers: { "if-none-match": 'W/"stale"' },
+    });
+    expect(changed.status).toBe(200);
   });
 
   it("rejects other methods", async () => {
@@ -340,27 +359,27 @@ describe("WebSocket", () => {
     const host = await start();
     const old = open(host);
     await opened(old.socket);
-    old.send({ type: "hello", version: 1, name: "Old", build: "0123456789ab" });
+    old.send({ type: "hello", version: PROTOCOL_VERSION, name: "Old", build: "0123456789ab" });
     expect(await closed(old.socket)).toBe(CloseCode.versionMismatch);
 
     const same = open(host);
     await opened(same.socket);
-    same.send({ type: "hello", version: 1, name: "Same", build: "abc123" });
+    same.send({ type: "hello", version: PROTOCOL_VERSION, name: "Same", build: "abc123" });
     await same.next("welcome");
     const dev = open(host);
     await opened(dev.socket);
-    dev.send({ type: "hello", version: 1, name: "Dev", build: "dev" });
+    dev.send({ type: "hello", version: PROTOCOL_VERSION, name: "Dev", build: "dev" });
     await dev.next("welcome");
   });
 
   it("asks for another name when the name is not allowed", async () => {
     const client = open(await start());
     await opened(client.socket);
-    client.send({ type: "hello", version: 1, name: "<b>" });
+    client.send({ type: "hello", version: PROTOCOL_VERSION, name: "<b>" });
     expect((await client.next("error")).code).toBe("invalid_name");
-    client.send({ type: "hello", version: 1, name: "Bold" });
+    client.send({ type: "hello", version: PROTOCOL_VERSION, name: "Bold" });
     await client.next("welcome");
-    client.send({ type: "hello", version: 1, name: "Again" });
+    client.send({ type: "hello", version: PROTOCOL_VERSION, name: "Again" });
     expect(await closed(client.socket)).toBe(CloseCode.invalidMessage);
   });
 
@@ -497,6 +516,13 @@ describe("WebSocket", () => {
     await expect(
       opened(open(host, { "x-client-ip": "203.0.113.9" }).socket),
     ).resolves.toBeUndefined();
+  });
+
+  it("refuses connections beyond the server-wide cap", async () => {
+    const host = await start({ maxConnections: 1 });
+    const first = open(host);
+    await opened(first.socket);
+    await expect(opened(open(host).socket)).rejects.toThrow("503");
   });
 
   it("caps the number of games open at once", async () => {

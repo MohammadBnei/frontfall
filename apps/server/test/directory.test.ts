@@ -8,6 +8,7 @@ const peer: Peer = { send: () => undefined, probe: () => undefined };
 function directory(maxRooms = 10) {
   return new Directory({
     maxRooms,
+    maxPrivatePerOwner: 2,
     publicGame: { ...DEFAULT_GAME, capacity: 2, minPlayers: 2 },
     privateGame: DEFAULT_GAME,
   });
@@ -40,6 +41,18 @@ describe("Directory", () => {
     const ids = new Set(Array.from({ length: 1000 }, () => games.create("private")?.id));
     expect(ids.size).toBe(1000);
     for (const id of ids) expect(id).toMatch(/^[A-Za-z0-9_-]{12}$/);
+  });
+
+  it("caps the private lobbies one address holds, not its running games", () => {
+    const games = directory();
+    const first = games.create("private", "203.0.113.9");
+    expect(games.create("private", "203.0.113.9")).toBeDefined();
+    expect(games.create("private", "203.0.113.9")).toBeUndefined();
+    expect(games.create("private", "198.51.100.4")).toBeDefined();
+    const seat = first?.join("A", peer, 0);
+    if (!first || !seat || typeof seat === "string") throw new Error("not seated");
+    first.requestStart(seat, 0);
+    expect(games.create("private", "203.0.113.9")?.owner).toBe("203.0.113.9");
   });
 
   it("caps the number of games", () => {

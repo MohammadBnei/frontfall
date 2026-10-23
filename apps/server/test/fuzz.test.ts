@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  PROTOCOL_VERSION,
   ClientMessage,
   encodeClientMessage,
   encodeServerMessage,
@@ -46,7 +47,11 @@ function edgyInt(rng: Random): number {
 function validClientMessage(rng: Random): ClientMessage {
   switch (int(rng, 9)) {
     case 0:
-      return { type: "hello", version: 1, name: pick(rng, ["Léa", "Nico", "a b", "x".repeat(20)]) };
+      return {
+        type: "hello",
+        version: PROTOCOL_VERSION,
+        name: pick(rng, ["Léa", "Nico", "a b", "x".repeat(20)]),
+      };
     case 1:
       return { type: "play" };
     case 2:
@@ -288,8 +293,8 @@ describe("server under fuzzed connections", () => {
     const send = (socket: WebSocket, message: ClientMessage) => {
       socket.send(encodeClientMessage(message));
     };
-    send(alice, { type: "hello", version: 1, name: "Alice" });
-    send(bob, { type: "hello", version: 1, name: "Bob" });
+    send(alice, { type: "hello", version: PROTOCOL_VERSION, name: "Alice" });
+    send(bob, { type: "hello", version: PROTOCOL_VERSION, name: "Bob" });
     await Promise.all([until(alice, "welcome"), until(bob, "welcome")]);
     send(alice, { type: "create" });
     const { game } = await until(alice, "lobby");
@@ -321,7 +326,8 @@ describe("server under fuzzed connections", () => {
         resolve();
       }),
     );
-    if (hello) socket.send(encodeClientMessage({ type: "hello", version: 1, name: "Fuzz" }));
+    if (hello)
+      socket.send(encodeClientMessage({ type: "hello", version: PROTOCOL_VERSION, name: "Fuzz" }));
     let sent = 0;
     for (const frame of frames) {
       if (socket.readyState !== WebSocket.OPEN) break;

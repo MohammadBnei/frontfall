@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { extname, join, normalize, sep } from "node:path";
@@ -34,25 +35,38 @@ const MIN_COMPRESSED_SIZE = 1024;
 export interface StaticFile {
   body: Buffer;
   contentType: string;
+  /** Content hash, so browsers can revalidate a file without downloading it again. */
+  etag: string;
   /** Gzip version of the body, when compressing is worth it. */
   gzip?: Buffer;
 }
 
-/**
- * Compressed bodies, by path and modification time. Built files only change
- * with a new image, so each one is compressed once per process.
- */
-const gzipCache = new Map<string, Buffer>();
+interface Derived {
+  etag: string;
+  gzip: Buffer | undefined;
+}
 
-function compressed(path: string, modified: number, body: Buffer): Buffer | undefined {
-  if (!COMPRESSIBLE.has(extname(path)) || body.length < MIN_COMPRESSED_SIZE) return undefined;
+/**
+ * Hashes and compressed bodies, by path and modification time. Built files only
+ * change with a new image, so each one is hashed and compressed once per process.
+ */
+const derivedCache = new Map<string, Derived>();
+
+function derive(path: string, modified: number, body: Buffer): Derived {
   const key = `${path}:${String(modified)}`;
-  let gzip = gzipCache.get(key);
-  if (!gzip) {
-    gzip = gzipSync(body, { level: 9 });
-    gzipCache.set(key, gzip);
+  let derived = derivedCache.get(key);
+  if (!derived) {
+    let gzip: Buffer | undefined;
+    if (COMPRESSIBLE.has(extname(path)) && body.length >= MIN_COMPRESSED_SIZE) {
+      gzip = gzipSync(body, { level: 9 });
+      if (gzip.length >= body.length) gzip = undefined;
+    }
+    // Weak: the same tag covers the plain and the gzipped body.
+    const etag = `W/"${createHash("sha256").update(body).digest("base64url").slice(0, 22)}"`;
+    derived = { etag, gzip };
+    derivedCache.set(key, derived);
   }
-  return gzip.length < body.length ? gzip : undefined;
+  return derived;
 }
 
 /**
@@ -79,10 +93,11 @@ export async function loadStaticFile(
     const info = await stat(absolute);
     if (!info.isFile()) return undefined;
     const body = await readFile(absolute);
-    const gzip = compressed(absolute, info.mtimeMs, body);
+    const { etag, gzip } = derive(absolute, info.mtimeMs, body);
     return {
       body,
       contentType: CONTENT_TYPES[extname(absolute)] ?? "application/octet-stream",
+      etag,
       ...(gzip && { gzip }),
     };
   } catch {

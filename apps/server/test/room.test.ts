@@ -11,6 +11,9 @@ const PUBLIC: RoomSettings = {
   countdownMs: 10_000,
   reconnectGraceMs: 60_000,
   maxDurationMs: 3_600_000,
+  lobbyTimeoutMs: 600_000,
+  maxOrdersPerTurn: 3,
+  maxLogBytes: 1_000_000,
 };
 const PRIVATE: RoomSettings = { ...PUBLIC, visibility: "private" };
 
@@ -149,12 +152,26 @@ describe("public lobby", () => {
   });
 });
 
+describe("lobby timeout", () => {
+  it("closes a game that never starts", () => {
+    const observer = events();
+    const room = new Room("game0000", PRIVATE, 1, observer);
+    const host = seated(room, "Host", 1_000);
+    room.update(PRIVATE.lobbyTimeoutMs);
+    expect(room.state).toBe("open");
+    room.update(PRIVATE.lobbyTimeoutMs + 1_000);
+    expect(room.state).toBe("finished");
+    expect(host.peer.last("ended").reason).toBe("expired");
+    expect(observer.log).toEqual(["finished:expired"]);
+  });
+});
+
 describe("private lobby", () => {
   it("starts only when the host asks", () => {
     const room = new Room("game0000", PRIVATE, 1);
     const host = seated(room, "Host");
     const guest = seated(room, "Guest");
-    room.update(1_000_000);
+    room.update(60_000);
     expect(room.state).toBe("open");
     expect(guest.peer.last("lobby")).toMatchObject({ host: 1, startsIn: null });
     expect(room.requestStart(guest.seat, 0)).toBe("not_host");
@@ -203,6 +220,25 @@ describe("running game", () => {
     expect(alice.peer.turns()).toEqual(expected);
     expect(bob.peer.turns()).toEqual(expected);
     expect(room.log.length).toBe(2);
+  });
+
+  it("drops orders beyond the cap of one player in one turn", () => {
+    const { room, alice, bob } = running();
+    for (let tile = 0; tile < 5; tile++) room.submit(alice.seat, { type: "spawn", tile });
+    expect(room.submit(bob.seat, { type: "spawn", tile: 9 })).toBe(true);
+    room.update(100);
+    expect(alice.peer.turns()[0]?.orders).toHaveLength(4);
+    expect(room.submit(alice.seat, { type: "spawn", tile: 1 })).toBe(true);
+  });
+
+  it("stops a game whose turn log grows too large", () => {
+    const { room, alice } = running({ ...PRIVATE, maxLogBytes: 10_000 });
+    for (let now = 100; now <= 300_000 && room.state === "running"; now += 100) {
+      room.submit(alice.seat, { type: "attack", target: 2 ** 30, troops: 2 ** 40 });
+      room.update(now);
+    }
+    expect(room.state).toBe("finished");
+    expect(alice.peer.last("ended").reason).toBe("timeout");
   });
 
   it("ignores orders before the start and from players who left", () => {
@@ -281,42 +317,92 @@ describe("running game", () => {
 });
 
 describe("desync detection", () => {
-  it("flags the first tick where two clients disagree, once", () => {
-    const { room, alice, bob, observer } = running();
-    for (let now = 100; now <= 6_000; now += 100) room.update(now);
-    room.reportHash(alice.seat, 50, 1234);
-    room.reportHash(bob.seat, 50, 1234);
-    expect(room.desynced).toBe(false);
-    room.reportHash(alice.seat, 55, 1);
-    room.reportHash(bob.seat, 55, 2);
-    room.reportHash(bob.seat, 55, 3);
-    expect(room.desynced).toBe(true);
-    expect(alice.peer.last("desync").tick).toBe(55);
-    expect(observer.log.filter((entry) => entry.startsWith("desync"))).toEqual(["desync:55"]);
+  function threePlayers() {
+    const observer = events();
+    const room = new Room("game0000", PRIVATE, 7, observer);
+    const players = ["A", "B", "C"].map((name) => seated(room, name));
+    const [a] = players;
+    if (!a) throw new Error("no host");
+    room.requestStart(a.seat, 0);
+    for (let now = 100; now <= 20_000; now += 100) room.update(now);
+    return { room, players, observer };
+  }
 
-    room.disconnect(bob.seat, 6_000);
+  it("flags only the player whose hash differs from the majority", () => {
+    const { room, players, observer } = threePlayers();
+    const [a, b, c] = players;
+    if (!a || !b || !c) throw new Error("missing player");
+    room.reportHash(a.seat, 50, 1234);
+    room.reportHash(b.seat, 50, 1234);
+    room.reportHash(c.seat, 50, 1234);
+    expect(room.desynced).toBe(false);
+
+    room.reportHash(a.seat, 100, 7);
+    room.reportHash(b.seat, 100, 7);
+    expect(room.desynced).toBe(false);
+    room.reportHash(c.seat, 100, 8);
+    expect(room.desynced).toBe(true);
+    expect(c.peer.last("desync").tick).toBe(100);
+    expect(a.peer.inbox.some((message) => message.type === "desync")).toBe(false);
+    expect(observer.log.filter((entry) => entry.startsWith("desync"))).toEqual(["desync:100"]);
+
+    room.disconnect(c.seat, 20_000);
     const back = new FakePeer();
-    room.rejoin(bob.seat, back, 60);
-    expect(back.last("desync").tick).toBe(55);
+    room.rejoin(c.seat, back, 150);
+    expect(back.last("desync").tick).toBe(100);
   });
 
-  it("ignores hashes of ticks that have not been sent yet", () => {
+  it("cannot be used by one client to flag the others", () => {
+    const { room, players } = threePlayers();
+    const [a, b, c] = players;
+    if (!a || !b || !c) throw new Error("missing player");
+    room.reportHash(c.seat, 50, 666);
+    room.reportHash(c.seat, 50, 1);
+    room.reportHash(a.seat, 50, 1);
+    room.reportHash(b.seat, 50, 1);
+    expect(c.peer.last("desync").tick).toBe(50);
+    expect(a.peer.inbox.some((message) => message.type === "desync")).toBe(false);
+  });
+
+  it("flags both players of a split without a majority", () => {
+    const { room, alice, bob } = running();
+    for (let now = 100; now <= 6_000; now += 100) room.update(now);
+    room.reportHash(alice.seat, 50, 1);
+    room.reportHash(bob.seat, 50, 2);
+    expect(alice.peer.last("desync").tick).toBe(50);
+    expect(bob.peer.last("desync").tick).toBe(50);
+  });
+
+  it("only checks the ticks clients are asked to hash, once they have run", () => {
     const { room, alice, bob } = running();
     room.reportHash(alice.seat, 0, 1);
-    room.update(100);
     room.reportHash(bob.seat, 0, 2);
-    room.reportHash(alice.seat, 0, 3);
+    expect(room.desynced).toBe(false);
+    room.update(100);
+    room.reportHash(alice.seat, 0, 1);
+    room.reportHash(bob.seat, 0, 2);
     expect(room.desynced).toBe(true);
+
+    const other = running();
+    for (let now = 100; now <= 6_000; now += 100) other.room.update(now);
+    other.room.reportHash(other.alice.seat, 49, 1);
+    other.room.reportHash(other.bob.seat, 49, 2);
+    other.room.reportHash(other.alice.seat, 100, 1);
+    other.room.reportHash(other.bob.seat, 100, 2);
+    expect(other.room.desynced).toBe(false);
   });
 
-  it("keeps a bounded number of hashes", () => {
-    const { room, alice, bob } = running();
-    for (let now = 100; now <= 30_000; now += 100) room.update(now);
-    for (let tick = 0; tick < 300; tick++) room.reportHash(alice.seat, tick, tick);
-    // Tick 0 was forgotten, so a different hash for it cannot be compared.
-    room.reportHash(bob.seat, 0, 999);
+  it("compares late hashes without waiting for players who never report", () => {
+    const { room, players } = threePlayers();
+    const [a, b] = players;
+    if (!a || !b) throw new Error("missing player");
+    room.reportHash(a.seat, 150, 1);
+    room.reportHash(b.seat, 150, 2);
     expect(room.desynced).toBe(false);
-    room.reportHash(bob.seat, 299, 999);
+    for (let now = 20_100; now <= 80_000; now += 100) room.update(now);
     expect(room.desynced).toBe(true);
+    // Too old to be compared any more.
+    room.reportHash(a.seat, 200, 1);
+    expect(a.peer.inbox.filter((message) => message.type === "desync")).toHaveLength(1);
   });
 });

@@ -249,7 +249,7 @@ pnpm load -- --games 20 --players 16 --minutes 30 --url ws://localhost:8080/ws
 pnpm load -- --spawn-server --public --json load.json
 ```
 
-Each simulated player speaks protocol v1 like the browser: one player per
+Each simulated player speaks the protocol like the browser: one player per
 game creates a private game, the others join it by id and the creator starts
 it (`--public` uses matchmaking instead). Every player then sends an order
 every 2 s on average (a spawn, then attacks on random tiles with random

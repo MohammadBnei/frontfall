@@ -14,15 +14,17 @@
 
 ## Games
 
-| Setting                        | Value     | Notes                                                        |
-| ------------------------------ | --------- | ------------------------------------------------------------ |
-| Players per game               | 16        | A public game starts at once when full                       |
-| Players to start a public game | 2         | Then the countdown runs; it stops if a player leaves below 2 |
-| Seat kept after a drop         | 2 minutes | The player rejoins with their token and every missed turn    |
-| Longest game                   | 4 hours   | Then the game ends with reason `timeout`                     |
-| Games at once                  | 500       | Further `play` and `create` requests get `too_many_games`    |
+| Setting                        | Value                      | Notes                                                        |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------ |
+| Players per game               | 16                         | A public game starts at once when full                       |
+| Players to start a public game | 2                          | Then the countdown runs; it stops if a player leaves below 2 |
+| Seat kept after a drop         | 2 minutes                  | The player rejoins with their token and every missed turn    |
+| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                     |
+| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`    |
+| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                     |
+| Private games per address      | 3 not yet started          | Further `create` requests get `too_many_games`               |
 
-A game is freed as soon as it ends: when its last player leaves before the start, when every player has been gone for two minutes, or at the time limit. Its turn log, about one byte per quiet tick, goes with it.
+A game is freed as soon as it ends: when its last player leaves before the start, when it has not started ten minutes after it opened, when every player has been gone for two minutes, or at the time limit. Its turn log, about one byte per quiet tick, goes with it.
 
 All running games share one timer that closes a turn every 100 ms. The `frontfall_turn_duration_seconds` histogram measures how long one pass over every game takes.
 
@@ -30,17 +32,20 @@ All running games share one timer that closes a turn every 100 ms. The `frontfal
 
 One bad client must not spoil a game or the server. Each limit closes the offending connection with a code listed in [protocol.md](protocol.md#close-codes) and is counted in `frontfall_rejected_messages_total`.
 
-| Limit                   | Value                                    | On breach                  |
-| ----------------------- | ---------------------------------------- | -------------------------- |
-| Connections per address | 8                                        | Upgrade refused with `429` |
-| Frame size              | 1 KiB                                    | Closed with `1009`         |
-| Messages per connection | 20 per second, bursts of 40              | Closed with `4002`         |
-| Invalid frame           | any frame that fails decoding or checks  | Closed with `4001`         |
-| Time to say `hello`     | 10 seconds                               | Closed with `4003`         |
-| Time out of any game    | 5 minutes after `hello` or the last game | Closed with `4003`         |
-| Silence                 | one missed ping, sent every 25 seconds   | Connection dropped         |
+| Limit                   | Value                                                         | On breach                              |
+| ----------------------- | ------------------------------------------------------------- | -------------------------------------- |
+| Connections in all      | 5000                                                          | Upgrade refused with `503`             |
+| Connections per address | 8                                                             | Upgrade refused with `429`             |
+| Frame size              | 1 KiB                                                         | Closed with `1009`                     |
+| Messages per connection | 20 per second, bursts of 40                                   | Closed with `4002`                     |
+| Invalid frame           | any frame that fails decoding or checks                       | Closed with `4001`                     |
+| Time to say `hello`     | 10 seconds                                                    | Closed with `4003`                     |
+| Time out of any game    | 5 minutes after `hello` or the last game                      | Closed with `4003`                     |
+| Silence                 | a ping unanswered for 12.5 seconds; pings go every 25 seconds | Connection dropped                     |
+| Orders per player       | 10 per turn                                                   | Further orders of the turn are dropped |
+| Turn log of a game      | 64 MiB                                                        | Game ends with `timeout`               |
 
-The address of a player is the `X-Client-IP` header, which the reverse proxy must set and overwrite. Without a proxy, it is the TCP peer address. Player names follow the rules in [protocol.md](protocol.md#hello).
+The address of a player is the `X-Client-IP` header, which the reverse proxy must set and overwrite. The server believes that header only when the connection itself comes from a private or loopback address, as a proxy on the same host or Docker network does; from any other peer the header is ignored and the TCP peer address is used. Player names follow the rules in [protocol.md](protocol.md#hello).
 
 ## Logs
 
@@ -71,7 +76,7 @@ Client addresses never appear in clear. `client` is a keyed hash of the address:
 
 ## Metrics
 
-`GET /metrics` returns the metrics in the Prometheus text format. It answers only requests that reach the server directly: any request carrying `X-Client-IP`, `X-Forwarded-For`, `Forwarded`, `X-Real-IP` or `CF-Connecting-IP`, which every reverse proxy adds, gets `404`. On the production host:
+`GET /metrics` returns the metrics in the Prometheus text format. It answers only requests that reach the server directly from a private or loopback address: any other request, and any request carrying `X-Client-IP`, `X-Forwarded-For`, `Forwarded`, `X-Real-IP` or `CF-Connecting-IP`, which every reverse proxy adds, gets `404`. On the production host:
 
 ```sh
 curl -s localhost:8080/metrics
@@ -83,8 +88,8 @@ curl -s localhost:8080/metrics
 | `frontfall_players`                         | gauge     | Players seated in a game with an open connection                   |
 | `frontfall_connections`                     | gauge     | Open WebSocket connections                                         |
 | `frontfall_games_started_total`             | counter   | Games that started                                                 |
-| `frontfall_games_finished_total{reason}`    | counter   | Games that finished: `abandoned`, `timeout`, `empty`               |
-| `frontfall_desyncs_total`                   | counter   | Games in which two clients reported different state hashes         |
+| `frontfall_games_finished_total{reason}`    | counter   | Games that finished: `abandoned`, `timeout`, `expired`, `empty`    |
+| `frontfall_desyncs_total`                   | counter   | Games in which a client's state hash differed from the majority's  |
 | `frontfall_rejoins_total`                   | counter   | Players who took their seat back after a dropped connection        |
 | `frontfall_messages_received_total`         | counter   | Messages received from clients                                     |
 | `frontfall_rejected_messages_total{reason}` | counter   | Connections closed: `invalid`, `oversized`, `rate_limited`, `idle` |
@@ -102,7 +107,7 @@ curl -s localhost:8080/metrics
 | `/ws`         | WebSocket upgrade                                        |
 | anything else | Files of the built client                                |
 
-HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
+HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Every file carries an `ETag` drawn from its content; maps and other files without a hashed name are sent with `no-cache`, so browsers revalidate them and get `304 Not Modified` until they change. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
 
 ## Shutdown
 

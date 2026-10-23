@@ -9,6 +9,8 @@ import {
   encodeTurnBody,
   encodeTurnsFrame,
 } from "../src/binary.ts";
+import { PROTOCOL_VERSION } from "../src/messages.ts";
+import { ORDER_KINDS } from "../src/orders.ts";
 
 const bytes = (...values: number[]) => new Uint8Array(values);
 
@@ -122,5 +124,17 @@ describe("frames", () => {
 
   it("refuses to encode unknown orders", () => {
     expect(() => encodeOrderFrame({ type: "nuke" } as never)).toThrow(RangeError);
+  });
+});
+
+describe("order kinds", () => {
+  // A page loaded before a deployment cannot read an order kind it does not
+  // know. Adding one must bump PROTOCOL_VERSION, so that page is turned away
+  // at `hello` instead of skipping turns: update both lines together.
+  it("are pinned to the protocol version", () => {
+    expect({
+      version: PROTOCOL_VERSION,
+      kinds: ORDER_KINDS.map((kind) => kind.type),
+    }).toEqual({ version: 2, kinds: ["spawn", "attack", "retreat", "embark"] });
   });
 });

@@ -1,6 +1,7 @@
 import {
   encodeServerMessage,
   encodeTurnsFrame,
+  HASH_INTERVAL,
   TICK_RATE,
   type ErrorCode,
   type Frame,
@@ -33,9 +34,17 @@ export interface RoomSettings {
   reconnectGraceMs: number;
   /** A game still running after this long is stopped. */
   maxDurationMs: number;
+  /** A game that has not started this long after it opened is closed. */
+  lobbyTimeoutMs: number;
+  /** Orders one player may add to one turn; more are dropped. */
+  maxOrdersPerTurn: number;
+  /** A game whose turn log grows past this many bytes is stopped. */
+  maxLogBytes: number;
 }
 
 export type RoomState = "open" | "starting" | "running" | "finished";
+
+export type FinishReason = "abandoned" | "timeout" | "expired" | "empty";
 
 export interface Seat {
   /** Number shown in the lobby, replaced by the final player number at start. */
@@ -47,17 +56,22 @@ export interface Seat {
   awaySince: number | undefined;
   /** Left for good: the seat cannot be taken back. */
   gone: boolean;
+  /** Orders added to the turn being filled. */
+  orders: number;
 }
 
 /** Receives what happens in a room, for logs and metrics. */
 export interface RoomObserver {
   started?(room: Room): void;
-  finished?(room: Room, reason: "abandoned" | "timeout" | "empty"): void;
+  finished?(room: Room, reason: FinishReason): void;
   desync?(room: Room, tick: number): void;
 }
 
-/** Hashes kept per game to compare clients: a few minutes of play at one hash per 50 ticks. */
-const MAX_HASHES = 256;
+/**
+ * Ticks during which hashes for one tick are collected. Clients that are
+ * behind report late; whoever has not reported by then is left out.
+ */
+const HASH_WINDOW_TICKS = 600;
 
 /**
  * One game, from the first player in its lobby to its end. The room never
@@ -70,10 +84,13 @@ export class Room {
   private nextLobbyId = 1;
   private host: Seat | undefined;
   private startsAt: number | undefined;
+  private openedAt: number | undefined;
   private startedAt = 0;
   private pending: Turn["orders"] = [];
-  private readonly hashes = new Map<number, number>();
-  private desyncTick: number | undefined;
+  /** Hashes reported for each checked tick, by seat. */
+  private readonly hashes = new Map<number, Map<Seat, number>>();
+  /** Seats found out of step, with the first tick they disagreed on. */
+  private readonly desyncs = new Map<Seat, number>();
   readonly log = new TurnLog();
 
   constructor(
@@ -81,6 +98,8 @@ export class Room {
     readonly settings: RoomSettings,
     readonly seed: number,
     private readonly observer: RoomObserver = {},
+    /** Address of the player who opened the game, for per-address limits. */
+    readonly owner?: string,
   ) {}
 
   get state(): RoomState {
@@ -96,7 +115,7 @@ export class Room {
   }
 
   get desynced(): boolean {
-    return this.desyncTick !== undefined;
+    return this.desyncs.size > 0;
   }
 
   /** True while the seat belongs to this room and can act in it. */
@@ -123,8 +142,10 @@ export class Room {
       peer,
       awaySince: undefined,
       gone: false,
+      orders: 0,
     };
     this.seats.push(seat);
+    this.openedAt ??= now;
     if (this.settings.visibility === "private") this.host ??= seat;
     this.lobbyChanged(now);
     return seat;
@@ -171,9 +192,8 @@ export class Room {
     seat.awaySince = undefined;
     peer.send(this.startedMessage(seat));
     for (const frame of this.log.frames(Math.min(from, this.log.length))) peer.send(frame);
-    if (this.desyncTick !== undefined) {
-      peer.send(encodeServerMessage({ type: "desync", tick: this.desyncTick }));
-    }
+    const desync = this.desyncs.get(seat);
+    if (desync !== undefined) peer.send(encodeServerMessage({ type: "desync", tick: desync }));
     return undefined;
   }
 
@@ -188,36 +208,71 @@ export class Room {
 
   submit(seat: Seat, order: Order): boolean {
     if (this.stateValue !== "running" || !this.holds(seat) || !seat.peer) return false;
+    if (seat.orders >= this.settings.maxOrdersPerTurn) return false;
+    seat.orders++;
     this.pending.push({ player: seat.id, order });
     return true;
   }
 
-  /** Compares the state hash a client computed after `tick` with the first one received. */
+  /**
+   * Records the hash of a client's state after `tick`. Once every connected
+   * player has reported, or the window has passed, the hashes are compared.
+   */
   reportHash(seat: Seat, tick: number, hash: number): void {
-    if (this.stateValue !== "running" || !this.holds(seat) || tick >= this.log.length) return;
-    const known = this.hashes.get(tick);
-    if (known === undefined) {
-      this.hashes.set(tick, hash);
-      if (this.hashes.size > MAX_HASHES) {
-        const oldest = this.hashes.keys().next();
-        if (!oldest.done) this.hashes.delete(oldest.value);
-      }
-      return;
+    if (this.stateValue !== "running" || !this.holds(seat) || tick % HASH_INTERVAL !== 0) return;
+    if (tick >= this.log.length || tick < this.log.length - HASH_WINDOW_TICKS) return;
+    let reports = this.hashes.get(tick);
+    if (!reports) {
+      reports = new Map();
+      this.hashes.set(tick, reports);
     }
-    if (known === hash || this.desyncTick !== undefined) return;
-    this.desyncTick = tick;
-    this.observer.desync?.(this, tick);
-    this.broadcast(encodeServerMessage({ type: "desync", tick }));
+    if (reports.has(seat)) return;
+    reports.set(seat, hash);
+    if (this.seats.every((other) => !other.peer || reports.has(other))) this.compare(tick);
+  }
+
+  /**
+   * Flags the players whose hash differs from the majority's. A client
+   * cannot mark others out of step by lying: it only singles itself out,
+   * unless no majority exists, as with two players who disagree.
+   */
+  private compare(tick: number): void {
+    const reports = this.hashes.get(tick);
+    this.hashes.delete(tick);
+    if (!reports) return;
+    const votes = new Map<number, number>();
+    for (const hash of reports.values()) votes.set(hash, (votes.get(hash) ?? 0) + 1);
+    if (votes.size < 2) return;
+    const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+    const [first, second] = ranked;
+    const majority = first && second && first[1] > second[1] ? first[0] : undefined;
+    const firstDesync = this.desyncs.size === 0;
+    let flagged = 0;
+    for (const [seat, hash] of reports) {
+      if (hash === majority || this.desyncs.has(seat)) continue;
+      this.desyncs.set(seat, tick);
+      seat.peer?.send(encodeServerMessage({ type: "desync", tick }));
+      flagged++;
+    }
+    if (firstDesync && flagged > 0) this.observer.desync?.(this, tick);
   }
 
   /** Runs once per tick of the server: countdown, turn, timeouts. */
   update(now: number): void {
     switch (this.stateValue) {
+      case "open":
       case "starting":
         if (this.startsAt !== undefined && now >= this.startsAt) this.start(now);
+        else if (
+          this.openedAt !== undefined &&
+          now - this.openedAt >= this.settings.lobbyTimeoutMs
+        ) {
+          this.finish("expired");
+        }
         return;
       case "running":
         this.closeTurn();
+        this.compareLateHashes();
         this.expireSeats(now);
         return;
       default:
@@ -245,7 +300,15 @@ export class Room {
     const tick = this.log.length;
     const body = this.log.append(this.pending);
     this.pending = [];
+    for (const seat of this.seats) seat.orders = 0;
     this.broadcast(encodeTurnsFrame(tick, [body]));
+  }
+
+  private compareLateHashes(): void {
+    for (const tick of this.hashes.keys()) {
+      if (tick >= this.log.length - HASH_WINDOW_TICKS) continue;
+      this.compare(tick);
+    }
   }
 
   private expireSeats(now: number): void {
@@ -256,10 +319,15 @@ export class Room {
       }
     }
     if (this.seats.every((seat) => seat.gone)) this.finish("abandoned");
-    else if (now - this.startedAt >= this.settings.maxDurationMs) this.finish("timeout");
+    else if (
+      now - this.startedAt >= this.settings.maxDurationMs ||
+      this.log.byteLength >= this.settings.maxLogBytes
+    ) {
+      this.finish("timeout");
+    }
   }
 
-  private finish(reason: "abandoned" | "timeout" | "empty"): void {
+  private finish(reason: FinishReason): void {
     this.stateValue = "finished";
     if (reason !== "empty") this.broadcast(encodeServerMessage({ type: "ended", reason }));
     for (const seat of this.seats) seat.peer = undefined;

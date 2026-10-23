@@ -12,6 +12,8 @@ export interface PublicGame {
 
 export interface DirectoryOptions {
   maxRooms: number;
+  /** Private games not yet started that one owner may hold. */
+  maxPrivatePerOwner?: number;
   publicGame: Omit<RoomSettings, "visibility">;
   privateGame: Omit<RoomSettings, "visibility">;
   observer?: RoomObserver;
@@ -47,17 +49,33 @@ export class Directory {
     return best ?? this.create("public");
   }
 
-  create(visibility: RoomSettings["visibility"]): Room | undefined {
+  /** Opens a game. `owner`, the creator's address, caps the private lobbies one person holds. */
+  create(visibility: RoomSettings["visibility"], owner?: string): Room | undefined {
     if (this.rooms.size >= this.options.maxRooms) return undefined;
+    if (
+      owner !== undefined &&
+      this.lobbiesOf(owner) >= (this.options.maxPrivatePerOwner ?? Infinity)
+    ) {
+      return undefined;
+    }
     const base = visibility === "public" ? this.options.publicGame : this.options.privateGame;
     const room = new Room(
       newGameId(),
       { ...base, visibility },
       randomInt(2 ** 31),
       this.options.observer,
+      owner,
     );
     this.rooms.set(room.id, room);
     return room;
+  }
+
+  private lobbiesOf(owner: string): number {
+    let count = 0;
+    for (const room of this.rooms.values()) {
+      if (room.owner === owner && room.state !== "running" && room.state !== "finished") count++;
+    }
+    return count;
   }
 
   /** The running game and seat a reconnect token belongs to. */

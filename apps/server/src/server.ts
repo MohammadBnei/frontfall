@@ -14,6 +14,7 @@ import { WebSocketServer, type RawData, type WebSocket } from "ws";
 import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger, type Logger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
+import { clientAddress, isLocalRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import type { Peer, Room, RoomObserver, RoomSettings, Seat } from "./room.ts";
@@ -30,6 +31,10 @@ export interface ServerOptions {
   version: string;
   pingIntervalMs?: number;
   maxConnectionsPerAddress?: number;
+  /** Open WebSockets the whole server accepts. */
+  maxConnections?: number;
+  /** Private games not yet started that one address may hold. */
+  maxPrivateGamesPerAddress?: number;
   maxRooms?: number;
   /** A connection must say hello within this delay. */
   helloTimeoutMs?: number;
@@ -66,17 +71,10 @@ export const DEFAULT_GAME: GameSettings = {
   countdownMs: 30_000,
   reconnectGraceMs: 120_000,
   maxDurationMs: 4 * 60 * 60 * 1000,
+  lobbyTimeoutMs: 10 * 60 * 1000,
+  maxOrdersPerTurn: 10,
+  maxLogBytes: 64 * 1024 * 1024,
 };
-
-/**
- * Address of the player. The reverse proxy in front of the server sets
- * X-Client-IP and overwrites any value the browser sent.
- */
-export function clientAddress(request: IncomingMessage): string {
-  const header = request.headers["x-client-ip"];
-  const forwarded = (Array.isArray(header) ? header[0] : header)?.trim();
-  return forwarded || (request.socket.remoteAddress ?? "unknown");
-}
 
 /** WebSocket close reasons are capped at 123 bytes of UTF-8; ws throws on longer ones. */
 const MAX_CLOSE_REASON_BYTES = 123;
@@ -122,6 +120,8 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
 interface Session {
   readonly socket: WebSocket;
   readonly peer: Peer;
+  /** Address of the player, for per-address limits. Never logged. */
+  readonly address: string;
   /** Pseudonym of the client address, for the logs. */
   readonly client: string;
   readonly messages: TokenBucket;
@@ -134,21 +134,10 @@ interface Session {
   closing: boolean;
 }
 
-/**
- * Proxies add these headers. /metrics answers only requests that reach the
- * server directly, from the host, so it is never public.
- */
-const PROXY_HEADERS = [
-  "x-client-ip",
-  "x-forwarded-for",
-  "forwarded",
-  "x-real-ip",
-  "cf-connecting-ip",
-];
-
 export function createGameServer(options: ServerOptions): GameServer {
   const pingIntervalMs = options.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS;
   const maxConnectionsPerAddress = options.maxConnectionsPerAddress ?? 8;
+  const maxConnections = options.maxConnections ?? 5_000;
   const helloTimeoutMs = options.helloTimeoutMs ?? 10_000;
   const probeTimeoutMs = options.probeTimeoutMs ?? 5_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60_000;
@@ -177,11 +166,17 @@ export function createGameServer(options: ServerOptions): GameServer {
   };
   const games = new Directory({
     maxRooms: options.maxRooms ?? 500,
+    maxPrivatePerOwner: options.maxPrivateGamesPerAddress ?? 3,
     publicGame: { ...DEFAULT_GAME, ...options.publicGame },
     privateGame: { ...DEFAULT_GAME, ...options.privateGame },
     observer,
   });
-  const alive = new WeakSet<WebSocket>();
+  /** When the oldest ping a socket has not answered yet was sent. */
+  const unanswered = new WeakMap<WebSocket, number>();
+  const ping = (socket: WebSocket, now: number): void => {
+    if (!unanswered.has(socket)) unanswered.set(socket, now);
+    socket.ping();
+  };
   const connectionsByAddress = new Map<string, number>();
 
   const http = createServer((request, response) => {
@@ -204,7 +199,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       sendJson(response, { games: games.publicGames(Date.now()) });
       return;
     }
-    if (path === "/metrics" && !PROXY_HEADERS.some((name) => name in request.headers)) {
+    if (path === "/metrics" && isLocalRequest(request)) {
       response
         .writeHead(200, {
           "content-type": "text/plain; version=0.0.4",
@@ -219,13 +214,21 @@ export function createGameServer(options: ServerOptions): GameServer {
         return;
       }
       const gzip = file.gzip && acceptsGzip(request) ? file.gzip : undefined;
-      response.writeHead(200, {
-        "content-type": file.contentType,
-        "x-content-type-options": "nosniff",
+      const caching = {
+        etag: file.etag,
         // Built assets carry a content hash in their name; the page itself must stay fresh.
         "cache-control": path.startsWith("/assets/")
           ? "public, max-age=31536000, immutable"
           : "no-cache",
+      };
+      if (matchesEtag(request.headers["if-none-match"], file.etag)) {
+        response.writeHead(304, caching).end();
+        return;
+      }
+      response.writeHead(200, {
+        ...caching,
+        "content-type": file.contentType,
+        "x-content-type-options": "nosniff",
         "content-length": (gzip ?? file.body).length,
         ...(file.gzip && { vary: "Accept-Encoding" }),
         ...(gzip && { "content-encoding": "gzip" }),
@@ -241,6 +244,10 @@ export function createGameServer(options: ServerOptions): GameServer {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
     if (path !== "/ws" || !isAllowedOrigin(request.headers.origin, options.allowedOrigin)) {
       socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
+      return;
+    }
+    if (sockets.clients.size >= maxConnections) {
+      socket.end("HTTP/1.1 503 Service Unavailable\r\n\r\n");
       return;
     }
     const address = clientAddress(request);
@@ -339,7 +346,7 @@ export function createGameServer(options: ServerOptions): GameServer {
         }
         if (message.type === "play") enter(session, games.quickMatch(), "too_many_games");
         else if (message.type === "create")
-          enter(session, games.create("private"), "too_many_games");
+          enter(session, games.create("private", session.address), "too_many_games");
         else if (message.type === "join") enter(session, games.find(message.game), "not_found");
         else rejoin(session, message.token, message.from);
         return;
@@ -385,6 +392,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   sockets.on("connection", (socket: WebSocket, request: IncomingMessage) => {
     const session: Session = {
       socket,
+      address: clientAddress(request),
       client: pseudonym(clientAddress(request)),
       messages: new TokenBucket(messageRate.perSecond, messageRate.burst, Date.now()),
       name: undefined,
@@ -397,22 +405,22 @@ export function createGameServer(options: ServerOptions): GameServer {
           if (socket.readyState === socket.OPEN) socket.send(frame);
         },
         probe() {
-          alive.delete(socket);
-          socket.ping();
+          const sentAt = Date.now();
+          ping(socket, sentAt);
           setTimeout(() => {
-            if (!alive.has(socket)) socket.terminate();
+            const since = unanswered.get(socket);
+            if (since !== undefined && since <= sentAt) socket.terminate();
           }, probeTimeoutMs).unref();
         },
       },
     };
-    alive.add(socket);
     sessions.add(session);
 
     const helloTimer = setTimeout(() => {
       if (session.name === undefined) reject(session, CloseCode.idle, "no hello", "idle");
     }, helloTimeoutMs);
 
-    socket.on("pong", () => alive.add(socket));
+    socket.on("pong", () => unanswered.delete(socket));
     // Protocol errors, such as an oversized frame: ws closes the socket itself.
     socket.on("error", (error: Error & { code?: string }) => {
       const label = error.code === "WS_ERR_UNSUPPORTED_MESSAGE_LENGTH" ? "oversized" : "invalid";
@@ -475,16 +483,15 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
   }
 
-  // A socket that missed the previous ping is gone, even if TCP has not noticed yet.
+  // A socket that left a ping unanswered for a whole interval is gone, even if
+  // TCP has not noticed yet. Timer drift is allowed for with half an interval.
   const heartbeat = setInterval(() => {
-    closeIdle(Date.now());
+    const now = Date.now();
+    closeIdle(now);
     for (const socket of sockets.clients) {
-      if (!alive.has(socket)) {
-        socket.terminate();
-        continue;
-      }
-      alive.delete(socket);
-      socket.ping();
+      const since = unanswered.get(socket);
+      if (since !== undefined && now - since >= pingIntervalMs / 2) socket.terminate();
+      else ping(socket, now);
     }
   }, pingIntervalMs);
 
@@ -504,6 +511,13 @@ export function createGameServer(options: ServerOptions): GameServer {
       });
     },
   };
+}
+
+/** If-None-Match lists tags, which proxies may have weakened; any match will do. */
+function matchesEtag(header: string | undefined, etag: string): boolean {
+  if (!header) return false;
+  const bare = (tag: string) => tag.trim().replace(/^W\//, "");
+  return header.split(",").some((tag) => bare(tag) === bare(etag) || tag.trim() === "*");
 }
 
 /** Builds match, or one side is a development build. */

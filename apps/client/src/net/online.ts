@@ -164,12 +164,15 @@ export class OnlineClient {
       if (typeof data !== "string" && !(data instanceof Uint8Array)) return;
       const parsed = parseServerMessage(data);
       if (parsed.ok) this.receive(parsed.value);
+      // Turns this page cannot read come from a newer server: going on would skip
+      // them and desynchronise, so stop and ask for a reload.
+      else if (data instanceof Uint8Array) this.outdated(socket);
     });
     socket.addEventListener("close", ({ code }) => {
       if (this.socket !== socket) return;
       this.socket = undefined;
       if (code === CloseCode.versionMismatch) {
-        this.options.events.status?.("outdated");
+        this.outdated(socket);
         return;
       }
       if (this.closedByUser) return;
@@ -179,6 +182,13 @@ export class OnlineClient {
         this.open();
       }, delay);
     });
+  }
+
+  private outdated(socket: SocketLike): void {
+    this.closedByUser = true;
+    this.socket = undefined;
+    socket.close(1000);
+    this.options.events.status?.("outdated");
   }
 
   private receive(message: ServerMessage): void {
@@ -209,6 +219,11 @@ export class OnlineClient {
       case "turns": {
         const fresh = message.turns.filter((turn) => turn.tick >= this.nextTick);
         if (fresh.length === 0) return;
+        if ((fresh[0]?.tick ?? 0) > this.nextTick) {
+          // A turn went missing: reconnect and ask for every turn from the gap on.
+          this.socket?.close(1000);
+          return;
+        }
         this.nextTick = (fresh.at(-1)?.tick ?? this.nextTick) + 1;
         events.turns?.(fresh);
         return;

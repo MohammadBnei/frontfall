@@ -10,6 +10,9 @@ describe("isAllowedOrigin", () => {
   it("accepts only the configured origin", () => {
     expect(isAllowedOrigin("https://nclsmgr.com", "https://nclsmgr.com")).toBe(true);
     expect(isAllowedOrigin("https://evil.example", "https://nclsmgr.com")).toBe(false);
-    expect(isAllowedOrigin(undefined, "https://nclsmgr.com")).toBe(false);
+  });
+
+  it("lets clients without an Origin header through, since only browsers send one", () => {
+    expect(isAllowedOrigin(undefined, "https://nclsmgr.com")).toBe(true);
   });
 });

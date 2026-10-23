@@ -1,4 +1,5 @@
 import {
+  PROTOCOL_VERSION,
   CloseCode,
   encodeServerMessage,
   parseClientMessage,
@@ -132,7 +133,7 @@ function latest(): FakeSocket {
 function welcomed(): FakeSocket {
   const socket = latest();
   socket.connect();
-  socket.receive({ type: "welcome", version: 1 });
+  socket.receive({ type: "welcome", version: PROTOCOL_VERSION });
   return socket;
 }
 
@@ -151,8 +152,10 @@ describe("OnlineClient", () => {
     online.play();
     expect(socket.sent).toEqual([]);
     socket.connect();
-    expect(socket.sent).toEqual([{ type: "hello", version: 1, name: "Bob", build: "abc" }]);
-    socket.receive({ type: "welcome", version: 1 });
+    expect(socket.sent).toEqual([
+      { type: "hello", version: PROTOCOL_VERSION, name: "Bob", build: "abc" },
+    ]);
+    socket.receive({ type: "welcome", version: PROTOCOL_VERSION });
     expect(socket.sent.at(-1)).toEqual({ type: "play" });
     expect(log).toEqual(["connecting", "online"]);
 
@@ -243,7 +246,12 @@ describe("OnlineClient", () => {
     socket.drop();
     timers.shift()?.callback();
     socket = welcomed();
-    expect(socket.sent.at(-1)).toEqual({ type: "hello", version: 1, name: "Bob", build: "abc" });
+    expect(socket.sent.at(-1)).toEqual({
+      type: "hello",
+      version: PROTOCOL_VERSION,
+      name: "Bob",
+      build: "abc",
+    });
   });
 
   it("joins the same game again when the connection drops in the lobby", () => {
@@ -264,6 +272,33 @@ describe("OnlineClient", () => {
     socket.receive(START);
     socket.receive({ type: "ended", reason: "timeout" });
     expect(log.slice(-3)).toEqual(["error:game_full", "started:2", "ended:timeout"]);
+  });
+
+  it("stops and asks for a reload on turns it cannot read", () => {
+    const online = client();
+    const socket = welcomed();
+    online.play();
+    socket.receive(START);
+    (socket as unknown as { emit(type: string, event: object): void }).emit("message", {
+      data: new Uint8Array([1, 0, 1, 1, 1, 99]).buffer,
+    });
+    expect(log.at(-1)).toBe("outdated");
+    expect(socket.closedWith).toBe(1000);
+    expect(timers).toEqual([]);
+  });
+
+  it("reconnects to fetch turns it missed", () => {
+    const online = client();
+    let socket = welcomed();
+    online.play();
+    socket.receive(START);
+    socket.receive({ type: "turns", turns: [{ tick: 0, orders: [] }] });
+    socket.receive({ type: "turns", turns: [{ tick: 2, orders: [] }] });
+    expect(turns).toEqual([0]);
+    expect(socket.closedWith).toBe(1000);
+    timers.shift()?.callback();
+    socket = welcomed();
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 1 });
   });
 
   it("stops and asks for a reload when the server runs another version", () => {

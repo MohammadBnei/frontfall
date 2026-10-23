@@ -1,12 +1,12 @@
 # Network protocol
 
-Version 1. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 2. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
 ## Connection
 
-The socket opens at `ws` next to the page: `wss://nclsmgr.com/frontfall/ws` in production, `ws://localhost:8080/ws` locally. The server refuses the upgrade with `403` when the `Origin` header is not the configured one, and with `429` when the player's address already holds too many connections.
+The socket opens at `ws` next to the page: `wss://nclsmgr.com/frontfall/ws` in production, `ws://localhost:8080/ws` locally. The server refuses the upgrade with `403` when an `Origin` header is sent and is not the configured one, with `429` when the player's address already holds too many connections, and with `503` when the server holds as many connections as it accepts. Browsers always send `Origin`; tools such as bots may leave it out.
 
 Two kinds of frames travel on the socket:
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 1, name } ---------> |
+  | -- hello { version: 2, name } ---------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -36,7 +36,7 @@ client                                   server
 2. **Lobby.** The player joins a public game (`play`), opens a private one (`create`) or joins one by id (`join`). The server sends `lobby` to everyone in the game each time a player arrives or leaves.
 3. **Start.** A public game counts down 30 seconds once it has two players, and starts at once when it is full. A private game starts when its host sends `start`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
 4. **Turns.** From tick 0, the server sends one turn every 100 ms, with or without orders. A client runs tick `n` only after receiving turn `n`.
-5. **End.** The server sends `ended` when every player is gone or the game reaches four hours. A client that leaves earlier sends `leave`. Either way, the connection can join another game.
+5. **End.** The server sends `ended` when every player is gone, when the game reaches four hours, or when a game has not started ten minutes after it opened. A client that leaves earlier sends `leave`. Either way, the connection can join another game.
 
 ### Player numbers
 
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection gives its seat up. The client joins a
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 1, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 2, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -118,7 +118,7 @@ Leaves the current game for good. Before the start, the seat is freed; after it,
 { "type": "hash", "tick": 1250, "hash": 3735928559 }
 ```
 
-The client's 32-bit hash of its game state after running `tick`. Clients send one every 50 ticks. The server compares the first hash it receives for a tick with the others; on a difference it sends `desync` to the whole game.
+The client's 32-bit hash of its game state after running `tick`, sent for every tick that is a multiple of `HASH_INTERVAL` (50); other ticks are ignored, and so is a second hash from the same player for the same tick. Once every connected player has reported a tick, or a minute of play later, the server compares the hashes. Players whose hash differs from the majority's receive `desync`; when no majority exists, as with two players who disagree, every player who reported does. A client sending wrong hashes can only single itself out. The client of this repository does not send hashes yet: it needs the engine's state hash (#38).
 
 ### `order`
 
@@ -138,7 +138,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 1 }
+{ "type": "welcome", "version": 2 }
 ```
 
 The hello was accepted.
@@ -210,7 +210,7 @@ Live play sends one turn per frame. Within a turn, orders are listed in the orde
 { "type": "desync", "tick": 1250 }
 ```
 
-Two clients reported different hashes for this tick. Sent once per game, and again to a player who rejoins.
+This player's hash for `tick` differed from the majority's: its game no longer matches the others. Sent once per player, and again when that player rejoins.
 
 ### `ended`
 
@@ -218,7 +218,7 @@ Two clients reported different hashes for this tick. Sent once per game, and aga
 { "type": "ended", "reason": "abandoned" }
 ```
 
-The game is over for this connection. Reasons: `abandoned` (every player is gone), `timeout` (four hours), `left` (answer to `leave`).
+The game is over for this connection. Reasons: `abandoned` (every player is gone), `timeout` (four hours, or a turn log grown past its size limit), `expired` (not started ten minutes after it opened), `left` (answer to `leave`).
 
 ### `error`
 
@@ -273,7 +273,7 @@ A turn is its order count, then for each order the player number and the order. 
 | `2`  | `retreat` | `attack`           |
 | `3`  | `embark`  | `target`, `troops` |
 
-The table is `ORDER_KINDS` in [`orders.ts`](../packages/protocol/src/orders.ts). New orders are added at the end, so existing codes never change. A frame with trailing bytes, an unknown kind or a count larger than the rest of the frame could hold is refused.
+The table is `ORDER_KINDS` in [`orders.ts`](../packages/protocol/src/orders.ts). New orders are added at the end, so existing codes never change. A frame with trailing bytes, an unknown kind or a count larger than the rest of the frame could hold is refused. A client that receives a `turns` frame it cannot read stops and asks for a reload: skipping a turn would desynchronise its game.
 
 A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,059 in the protocol tests' example); an empty turn takes 4 to 6 bytes with its header, depending on the tick.
 
@@ -286,4 +286,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-`PROTOCOL_VERSION` changes whenever a message changes in a way an older peer would refuse. Client and server ship together in one image, so a version change only affects pages loaded before a deployment: they get close code `4000` and ask the player to reload.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
