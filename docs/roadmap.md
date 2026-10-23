@@ -8,9 +8,9 @@ Phase 1 ships as a series of playable versions instead of one release at the end
 
 | Version                                                              | You can                                                                                     | Issues | Estimate |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -----: | -------: |
-| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.    |     21 |  63 days |
-| [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.       |      9 |  27 days |
-| [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop. |     11 |  31 days |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.    |     23 |  67 days |
+| [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.       |      8 |  24 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop. |     10 |  30 days |
 | [v0.4 · Sea and missiles](#v04--sea-and-missiles)                    | Sail, fight at sea, launch missiles, play in teams and watch replays.                       |      5 |  19 days |
 | [v1.0 · First release](#v10--first-release)                          | A balanced, monitored public release.                                                       |      3 |   5 days |
 | [M6 · 3D globe](#m6--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                   |      7 |  21 days |
@@ -64,11 +64,13 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 1. From the public server, a player starts a solo game on the World map with 8 or more bots in two clicks, picks a start tile, expands, attacks and reaches the end screen, by winning (`R-WIN-01`) or by being eliminated.
 2. The same run passes as a Playwright test in Chromium and Firefox with no console error, in CI and against the public server after deployment.
 3. A scripted game of 10,000 ticks with 8 bots on the World map gives the same final state hash twice in Node.js and once in Chromium.
-4. Three people outside the project each finish a game without help; what blocked them is filed as issues.
+4. The engine runs in a Web Worker behind the game session interface, and the page stays responsive during the game.
+5. Every interface string exists in English and French; English is the default.
+6. Three people outside the project each finish a game without help; what blocked them is filed as issues.
 
 **Rules in scope.** `R-MAP-01` to `R-MAP-04` (land, water and impassable ice; relief is drawn but costs nothing extra yet), `R-SPAWN`, `R-ECO-01` to `R-ECO-05` (cities aside), `R-ATTACK-01` to `R-ATTACK-08`, `R-BOT-01`, `R-BOT-03`, `R-BOT-04`, `R-WIN-01` to `R-WIN-03`, `R-MODE-01`, `R-FAIR-02`.
 
-**Left for later on purpose.** The Web Worker (the engine runs in the page behind an interface the worker will implement unchanged), more than one map, thumbnails, French, relief costs, nations, structures.
+**Left for later on purpose.** The full map set, relief costs, nations, structures.
 
 | ID    | Issue                                                                                                   | Size | Depends on |
 | ----- | ------------------------------------------------------------------------------------------------------- | ---- | ---------- |
@@ -81,6 +83,7 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 | M1-07 | [#10](https://github.com/nic0lasm/frontfall/issues/10) Expansion into neutral land                      | L    | #7, #9     |
 | M1-08 | [#11](https://github.com/nic0lasm/frontfall/issues/11) Attacks between players                          | L    | #10        |
 | M1-11 | [#14](https://github.com/nic0lasm/frontfall/issues/14) Game session runner, in the page and headless    | M    | #7         |
+| M1-10 | [#13](https://github.com/nic0lasm/frontfall/issues/13) Run the engine in a Web Worker                   | M    | #14        |
 | M2-01 | [#15](https://github.com/nic0lasm/frontfall/issues/15) Map format v1 specification                      | S    | None       |
 | M2-02 | [#16](https://github.com/nic0lasm/frontfall/issues/16) Map loader in the engine                         | M    | #15, #6    |
 | M2-03 | [#17](https://github.com/nic0lasm/frontfall/issues/17) Map generator: land and water from Natural Earth | L    | #15        |
@@ -92,9 +95,10 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 | M3-05 | [#27](https://github.com/nic0lasm/frontfall/issues/27) Main menu and game setup                         | M    | #16        |
 | M3-06 | [#28](https://github.com/nic0lasm/frontfall/issues/28) Bots                                             | L    | #11, #8    |
 | M3-08 | [#30](https://github.com/nic0lasm/frontfall/issues/30) Victory, defeat and end screen                   | S    | #11        |
+| M3-09 | [#31](https://github.com/nic0lasm/frontfall/issues/31) English and French interface                     | S    | None       |
 | M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) First playtest round                             | S    | #30        |
 
-21 issues, about 63 days of work in four parallel streams: engine (27), maps (12), client (19) and bots (5).
+23 issues, about 67 days of work in four parallel streams: engine (27), maps (12), client (23) and bots (5).
 
 ## v0.2 · Online with friends
 
@@ -103,7 +107,7 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 **Playable when**
 
 1. A player creates a private game from the menu, picks one of at least three maps and a number of bots, and shares the link; the others join from it.
-2. Four players on two networks and two browsers finish a game on `nclsmgr.com/frontfall` with zero desyncs, and the engine never blocks the page (it runs in a worker).
+2. Four players on two networks and two browsers finish a game on `nclsmgr.com/frontfall` with zero desyncs.
 3. A deliberate desync in a test is detected within 10 seconds and reported to the server with the tick and both hashes.
 4. A scripted 4-player game ends with the same state hash in Node.js, Chromium, Firefox and WebKit, checked in CI.
 5. Every map rebuilds byte for byte from its pinned sources, checked in CI.
@@ -111,7 +115,6 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 | ID    | Issue                                                                                                      | Size | Depends on |
 | ----- | ---------------------------------------------------------------------------------------------------------- | ---- | ---------- |
 | M1-09 | [#12](https://github.com/nic0lasm/frontfall/issues/12) State hash and cross-runtime determinism suite      | M    | #11        |
-| M1-10 | [#13](https://github.com/nic0lasm/frontfall/issues/13) Run the engine in a Web Worker                      | M    | #14        |
 | M2-07 | [#21](https://github.com/nic0lasm/frontfall/issues/21) First map set                                       | M    | #19        |
 | M2-08 | [#22](https://github.com/nic0lasm/frontfall/issues/22) Map build and checksum check in CI                  | S    | #21        |
 | M4-01 | [#34](https://github.com/nic0lasm/frontfall/issues/34) Protocol v1: version handshake and compact encoding | M    | None       |
@@ -120,7 +123,7 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 | M4-04 | [#37](https://github.com/nic0lasm/frontfall/issues/37) Lockstep client                                     | L    | #13, #34   |
 | M4-05 | [#38](https://github.com/nic0lasm/frontfall/issues/38) Desync detection and reports                        | M    | #12, #37   |
 
-9 issues, about 27 days. The protocol and the lobby (#34, #35) start during v0.1.
+8 issues, about 24 days. The protocol and the lobby (#34, #35) start during v0.1.
 
 ## v0.3 · Deeper game
 
@@ -131,14 +134,12 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-05` and `R-BOT-02` is implemented and covered by a test that names it.
 2. A player who loses the connection for 30 seconds rejoins and catches up in under 10 seconds.
 3. Load test: 20 games of 16 simulated players hold for 30 minutes under 50 % of one vCPU and 512 MB on the server; fuzzed and oversized messages never crash it or affect other games.
-4. Every interface string exists in English and French.
 
 | ID    | Issue                                                                                              | Size | Depends on |
 | ----- | -------------------------------------------------------------------------------------------------- | ---- | ---------- |
 | M2-04 | [#18](https://github.com/nic0lasm/frontfall/issues/18) Relief and impassable terrain               | M    | #17        |
 | M2-06 | [#20](https://github.com/nic0lasm/frontfall/issues/20) Manifests, thumbnails and nation positions  | M    | #19        |
 | M3-07 | [#29](https://github.com/nic0lasm/frontfall/issues/29) Nations                                     | M    | #28, #20   |
-| M3-09 | [#31](https://github.com/nic0lasm/frontfall/issues/31) English and French interface                | S    | None       |
 | M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility                  | S    | #26        |
 | M4-06 | [#39](https://github.com/nic0lasm/frontfall/issues/39) Reconnection and catch-up                   | L    | #37        |
 | M4-07 | [#40](https://github.com/nic0lasm/frontfall/issues/40) Abuse protection on the game server         | M    | #35        |
@@ -147,7 +148,7 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 | M5-01 | [#43](https://github.com/nic0lasm/frontfall/issues/43) Structures: cities, ports and defence posts | L    | #26        |
 | M5-05 | [#47](https://github.com/nic0lasm/frontfall/issues/47) Alliances, betrayal and embargoes           | M    | #26        |
 
-11 issues, about 31 days.
+10 issues, about 30 days.
 
 ## v0.4 · Sea and missiles
 

@@ -46,7 +46,7 @@ Development runs in playable versions. Each one ends with something you can play
 | ------- | ------------------------------------------------------------------------------------ | ----------- |
 | M0      | Foundations and specification: engine skeleton, turn relay, CI, deployment, rules    | Done        |
 | v0.1    | Solo game in the browser against bots, on a map of the Earth                         | In progress |
-| v0.2    | Online with friends: private invite links, lockstep in a worker, desync detection    | In progress |
+| v0.2    | Online with friends: private invite links, lockstep client, desync detection         | In progress |
 | v0.3    | Deeper game: cities and forts, alliances, nations, relief, rejoin after a disconnect | Planned     |
 | v0.4    | Sea and missiles: ships, naval combat, missiles, team games, replays                 | Planned     |
 | v1.0    | First public release: balance pass and monitored server                              | Planned     |

@@ -42,17 +42,17 @@ Attention : c'est une version de développement, pas encore un jeu. Elle affiche
 
 Le développement avance par versions jouables. Chacune se termine par quelque chose de jouable sur le serveur public.
 
-| Version | Objectif                                                                                 | État     |
-| ------- | ---------------------------------------------------------------------------------------- | -------- |
-| M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement     | Terminé  |
-| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre                | En cours |
-| v0.2    | En ligne entre amis : liens d'invitation, lockstep dans un worker, détection des désyncs | En cours |
-| v0.3    | Jeu plus riche : villes et forts, alliances, nations, relief, reconnexion                | Prévu    |
-| v0.4    | Mer et missiles : navires, combat naval, missiles, parties en équipes, replays           | Prévu    |
-| v1.0    | Première version publique : équilibrage et serveur surveillé                             | Prévu    |
-| M6      | Globe 3D                                                                                 | Prévu    |
-| M7      | Performance, et bascule entre carte et globe en cours de partie                          | Prévu    |
-| M8      | Communauté et lancement                                                                  | Prévu    |
+| Version | Objectif                                                                             | État     |
+| ------- | ------------------------------------------------------------------------------------ | -------- |
+| M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement | Terminé  |
+| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre            | En cours |
+| v0.2    | En ligne entre amis : liens d'invitation, client lockstep, détection des désyncs     | En cours |
+| v0.3    | Jeu plus riche : villes et forts, alliances, nations, relief, reconnexion            | Prévu    |
+| v0.4    | Mer et missiles : navires, combat naval, missiles, parties en équipes, replays       | Prévu    |
+| v1.0    | Première version publique : équilibrage et serveur surveillé                         | Prévu    |
+| M6      | Globe 3D                                                                             | Prévu    |
+| M7      | Performance, et bascule entre carte et globe en cours de partie                      | Prévu    |
+| M8      | Communauté et lancement                                                              | Prévu    |
 
 Le périmètre et les critères « jouable » de chaque version sont dans [docs/roadmap.md](docs/roadmap.md) (en anglais). Le travail ouvert est suivi dans les [milestones](https://github.com/nic0lasm/frontfall/milestones).
 
