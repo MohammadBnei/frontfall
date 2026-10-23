@@ -1,5 +1,10 @@
 <p align="center">
-  <a href="https://nclsmgr.com/frontfall/"><img src="docs/assets/banner.svg" alt="Frontfall" width="100%"></a>
+  <a href="https://nclsmgr.com/frontfall/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+      <img src="docs/assets/banner-light.svg" alt="Frontfall" width="100%">
+    </picture>
+  </a>
 </p>
 
 # Frontfall
@@ -138,4 +143,4 @@ Frontfall est un jeu indépendant inspiré d'OpenFront. Il n'est ni affilié à 
 
 ## Licence
 
-[MIT](LICENSE) © 2026 Nicolas Maigre. Le nom et le logo Frontfall ne sont pas couverts par la licence du code.
+[MIT](LICENSE) © 2026 Nicolas Maigre. Le nom et le logo Frontfall ne sont pas couverts par la licence du code ; leur usage est décrit dans le [guide de marque](docs/brand.md) (en anglais).
