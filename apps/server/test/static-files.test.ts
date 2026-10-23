@@ -1,6 +1,8 @@
+import { randomBytes } from "node:crypto";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadStaticFile } from "../src/static-files.ts";
 
@@ -16,6 +18,9 @@ describe("loadStaticFile", () => {
     await writeFile(join(root, "assets", "data.bin"), "x");
     await writeFile(join(root, "manifest.webmanifest"), "{}");
     await writeFile(join(base, "secret.txt"), "do not serve");
+    await writeFile(join(root, "world.bin"), new Uint8Array(64 * 1024).fill(1));
+    await writeFile(join(root, "noise.json"), randomBytes(4096).toString("base64"));
+    await writeFile(join(root, "flag.png"), new Uint8Array(4096));
   });
 
   it("serves index.html at the root", async () => {
@@ -47,5 +52,21 @@ describe("loadStaticFile", () => {
     expect(await loadStaticFile(root, "/missing.js")).toBeUndefined();
     expect(await loadStaticFile(root, "/%E0%A4%A")).toBeUndefined();
     expect(await loadStaticFile(root, "/index.html%00.js")).toBeUndefined();
+  });
+
+  it("keeps a gzip version of large text and map files", async () => {
+    const map = await loadStaticFile(root, "/world.bin");
+    expect(map?.contentType).toBe("application/octet-stream");
+    expect(map?.gzip?.length).toBeLessThan(1024);
+    expect(map?.gzip && gunzipSync(map.gzip).equals(map.body)).toBe(true);
+    // Compressed once: the second load returns the same buffer.
+    expect((await loadStaticFile(root, "/world.bin"))?.gzip).toBe(map?.gzip);
+  });
+
+  it("skips gzip for small files, images and data that does not shrink", async () => {
+    expect((await loadStaticFile(root, "/index.html"))?.gzip).toBeUndefined();
+    expect((await loadStaticFile(root, "/flag.png"))?.gzip).toBeUndefined();
+    const noise = await loadStaticFile(root, "/noise.json");
+    expect(noise?.gzip === undefined || noise.gzip.length < noise.body.length).toBe(true);
   });
 });

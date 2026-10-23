@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
+import { get } from "node:http";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import {
   CloseCode,
   encodeClientMessage,
@@ -126,6 +128,39 @@ describe("HTTP", () => {
     for (const header of ["x-client-ip", "x-forwarded-for", "forwarded"]) {
       const proxied = await fetch(`http://${host}/metrics`, { headers: { [header]: "1.2.3.4" } });
       expect(proxied.status).toBe(404);
+    }
+  });
+
+  it("sends large files gzipped to clients that accept it", async () => {
+    const map = new Uint8Array(64 * 1024).fill(3);
+    writeFileSync(join(staticRoot, "world.bin"), map);
+    const host = await start();
+    const raw = (encoding?: string) =>
+      new Promise<{ headers: Record<string, unknown>; body: Buffer }>((resolve, reject) => {
+        get(
+          `http://${host}/world.bin`,
+          { headers: encoding ? { "accept-encoding": encoding } : {} },
+          (response) => {
+            const chunks: Buffer[] = [];
+            response.on("data", (chunk: Buffer) => chunks.push(chunk));
+            response.on("end", () => {
+              resolve({ headers: response.headers, body: Buffer.concat(chunks) });
+            });
+          },
+        ).on("error", reject);
+      });
+
+    const zipped = await raw("gzip, deflate, br");
+    expect(zipped.headers["content-encoding"]).toBe("gzip");
+    expect(zipped.headers.vary).toBe("Accept-Encoding");
+    expect(zipped.headers["content-type"]).toBe("application/octet-stream");
+    expect(Number(zipped.headers["content-length"])).toBe(zipped.body.length);
+    expect(gunzipSync(zipped.body).equals(Buffer.from(map))).toBe(true);
+
+    for (const encoding of [undefined, "br", "gzip;q=0"]) {
+      const plain = await raw(encoding);
+      expect(plain.headers["content-encoding"]).toBeUndefined();
+      expect(plain.body.length).toBe(map.length);
     }
   });
 

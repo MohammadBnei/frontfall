@@ -1,4 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
+import { gzipSync } from "node:zlib";
 import { extname, join, normalize, sep } from "node:path";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -15,9 +16,43 @@ const CONTENT_TYPES: Record<string, string> = {
   ".wasm": "application/wasm",
 };
 
+/** Types worth compressing. Images and fonts are compressed already. */
+const COMPRESSIBLE = new Set([
+  ".html",
+  ".js",
+  ".css",
+  ".json",
+  ".webmanifest",
+  ".svg",
+  ".bin",
+  ".wasm",
+]);
+
+/** Below this size, gzip headers cost more than they save. */
+const MIN_COMPRESSED_SIZE = 1024;
+
 export interface StaticFile {
   body: Buffer;
   contentType: string;
+  /** Gzip version of the body, when compressing is worth it. */
+  gzip?: Buffer;
+}
+
+/**
+ * Compressed bodies, by path and modification time. Built files only change
+ * with a new image, so each one is compressed once per process.
+ */
+const gzipCache = new Map<string, Buffer>();
+
+function compressed(path: string, modified: number, body: Buffer): Buffer | undefined {
+  if (!COMPRESSIBLE.has(extname(path)) || body.length < MIN_COMPRESSED_SIZE) return undefined;
+  const key = `${path}:${String(modified)}`;
+  let gzip = gzipCache.get(key);
+  if (!gzip) {
+    gzip = gzipSync(body, { level: 9 });
+    gzipCache.set(key, gzip);
+  }
+  return gzip.length < body.length ? gzip : undefined;
 }
 
 /**
@@ -41,10 +76,14 @@ export async function loadStaticFile(
   if (!absolute.startsWith(root.endsWith(sep) ? root : root + sep)) return undefined;
 
   try {
-    if (!(await stat(absolute)).isFile()) return undefined;
+    const info = await stat(absolute);
+    if (!info.isFile()) return undefined;
+    const body = await readFile(absolute);
+    const gzip = compressed(absolute, info.mtimeMs, body);
     return {
-      body: await readFile(absolute),
+      body,
       contentType: CONTENT_TYPES[extname(absolute)] ?? "application/octet-stream",
+      ...(gzip && { gzip }),
     };
   } catch {
     return undefined;

@@ -102,6 +102,8 @@ curl -s localhost:8080/metrics
 | `/ws`         | WebSocket upgrade                                        |
 | anything else | Files of the built client                                |
 
+HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
+
 ## Shutdown
 
 On `SIGTERM` the server closes every WebSocket with code `1012` and stops listening; it exits within 5 seconds, before Docker's 10-second limit. Games in progress are lost: they live in memory only.

@@ -200,6 +200,7 @@ export function createGameServer(options: ServerOptions): GameServer {
         response.writeHead(404, { "content-type": "text/plain" }).end("not found");
         return;
       }
+      const gzip = file.gzip && acceptsGzip(request) ? file.gzip : undefined;
       response.writeHead(200, {
         "content-type": file.contentType,
         "x-content-type-options": "nosniff",
@@ -207,9 +208,12 @@ export function createGameServer(options: ServerOptions): GameServer {
         "cache-control": path.startsWith("/assets/")
           ? "public, max-age=31536000, immutable"
           : "no-cache",
+        "content-length": (gzip ?? file.body).length,
+        ...(file.gzip && { vary: "Accept-Encoding" }),
+        ...(gzip && { "content-encoding": "gzip" }),
       });
       if (request.method === "HEAD") response.end();
-      else response.end(file.body);
+      else response.end(gzip ?? file.body);
     });
   });
 
@@ -478,6 +482,11 @@ export function createGameServer(options: ServerOptions): GameServer {
       });
     },
   };
+}
+
+function acceptsGzip(request: IncomingMessage): boolean {
+  const header = request.headers["accept-encoding"];
+  return typeof header === "string" && /(^|[\s,])gzip(?!;\s*q=0(\.0*)?(\s*,|$))/i.test(header);
 }
 
 function sendJson(response: ServerResponse, body: unknown): void {
