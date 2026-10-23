@@ -13,6 +13,14 @@ export interface Balance {
   spawnRadius: number;
   /** B-START-TROOPS */
   startTroops: number;
+  /** B-POP-PER-TILE, troops of population cap per owned tile */
+  popPerTile: number;
+  /** B-POP-PER-CITY */
+  popPerCity: number;
+  /** B-GROWTH-RATE, in basis points of the gap to the cap per second (320 = 3.2 %) */
+  growthBasisPoints: number;
+  /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
+  goldPerThousandTroops: number;
 }
 
 export const DEFAULT_BALANCE: Balance = {
@@ -21,4 +29,8 @@ export const DEFAULT_BALANCE: Balance = {
   spawnDistance: 30,
   spawnRadius: 3,
   startTroops: 2500,
+  popPerTile: 40,
+  popPerCity: 25_000,
+  growthBasisPoints: 320,
+  goldPerThousandTroops: 5,
 };

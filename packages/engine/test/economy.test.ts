@@ -1,0 +1,93 @@
+import { describe, expect, it } from "vitest";
+import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
+import { installEconomy, populationCap } from "../src/economy.ts";
+import { Game, type Player } from "../src/game.ts";
+import { Terrain, TileKind } from "../src/terrain.ts";
+import { WorldGrid } from "../src/world-grid.ts";
+
+const balance: Balance = {
+  ...DEFAULT_BALANCE,
+  spawnPhaseTicks: 0,
+  popPerTile: 100,
+  popPerCity: 1000,
+  growthBasisPoints: 1000,
+  goldPerThousandTroops: 5,
+};
+
+function newGame(overrides: Partial<Balance> = {}) {
+  const grid = new WorldGrid(10, 10);
+  const game = new Game({
+    terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+    seed: 1,
+    players: [
+      { id: 1, name: "Ada" },
+      { id: 2, name: "Bea" },
+    ],
+    balance: { ...balance, ...overrides },
+  });
+  installEconomy(game);
+  const ada = game.player(1) as Player;
+  const bea = game.player(2) as Player;
+  for (let tile = 0; tile < 10; tile++) game.territory.setOwner(tile, 1);
+  const run = (ticks = 1) => {
+    for (let i = 0; i < ticks; i++) game.step({ tick: game.tick, orders: [] });
+  };
+  return { game, ada, bea, run };
+}
+
+describe("economy", () => {
+  it("caps population by territory and cities (R-ECO-01)", () => {
+    const { game, ada } = newGame();
+    expect(populationCap(game, ada)).toBe(1000);
+    expect(populationCap(game, ada, 2)).toBe(3000);
+  });
+
+  it("grows troops fastest far from the cap and stops at it (R-ECO-02)", () => {
+    const { ada, run } = newGame();
+    // 10 % of the gap per second at 10 ticks per second: 1 % per tick.
+    run();
+    expect(ada.troops).toBe(10);
+    ada.troops = 900;
+    run();
+    expect(ada.troops).toBe(901);
+    ada.troops = 999;
+    run();
+    expect(ada.troops).toBe(1000);
+    run(5);
+    expect(ada.troops).toBe(1000);
+  });
+
+  it("keeps troops above the cap without growing them", () => {
+    const { ada, run } = newGame();
+    ada.troops = 5000;
+    run();
+    expect(ada.troops).toBe(5000);
+  });
+
+  it("pays gold in whole coins without losing the fractions (R-ECO-03, R-ECO-04)", () => {
+    const { ada, run } = newGame({ popPerTile: 0 });
+    // 1000 idle troops earn 5 gold per second: half a coin per tick.
+    ada.troops = 1000;
+    run();
+    expect(ada.gold).toBe(0);
+    run();
+    expect(ada.gold).toBe(1);
+    run(8);
+    expect(ada.gold).toBe(5);
+  });
+
+  it("eliminates a player without land, who loses everything (R-ECO-05)", () => {
+    const { bea, run } = newGame();
+    bea.troops = 300;
+    bea.gold = 40;
+    run();
+    expect([bea.alive, bea.troops, bea.gold]).toEqual([false, 0, 0]);
+  });
+
+  it("does nothing during the spawn phase", () => {
+    const { ada, bea, run } = newGame({ spawnPhaseTicks: 5 });
+    ada.troops = 1000;
+    run(3);
+    expect([ada.troops, ada.gold, bea.alive]).toEqual([1000, 0, true]);
+  });
+});

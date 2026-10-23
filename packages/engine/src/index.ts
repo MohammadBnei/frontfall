@@ -1,4 +1,5 @@
 export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
+export { installEconomy, populationCap } from "./economy.ts";
 export {
   Game,
   type GameSetup,
