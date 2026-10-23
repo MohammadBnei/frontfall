@@ -31,6 +31,12 @@ body {
   color: var(--ff-text);
   font-family: var(--ff-font);
   font-feature-settings: "tnum";
+  /* The map handles every gesture; the page itself never scrolls or zooms. */
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 canvas {
@@ -50,4 +56,23 @@ canvas {
   color: var(--ff-text);
   font-size: 13px;
   pointer-events: none;
+}
+
+.notice {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: min(440px, calc(100% - 32px));
+  margin: 0;
+  padding: 16px 20px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--ff-warning);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+  color: var(--ff-text);
+  font-size: 15px;
+  line-height: 1.5;
+  user-select: text;
+  -webkit-user-select: text;
 }
