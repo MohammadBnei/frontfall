@@ -1,5 +1,5 @@
 import type { Game, Player } from "./game.ts";
-import { divFloor, isqrt, mulDiv } from "./integer-math.ts";
+import { divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 import { TileKind } from "./terrain.ts";
 import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
@@ -71,6 +71,16 @@ export function installAttacks(game: Game): Attacks {
     const tiles = territory.tileCount(defender.id);
     return tiles === 0 ? 0 : divFloor(defender.troops, tiles);
   }
+
+  // R-ATTACK-06: a player calls back one of their own attacks, losing part of its troops.
+  game.onOrder((_, player, order) => {
+    if (order.type !== "retreat") return false;
+    const attack = attacks.find((a) => a.id === order.attack && a.player === player.id);
+    if (!attack || attack.troops <= 0) return false;
+    player.troops += attack.troops - percentOf(attack.troops, balance.retreatPenaltyPercent);
+    attack.troops = 0;
+    return true;
+  });
 
   game.onOrder((_, player, order) => {
     if (order.type !== "attack") return false;

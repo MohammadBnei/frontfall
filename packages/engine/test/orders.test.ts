@@ -41,6 +41,7 @@ describe("orderError", () => {
     ["the tile cannot be owned", { type: "spawn", tile: 0 }],
     ["the tile cannot be owned", { type: "spawn", tile: 3 }],
     ["attacks start after the spawn phase", { type: "attack", target: 5, troops: 1 }],
+    ["attacks start after the spawn phase", { type: "retreat", attack: 1 }],
   ])("refuses during the spawn phase: %s", (reason, order) => {
     const { game, ada } = newGame(10);
     expect(orderError(game, ada, order)).toBe(reason);
@@ -64,5 +65,12 @@ describe("orderError", () => {
     expect(orderError(game, ada, attack(4, 10))).toBe("the target is already owned");
     expect(orderError(game, ada, attack(0, 10))).toBe("the tile cannot be owned");
     expect(orderError(game, ada, attack(9, 10))).toBe("the tile is outside the map");
+  });
+
+  it("checks the attack named by a retreat", () => {
+    const { game, ada } = newGame(0);
+    expect(orderError(game, ada, { type: "retreat", attack: 3 })).toBeUndefined();
+    expect(orderError(game, ada, { type: "retreat", attack: 0 })).toBe("invalid attack id");
+    expect(orderError(game, ada, { type: "retreat", attack: 1.5 })).toBe("invalid attack id");
   });
 });

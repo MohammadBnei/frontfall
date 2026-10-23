@@ -208,3 +208,31 @@ describe("encirclement", () => {
     expect(game.territory.ownerOf(grid.index(2, 1))).toBe(2);
   });
 });
+
+describe("retreat", () => {
+  it("calls an attack back, returning its troops minus the penalty (R-ATTACK-06)", () => {
+    const { grid, game, ada, attacks, run, attack } = newGame({ 1: [0] });
+    ada.troops = 500;
+    run([attack(1, grid.index(5, 1), 400)]);
+    const running = attacks.list()[0];
+    if (!running) throw new Error("attack missing");
+    const left = running.troops;
+    const tiles = game.territory.tileCount(1);
+
+    expect(run([{ player: 1, order: { type: "retreat", attack: running.id } }])).toBe(1);
+    expect(attacks.list()).toEqual([]);
+    expect(ada.troops).toBe(100 + left - Math.floor((left * 25) / 100));
+    expect(game.territory.tileCount(1)).toBe(tiles);
+  });
+
+  it("only lets a player call back their own attacks", () => {
+    const { grid, ada, bea, attacks, run, attack } = newGame({ 1: [0], 2: [5] });
+    ada.troops = 500;
+    bea.troops = 500;
+    run([attack(1, grid.index(3, 1), 400)]);
+    const id = attacks.list()[0]?.id ?? 0;
+    expect(run([{ player: 2, order: { type: "retreat", attack: id } }])).toBe(0);
+    expect(run([{ player: 1, order: { type: "retreat", attack: id + 7 } }])).toBe(0);
+    expect(attacks.list()).toHaveLength(1);
+  });
+});

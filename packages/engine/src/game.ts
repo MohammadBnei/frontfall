@@ -6,7 +6,9 @@ import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
 
 /** An order from a player, as relayed by the server in a turn. */
 export type Order =
-  { type: "spawn"; tile: number } | { type: "attack"; target: number; troops: number };
+  | { type: "spawn"; tile: number }
+  | { type: "attack"; target: number; troops: number }
+  | { type: "retreat"; attack: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {

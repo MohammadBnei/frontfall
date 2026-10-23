@@ -20,6 +20,10 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
       return undefined;
     }
+    case "retreat":
+      if (game.phase !== "play") return "attacks start after the spawn phase";
+      if (!Number.isSafeInteger(order.attack) || order.attack < 1) return "invalid attack id";
+      return undefined;
   }
 }
 

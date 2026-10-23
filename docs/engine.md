@@ -42,6 +42,7 @@ Every order is validated before it runs (`orderError` gives the reason for a ref
 | ------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `{ type: "spawn", tile }`            | `R-SPAWN-01` to `-05`  | During the spawn phase: start at `tile`, or move the start there.                                                                    |
 | `{ type: "attack", target, troops }` | `R-ATTACK-01` to `-09` | After the spawn phase: send `troops` against the owner of `target` (a player, or unowned land). The front advances towards `target`. |
+| `{ type: "retreat", attack }`        | `R-ATTACK-06`          | Call back one of your attacks by id (`attacks.list()`); its troops return, minus `B-RETREAT-PENALTY`.                                |
 
 Computer players do not go through turns: they run inside the engine and call `game.apply(player, order)` during a tick, the same path and checks as turn orders (`R-BOT-03`).
 
