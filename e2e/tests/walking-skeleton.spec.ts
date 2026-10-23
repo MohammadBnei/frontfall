@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+/** Cloudflare Web Analytics, injected by the proxy in front of the public server. */
+const PROXY_INJECTED = process.env.E2E_BASE_URL
+  ? ["https://static.cloudflareinsights.com/", "https://cloudflareinsights.com/"]
+  : [];
+
 test("loads the game and joins a lobby without leaving its base path", async ({
   page,
   baseURL,
@@ -19,7 +24,12 @@ test("loads the game and joins a lobby without leaving its base path", async ({
 
   expect(pageErrors).toEqual([]);
   expect(sockets).toEqual([new URL("ws", baseURL).href.replace(/^http/, "ws")]);
-  const outside = requested.filter((url) => !url.startsWith(baseURL) && !url.startsWith("data:"));
+  const outside = requested.filter(
+    (url) =>
+      !url.startsWith(baseURL) &&
+      !url.startsWith("data:") &&
+      !PROXY_INJECTED.some((host) => url.startsWith(host)),
+  );
   expect(outside).toEqual([]);
 });
 
