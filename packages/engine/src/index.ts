@@ -20,3 +20,24 @@ export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.
 export { Terrain, TileKind } from "./terrain.ts";
 export type { Topology } from "./topology.ts";
 export { WorldGrid, type WorldGridOptions } from "./world-grid.ts";
+export {
+  HILLS_FROM,
+  MOUNTAINS_FROM,
+  loadMap,
+  type LoadedMap,
+  type MapDescription,
+} from "./map/load-map.ts";
+export {
+  MAGNITUDE_IMPASSABLE,
+  MAP_FORMAT_VERSION,
+  MAP_HEADER_BYTES,
+  MapFileError,
+  TILE_LAND,
+  TILE_MAGNITUDE,
+  TILE_SHORE,
+  decodeMapFile,
+  encodeMapFile,
+  mapFileBytes,
+  type MapFile,
+} from "./map/map-file.ts";
+export { sha256Hex } from "./map/sha256.ts";
