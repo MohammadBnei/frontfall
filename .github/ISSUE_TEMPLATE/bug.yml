@@ -1,6 +1,11 @@
 name: Bug report
 description: Something does not work as it should.
+labels: ["type: bug", "needs triage"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please check the [open issues](https://github.com/nic0lasm/frontfall/issues) first: a thumbs-up on an existing one helps more than a duplicate.
   - type: textarea
     id: what
     attributes:
@@ -26,3 +31,9 @@ body:
     id: version
     attributes:
       label: Game version or commit
+      description: The release number, or the date and time you played on the public server.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshot or console output
+      description: Optional. Browser console errors (F12) are often the fastest way to the cause.
