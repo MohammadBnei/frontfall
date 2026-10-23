@@ -1,74 +1,75 @@
 import * as THREE from "three";
-import { MAP_COLORS, hexToRgb } from "../palette.ts";
-import type { FlatCamera } from "./camera.ts";
+import { MAP_COLORS } from "../palette.ts";
+import type { CameraView } from "./camera.ts";
 import { applyView } from "./orthographic.ts";
+import { TerritoryLayer } from "./territory-layer.ts";
 
 export interface MapViewOptions {
   readonly width: number;
   readonly height: number;
-  /** 1 for land, 0 for water, row 0 at the north pole. */
-  readonly land: Uint8Array;
-  readonly camera: FlatCamera;
+  /** TileKind of every tile; 0 is water. */
+  readonly kinds: Uint8Array;
+  /** Owner of every tile, kept up to date by the caller and read in place. */
+  readonly owners: Uint16Array;
+  readonly maxOwner: number;
 }
 
-/** The flat terrain map, drawn under an orthographic camera driven by a FlatCamera. */
+/**
+ * The flat map: one WebGL canvas, the territory layer, and an orthographic
+ * camera placed from the view of the interface's camera.
+ */
 export class MapView {
   readonly canvas: HTMLCanvasElement;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly ortho = new THREE.OrthographicCamera();
-  private readonly texture: THREE.DataTexture;
-  private readonly geometry: THREE.PlaneGeometry;
-  private readonly material: THREE.MeshBasicMaterial;
+  private readonly camera = new THREE.OrthographicCamera();
+  private readonly territory: TerritoryLayer;
 
   constructor(readonly options: MapViewOptions) {
-    const { width, height, land } = options;
-    const landRgb = hexToRgb(MAP_COLORS.land);
-    const oceanRgb = hexToRgb(MAP_COLORS.ocean);
-    const pixels = new Uint8Array(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-      const [r, g, b] = land[i] === 1 ? landRgb : oceanRgb;
-      const x = i % width;
-      // Textures start at the bottom row; the grid starts at the north pole.
-      const row = height - 1 - (i - x) / width;
-      pixels.set([r, g, b, 255], (row * width + x) * 4);
-    }
-    this.texture = new THREE.DataTexture(pixels, width, height);
-    this.texture.magFilter = THREE.NearestFilter;
-    this.texture.colorSpace = THREE.SRGBColorSpace;
-    this.texture.needsUpdate = true;
-
-    this.geometry = new THREE.PlaneGeometry(width, height);
-    this.material = new THREE.MeshBasicMaterial({ map: this.texture });
-    // Three copies side by side: wherever the camera sits, the world continues.
-    for (const shift of [-1, 0, 1]) {
-      const copy = new THREE.Mesh(this.geometry, this.material);
-      copy.position.x = shift * width;
-      this.scene.add(copy);
-    }
-    this.ortho.position.z = 10;
-
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
     this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setClearColor(MAP_COLORS.oceanDeep);
     this.canvas = this.renderer.domElement;
+    this.territory = new TerritoryLayer({
+      width: options.width,
+      height: options.height,
+      owners: options.owners,
+      terrain: options.kinds,
+      maxOwner: options.maxOwner,
+    });
+    // The layer spans x in [-width, 2 * width) and y in [0, height) from the
+    // south edge; applyView puts the origin at the centre of the middle copy.
+    this.territory.mesh.position.set(-options.width / 2, -options.height / 2, 0);
+    this.scene.add(this.territory.mesh);
+    this.camera.position.z = 10;
   }
 
-  /** Size of the canvas in CSS pixels; the camera is resized to match. */
+  setPlayerColor(id: number, color: string): void {
+    this.territory.setOwnerColor(id, color);
+  }
+
+  /** Tiles whose owner changed in the shared array since the last frame. */
+  markChanged(tiles: ArrayLike<number>): void {
+    this.territory.markChanged(tiles);
+  }
+
+  markAllChanged(): void {
+    this.territory.markAllChanged();
+  }
+
   resize(width: number, height: number): void {
-    this.renderer.setSize(width, height);
-    this.options.camera.resize(width, height);
+    this.renderer.setSize(width, height, false);
   }
 
-  render(): void {
-    const { camera, width, height } = this.options;
-    applyView(this.ortho, camera.view(), width, height);
-    this.renderer.render(this.scene, this.ortho);
+  render(view: CameraView): void {
+    applyView(this.camera, view, this.options.width, this.options.height);
+    this.territory.flush();
+    this.renderer.render(this.scene, this.camera);
   }
 
   dispose(): void {
-    this.geometry.dispose();
-    this.material.dispose();
-    this.texture.dispose();
+    this.territory.dispose();
     this.renderer.dispose();
+    this.canvas.remove();
   }
 }

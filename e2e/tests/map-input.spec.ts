@@ -7,8 +7,9 @@ test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch });
 test("pinch zooms the map, not the page", async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
-  await page.goto("./");
-  const canvas = page.locator("canvas");
+  await page.goto("./?map=skirmish&bots=1");
+  await page.locator("#play").tap();
+  const canvas = page.locator("#map");
   await expect(canvas).toBeVisible();
   await expect(page.locator(".notice")).toHaveCount(0);
   // Let a few frames draw before the reference shot.
@@ -32,6 +33,9 @@ test("pinch zooms the map, not the page", async ({ page }) => {
 
   // The suite has no DOM types, hence the expression as a string.
   expect(await page.evaluate<number>("window.visualViewport.scale")).toBe(1);
-  await expect.poll(async () => (await canvas.screenshot()).equals(before)).toBe(false);
+  // Screenshots are slow in software rendering, all the more with other tests running.
+  await expect
+    .poll(async () => (await canvas.screenshot()).equals(before), { timeout: 30_000 })
+    .toBe(false);
   expect(pageErrors).toEqual([]);
 });

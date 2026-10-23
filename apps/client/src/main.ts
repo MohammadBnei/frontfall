@@ -1,4 +1,3 @@
-import { WorldGrid } from "@frontfall/engine";
 import {
   applyTranslations,
   onLanguageChange,
@@ -6,44 +5,70 @@ import {
   type MessageKey,
   type Params,
 } from "./i18n/index.ts";
-import { InputController } from "./input/controller.ts";
 import { OnlineClient, socketUrl } from "./net/online.ts";
-import { FlatCamera } from "./render/camera.ts";
-import { MapView } from "./render/map-view.ts";
-import { WEBGL_MISSING_MESSAGE, hasWebGL2 } from "./render/webgl-support.ts";
-import { generateLand } from "./terrain.ts";
+import { hasWebGL2 } from "./render/webgl-support.ts";
+import { GameScreen } from "./ui/game-screen.ts";
+import { Menu } from "./ui/menu.ts";
+import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 
-const grid = new WorldGrid(512, 256);
-const land = generateLand(grid, 2026);
+const storage = safeStorage();
+let menu: Menu | undefined;
+let game: GameScreen | undefined;
+let setup = initialSetup(location.search, storage);
 
-function showNotice(text: string): void {
+function showMenu(): void {
+  game?.dispose();
+  game = undefined;
+  document.body.classList.remove("playing");
+  menu = new Menu(setup, play);
+  document.body.prepend(menu.element);
+  menu.element.querySelector<HTMLButtonElement>("#play")?.focus();
+}
+
+function play(chosen: GameSetup): void {
+  setup = chosen;
+  saveSetup(setup, storage);
+  // Share the setup through the address bar, relative so it works under any prefix.
+  history.replaceState(null, "", setupQuery(setup));
+  if (!hasWebGL2()) {
+    showNotice("webgl.missing");
+    return;
+  }
+  game?.dispose();
+  const seed = Math.floor(Math.random() * 0x7fffffff);
+  try {
+    game = new GameScreen(
+      { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed },
+      {
+        onNewGame: () => {
+          play(setup);
+        },
+        onMenu: showMenu,
+      },
+    );
+  } catch (error) {
+    // Most likely the WebGL context, lost or refused after the check above.
+    console.error(error);
+    game = undefined;
+    showNotice("webgl.missing");
+    return;
+  }
+  menu?.element.remove();
+  menu = undefined;
+  document.body.classList.add("playing");
+  document.body.prepend(game.element);
+  game.start();
+}
+
+/** A message over the menu, translated again if the language changes. */
+function showNotice(key: MessageKey): void {
+  document.querySelector(".notice")?.remove();
   const notice = document.createElement("p");
   notice.className = "notice";
   notice.setAttribute("role", "alert");
-  notice.textContent = text;
+  notice.dataset.i18n = key;
+  notice.textContent = t(key);
   document.body.append(notice);
-}
-
-function startMap(): void {
-  const camera = new FlatCamera({ width: grid.width, height: grid.height });
-  const view = new MapView({ width: grid.width, height: grid.height, land, camera });
-  document.body.append(view.canvas);
-  const input = new InputController(view.canvas, camera);
-
-  const resize = (): void => {
-    view.resize(window.innerWidth, window.innerHeight);
-  };
-  window.addEventListener("resize", resize);
-  resize();
-
-  let last = performance.now();
-  const frame = (now: number): void => {
-    input.update(now - last);
-    last = now;
-    view.render();
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
 }
 
 // iOS Safari zooms the page on a pinch even over a canvas with touch-action: none.
@@ -51,18 +76,8 @@ document.addEventListener("gesturestart", (event) => {
   event.preventDefault();
 });
 
-if (hasWebGL2()) {
-  try {
-    startMap();
-  } catch (error) {
-    console.error(error);
-    showNotice(WEBGL_MISSING_MESSAGE);
-  }
-} else {
-  showNotice(WEBGL_MISSING_MESSAGE);
-}
-
 applyTranslations(document);
+showMenu();
 
 const status = document.querySelector<HTMLElement>("#status");
 let shownStatus: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };

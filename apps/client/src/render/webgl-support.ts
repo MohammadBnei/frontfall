@@ -23,7 +23,3 @@ export function hasWebGL2(
     return false;
   }
 }
-
-export const WEBGL_MISSING_MESSAGE =
-  "Frontfall needs WebGL 2 to draw the map, and this browser could not provide it. " +
-  "Try updating your browser, or turning on hardware acceleration in its settings.";

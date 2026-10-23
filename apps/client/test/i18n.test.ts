@@ -232,22 +232,20 @@ describe("applyTranslations", () => {
 });
 
 describe("hard-coded text", () => {
-  // Shaders and the catalogues themselves are not interface text.
-  const sources = import.meta.glob<string>(
-    ["../src/**/*.ts", "!../src/i18n/**", "!../src/render/**"],
-    {
-      query: "?raw",
-      import: "default",
-      eager: true,
-    },
-  );
+  // The catalogues themselves are not interface text.
+  const sources = import.meta.glob<string>(["../src/**/*.ts", "!../src/i18n/**"], {
+    query: "?raw",
+    import: "default",
+    eager: true,
+  });
 
   // A string or template literal written straight into the page. Translated text
   // goes through t(), so these patterns only match text that skipped the catalogues.
   const patterns = [
     /\.(textContent|innerText|innerHTML|title|placeholder|alt)\s*=\s*["'`]/,
     /setAttribute\(\s*["'](aria-label|title|placeholder|alt)["']\s*,\s*["'`]/,
-    /\.(append|prepend)\([^)]*["'`][^"'`]*[A-Za-z]{2}/,
+    // A literal passed to append() itself, not a tag name handed to h() inside it.
+    /\.(append|prepend)\((?:[^)]*,\s*)?["'`][^"'`]*[A-Za-z]{2}/,
   ];
 
   it("finds the client sources", () => {

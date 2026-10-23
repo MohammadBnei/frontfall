@@ -76,3 +76,520 @@ canvas {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Shared controls */
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button.primary,
+button.secondary {
+  padding: 10px 18px;
+  border-radius: var(--ff-radius);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.primary {
+  border: 1px solid var(--ff-ember);
+  background: var(--ff-ember);
+  color: var(--ff-night-800);
+}
+
+button.primary:hover {
+  border-color: var(--ff-ember-bright);
+  background: var(--ff-ember-bright);
+}
+
+button.secondary {
+  border: 1px solid var(--ff-night-500);
+  background: var(--ff-night-600);
+}
+
+button.secondary:hover {
+  border-color: var(--ff-slate-400);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ff-ember);
+  outline-offset: 2px;
+}
+
+input[type="range"] {
+  accent-color: var(--ff-ember);
+}
+
+.range {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.range input {
+  flex: 1;
+  min-width: 0;
+}
+
+.range-value {
+  min-width: 3.5em;
+  text-align: right;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Main menu */
+
+.menu {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(47 128 237 / 12%), transparent 60%), var(--ff-night-800);
+}
+
+.menu-header {
+  text-align: center;
+}
+
+.logo {
+  width: min(320px, 80vw);
+  height: auto;
+}
+
+.tagline {
+  margin: 8px 0 0;
+  color: var(--ff-slate-300);
+}
+
+.menu-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: min(640px, 100%);
+  padding: 24px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 10px;
+  background: var(--ff-night-700);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.field > label,
+.field-label {
+  color: var(--ff-slate-300);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+#player-name {
+  padding: 10px 12px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-600);
+}
+
+.map-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.map-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-600);
+  cursor: pointer;
+}
+
+.map-card:has(input:checked) {
+  border-color: var(--ff-ember);
+}
+
+.map-card:has(input:focus-visible) {
+  outline: 2px solid var(--ff-ember);
+  outline-offset: 2px;
+}
+
+.map-card input,
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-thumb {
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+  image-rendering: pixelated;
+}
+
+.map-name {
+  font-weight: 600;
+}
+
+.map-size {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  overflow: hidden;
+}
+
+.segmented label {
+  position: relative;
+  flex: 1;
+  padding: 8px 10px;
+  text-align: center;
+  background: var(--ff-night-600);
+  cursor: pointer;
+}
+
+.segmented label + label {
+  border-left: 1px solid var(--ff-night-500);
+}
+
+.segmented label:has(input:checked) {
+  background: var(--ff-ember);
+  color: var(--ff-night-800);
+  font-weight: 600;
+}
+
+.segmented label:has(input:focus-visible) {
+  outline: 2px solid var(--ff-ember);
+  outline-offset: -2px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--ff-slate-300);
+  font-size: 13px;
+  text-align: center;
+}
+
+.menu-footer select {
+  padding: 6px 8px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+}
+
+/* In-game interface */
+
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-size: 14px;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+.panel {
+  position: absolute;
+  padding: 10px 12px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: rgb(10 19 28 / 85%);
+}
+
+.stats {
+  top: 12px;
+  left: 12px;
+  display: flex;
+  gap: 18px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  color: var(--ff-slate-300);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 18px;
+}
+
+.stat-cap {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}
+
+.banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100vw - 24px));
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: rgb(10 19 28 / 85%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.leaderboard {
+  top: 12px;
+  right: 12px;
+  width: 220px;
+}
+
+.leaderboard h2 {
+  margin: 0 0 6px;
+  color: var(--ff-slate-300);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.leaderboard-list {
+  margin: 0;
+  padding: 0 0 0 1.6em;
+}
+
+.leader {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 1px 0;
+}
+
+.leader::marker {
+  color: var(--ff-slate-400);
+}
+
+.leader.you {
+  font-weight: 700;
+}
+
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.leader-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leader-land {
+  color: var(--ff-slate-300);
+}
+
+.ratio {
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: min(420px, calc(100vw - 24px));
+  box-sizing: border-box;
+}
+
+.ratio label {
+  white-space: nowrap;
+}
+
+.ratio input {
+  flex: 1;
+  min-width: 0;
+}
+
+.toolbar {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: rgb(10 19 28 / 85%);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  border-color: var(--ff-slate-400);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(6 12 18 / 70%);
+}
+
+.end-screen,
+.help {
+  width: min(420px, 100%);
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 10px;
+  background: var(--ff-night-700);
+  text-align: center;
+}
+
+.end-screen h1 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.end-screen.won h1 {
+  color: var(--ff-ember);
+}
+
+.end-winner {
+  color: var(--ff-slate-300);
+}
+
+.end-stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
+  margin: 16px 0;
+  text-align: left;
+}
+
+.end-stats dt {
+  color: var(--ff-slate-300);
+}
+
+.end-stats dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.end-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.help ul {
+  margin: 12px 0 20px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  line-height: 1.8;
+}
+
+@media (width < 720px) {
+  .hud {
+    font-size: 13px;
+  }
+
+  .stats {
+    gap: 12px;
+  }
+
+  .leaderboard {
+    top: auto;
+    bottom: 64px;
+    width: 170px;
+  }
+
+  .banner {
+    top: 72px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.map-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.paused {
+  cursor: pointer;
+}
+
+.paused-text {
+  padding: 12px 20px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.playing .status {
+  display: none;
+}
+
+.icon-pause::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 12px;
+  border-inline: 3px solid currentcolor;
+  box-sizing: border-box;
+}
+
+.icon-help::before {
+  content: "?";
+}

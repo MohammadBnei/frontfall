@@ -3,6 +3,57 @@
 The browser client lives in [`apps/client`](../apps/client). This document
 covers the conventions that are not obvious from the code.
 
+## How a solo game runs
+
+```text
+ page                                    worker (game/sim.worker.ts)
+ ----                                    ---------------------------
+ Menu ── setup ──> GameScreen            SoloGame
+                    │  click(tile, ratio) ──>  orderForClick ─> TurnClock ─> Game
+                    │                          bots decide inside the tick
+                    │  <── update every tick:  changed tiles, players, attacks
+                    ├─ MapView (render/)   draws owners from a mirror array
+                    ├─ FlatCamera          screen <-> tile, pan and zoom
+                    ├─ InputController     pointer, wheel, pinch, keys
+                    └─ Hud, dialogs        plain HTML over the canvas
+```
+
+- The simulation runs in a Web Worker at `B-TICK-RATE`, so a slow tick never
+  drops a frame. Updates are posted with their buffers transferred, never
+  shared: the page needs no cross-origin isolation headers.
+- The page sends clicks, not orders. The worker holds the game and decides
+  what a click means: a start during the spawn phase, then an expansion or an
+  attack with the attack ratio. The same `GameSession` interface will carry
+  an online game, where the orders go to the server instead.
+- Bots are installed in the engine (`installBots`) and decide during the tick,
+  from the game state and its seed, so every client of an online game will
+  compute the same moves.
+- Only `apps/client/src/render` imports Three.js. The interface talks to the
+  `Camera` contract (ADR 0003), never to a Three.js camera.
+- Until the maps built from open data land, the menu offers generated test
+  maps (`game/maps.ts`), reduced to their largest landmass so every player can
+  reach every other by land.
+- The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard`),
+  so a link starts the same game, and the last one is remembered in
+  `localStorage` when storage is available.
+
+## Controls
+
+| Input                     | Action                                              |
+| ------------------------- | --------------------------------------------------- |
+| Click or tap              | Pick a start, then expand or attack                 |
+| Drag, one finger          | Move the map                                        |
+| Wheel, pinch, `+` and `-` | Zoom, towards the cursor or between the fingers     |
+| Arrows or `WASD`          | Move the map, at the same speed at any frame rate   |
+| `1` to `9`, `0`           | Attack with 10 % to 90 % of the troops, `0` for all |
+| `P` or `Esc`              | Pause and resume                                    |
+| `H` or `?`                | Show the controls                                   |
+
+A press that moves more than 6 pixels is a drag, never a click. WASD is read by
+physical key, so it stays under the same fingers on AZERTY keyboards. The page
+itself never zooms or scrolls during a game (`user-scalable=no`, `touch-action:
+none`): a pinch must reach the map, not the browser.
+
 ## Translations
 
 Every text the player can read comes from a catalogue in
@@ -52,5 +103,6 @@ call `plural("your.key", count)`. A category a catalogue lacks falls back to
    native name to `LANGUAGES` for the language menu.
 
 The tests in `apps/client/test/i18n.test.ts` check that every catalogue has the
-English keys and placeholders, and that no source file outside `i18n/` and
-`render/` writes literal text into the page.
+English keys and placeholders, and that no source file outside `i18n/` writes
+literal text into the page. The menu has a language picker; it calls
+`setLanguage`.
