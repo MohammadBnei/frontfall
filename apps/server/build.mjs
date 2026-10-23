@@ -7,7 +7,7 @@ await build({
   bundle: true,
   platform: "node",
   format: "esm",
-  target: "node22",
+  target: "node24",
   // ws is CommonJS and requires Node built-ins; give the ESM bundle a require.
   banner: {
     js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",

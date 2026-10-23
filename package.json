@@ -7,9 +7,10 @@
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=24"
   },
   "scripts": {
+    "prepare": "husky",
     "dev": "pnpm --parallel --filter @frontfall/server --filter @frontfall/client dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
@@ -17,7 +18,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "pnpm --filter @frontfall/e2e test",
+    "clean-room": "node tools/src/clean-room-cli.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -25,9 +28,18 @@
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.9.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs}": [
+      "eslint --max-warnings=0",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css,html}": "prettier --write"
   }
 }

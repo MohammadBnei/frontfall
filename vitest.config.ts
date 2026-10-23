@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    projects: ["packages/*", "apps/*"],
+    projects: ["packages/*", "apps/*", "tools"],
     coverage: {
       provider: "v8",
       include: [
@@ -10,6 +10,7 @@ export default defineConfig({
         "apps/server/src/**",
         "apps/client/src/connection.ts",
         "apps/client/src/palette.ts",
+        "tools/src/clean-room.ts",
       ],
       exclude: ["**/index.ts", "apps/server/src/main.ts"],
       reporter: ["text", "lcov"],

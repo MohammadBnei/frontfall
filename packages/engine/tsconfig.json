@@ -1,4 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No ambient Node or DOM types: the package must run anywhere, unchanged.
+    "types": []
+  },
   "include": ["src", "test"]
 }
