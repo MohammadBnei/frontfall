@@ -21,6 +21,14 @@ export interface Balance {
   growthBasisPoints: number;
   /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
   goldPerThousandTroops: number;
+  /** B-NEUTRAL-COST, troops per plains tile of unowned land */
+  neutralCost: number;
+  /** B-RELIEF-COST, in tenths, for plains, hills and mountains */
+  reliefCostTenths: readonly [number, number, number];
+  /** B-ATTACK-SPEED: an attack takes 1 + isqrt(troops) / attackSpeedDivisor tiles per tick */
+  attackSpeedDivisor: number;
+  /** B-DEFENSE-DENSITY, in tenths: share of the defender's troops per tile added to the cost of a tile */
+  defenseDensityTenths: number;
 }
 
 export const DEFAULT_BALANCE: Balance = {
@@ -33,4 +41,8 @@ export const DEFAULT_BALANCE: Balance = {
   popPerCity: 25_000,
   growthBasisPoints: 320,
   goldPerThousandTroops: 5,
+  neutralCost: 8,
+  reliefCostTenths: [10, 15, 25],
+  attackSpeedDivisor: 8,
+  defenseDensityTenths: 10,
 };

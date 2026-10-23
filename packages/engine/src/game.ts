@@ -104,21 +104,28 @@ export class Game {
   }
 
   /**
+   * Carries out one order now, if it is valid: the path of every order of a
+   * turn, and of orders that computer players decide during a tick (R-BOT-03).
+   * Orders of eliminated or unknown players are ignored. Returns whether the
+   * order was carried out.
+   */
+  apply(playerId: number, order: Order): boolean {
+    const player = this.playersById.get(playerId);
+    if (!player?.alive || orderError(this, player, order) !== undefined) return false;
+    return this.handlers.some((handle) => handle(this, player, order));
+  }
+
+  /**
    * Runs one tick: the turn's orders, then every system. Turns must arrive in
    * sequence; a gap or a repeat means the client is out of step with the server.
-   * Invalid orders, and orders of eliminated or unknown players, are skipped.
-   * Returns how many orders were applied.
+   * Returns how many of the turn's orders were carried out.
    */
   step(turn: Turn): number {
     if (turn.tick !== this.currentTick) {
       throw new RangeError(`expected turn ${String(this.currentTick)}, got ${String(turn.tick)}`);
     }
     let applied = 0;
-    for (const { player: id, order } of turn.orders) {
-      const player = this.playersById.get(id);
-      if (!player?.alive || orderError(this, player, order) !== undefined) continue;
-      if (this.handlers.some((handle) => handle(this, player, order))) applied++;
-    }
+    for (const { player, order } of turn.orders) if (this.apply(player, order)) applied++;
     for (const system of this.systems) system(this);
     this.currentTick++;
     return applied;

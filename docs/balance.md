@@ -34,13 +34,14 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 
 ## Attacks
 
-| Key                  |         Value | Unit                        | Used by       | Notes                                      |
-| -------------------- | ------------: | --------------------------- | ------------- | ------------------------------------------ |
-| `B-ATTACK-RATIO-MIN` |             5 | %                           | `R-ATTACK-02` | Default ratio in the interface is 30 %     |
-| `B-NEUTRAL-COST`     |             8 | troops/tile                 | `R-ATTACK-04` |                                            |
-| `B-RELIEF-COST`      | 1 / 1.5 / 2.5 | multiplier                  | `R-MAP-06`    | Plains / hills / mountains                 |
-| `B-DEFENSE-DENSITY`  |           1.0 | defender troops/tile weight | `R-ATTACK-03` | Cost of a tile grows with defender density |
-| `B-RETREAT-PENALTY`  |            25 | % of returning troops       | `R-ATTACK-06` |                                            |
+| Key                  |         Value | Unit                        | Used by       | Notes                                       |
+| -------------------- | ------------: | --------------------------- | ------------- | ------------------------------------------- |
+| `B-ATTACK-RATIO-MIN` |             5 | %                           | `R-ATTACK-02` | Default ratio in the interface is 30 %      |
+| `B-NEUTRAL-COST`     |             8 | troops/tile                 | `R-ATTACK-04` |                                             |
+| `B-RELIEF-COST`      | 1 / 1.5 / 2.5 | multiplier                  | `R-MAP-06`    | Plains / hills / mountains                  |
+| `B-DEFENSE-DENSITY`  |           1.0 | defender troops/tile weight | `R-ATTACK-03` | Cost of a tile grows with defender density  |
+| `B-ATTACK-SPEED`     |             8 | divisor                     | `R-ATTACK-03` | Tiles taken per tick: 1 + isqrt(troops) / 8 |
+| `B-RETREAT-PENALTY`  |            25 | % of returning troops       | `R-ATTACK-06` |                                             |
 
 ## Diplomacy
 

@@ -47,7 +47,7 @@ Words used throughout:
 
 - **R-ATTACK-01** A player expands by sending troops from their territory towards a target: unowned land or a neighbouring player.
 - **R-ATTACK-02** The attack ratio, set by the player between `B-ATTACK-RATIO-MIN` and 100 %, decides the share of current troops each new attack takes.
-- **R-ATTACK-03** An attack advances along the shared border, one tile at a time. Each captured tile costs the attacker troops, more for relief (`R-MAP-06`) and more against a defender with many troops per tile (`B-DEFENSE-DENSITY`).
+- **R-ATTACK-03** An attack advances along the shared border, one tile at a time, taking first the tiles closest to the point the player aimed at. Larger attacks take more tiles per tick (`B-ATTACK-SPEED`). Each captured tile costs the attacker troops, more for relief (`R-MAP-06`) and more against a defender with many troops per tile (`B-DEFENSE-DENSITY`).
 - **R-ATTACK-04** Unowned land costs troops to take but never fights back (`B-NEUTRAL-COST`).
 - **R-ATTACK-05** An attack ends when its troops run out, when no reachable target tile remains, or when its player retreats.
 - **R-ATTACK-06** Retreating returns the attack's remaining troops to the player, minus a penalty (`B-RETREAT-PENALTY`).

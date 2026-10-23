@@ -160,3 +160,14 @@ describe("Game", () => {
     expect(draws(7)).not.toEqual(draws(8));
   });
 });
+
+describe("Game.apply", () => {
+  it("carries out a valid order of a living player outside any turn (R-BOT-03)", () => {
+    const game = new Game(setup());
+    game.onOrder(() => true);
+    expect(game.apply(1, spawn(3))).toBe(true);
+    expect(game.apply(1, spawn(-1))).toBe(false);
+    expect(game.apply(9, spawn(3))).toBe(false);
+    expect(game.tick).toBe(0);
+  });
+});
