@@ -213,7 +213,7 @@ describe("WebSocket", () => {
     const response = await fetch(`http://${host}/api/games`);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({
-      games: [{ id: game, map: "default", players: 1, capacity: 16, startsIn: null }],
+      games: [{ id: game, map: "world", players: 1, capacity: 16, startsIn: null }],
     });
   });
 
@@ -334,6 +334,23 @@ describe("WebSocket", () => {
     await opened(client.socket);
     client.send({ type: "hello", version: 0, name: "Old" });
     expect(await closed(client.socket)).toBe(CloseCode.versionMismatch);
+  });
+
+  it("closes a connection from a page of another build", async () => {
+    const host = await start();
+    const old = open(host);
+    await opened(old.socket);
+    old.send({ type: "hello", version: 1, name: "Old", build: "0123456789ab" });
+    expect(await closed(old.socket)).toBe(CloseCode.versionMismatch);
+
+    const same = open(host);
+    await opened(same.socket);
+    same.send({ type: "hello", version: 1, name: "Same", build: "abc123" });
+    await same.next("welcome");
+    const dev = open(host);
+    await opened(dev.socket);
+    dev.send({ type: "hello", version: 1, name: "Dev", build: "dev" });
+    await dev.next("welcome");
   });
 
   it("asks for another name when the name is not allowed", async () => {

@@ -12,7 +12,9 @@ COPY tools/package.json tools/
 COPY e2e/package.json e2e/
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm --filter @frontfall/client --filter @frontfall/server build
+# The client sends its build to the server, which turns away pages from another build.
+ARG FRONTFALL_VERSION=dev
+RUN FRONTFALL_VERSION=$FRONTFALL_VERSION pnpm --filter @frontfall/client --filter @frontfall/server build
 
 FROM node:24-alpine@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS run
 # Commit the image was built from, reported by /healthz.

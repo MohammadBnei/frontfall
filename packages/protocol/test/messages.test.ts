@@ -10,6 +10,7 @@ import {
 
 const CLIENT_MESSAGES: ClientMessage[] = [
   { type: "hello", version: 1, name: "Nico" },
+  { type: "hello", version: 1, name: "Nico", build: "0d25e267bbae" },
   { type: "play" },
   { type: "create" },
   { type: "join", game: "Xk3_9aB-q2Lm" },
@@ -27,7 +28,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     type: "lobby",
     game: "Xk3_9aB-q2Lm",
     visibility: "public",
-    map: "default",
+    map: "world",
     capacity: 16,
     players: [
       { id: 1, name: "Nico" },
@@ -40,7 +41,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
   {
     type: "started",
     game: "Xk3_9aB-q2Lm",
-    map: "default",
+    map: "world",
     seed: 123456,
     bots: 0,
     tickRate: 10,

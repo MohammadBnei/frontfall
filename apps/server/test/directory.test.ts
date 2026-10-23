@@ -31,7 +31,7 @@ describe("Directory", () => {
     open?.join("A", peer, 0);
     games.create("private")?.join("B", peer, 0);
     expect(games.publicGames(0)).toEqual([
-      { id: open?.id, map: "default", players: 1, capacity: 2, startsIn: null },
+      { id: open?.id, map: "world", players: 1, capacity: 2, startsIn: null },
     ]);
   });
 

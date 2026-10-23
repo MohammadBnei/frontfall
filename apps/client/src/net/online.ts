@@ -64,6 +64,8 @@ export interface SocketLike {
 export interface OnlineOptions {
   url: string;
   name: string;
+  /** Build of the page, so the server can turn away an outdated one. */
+  build?: string;
   events: OnlineEvents;
   createSocket?: (url: string) => SocketLike;
   setTimer?: (callback: () => void, ms: number) => unknown;
@@ -149,7 +151,12 @@ export class OnlineClient {
     this.socket = socket;
     socket.addEventListener("open", () => {
       socket.send(
-        encodeClientMessage({ type: "hello", version: PROTOCOL_VERSION, name: this.options.name }),
+        encodeClientMessage({
+          type: "hello",
+          version: PROTOCOL_VERSION,
+          name: this.options.name,
+          ...(this.options.build !== undefined && { build: this.options.build }),
+        }),
       );
     });
     socket.addEventListener("message", (event) => {

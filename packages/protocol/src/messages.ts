@@ -54,7 +54,13 @@ const tick = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
 export const ClientMessage = z.discriminatedUnion("type", [
   /** First message of every connection. The name is checked by `normalizeName`. */
-  z.object({ type: z.literal("hello"), version: z.number().int(), name: z.string().max(64) }),
+  z.object({
+    type: z.literal("hello"),
+    version: z.number().int(),
+    name: z.string().max(64),
+    /** Build of the page; the server turns away other builds, except "dev". */
+    build: z.string().max(64).optional(),
+  }),
   /** Join the public game that starts soonest, or open a new one. */
   z.object({ type: z.literal("play") }).strict(),
   /** Open a private game; the creator is its host. */

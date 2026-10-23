@@ -4,7 +4,7 @@ import { Room, type Peer, type RoomObserver, type RoomSettings, type Seat } from
 
 const PUBLIC: RoomSettings = {
   visibility: "public",
-  map: "default",
+  map: "world",
   capacity: 4,
   bots: 0,
   minPlayers: 2,

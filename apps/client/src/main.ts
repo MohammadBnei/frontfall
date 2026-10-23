@@ -6,6 +6,7 @@ import {
   type Params,
 } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
+import { BUILD } from "./net/build.ts";
 import { OnlineClient, socketUrl } from "./net/online.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
@@ -102,6 +103,7 @@ const seconds = (ms: number): number => Math.ceil(ms / 1000);
 const online = new OnlineClient({
   url: socketUrl(location.href),
   name: "Guest",
+  build: BUILD,
   events: {
     status(state, retryInMs) {
       if (state === "connecting") showStatus("status.connecting");

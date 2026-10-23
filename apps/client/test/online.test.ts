@@ -81,7 +81,7 @@ class FakeSocket implements SocketLike {
 const START: Extract<ServerMessage, { type: "started" }> = {
   type: "started",
   game: "Xk3_9aB-q2Lm",
-  map: "default",
+  map: "world",
   seed: 5,
   bots: 0,
   tickRate: 10,
@@ -102,6 +102,7 @@ function client(events: OnlineEvents = {}) {
   return new OnlineClient({
     url: "ws://test/ws",
     name: "Bob",
+    build: "abc",
     createSocket: () => {
       const socket = new FakeSocket();
       sockets.push(socket);
@@ -150,7 +151,7 @@ describe("OnlineClient", () => {
     online.play();
     expect(socket.sent).toEqual([]);
     socket.connect();
-    expect(socket.sent).toEqual([{ type: "hello", version: 1, name: "Bob" }]);
+    expect(socket.sent).toEqual([{ type: "hello", version: 1, name: "Bob", build: "abc" }]);
     socket.receive({ type: "welcome", version: 1 });
     expect(socket.sent.at(-1)).toEqual({ type: "play" });
     expect(log).toEqual(["connecting", "online"]);
@@ -179,7 +180,7 @@ describe("OnlineClient", () => {
       type: "lobby",
       game: START.game,
       visibility: "public",
-      map: "default",
+      map: "world",
       capacity: 16,
       players: START.players,
       you: 2,
@@ -242,7 +243,7 @@ describe("OnlineClient", () => {
     socket.drop();
     timers.shift()?.callback();
     socket = welcomed();
-    expect(socket.sent.at(-1)).toEqual({ type: "hello", version: 1, name: "Bob" });
+    expect(socket.sent.at(-1)).toEqual({ type: "hello", version: 1, name: "Bob", build: "abc" });
   });
 
   it("joins the same game again when the connection drops in the lobby", () => {

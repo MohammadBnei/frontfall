@@ -59,7 +59,7 @@ const DEFAULT_PING_INTERVAL_MS = 25_000;
 const MAX_PAYLOAD_BYTES = 1024;
 
 export const DEFAULT_GAME: GameSettings = {
-  map: "default",
+  map: "world",
   capacity: 16,
   bots: 0,
   minPlayers: 2,
@@ -283,6 +283,10 @@ export function createGameServer(options: ServerOptions): GameServer {
         reject(session, CloseCode.invalidMessage, "hello was already sent", "invalid");
         return;
       }
+      if (message.build && !sameBuild(message.build, options.version)) {
+        session.socket.close(CloseCode.versionMismatch, `build ${options.version} required`);
+        return;
+      }
       if (message.version !== PROTOCOL_VERSION) {
         session.socket.close(
           CloseCode.versionMismatch,
@@ -482,6 +486,11 @@ export function createGameServer(options: ServerOptions): GameServer {
       });
     },
   };
+}
+
+/** Builds match, or one side is a development build. */
+function sameBuild(client: string, server: string): boolean {
+  return client === server || client === "dev" || server === "dev";
 }
 
 function acceptsGzip(request: IncomingMessage): boolean {

@@ -55,10 +55,12 @@ Before a game starts, a dropped connection gives its seat up. The client joins a
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 1, "name": "Léa" }
+{ "type": "hello", "version": 1, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
+
+`build`, optional, is the commit the page was built from. The server also closes the connection with `4000` when it runs another build, since the engine or the balance may differ and the game would desynchronise. `dev` builds, on either side, are always accepted.
 
 The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must then hold 1 to 20 characters: letters and digits of any script, spaces, `.`, `_`, `'` and `-`, starting with a letter or a digit. Names that pass for the people running the game, such as `admin` or `Frontfall`, are refused. A refused name gets an `invalid_name` error and the client may send `hello` again. Once accepted, a second `hello` closes the connection.
 
@@ -148,7 +150,7 @@ The hello was accepted.
   "type": "lobby",
   "game": "Xk3_9aB-q2Lm",
   "visibility": "public",
-  "map": "default",
+  "map": "world",
   "capacity": 16,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -168,7 +170,7 @@ The game being filled, sent after every change. `host` is the host's number in a
 {
   "type": "started",
   "game": "Xk3_9aB-q2Lm",
-  "map": "default",
+  "map": "world",
   "seed": 1834567,
   "bots": 0,
   "tickRate": 10,
@@ -245,7 +247,7 @@ A request was refused; the connection stays open. `message` is for people, `code
 | ------ | --------------------------------------------------------------- |
 | `1009` | A frame was larger than 1 KiB                                   |
 | `1012` | The server is restarting; games in progress are lost            |
-| `4000` | Another protocol version: reload the page                       |
+| `4000` | Another protocol version or build: reload the page              |
 | `4001` | A frame could not be decoded or broke a rule                    |
 | `4002` | More than 20 messages per second on average, or bursts above 40 |
 | `4003` | No `hello` within 10 seconds, or out of any game for 5 minutes  |
