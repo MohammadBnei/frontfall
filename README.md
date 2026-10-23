@@ -40,7 +40,7 @@ Be warned: this is a development build, not a game yet. Today it shows a generat
 
 ## Roadmap
 
-Development runs in playable versions. Each one ends with something you can play on the public server.
+Development runs in playable versions. Each one ends with something you can play on the public server. Every version before v1.0 is a beta; v1.0 is the complete game on the 3D globe.
 
 | Version | Goal                                                                                 | Status      |
 | ------- | ------------------------------------------------------------------------------------ | ----------- |
@@ -49,9 +49,10 @@ Development runs in playable versions. Each one ends with something you can play
 | v0.2    | Online with friends: private invite links, lockstep client, desync detection         | In progress |
 | v0.3    | Deeper game: cities and forts, alliances, nations, relief, rejoin after a disconnect | Planned     |
 | v0.4    | Sea and missiles: ships, naval combat, missiles, team games, replays                 | Planned     |
-| v1.0    | First public release: balance pass and monitored server                              | Planned     |
-| M6      | 3D globe                                                                             | Planned     |
-| M7      | Performance, and switching between map and globe during a game                       | Planned     |
+| v0.5    | Balanced and monitored: balance pass, uptime checks and alerts                       | Planned     |
+| v0.6    | 3D globe                                                                             | Planned     |
+| v0.7    | Performance, and switching between map and globe during a game                       | Planned     |
+| v1.0    | The complete game on the 3D globe, out of beta                                       | Planned     |
 | M8      | Community and launch                                                                 | Planned     |
 
 The scope and "playable when" checks of each version are in [docs/roadmap.md](docs/roadmap.md). Open work is tracked in [milestones](https://github.com/nic0lasm/frontfall/milestones).

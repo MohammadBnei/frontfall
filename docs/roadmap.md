@@ -1,21 +1,24 @@
 # Roadmap
 
-Frontfall is built in two phases. Phase 1 delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/). Phase 2 (M6 to M8) puts the same game on a 3D globe and opens it to contributors. The rules do not change between the two: the globe is a new view, not a new game.
+Frontfall is built in two phases. Phase 1 (v0.1 to v0.5) delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/). Phase 2 (v0.6 to v1.0) puts the same game on a 3D globe, and M8 opens it to contributors. The rules do not change between the two: the globe is a new view, not a new game.
 
-Phase 1 ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
+The game is in beta until v1.0, and its page says so. v1.0 is the first version that is a complete territory strategy game, played on the 3D globe.
+
+The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
 ## Overview
 
-| Version                                                              | You can                                                                                     | Issues | Estimate |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -----: | -------: |
-| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.    |     24 |  72 days |
-| [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.       |      8 |  24 days |
-| [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop. |     11 |  31 days |
-| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                    | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.            |      5 |  19 days |
-| [v1.0 · First release](#v10--first-release)                          | A balanced, monitored public release.                                                       |      3 |   5 days |
-| [M6 · 3D globe](#m6--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                   |      7 |  21 days |
-| [M7 · Performance and view switch](#m7--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.          |      8 |  20 days |
-| [M8 · Community and launch](#m8--community-and-launch)               | Players and contributors find the game, add maps and translations, and follow each release. |      7 |  13 days |
+| Version                                                                 | You can                                                                                      | Issues | Estimate |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -----: | -------: |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.     |     24 |  72 days |
+| [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.        |      8 |  24 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop.  |     11 |  31 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.             |      5 |  19 days |
+| [v0.5 · Balanced and monitored](#v05--balanced-and-monitored)           | Play a balanced flat-map game on a server that is watched around the clock.                  |      2 |   4 days |
+| [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                    |      7 |  21 days |
+| [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.           |      8 |  20 days |
+| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)    | The complete game on the 3D globe, online, balanced and monitored. The beta label comes off. |      1 |    1 day |
+| [M8 · Community and launch](#m8--community-and-launch)                  | Players and contributors find the game, add maps and translations, and follow each release.  |      7 |  13 days |
 
 M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
 
@@ -26,18 +29,19 @@ flowchart LR
     V02["v0.2 · Online with friends"]
     V03["v0.3 · Deeper game"]
     V04["v0.4 · Sea and missiles"]
-    V10["v1.0 · First release"]
+    V05["v0.5 · Balanced and monitored"]
   end
   subgraph P2["Phase 2: globe and community"]
-    M6["M6 · 3D globe"]
-    M7["M7 · Performance and view switch"]
+    V06["v0.6 · 3D globe"]
+    V07["v0.7 · Performance and view switch"]
+    V10["v1.0 · Globe release, out of beta"]
     M8["M8 · Community and launch"]
   end
-  V01 --> V02 --> V03 --> V04 --> V10 --> M6 --> M7 --> M8
-  V01 -. "rendering contracts" .-> M6
+  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V10 --> M8
+  V01 -. "rendering contracts" .-> V06
 ```
 
-A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 need nothing from the client and are built alongside v0.1, and the globe renderer (M6-01) can start as soon as the rendering contracts of v0.1 (M3-01) exist.
+A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 need nothing from the client and are built alongside v0.1, and the globe renderer of v0.6 (M6-01) can start as soon as the rendering contracts of v0.1 (M3-01) exist.
 
 ## How to read this page
 
@@ -175,29 +179,27 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 
 5 issues, about 19 days.
 
-## v1.0 · First release
+## v0.5 · Balanced and monitored
 
-**Outcome.** A balanced, monitored public release.
+**Outcome.** Play a balanced flat-map game on a server that is watched around the clock.
 
 **Playable when**
 
-1. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`.
-2. The public server stays above 99 % uptime over the 14 days before the announcement, measured by an external check.
-3. The README shows screenshots and a short clip of a real game.
+1. Every rule of `docs/rules.md` v1 holds up in 1,000 headless games: no strategy or start position wins more than twice its fair share.
+2. The public server stays above 99 % uptime over 14 days, measured by an external check that alerts on failure.
 
 | ID    | Issue                                                                                   | Size | Depends on    |
 | ----- | --------------------------------------------------------------------------------------- | ---- | ------------- |
 | M5-07 | [#49](https://github.com/nic0lasm/frontfall/issues/49) Balance pass with headless games | M    | #45, #46, #47 |
 | M5-09 | [#51](https://github.com/nic0lasm/frontfall/issues/51) Uptime monitoring and alerts     | S    | None          |
-| M5-10 | [#52](https://github.com/nic0lasm/frontfall/issues/52) Release v1.0                     | S    | #49, #50, #51 |
 
-3 issues, about 5 days.
+2 issues, about 4 days.
 
-## M6 · 3D globe
+## v0.6 · 3D globe
 
 **Outcome.** The same game on a planet you can spin. No edge, no seam.
 
-**Done when**
+**Playable when**
 
 1. A full multiplayer game is playable in the globe view with the same state hashes as the 2D view.
 2. At every zoom level, a click on the globe selects the tile under the cursor (automated test on 1,000 random points).
@@ -216,11 +218,11 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 
 7 issues, about 21 days.
 
-## M7 · Performance and view switch
+## v0.7 · Performance and view switch
 
 **Outcome.** Smooth on a modest laptop, and players switch between the flat map and the globe in the middle of a game.
 
-**Done when**
+**Playable when**
 
 1. Budgets from `docs/performance.md` met on the reference laptop: 60 fps in 2D, 45 fps on the globe, 1080p, World map, 64 players.
 2. Tick p95 under 8 ms for 64 players on the 4,096 x 2,048 map.
@@ -239,6 +241,23 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 | M7-08 | Download size and load time                     | S    | M6-01        |
 
 8 issues, about 20 days.
+
+## v1.0 · Globe release, out of beta
+
+**Outcome.** The complete game on the 3D globe, online, balanced and monitored. The beta label comes off.
+
+**Playable when**
+
+1. Every check of v0.1 to v0.7 still passes.
+2. A full online game with 8 or more players, with structures, ships and missiles, is played to the end on the globe at `nclsmgr.com/frontfall` with zero desyncs.
+3. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`, without the beta label.
+4. The README shows screenshots and a short clip of a real game on the globe.
+
+| ID    | Issue                                                               | Size | Depends on    |
+| ----- | ------------------------------------------------------------------- | ---- | ------------- |
+| M5-10 | [#52](https://github.com/nic0lasm/frontfall/issues/52) Release v1.0 | S    | #49, #50, #51 |
+
+1 issue, about 1 day, once v0.7 is done.
 
 ## M8 · Community and launch
 

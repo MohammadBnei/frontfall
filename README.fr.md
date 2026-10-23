@@ -40,7 +40,7 @@ Attention : c'est une version de développement, pas encore un jeu. Elle affiche
 
 ## Feuille de route
 
-Le développement avance par versions jouables. Chacune se termine par quelque chose de jouable sur le serveur public.
+Le développement avance par versions jouables. Chacune se termine par quelque chose de jouable sur le serveur public. Toutes les versions avant la v1.0 sont des bêtas ; la v1.0 est le jeu complet sur le globe 3D.
 
 | Version | Objectif                                                                             | État     |
 | ------- | ------------------------------------------------------------------------------------ | -------- |
@@ -49,9 +49,10 @@ Le développement avance par versions jouables. Chacune se termine par quelque c
 | v0.2    | En ligne entre amis : liens d'invitation, client lockstep, détection des désyncs     | En cours |
 | v0.3    | Jeu plus riche : villes et forts, alliances, nations, relief, reconnexion            | Prévu    |
 | v0.4    | Mer et missiles : navires, combat naval, missiles, parties en équipes, replays       | Prévu    |
-| v1.0    | Première version publique : équilibrage et serveur surveillé                         | Prévu    |
-| M6      | Globe 3D                                                                             | Prévu    |
-| M7      | Performance, et bascule entre carte et globe en cours de partie                      | Prévu    |
+| v0.5    | Équilibré et surveillé : passe d'équilibrage, contrôle de disponibilité et alertes   | Prévu    |
+| v0.6    | Globe 3D                                                                             | Prévu    |
+| v0.7    | Performance, et bascule entre carte et globe en cours de partie                      | Prévu    |
+| v1.0    | Le jeu complet sur le globe 3D, fin de la bêta                                       | Prévu    |
 | M8      | Communauté et lancement                                                              | Prévu    |
 
 Le périmètre et les critères « jouable » de chaque version sont dans [docs/roadmap.md](docs/roadmap.md) (en anglais). Le travail ouvert est suivi dans les [milestones](https://github.com/nic0lasm/frontfall/milestones).
