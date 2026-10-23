@@ -1,10 +1,10 @@
 import { WorldGrid } from "@frontfall/engine";
-import { inflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { recordPublished } from "../src/mapgen/build.ts";
 import { fillShapes, tileAt, type GridSpec, type Shape } from "../src/mapgen/geometry.ts";
 import { pickNations } from "../src/mapgen/nations.ts";
-import { encodeIndexedPng } from "../src/mapgen/png.ts";
+import { encodeIndexedPng, samePngImage } from "../src/mapgen/png.ts";
 import {
   buildTerrain,
   carveStrait,
@@ -148,37 +148,80 @@ describe("carveStrait", () => {
 });
 
 describe("pickNations", () => {
-  const topology = new WorldGrid(8, 4, { wrapsX: false });
-  const tiles = new Uint8Array(32).fill(0x80);
-  tiles.fill(0, 0, 8); // a sea along the north
-  const capital = (name: string, country: string, lon: number, lat: number, pop: number) => ({
+  // 16 x 4 tiles of 1 degree, with a sea along the north.
+  const wide: GridSpec = { width: 16, height: 4, west: 0, east: 16, south: 0, north: 4 };
+  const topology = new WorldGrid(16, 4, { wrapsX: false });
+  const tiles = new Uint8Array(64).fill(0x80);
+  tiles.fill(0, 0, 16);
+  const capital = (name: string, code: string, lon: number, lat: number, pop = 1) => ({
     lon,
     lat,
-    properties: { adm0cap: 1, name, adm0name: country, pop_max: pop },
+    properties: { adm0cap: 1, name, adm0name: `Country ${code}`, adm0_a3: code, pop_max: pop },
   });
+  const country = (population: number, land = 10) => ({ population, land });
 
-  it("takes the most populous capitals, one per country, on land, apart from each other", () => {
+  it("places one nation per country at its capital, on land a player can own", () => {
     const nations = pickNations(
-      grid,
+      wide,
       topology,
       tiles,
       [
-        capital("Small", "B", 7.5, 0.5, 10),
-        capital("Port", "A", 0.5, 3.5, 100), // at sea: moved one row south
-        capital("Second", "A", 6.5, 0.5, 50), // same country
-        capital("Close", "C", 1.5, 2.5, 80), // too close to Port
-        {
-          lon: 3.5,
-          lat: 1.5,
-          properties: { adm0cap: 0, name: "Town", adm0name: "D", pop_max: 1e6 },
-        },
+        capital("Port", "AAA", 0.5, 3.5, 100), // at sea: moved one row south
+        capital("Second", "AAA", 6.5, 0.5, 50), // a smaller capital of the same country
+        capital("Close", "CCC", 1.5, 2.5), // too close to Port
+        capital("Lost", "ZZZ", 9.5, 1.5), // no population known
+        { lon: 3.5, lat: 1.5, properties: { adm0cap: 0, adm0_a3: "DDD", name: "Town" } },
+        capital("Far", "BBB", 15.5, 0.5),
       ],
+      new Map([
+        ["AAA", country(1e6)],
+        ["BBB", country(1e4)],
+        ["CCC", country(1e8)],
+        ["DDD", country(1e8)],
+      ]),
       { count: 5, minDistance: 3 },
     );
     expect(nations).toEqual([
-      { name: "A", capital: "Port", tile: 8 },
-      { name: "B", capital: "Small", tile: 31 },
+      { name: "Country CCC", capital: "Close", tile: 17 },
+      { name: "Country BBB", capital: "Far", tile: 63 },
     ]);
+  });
+
+  it("lets a smaller country far away come before a large one next to a nation", () => {
+    const pick = (popC: number) =>
+      pickNations(
+        wide,
+        topology,
+        tiles,
+        [
+          capital("A", "AAA", 0.5, 2.5),
+          capital("B", "BBB", 2.5, 2.5),
+          capital("C", "CCC", 15.5, 2.5),
+        ],
+        new Map([
+          ["AAA", country(1e6)],
+          ["BBB", country(1e6)],
+          ["CCC", country(popC)],
+        ]),
+        { count: 3, minDistance: 2 },
+      ).map((nation) => nation.capital);
+    expect(pick(1e5)).toEqual(["A", "C", "B"]);
+    expect(pick(1e4)).toEqual(["A", "B", "C"]);
+  });
+
+  it("weighs a country by its land on the map as well as its people", () => {
+    const nations = pickNations(
+      wide,
+      topology,
+      tiles,
+      [capital("Dense", "AAA", 0.5, 2.5), capital("Vast", "BBB", 15.5, 2.5)],
+      new Map([
+        ["AAA", country(1e6, 1)],
+        ["BBB", country(1e5, 100)],
+      ]),
+      { count: 1, minDistance: 2 },
+    );
+    expect(nations.map((nation) => nation.capital)).toEqual(["Vast"]);
   });
 });
 
@@ -203,6 +246,44 @@ describe("recordPublished", () => {
     expect(() => recordPublished({}, manifest, false)).toThrow(
       "is not in tools/mapgen/published.json",
     );
+  });
+});
+
+describe("samePngImage", () => {
+  const palette = [
+    [0, 0, 0],
+    [255, 255, 255],
+  ] as const;
+  const image = encodeIndexedPng(2, 1, palette, Uint8Array.from([0, 1]));
+
+  it("ignores how the pixels were compressed", () => {
+    const recompressed = Buffer.from(image);
+    const idat = recompressed.indexOf("IDAT");
+    const stored = deflateSync(Buffer.from([0, 0, 1]), { level: 0 });
+    const rebuilt = Buffer.concat([
+      recompressed.subarray(0, idat - 4),
+      Buffer.from([0, 0, 0, stored.length]),
+      Buffer.from("IDAT"),
+      stored,
+      Buffer.alloc(4),
+      Buffer.from([0, 0, 0, 0]),
+      Buffer.from("IEND"),
+      Buffer.alloc(4),
+    ]);
+    expect(Buffer.compare(rebuilt, image)).not.toBe(0);
+    expect(samePngImage(rebuilt, image)).toBe(true);
+  });
+
+  it("tells different pixels, palettes and files apart", () => {
+    expect(samePngImage(encodeIndexedPng(2, 1, palette, Uint8Array.from([1, 0])), image)).toBe(
+      false,
+    );
+    const other = [
+      [0, 0, 0],
+      [9, 9, 9],
+    ] as const;
+    expect(samePngImage(encodeIndexedPng(2, 1, other, Uint8Array.from([0, 1])), image)).toBe(false);
+    expect(samePngImage(Buffer.from("not a png"), image)).toBe(false);
   });
 });
 

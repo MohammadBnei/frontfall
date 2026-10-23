@@ -1,4 +1,4 @@
-import { deflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 
 const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -48,4 +48,40 @@ export function encodeIndexedPng(
     chunk("IDAT", deflateSync(rows, { level: 9 })),
     chunk("IEND", new Uint8Array()),
   ]);
+}
+
+/**
+ * Whether two PNG files hold the same image: same header, palette and pixel
+ * rows once decompressed. Compressed bytes depend on the zlib build of Node,
+ * so the generator keeps a committed thumbnail whose pixels did not change.
+ */
+export function samePngImage(a: Uint8Array, b: Uint8Array): boolean {
+  const left = decodeChunks(a);
+  const right = decodeChunks(b);
+  if (!left || !right) return false;
+  return (
+    Buffer.compare(left.header, right.header) === 0 &&
+    Buffer.compare(left.palette, right.palette) === 0 &&
+    Buffer.compare(inflateSync(left.data), inflateSync(right.data)) === 0
+  );
+}
+
+function decodeChunks(
+  png: Uint8Array,
+): { header: Buffer; palette: Buffer; data: Buffer } | undefined {
+  const bytes = Buffer.from(png.buffer, png.byteOffset, png.byteLength);
+  if (bytes.length < 8 || bytes.readUInt32BE(0) !== 0x89504e47) return undefined;
+  let header: Buffer = Buffer.alloc(0);
+  let palette: Buffer = Buffer.alloc(0);
+  const data: Buffer[] = [];
+  for (let offset = 8; offset + 8 <= bytes.length;) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.toString("ascii", offset + 4, offset + 8);
+    const body = bytes.subarray(offset + 8, offset + 8 + length);
+    if (type === "IHDR") header = body;
+    else if (type === "PLTE") palette = body;
+    else if (type === "IDAT") data.push(body);
+    offset += 12 + length;
+  }
+  return { header, palette, data: Buffer.concat(data) };
 }

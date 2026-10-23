@@ -12,6 +12,7 @@ import {
   type MapSources,
 } from "./build.ts";
 import { places, shapes } from "./geometry.ts";
+import { samePngImage } from "./png.ts";
 import { SourceList, StraitList, fetchSource } from "./sources.ts";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -52,6 +53,7 @@ const sources: MapSources = {
   regions: shapes(await layer("regions")),
   peaks: places(await layer("peaks")),
   places: places(await layer("places")),
+  countries: shapes(await layer("countries")),
   straits: StraitList.parse(await json(join(mapgenDir, "straits.json"))).straits.map(
     (strait) => strait.path,
   ),
@@ -76,7 +78,10 @@ for (const file of definitionFiles) {
   const map = buildMap(definition, sources, list.dataset);
   published = recordPublished(published, map.manifest, !values.check);
   await writeFile(join(values.out, map.manifest.terrain.file), map.terrain);
-  await writeFile(join(values.out, map.manifest.thumbnail), map.thumbnail);
+  const thumbnailPath = join(values.out, map.manifest.thumbnail);
+  const keepThumbnail =
+    existsSync(thumbnailPath) && samePngImage(await readFile(thumbnailPath), map.thumbnail);
+  if (!keepThumbnail) await writeFile(thumbnailPath, map.thumbnail);
   await writeFile(join(values.out, `${definition.id}.json`), text(map.manifest));
   manifests.push(map.manifest);
   const ms = Number((process.hrtime.bigint() - started) / 1_000_000n);

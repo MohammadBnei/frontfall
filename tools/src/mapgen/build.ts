@@ -9,12 +9,11 @@ import {
 } from "@frontfall/engine";
 import { MapManifest, MapName, MapPlayers, type MapCatalog } from "@frontfall/protocol";
 import { z } from "zod";
-import type { GridSpec } from "./geometry.ts";
-import { pickNations } from "./nations.ts";
+import { pickNations, type Country } from "./nations.ts";
 import { encodeIndexedPng } from "./png.ts";
 import type { SourceList } from "./sources.ts";
 import { buildTerrain, topologyOf, type TerrainSources } from "./terrain.ts";
-import type { Place } from "./geometry.ts";
+import { fillShape, type GridSpec, type Place, type Shape } from "./geometry.ts";
 
 /** A map to generate, as written in tools/mapgen/definitions/<id>.json. */
 export const MapDefinition = z.object({
@@ -40,6 +39,8 @@ export type MapDefinition = z.infer<typeof MapDefinition>;
 
 export interface MapSources extends TerrainSources {
   places: Place[];
+  /** Country outlines, with POP_EST and ADM0_A3 properties. */
+  countries: Shape[];
 }
 
 export interface BuiltMap {
@@ -78,7 +79,14 @@ export function buildMap(
     wrapsX: topology.wrapsX,
     tiles,
   });
-  const nations = pickNations(grid, topology, tiles, sources.places, definition.nations);
+  const nations = pickNations(
+    grid,
+    topology,
+    tiles,
+    sources.places,
+    countryScores(grid, tiles, sources.countries),
+    definition.nations,
+  );
 
   const manifest = MapManifest.parse({
     format: 1,
@@ -96,6 +104,32 @@ export function buildMap(
     credits: [dataset],
   });
   return { manifest, terrain, thumbnail: thumbnail(grid, tiles) };
+}
+
+/** Population and ownable land on this map of every country, by ADM0_A3 code. */
+function countryScores(
+  grid: GridSpec,
+  tiles: Uint8Array,
+  countries: readonly Shape[],
+): Map<string, Country> {
+  const scores = new Map<string, Country>();
+  const scratch = new Uint8Array(tiles.length);
+  const crossings: number[][] = [];
+  for (const country of countries) {
+    let land = 0;
+    for (const tile of fillShape(grid, country, scratch, 1, crossings)) {
+      const byte = tiles[tile] as number;
+      if ((byte & TILE_LAND) !== 0 && (byte & TILE_MAGNITUDE) !== MAGNITUDE_IMPASSABLE) land++;
+      scratch[tile] = 0;
+    }
+    const code = String(country.properties.ADM0_A3);
+    const previous = scores.get(code);
+    scores.set(code, {
+      population: Number(country.properties.POP_EST),
+      land: land + (previous?.land ?? 0),
+    });
+  }
+  return scores;
 }
 
 function thumbnail(grid: GridSpec, tiles: Uint8Array): Buffer {

@@ -121,5 +121,6 @@ with these bytes.
 - `terrain.bytes` must equal `16 + width × height` and `terrain.sha256` is
   the SHA-256 of the whole terrain file. The loader checks both.
 - `nations` are the computer-controlled nations, each with a land tile to
-  start from (`y × width + x`).
+  start from (`y × width + x`), in order of priority: a game with n nations
+  takes the first n, which the generator spreads over the whole map.
 - `credits` names every dataset the map was built from.

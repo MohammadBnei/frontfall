@@ -10,6 +10,9 @@ from another game. The file layout is specified in
 | World  | 2048 × 1024 | Cylinder, wraps east to west       | 64      | 2 / 24 / 64                       |
 | Europe | 1280 × 1080 | Flat, 25° W to 45° E, 33° to 72° N | 40      | 2 / 12 / 32                       |
 
+Player counts are first estimates from the map size and the number of
+nations, not yet checked in played games; playtests will adjust them.
+
 ## Building the maps
 
 ```sh
@@ -21,6 +24,9 @@ The generated files are committed in `apps/client/public/maps/`, so the game,
 the tests and the container build never need the network. `pnpm maps`
 rebuilds them byte for byte: two runs on two machines give the same files,
 and CI checks it on every change to the generator or to a map definition.
+Thumbnails are the one exception: their compressed bytes depend on the zlib
+build inside Node.js, so the generator compares decoded pixels and leaves a
+committed thumbnail untouched when its image is the same.
 
 Sources are downloaded into `node_modules/.cache/mapgen/` (or the folder in
 `FRONTFALL_MAP_CACHE`) and are never committed. Each one is pinned by URL and
@@ -43,15 +49,16 @@ version 5.1.2, at 1:10 million scale, as published in the
 [natural-earth-vector](https://github.com/nvkelso/natural-earth-vector)
 repository. Natural Earth is in the public domain.
 
-| Layer                                         | Used for                             |
-| --------------------------------------------- | ------------------------------------ |
-| `ne_10m_land`                                 | Land and water                       |
-| `ne_10m_lakes`                                | Lakes cut out of the land            |
-| `ne_10m_glaciated_areas`                      | Impassable ice (Greenland, glaciers) |
-| `ne_10m_geography_regions_polys`              | Mountain ranges, plateaus, foothills |
-| `ne_10m_geography_regions_elevation_points`   | Summit heights, to grade the ranges  |
-| `ne_10m_bathymetry_K_200`, `I_2000`, `G_4000` | Water depth                          |
-| `ne_10m_populated_places_simple`              | Capitals, for the starting nations   |
+| Layer                                         | Used for                               |
+| --------------------------------------------- | -------------------------------------- |
+| `ne_10m_land`                                 | Land and water                         |
+| `ne_10m_lakes`                                | Lakes cut out of the land              |
+| `ne_10m_glaciated_areas`                      | Impassable ice (Greenland, glaciers)   |
+| `ne_10m_geography_regions_polys`              | Mountain ranges, plateaus, foothills   |
+| `ne_10m_geography_regions_elevation_points`   | Summit heights, to grade the ranges    |
+| `ne_10m_bathymetry_K_200`, `I_2000`, `G_4000` | Water depth                            |
+| `ne_10m_populated_places_simple`              | Capitals, for the starting nations     |
+| `ne_110m_admin_0_countries`                   | Population and outline of each country |
 
 ## How a map is made
 
@@ -64,25 +71,31 @@ The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
    Caspian Sea stay water). Lakes are cut out the same way. Columns are evenly
    spaced in longitude and rows in latitude. Only additions, multiplications
    and divisions are used, so the result is identical on every machine.
-2. **Cleans the coast**: islands and lakes smaller than `minIslandTiles` and
-   `minLakeTiles` are removed, except where they touch the edge of a flat map
-   and continue beyond it.
-3. **Opens the straits** listed in
+2. **Opens the straits** listed in
    [`tools/mapgen/straits.json`](../tools/mapgen/straits.json): waterways
    narrower than a tile, such as the Bosporus and the Dardanelles, would
    otherwise cut the Black Sea off from the ocean (R-MAP-05). Each is a path
    of points carved as a one-tile channel. Seas left enclosed on purpose,
    such as the Caspian, stay lakes.
+3. **Cleans the coast**: islands and lakes smaller than `minIslandTiles` and
+   `minLakeTiles` are removed, except where they touch the edge of a flat map
+   and continue beyond it.
 4. **Adds relief and depth** (see below).
 5. **Freezes the poles**: land on a glacier, or beyond the `ice` latitudes of
    the definition, becomes impassable (R-MAP-02). On the World map, that is
    north of 80° N and south of 60° S, which covers Antarctica.
 6. **Marks the shore**: the shore bit is set on land tiles with a water
    neighbour, across the seam on a cylinder.
-7. **Places nations**: capitals from Natural Earth, most populous first, one
-   per country. Each moves to the nearest tile a player can own (at most 12
-   tiles away) and must be at least `nations.minDistance` tiles from the
-   nations already placed, until `nations.count` are placed.
+7. **Places nations**, one per country, at its capital moved to the nearest
+   tile a player can own (at most 12 tiles away). Nations are chosen one at a
+   time until `nations.count` are placed. The next pick is the country with
+   the best score: the fourth root of its population times its ownable land
+   on this map, times its distance to the nations already placed, counted up
+   to three times `nations.minDistance`. No two nations start closer than
+   `nations.minDistance`. Large countries come first, and a crowded region
+   gives way to an emptier one once it holds a few nations. The manifest
+   lists nations in pick order, so its first n nations are spread as well as
+   n can be.
 8. **Writes** the terrain file, a 256-pixel-wide thumbnail, the manifest with
    the terrain's SHA-256, and `index.json`, the list of maps for the menu.
 

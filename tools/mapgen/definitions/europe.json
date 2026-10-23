@@ -1,7 +1,7 @@
 {
   "id": "europe",
   "name": { "en": "Europe", "fr": "Europe" },
-  "version": 1,
+  "version": 2,
   "width": 1280,
   "height": 1080,
   "topology": "flat",

@@ -36,7 +36,13 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Downloads the sources, checks their SHA-256, builds and times the loader.
+      # Sources are pinned by SHA-256, so the list of pins is the cache key.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: node_modules/.cache/mapgen
+          key: mapgen-${{ hashFiles('tools/mapgen/sources.json') }}
+      # Downloads missing sources, checks their SHA-256, builds and times the loader.
+      # Thumbnails are only rewritten when their pixels change (docs/maps.md).
       - run: pnpm maps --check
       - name: Compare with the committed maps
         run: |

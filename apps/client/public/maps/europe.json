@@ -5,7 +5,7 @@
     "en": "Europe",
     "fr": "Europe"
   },
-  "version": 1,
+  "version": 2,
   "width": 1280,
   "height": 1080,
   "topology": "flat",
@@ -19,7 +19,7 @@
   "terrain": {
     "file": "europe.bin",
     "bytes": 1382416,
-    "sha256": "83a360252f703d368de9f2c97d0000252321a3a1c241e01716d0a373e541edf2"
+    "sha256": "9559a0f2b95cae53840d9a68196c5f218fb00e6ecdfb162b5911e4dbc76b68d4"
   },
   "thumbnail": "europe.png",
   "players": {
@@ -34,29 +34,14 @@
       "tile": 575864
     },
     {
-      "name": "France",
-      "capital": "Paris",
-      "tile": 819700
-    },
-    {
-      "name": "United Kingdom",
-      "capital": "London",
-      "tile": 726214
-    },
-    {
-      "name": "Spain",
-      "capital": "Madrid",
-      "tile": 1120389
-    },
-    {
-      "name": "Iraq",
-      "capital": "Baghdad",
-      "tile": 1370868
-    },
-    {
       "name": "Turkey",
       "capital": "Ankara",
       "tile": 1137698
+    },
+    {
+      "name": "France",
+      "capital": "Paris",
+      "tile": 819700
     },
     {
       "name": "Germany",
@@ -64,9 +49,19 @@
       "tile": 690622
     },
     {
-      "name": "Algeria",
-      "capital": "Algiers",
-      "tile": 1248512
+      "name": "Ukraine",
+      "capital": "Kyiv",
+      "tile": 765175
+    },
+    {
+      "name": "Spain",
+      "capital": "Madrid",
+      "tile": 1120389
+    },
+    {
+      "name": "United Kingdom",
+      "capital": "London",
+      "tile": 726214
     },
     {
       "name": "Italy",
@@ -74,64 +69,14 @@
       "tile": 1066925
     },
     {
-      "name": "Greece",
-      "capital": "Athens",
-      "tile": 1205371
-    },
-    {
-      "name": "Portugal",
-      "capital": "Lisbon",
-      "tile": 1179169
-    },
-    {
-      "name": "Ukraine",
-      "capital": "Kyiv",
-      "tile": 765175
-    },
-    {
-      "name": "Syria",
-      "capital": "Damascus",
-      "tile": 1365600
-    },
-    {
-      "name": "Tunisia",
-      "capital": "Tunis",
-      "tile": 1247363
-    },
-    {
-      "name": "Austria",
-      "capital": "Vienna",
-      "tile": 844276
-    },
-    {
-      "name": "Romania",
-      "capital": "Bucharest",
-      "tile": 977574
-    },
-    {
-      "name": "Belarus",
-      "capital": "Minsk",
-      "tile": 642241
-    },
-    {
-      "name": "Belgium",
-      "capital": "Brussels",
-      "tile": 750616
-    },
-    {
       "name": "Poland",
       "capital": "Warsaw",
       "tile": 701001
     },
     {
-      "name": "Morocco",
-      "capital": "Rabat",
-      "tile": 1345612
-    },
-    {
-      "name": "Hungary",
-      "capital": "Budapest",
-      "tile": 868646
+      "name": "Algeria",
+      "capital": "Algiers",
+      "tile": 1248512
     },
     {
       "name": "Sweden",
@@ -139,14 +84,19 @@
       "tile": 450067
     },
     {
-      "name": "Bulgaria",
-      "capital": "Sofia",
-      "tile": 1038963
+      "name": "Iraq",
+      "capital": "Baghdad",
+      "tile": 1370868
     },
     {
-      "name": "Czechia",
-      "capital": "Prague",
-      "tile": 776400
+      "name": "Romania",
+      "capital": "Bucharest",
+      "tile": 977574
+    },
+    {
+      "name": "Morocco",
+      "capital": "Rabat",
+      "tile": 1345612
     },
     {
       "name": "Finland",
@@ -154,29 +104,49 @@
       "tile": 419473
     },
     {
-      "name": "Armenia",
-      "capital": "Yerevan",
-      "tile": 1128951
+      "name": "Syria",
+      "capital": "Damascus",
+      "tile": 1365600
     },
     {
-      "name": "Georgia",
-      "capital": "Tbilisi",
-      "tile": 1073916
+      "name": "Norway",
+      "capital": "Oslo",
+      "tile": 428173
     },
     {
-      "name": "Serbia",
-      "capital": "Belgrade",
-      "tile": 963391
+      "name": "Belarus",
+      "capital": "Minsk",
+      "tile": 642241
     },
     {
-      "name": "Denmark",
-      "capital": "København",
-      "tile": 577966
+      "name": "Greece",
+      "capital": "Athens",
+      "tile": 1205371
     },
     {
-      "name": "Ireland",
-      "capital": "Dublin",
-      "tile": 660822
+      "name": "Tunisia",
+      "capital": "Tunis",
+      "tile": 1247363
+    },
+    {
+      "name": "Hungary",
+      "capital": "Budapest",
+      "tile": 868646
+    },
+    {
+      "name": "Portugal",
+      "capital": "Lisbon",
+      "tile": 1179169
+    },
+    {
+      "name": "Czechia",
+      "capital": "Prague",
+      "tile": 776400
+    },
+    {
+      "name": "Bulgaria",
+      "capital": "Sofia",
+      "tile": 1038963
     },
     {
       "name": "Netherlands",
@@ -184,14 +154,34 @@
       "tile": 696867
     },
     {
-      "name": "Albania",
-      "capital": "Tirana",
-      "tile": 1087539
+      "name": "Serbia",
+      "capital": "Belgrade",
+      "tile": 963391
     },
     {
-      "name": "Norway",
-      "capital": "Oslo",
-      "tile": 428173
+      "name": "Switzerland",
+      "capital": "Bern",
+      "tile": 888913
+    },
+    {
+      "name": "Ireland",
+      "capital": "Dublin",
+      "tile": 660822
+    },
+    {
+      "name": "Austria",
+      "capital": "Vienna",
+      "tile": 844276
+    },
+    {
+      "name": "Denmark",
+      "capital": "København",
+      "tile": 577966
+    },
+    {
+      "name": "Georgia",
+      "capital": "Tbilisi",
+      "tile": 1073916
     },
     {
       "name": "Latvia",
@@ -204,14 +194,14 @@
       "tile": 928749
     },
     {
-      "name": "Bosnia and Herzegovina",
-      "capital": "Sarajevo",
-      "tile": 997913
-    },
-    {
       "name": "Moldova",
       "capital": "Chișinău",
       "tile": 886744
+    },
+    {
+      "name": "Albania",
+      "capital": "Tirana",
+      "tile": 1087539
     },
     {
       "name": "Lithuania",
@@ -219,14 +209,24 @@
       "tile": 614040
     },
     {
-      "name": "North Macedonia",
-      "capital": "Skopje",
-      "tile": 1063249
+      "name": "Iceland",
+      "capital": "Reykjavík",
+      "tile": 277816
     },
     {
-      "name": "Malta",
-      "capital": "Valletta",
-      "tile": 1279442
+      "name": "Belgium",
+      "capital": "Brussels",
+      "tile": 750616
+    },
+    {
+      "name": "Bosnia and Herzegovina",
+      "capital": "Sarajevo",
+      "tile": 997913
+    },
+    {
+      "name": "Cyprus",
+      "capital": "Nicosia",
+      "tile": 1305387
     }
   ],
   "credits": [

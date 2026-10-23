@@ -16,10 +16,10 @@ Frontfall is written from scratch. It relies on these open source projects:
 
 Every map is generated from [Natural Earth](https://www.naturalearthdata.com/), free vector and raster map data in the public domain, by the generator in [`tools/src/mapgen`](tools/src/mapgen). Each map's manifest names its sources again.
 
-| Map    | Dataset                                                                                           | Layers                                                                                             | License       |
-| ------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------- |
-| World  | [Natural Earth 5.1.2](https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.2), 1:10m | land, lakes, glaciated areas, geography regions and elevation points, bathymetry, populated places | Public domain |
-| Europe | [Natural Earth 5.1.2](https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.2), 1:10m | same as World                                                                                      | Public domain |
+| Map    | Dataset                                                                                           | Layers                                                                                                        | License       |
+| ------ | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------- |
+| World  | [Natural Earth 5.1.2](https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.2), 1:10m | land, lakes, glaciated areas, geography regions and elevation points, bathymetry, populated places, countries | Public domain |
+| Europe | [Natural Earth 5.1.2](https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.2), 1:10m | same as World                                                                                                 | Public domain |
 
 The files and their checksums are listed in [`tools/mapgen/sources.json`](tools/mapgen/sources.json). See [docs/maps.md](docs/maps.md) for how they are used.
 

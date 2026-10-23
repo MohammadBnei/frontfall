@@ -71,6 +71,45 @@ describe.each(maps)("map $definition.id", ({ definition, manifest, bytes, tiles,
     }
   });
 
+  it("keeps no island or lake under the size threshold of its definition", () => {
+    const topology = loadMap(bytes, manifest).topology;
+    const neighbours = new Int32Array(4);
+    const seen = new Uint8Array(topology.size);
+    const small: string[] = [];
+    for (let start = 0; start < topology.size; start++) {
+      if (seen[start] === 1) continue;
+      const land = isLand(tiles[start] as number);
+      const stack = [start];
+      seen[start] = 1;
+      let size = 0;
+      let touchesEdge = false;
+      while (stack.length > 0) {
+        const tile = stack.pop() as number;
+        size++;
+        const x = topology.x(tile);
+        const y = topology.y(tile);
+        if (
+          !topology.wrapsX &&
+          (x === 0 || y === 0 || x === grid.width - 1 || y === grid.height - 1)
+        ) {
+          touchesEdge = true;
+        }
+        const count = topology.neighborsInto(tile, neighbours);
+        for (let k = 0; k < count; k++) {
+          const next = neighbours[k] as number;
+          if (seen[next] === 0 && isLand(tiles[next] as number) === land) {
+            seen[next] = 1;
+            stack.push(next);
+          }
+        }
+      }
+      const threshold = land ? definition.minIslandTiles : definition.minLakeTiles;
+      if (size < threshold && !touchesEdge)
+        small.push(`${land ? "island" : "lake"} at ${String(start)}`);
+    }
+    expect(small).toEqual([]);
+  });
+
   it("ships a thumbnail under 40 KB", () => {
     expect(statSync(join(mapsDir, manifest.thumbnail)).size).toBeLessThan(40 * 1024);
   });
@@ -119,6 +158,21 @@ describe("relief", () => {
 
   it("keeps the Paris basin as plains", () => {
     expect(at("europe", 2.35, 48.85)).toBeLessThan(10);
+  });
+});
+
+describe("nations", () => {
+  const names = (id: string): string[] =>
+    maps.find((m) => m.definition.id === id)?.manifest.nations.map((nation) => nation.name) ?? [];
+
+  it("seats the large countries of every continent on the World map", () => {
+    expect(names("world")).toEqual(
+      expect.arrayContaining(["Canada", "Australia", "India", "Pakistan", "Nigeria", "Brazil"]),
+    );
+  });
+
+  it("reaches the north of Europe", () => {
+    expect(names("europe")).toEqual(expect.arrayContaining(["Norway", "Sweden", "Finland"]));
   });
 });
 

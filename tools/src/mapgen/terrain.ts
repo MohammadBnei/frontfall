@@ -70,9 +70,10 @@ export function buildTerrain(
   const lakes = fillShapes(grid, sources.lakes);
   for (let i = 0; i < land.length; i++) if (lakes[i] === 1) land[i] = 0;
 
+  // Straits first: a channel can cut a sliver of land small enough to remove.
+  for (const path of sources.straits) carveStrait(grid, land, path);
   removeSmallComponents(topology, land, 1, options.minIslandTiles);
   removeSmallComponents(topology, land, 0, options.minLakeTiles);
-  for (const path of sources.straits) carveStrait(grid, land, path);
 
   const tiles = new Uint8Array(land.length);
   const relief = reliefBands(grid, sources);
