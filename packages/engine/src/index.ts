@@ -11,6 +11,7 @@ export {
   type Turn,
 } from "./game.ts";
 export { orderError } from "./orders.ts";
+export { installSpawn } from "./spawn.ts";
 export { clamp, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 export { Random, type RandomState } from "./random.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
