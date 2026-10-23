@@ -50,6 +50,24 @@ export class WorldGrid {
     return result;
   }
 
+  /**
+   * Same tiles and order as neighbors(), written into `out` (length 4 or more)
+   * without allocating. Returns how many were written. Hot loops use this one.
+   */
+  neighborsInto(index: number, out: Int32Array): number {
+    const width = this.width;
+    const x = index % width;
+    const rowStart = index - x;
+    let count = 0;
+    if (rowStart > 0) out[count++] = index - width;
+    if (width > 1) {
+      out[count++] = x === width - 1 ? rowStart : index + 1;
+      if (width > 2) out[count++] = x === 0 ? rowStart + width - 1 : index - 1;
+    }
+    if (rowStart < this.size - width) out[count++] = index + width;
+    return count;
+  }
+
   /** Manhattan distance, taking the shorter way around the world. */
   distance(a: number, b: number): number {
     const dx = Math.abs(this.x(a) - this.x(b));

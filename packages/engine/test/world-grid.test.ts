@@ -36,6 +36,16 @@ describe("WorldGrid", () => {
     expect(new WorldGrid(2, 1).neighbors(0)).toEqual([1]);
   });
 
+  it("lists the same neighbours without allocating", () => {
+    const out = new Int32Array(4);
+    for (const g of [grid, new WorldGrid(1, 3), new WorldGrid(2, 1), new WorldGrid(3, 2)]) {
+      for (let tile = 0; tile < g.size; tile++) {
+        const count = g.neighborsInto(tile, out);
+        expect(Array.from(out.subarray(0, count))).toEqual(g.neighbors(tile));
+      }
+    }
+  });
+
   it("measures distance the short way around", () => {
     expect(grid.distance(grid.index(0, 0), grid.index(9, 0))).toBe(1);
     expect(grid.distance(grid.index(1, 1), grid.index(6, 4))).toBe(8);
