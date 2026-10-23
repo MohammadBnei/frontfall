@@ -127,6 +127,7 @@ Binary frame. An order of the local player, in the shape of the engine's `Order`
 | `spawn`   | `tile`                     | Choose a starting tile during the spawn phase   |
 | `attack`  | `target`, `troops` (`> 0`) | Send troops towards a tile                      |
 | `retreat` | `attack` (`> 0`)           | Call back one of the player's attacks by its id |
+| `embark`  | `target`, `troops` (`> 0`) | Ship troops to a coastal tile                   |
 
 Tiles are indexes in the map, below 2^31. The server checks only the shape of an order; whether it can be carried out is decided by the engine of every client, the same way everywhere. Orders sent outside a running game are ignored.
 
@@ -268,6 +269,7 @@ A turn is its order count, then for each order the player number and the order. 
 | `0`  | `spawn`   | `tile`             |
 | `1`  | `attack`  | `target`, `troops` |
 | `2`  | `retreat` | `attack`           |
+| `3`  | `embark`  | `target`, `troops` |
 
 The table is `ORDER_KINDS` in [`orders.ts`](../packages/protocol/src/orders.ts). New orders are added at the end, so existing codes never change. A frame with trailing bytes, an unknown kind or a count larger than the rest of the frame could hold is refused.
 

@@ -44,6 +44,14 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 | `B-ENCIRCLE-MAX`     |          4000 | tiles                       | `R-ATTACK-08` | Larger pockets must be conquered            |
 | `B-RETREAT-PENALTY`  |            25 | % of returning troops       | `R-ATTACK-06` |                                             |
 
+## Ships
+
+| Key            | Value | Unit             | Used by     | Notes                                             |
+| -------------- | ----: | ---------------- | ----------- | ------------------------------------------------- |
+| `B-BOAT-SPEED` |     2 | water tiles/tick | `R-UNIT-02` | An ocean of 500 tiles takes 25 s                  |
+| `B-BOAT-MAX`   |     3 | ships per player | `R-UNIT-02` | Transport ships at sea at once                    |
+| `B-BOAT-RANGE` |  1000 | water tiles      | `R-UNIT-02` | Longest route; also bounds the cost of the search |
+
 ## Diplomacy
 
 | Key                          | Value | Unit | Used by      | Notes                                  |

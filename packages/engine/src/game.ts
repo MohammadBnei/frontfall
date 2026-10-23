@@ -1,5 +1,6 @@
 import type { Attack } from "./attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
+import type { Boat } from "./boats.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
 import type { Terrain } from "./terrain.ts";
@@ -9,7 +10,8 @@ import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
 export type Order =
   | { type: "spawn"; tile: number }
   | { type: "attack"; target: number; troops: number }
-  | { type: "retreat"; attack: number };
+  | { type: "retreat"; attack: number }
+  | { type: "embark"; target: number; troops: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -65,6 +67,9 @@ export class Game {
   /** Attacks under way, oldest first. Owned by the attack rules; read only elsewhere. */
   readonly attacks: Attack[] = [];
   nextAttackId = 1;
+  /** Transport ships at sea, oldest first. Owned by the boat rules; read only elsewhere. */
+  readonly boats: Boat[] = [];
+  nextBoatId = 1;
   /** Winner once the game is decided (R-WIN), and the tick it happened. */
   winner: number | undefined;
   decidedAt: number | undefined;
@@ -149,6 +154,11 @@ export class Game {
     mix(this.nextAttackId);
     for (const a of this.attacks)
       for (const value of [a.id, a.player, a.target, a.aim, a.troops]) mix(value);
+    mix(this.nextBoatId);
+    for (const b of this.boats) {
+      for (const value of [b.id, b.player, b.target, b.troops, b.step, b.path.length]) mix(value);
+      for (const tile of b.path) mix(tile);
+    }
     mix(this.winner ?? 0);
     mix(this.decidedAt ?? -1);
     return hash >>> 0;

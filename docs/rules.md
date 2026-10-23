@@ -79,7 +79,10 @@ Every structure is built on an owned land tile, costs gold, and takes `B-BUILD-T
 ## 7. Units
 
 - **R-UNIT-01** Units move over the map, never through impassable terrain, and are visible to every player.
-- **R-UNIT-02** Transport ship: leaves a port carrying troops and lands them on a coast, starting an attack there (`R-ATTACK-09`). It sinks if destroyed at sea, with its troops.
+- **R-UNIT-02** Transport ship: carries troops by sea to a coastal tile the player does not own, and lands them there (`R-ATTACK-09`).
+  - It leaves from the player's coast closest to the target by sea (from a port, once ports exist), takes the shortest sea route and moves `B-BOAT-SPEED` water tiles per tick. Routes longer than `B-BOAT-RANGE` are refused, and a player has at most `B-BOAT-MAX` ships at sea.
+  - On arrival it takes the landing tile at the price an attack would pay, and the remaining troops attack the tile's former owner from there, by the rules of `R-ATTACK`. If the player already owns the landing tile, the troops simply rejoin them; if they cannot pay for it, they are lost.
+  - It sinks with its troops if its player is eliminated, or if it is destroyed at sea (`R-UNIT-04`).
 - **R-UNIT-03** Trade ship: travels on its own between ports of players not under embargo. Both ends earn gold on arrival, more for longer routes (`B-TRADE-GOLD`).
 - **R-UNIT-04** Warship: patrols the water around its port, fires at enemy ships within range, and can capture trade ships.
 - **R-UNIT-05** Missile: flies from a silo to a target tile and destroys structures and troops within its blast radius. Larger missiles also leave the land unusable for a time. Allies' territory cannot be targeted.

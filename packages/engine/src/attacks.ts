@@ -89,20 +89,9 @@ export function installAttacks(game: Game): void {
     return false;
   }
 
-  /** Troops it costs to take one tile (R-ATTACK-03, R-ATTACK-04, R-MAP-06). */
-  function tileCost(tile: number, defender: Player | undefined): number {
-    const kind = terrain.kind(tile);
-    const relief =
-      balance.reliefCostTenths[kind === TileKind.Mountains ? 2 : kind === TileKind.Hills ? 1 : 0];
-    const density = defender ? defenderDensity(defender) : 0;
-    const base = balance.neutralCost + mulDiv(density, balance.defenseDensityTenths, 10);
-    return Math.max(1, mulDiv(base, relief, 10));
-  }
-
-  function defenderDensity(defender: Player): number {
-    const tiles = territory.tileCount(defender.id);
-    return tiles === 0 ? 0 : divFloor(defender.troops, tiles);
-  }
+  const tileCost = (tile: number, defender: Player | undefined): number =>
+    captureCost(game, tile, defender);
+  const defenderDensity = (defender: Player): number => troopsPerTile(game, defender);
 
   // R-ATTACK-06: a player calls back one of their own attacks, losing part of its troops.
   game.onOrder((_, player, order) => {
@@ -234,4 +223,21 @@ function cancelOpposingAttacks(attacks: Attack[]): void {
     attack.troops -= clash;
     opposing.troops -= clash;
   }
+}
+
+/** Troops it costs to take one tile (R-ATTACK-03, R-ATTACK-04, R-MAP-06). */
+export function captureCost(game: Game, tile: number, defender: Player | undefined): number {
+  const { balance, terrain } = game;
+  const kind = terrain.kind(tile);
+  const relief =
+    balance.reliefCostTenths[kind === TileKind.Mountains ? 2 : kind === TileKind.Hills ? 1 : 0];
+  const density = defender ? troopsPerTile(game, defender) : 0;
+  const base = balance.neutralCost + mulDiv(density, balance.defenseDensityTenths, 10);
+  return Math.max(1, mulDiv(base, relief, 10));
+}
+
+/** A defender's troops spread over their land: what they lose with each tile taken. */
+export function troopsPerTile(game: Game, defender: Player): number {
+  const tiles = game.territory.tileCount(defender.id);
+  return tiles === 0 ? 0 : divFloor(defender.troops, tiles);
 }

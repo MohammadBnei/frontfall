@@ -20,6 +20,18 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
       return undefined;
     }
+    case "embark": {
+      if (game.phase !== "play") return "attacks start after the spawn phase";
+      const error = tileError(game, order.target);
+      if (error) return error;
+      if (!Number.isSafeInteger(order.troops) || order.troops < 1) return "invalid troop count";
+      if (order.troops > player.troops) return "not enough troops";
+      if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
+      if (!game.terrain.isCoast(order.target)) return "ships can only land on a coast";
+      const atSea = game.boats.filter((boat) => boat.player === player.id).length;
+      if (atSea >= game.balance.boatMax) return "too many ships at sea";
+      return undefined;
+    }
     case "retreat":
       if (game.phase !== "play") return "attacks start after the spawn phase";
       if (!Number.isSafeInteger(order.attack) || order.attack < 1) return "invalid attack id";

@@ -33,6 +33,12 @@ export interface Balance {
   retreatPenaltyPercent: number;
   /** B-ENCIRCLE-MAX, largest pocket in tiles captured at once by encirclement */
   encircleMaxTiles: number;
+  /** B-BOAT-SPEED, water tiles a transport ship moves per tick */
+  boatSpeed: number;
+  /** B-BOAT-MAX, transport ships a player may have at sea at once */
+  boatMax: number;
+  /** B-BOAT-RANGE, longest sea route in water tiles */
+  boatRange: number;
   /** B-WIN-SHARE, percent of all ownable land */
   winSharePercent: number;
   /** B-MAX-DURATION, in ticks */
@@ -55,6 +61,9 @@ export const DEFAULT_BALANCE: Balance = {
   defenseDensityTenths: 10,
   retreatPenaltyPercent: 25,
   encircleMaxTiles: 4000,
+  boatSpeed: 2,
+  boatMax: 3,
+  boatRange: 1000,
   winSharePercent: 75,
   maxDurationTicks: 3600 * 10,
 };

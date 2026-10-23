@@ -38,11 +38,12 @@ game.step({
 
 Every order is validated before it runs (`orderError` gives the reason for a refusal), so an order from the network can never corrupt the game: invalid orders and orders of eliminated players are skipped. `step` returns how many orders were carried out.
 
-| Order                                | Rules                  | Effect                                                                                                                               |
-| ------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `{ type: "spawn", tile }`            | `R-SPAWN-01` to `-05`  | During the spawn phase: start at `tile`, or move the start there.                                                                    |
-| `{ type: "attack", target, troops }` | `R-ATTACK-01` to `-09` | After the spawn phase: send `troops` against the owner of `target` (a player, or unowned land). The front advances towards `target`. |
-| `{ type: "retreat", attack }`        | `R-ATTACK-06`          | Call back one of your attacks by id (`game.attacks`); its troops return, minus `B-RETREAT-PENALTY`.                                  |
+| Order                                | Rules                      | Effect                                                                                                                                                                                                |
+| ------------------------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ type: "spawn", tile }`            | `R-SPAWN-01` to `-05`      | During the spawn phase: start at `tile`, or move the start there.                                                                                                                                     |
+| `{ type: "attack", target, troops }` | `R-ATTACK-01` to `-09`     | After the spawn phase: send `troops` against the owner of `target` (a player, or unowned land). The front advances towards `target`.                                                                  |
+| `{ type: "retreat", attack }`        | `R-ATTACK-06`              | Call back one of your attacks by id (`game.attacks`); its troops return, minus `B-RETREAT-PENALTY`.                                                                                                   |
+| `{ type: "embark", target, troops }` | `R-UNIT-02`, `R-ATTACK-09` | After the spawn phase: ship `troops` from the player's coast closest by sea to the coastal tile `target`, which they do not own. On arrival the ship takes `target` and attacks its owner from there. |
 
 Computer players do not go through turns: they run inside the engine and call `game.apply(player, order)` during a tick, the same path and checks as turn orders (`R-BOT-03`).
 
@@ -67,11 +68,16 @@ The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`)
 | Owner of a tile                | `game.territory.ownerOf(tile)`; the whole map in `game.territory.owners` (`Uint16Array`, read only)            |
 | Territory size, borders        | `game.territory.tileCount(id)`, `borderCount(id)`, `borderTile(id, i)`, `isBorder(tile)`                       |
 | Tiles changed since last frame | `game.territory.changes()`, then `clearChanges()`; redraw everything if `changesOverflowed`                    |
-| Attacks under way              | `attacks.list()`: player, target owner, aimed tile, troops                                                     |
-| Start tiles                    | `starts.get(id)`                                                                                               |
-| Result                         | `victory.winner()`, `victory.decidedAt()`                                                                      |
+| Attacks under way              | `game.attacks`: `id`, `player`, `target` owner, aimed tile `aim`, `troops`                                     |
+| Ships at sea                   | `game.boats`: `id`, `player`, `target` coast, `troops`, `path` of water tiles, `step`; see below               |
+| Start tiles                    | `game.player(id).start`                                                                                        |
+| Result                         | `game.winner`, `game.decidedAt`                                                                                |
 | Geometry                       | `game.terrain.topology`: `neighbors`, `distance`, `tilesWithin`, `toLatLon` ([ADR 0002](adr/0002-topology.md)) |
-| Terrain                        | `game.terrain.kind(tile)`, `game.terrain.isOwnable(tile)`                                                      |
+| Terrain                        | `game.terrain.kind(tile)`, `isOwnable(tile)`, `isCoast(tile)`, `landmassOf(tile)`                              |
+
+A ship's `path` lists the water tiles from the departure coast to the landing coast, in order, neither coast included. The ship is on `path[step]` until `step` reaches `path.length`, the tick it lands. `landmassOf(tile)` numbers the land masses of the map (ownable tiles connected over land, `-1` for water and impassable tiles): a click on a land mass where the player holds no tile is a job for a ship, not an attack.
+
+For computer players, `reachableCoasts(game, player, limit)` lists the coastal tiles a ship of theirs can reach, closest by sea first, and `seaRoute(game, player, target)` gives the route an embark order would take, or `undefined`. Both walk the sea breadth-first, up to `B-BOAT-RANGE` tiles; call them a few times per second at most, not every tick for every bot.
 
 The state objects are live: read them, never write them. A renderer reads after each `step`; the engine never calls the renderer ([ADR 0003](adr/0003-renderer-split.md)).
 

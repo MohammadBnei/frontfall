@@ -66,6 +66,13 @@ describe("frames", () => {
     });
   });
 
+  it("carries a ship's landing tile and troops", () => {
+    expect(decodeFrame(encodeOrderFrame({ type: "embark", target: 70_000, troops: 900 }))).toEqual({
+      kind: "order",
+      order: { type: "embark", target: 70_000, troops: 900 },
+    });
+  });
+
   it("numbers decoded turns from the first tick", () => {
     const frame = encodeTurnsFrame(41, [
       encodeTurnBody([]),
