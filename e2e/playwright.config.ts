@@ -23,7 +23,11 @@ const local = {
   webServer: [
     {
       command: "node ../apps/server/dist/server.mjs",
-      env: { PORT: String(SERVER_PORT), FRONTFALL_STATIC: "../apps/client/dist" },
+      env: {
+        PORT: String(SERVER_PORT),
+        FRONTFALL_STATIC: "../apps/client/dist",
+        FRONTFALL_COUNTDOWN_SECONDS: "2",
+      },
       url: `http://127.0.0.1:${String(SERVER_PORT)}/healthz`,
       reuseExistingServer: false,
     },

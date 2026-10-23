@@ -1,10 +1,22 @@
-import { randomInt } from "node:crypto";
-import { createServer, type IncomingMessage, type Server } from "node:http";
-import { parseClientMessage, TICK_RATE, type ServerMessage } from "@frontfall/protocol";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+  CloseCode,
+  encodeServerMessage,
+  normalizeName,
+  parseClientMessage,
+  PROTOCOL_VERSION,
+  TICK_RATE,
+  type ClientMessage,
+  type ErrorCode,
+  type Frame,
+} from "@frontfall/protocol";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
-import { Lobby } from "./lobby.ts";
+import { Directory } from "./directory.ts";
 import { isAllowedOrigin } from "./origin.ts";
+import type { Peer, Room, RoomSettings, Seat } from "./room.ts";
 import { loadStaticFile } from "./static-files.ts";
+
+type GameSettings = Omit<RoomSettings, "visibility">;
 
 export interface ServerOptions {
   /** Directory of the built client. */
@@ -16,10 +28,17 @@ export interface ServerOptions {
   pingIntervalMs?: number;
   maxConnectionsPerAddress?: number;
   maxRooms?: number;
+  /** A connection must say hello within this delay. */
+  helloTimeoutMs?: number;
+  /** A connection whose seat is claimed must answer a ping within this delay. */
+  probeTimeoutMs?: number;
+  publicGame?: Partial<GameSettings>;
+  privateGame?: Partial<GameSettings>;
 }
 
 export interface GameServer {
   readonly http: Server;
+  readonly games: Directory;
   /** Tells every player the server is restarting, then stops accepting requests. */
   close(): Promise<void>;
 }
@@ -27,12 +46,18 @@ export interface GameServer {
 /** Cloudflare drops a WebSocket that stays silent for 100 s. */
 const DEFAULT_PING_INTERVAL_MS = 25_000;
 
-interface Room {
-  name: string;
-  lobby: Lobby;
-  sockets: Set<WebSocket>;
-  timer: NodeJS.Timeout;
-}
+/** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
+const MAX_PAYLOAD_BYTES = 1024;
+
+export const DEFAULT_GAME: GameSettings = {
+  map: "default",
+  capacity: 16,
+  bots: 0,
+  minPlayers: 2,
+  countdownMs: 30_000,
+  reconnectGraceMs: 120_000,
+  maxDurationMs: 4 * 60 * 60 * 1000,
+};
 
 /**
  * Address of the player. The reverse proxy in front of the server sets
@@ -44,21 +69,35 @@ export function clientAddress(request: IncomingMessage): string {
   return forwarded || (request.socket.remoteAddress ?? "unknown");
 }
 
-function decode(data: RawData): string {
-  if (Array.isArray(data)) return Buffer.concat(data).toString("utf8");
-  return Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : data).toString("utf8");
+function toFrame(data: RawData, isBinary: boolean): Frame {
+  const bytes = Array.isArray(data)
+    ? Buffer.concat(data)
+    : Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : data);
+  return isBinary
+    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : bytes.toString("utf8");
 }
 
-function send(socket: WebSocket, message: ServerMessage): void {
-  socket.send(JSON.stringify(message));
+/** What one WebSocket connection has done so far. */
+interface Session {
+  readonly socket: WebSocket;
+  readonly peer: Peer;
+  name: string | undefined;
+  room: Room | undefined;
+  seat: Seat | undefined;
 }
 
 export function createGameServer(options: ServerOptions): GameServer {
   const pingIntervalMs = options.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS;
   const maxConnectionsPerAddress = options.maxConnectionsPerAddress ?? 8;
-  const maxRooms = options.maxRooms ?? 500;
+  const helloTimeoutMs = options.helloTimeoutMs ?? 10_000;
+  const probeTimeoutMs = options.probeTimeoutMs ?? 5_000;
 
-  const rooms = new Map<string, Room>();
+  const games = new Directory({
+    maxRooms: options.maxRooms ?? 500,
+    publicGame: { ...DEFAULT_GAME, ...options.publicGame },
+    privateGame: { ...DEFAULT_GAME, ...options.privateGame },
+  });
   const alive = new WeakSet<WebSocket>();
   const connectionsByAddress = new Map<string, number>();
 
@@ -76,6 +115,10 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
       response.writeHead(405, { allow: "GET, HEAD" }).end();
+      return;
+    }
+    if (path === "/api/games") {
+      sendJson(response, { games: games.publicGames(Date.now()) });
       return;
     }
     void loadStaticFile(options.staticRoot, path).then((file) => {
@@ -96,7 +139,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     });
   });
 
-  const sockets = new WebSocketServer({ noServer: true, maxPayload: 4 * 1024 });
+  const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
 
   http.on("upgrade", (request, socket, head) => {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
@@ -121,60 +164,173 @@ export function createGameServer(options: ServerOptions): GameServer {
     });
   });
 
-  function openRoom(name: string): Room {
-    const room: Room = {
-      name,
-      lobby: new Lobby(randomInt(2 ** 31)),
-      sockets: new Set(),
-      timer: setInterval(() => {
-        const message = JSON.stringify({ type: "turn", turn: room.lobby.closeTurn() });
-        for (const socket of room.sockets) socket.send(message);
-      }, 1000 / TICK_RATE),
-    };
-    rooms.set(name, room);
-    return room;
+  function reply(session: Session, code: ErrorCode, message: string): void {
+    session.peer.send(encodeServerMessage({ type: "error", code, message }));
+  }
+
+  /** The seat of this connection, if it still holds one in a game. */
+  function seatOf(session: Session): { room: Room; seat: Seat } | undefined {
+    const { room, seat } = session;
+    if (!room || !seat || !room.holds(seat) || seat.peer !== session.peer) return undefined;
+    return { room, seat };
+  }
+
+  function enter(session: Session, room: Room | undefined, missing: ErrorCode): void {
+    if (!room) {
+      reply(
+        session,
+        missing,
+        missing === "not_found" ? "no such game" : "too many games in progress",
+      );
+      return;
+    }
+    const seat = room.join(session.name ?? "", session.peer, Date.now());
+    if (typeof seat === "string") {
+      reply(
+        session,
+        seat,
+        seat === "game_full" ? "the game is full" : "the game has already started",
+      );
+      games.sweep();
+      return;
+    }
+    session.room = room;
+    session.seat = seat;
+  }
+
+  function handle(session: Session, message: ClientMessage): void {
+    if (message.type === "hello") {
+      if (session.name !== undefined) {
+        session.socket.close(CloseCode.invalidMessage, "hello was already sent");
+        return;
+      }
+      if (message.version !== PROTOCOL_VERSION) {
+        session.socket.close(
+          CloseCode.versionMismatch,
+          `protocol ${String(PROTOCOL_VERSION)} required`,
+        );
+        return;
+      }
+      const name = normalizeName(message.name);
+      if (!name.ok) {
+        reply(session, "invalid_name", name.error);
+        return;
+      }
+      session.name = name.name;
+      session.peer.send(encodeServerMessage({ type: "welcome", version: PROTOCOL_VERSION }));
+      return;
+    }
+    if (session.name === undefined) {
+      session.socket.close(CloseCode.invalidMessage, "hello must come first");
+      return;
+    }
+
+    const current = seatOf(session);
+    switch (message.type) {
+      case "play":
+      case "create":
+      case "join":
+      case "rejoin":
+        if (current) {
+          reply(session, "already_in_game", "leave the current game first");
+          return;
+        }
+        if (message.type === "play") enter(session, games.quickMatch(), "too_many_games");
+        else if (message.type === "create")
+          enter(session, games.create("private"), "too_many_games");
+        else if (message.type === "join") enter(session, games.find(message.game), "not_found");
+        else rejoin(session, message.token, message.from);
+        return;
+      case "start": {
+        const error = current ? current.room.requestStart(current.seat, Date.now()) : "not_in_game";
+        if (error) reply(session, error, "only the host of a private game can start it");
+        return;
+      }
+      case "leave":
+        if (!current) return;
+        current.room.leave(current.seat, Date.now());
+        session.room = undefined;
+        session.seat = undefined;
+        session.peer.send(encodeServerMessage({ type: "ended", reason: "left" }));
+        games.sweep();
+        return;
+      case "hash":
+        current?.room.reportHash(current.seat, message.tick, message.hash);
+        return;
+      case "order":
+        current?.room.submit(current.seat, message.order);
+        return;
+    }
+  }
+
+  function rejoin(session: Session, token: string, from: number): void {
+    const found = games.findSeat(token);
+    if (!found) {
+      reply(session, "token_invalid", "this game is over or the seat was given up");
+      return;
+    }
+    const error = found.room.rejoin(found.seat, session.peer, from);
+    if (error) {
+      reply(
+        session,
+        error,
+        error === "token_in_use" ? "the seat is still connected" : "cannot rejoin",
+      );
+      return;
+    }
+    session.room = found.room;
+    session.seat = found.seat;
   }
 
   sockets.on("connection", (socket: WebSocket) => {
-    let room: Room | undefined;
-    let player: string | undefined;
+    const session: Session = {
+      socket,
+      name: undefined,
+      room: undefined,
+      seat: undefined,
+      peer: {
+        send(frame) {
+          if (socket.readyState === socket.OPEN) socket.send(frame);
+        },
+        probe() {
+          alive.delete(socket);
+          socket.ping();
+          setTimeout(() => {
+            if (!alive.has(socket)) socket.terminate();
+          }, probeTimeoutMs).unref();
+        },
+      },
+    };
     alive.add(socket);
 
-    socket.on("pong", () => alive.add(socket));
+    const helloTimer = setTimeout(() => {
+      if (session.name === undefined) socket.close(CloseCode.idle, "no hello");
+    }, helloTimeoutMs);
 
-    socket.on("message", (data) => {
-      const parsed = parseClientMessage(decode(data));
+    socket.on("pong", () => alive.add(socket));
+    // Protocol errors such as an oversized frame: ws closes the socket itself.
+    socket.on("error", () => undefined);
+
+    socket.on("message", (data, isBinary) => {
+      const parsed = parseClientMessage(toFrame(data, isBinary));
       if (!parsed.ok) {
-        send(socket, { type: "error", message: parsed.error });
+        socket.close(CloseCode.invalidMessage, parsed.error.slice(0, 120));
         return;
       }
-      const message = parsed.value;
-      if (message.type === "join") {
-        if (room) return;
-        const existing = rooms.get(message.lobby);
-        if (!existing && rooms.size >= maxRooms) {
-          send(socket, { type: "error", message: "too many games in progress" });
-          return;
-        }
-        room = existing ?? openRoom(message.lobby);
-        player = room.lobby.join();
-        room.sockets.add(socket);
-        send(socket, { type: "joined", player, seed: room.lobby.seed });
-      } else if (room && player) {
-        room.lobby.submit(player, message.intent);
-      }
+      handle(session, parsed.value);
     });
 
     socket.on("close", () => {
-      if (!room || !player) return;
-      room.lobby.leave(player);
-      room.sockets.delete(socket);
-      if (room.lobby.playerCount === 0) {
-        clearInterval(room.timer);
-        rooms.delete(room.name);
-      }
+      clearTimeout(helloTimer);
+      const current = seatOf(session);
+      if (current) current.room.disconnect(current.seat, Date.now());
+      games.sweep();
     });
   });
+
+  const ticker = setInterval(() => {
+    games.update(Date.now());
+  }, 1000 / TICK_RATE);
 
   // A socket that missed the previous ping is gone, even if TCP has not noticed yet.
   const heartbeat = setInterval(() => {
@@ -190,13 +346,12 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   return {
     http,
+    games,
     close() {
       clearInterval(heartbeat);
-      for (const room of rooms.values()) clearInterval(room.timer);
-      for (const socket of sockets.clients) {
-        send(socket, { type: "error", message: "server restarting" });
-        socket.close(1012, "server restarting");
-      }
+      clearInterval(ticker);
+      games.stopAll();
+      for (const socket of sockets.clients) socket.close(1012, "server restarting");
       return new Promise((resolve) => {
         http.close(() => {
           resolve();
@@ -204,4 +359,10 @@ export function createGameServer(options: ServerOptions): GameServer {
       });
     },
   };
+}
+
+function sendJson(response: ServerResponse, body: unknown): void {
+  response
+    .writeHead(200, { "content-type": "application/json", "cache-control": "no-store" })
+    .end(JSON.stringify(body));
 }

@@ -1,49 +1,137 @@
 import { z } from "zod";
+import {
+  DecodeError,
+  decodeFrame,
+  encodeOrderFrame,
+  encodeTurnBody,
+  encodeTurnsFrame,
+} from "./binary.ts";
+import { Order, PlayerNumber, type Turn } from "./orders.ts";
+
+/**
+ * Version of the messages below. A client and a server only talk when their
+ * versions are equal; the `hello` message keeps its shape in every version so
+ * that a mismatch can always be reported.
+ */
+export const PROTOCOL_VERSION = 1;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
 
-const playerId = z.string().min(1).max(64);
-const tile = z.number().int().nonnegative();
+/** Codes a server closes a WebSocket with, besides the standard 1000 to 1015. */
+export const CloseCode = {
+  /** The client speaks another protocol version: reload the page. */
+  versionMismatch: 4000,
+  /** A frame could not be decoded or broke the message rules. */
+  invalidMessage: 4001,
+  /** The client sent too many messages or orders. */
+  rateLimited: 4002,
+  /** The client stayed connected without playing for too long. */
+  idle: 4003,
+  /** Another connection took over this player. */
+  replaced: 4004,
+} as const;
 
-/** An order from a player. The server relays intents; every client executes them. */
-export const Intent = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("spawn"), tile }),
-  z.object({
-    type: z.literal("attack"),
-    target: tile,
-    troops: z.number().int().positive(),
-  }),
+/** Error codes of the `error` message. */
+export const ErrorCode = z.enum([
+  "invalid_name",
+  "not_found",
+  "game_full",
+  "game_started",
+  "already_in_game",
+  "not_in_game",
+  "not_host",
+  "too_many_games",
+  "token_invalid",
+  "token_in_use",
 ]);
-export type Intent = z.infer<typeof Intent>;
+export type ErrorCode = z.infer<typeof ErrorCode>;
+
+/** Game ids and reconnect tokens: URL-safe base64. */
+const gameId = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
+const token = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
+const tick = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
 export const ClientMessage = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("join"),
-    lobby: z.string().min(1).max(64),
-    name: z.string().trim().min(1).max(24),
-  }),
-  z.object({ type: z.literal("intent"), intent: Intent }),
+  /** First message of every connection. The name is checked by `normalizeName`. */
+  z.object({ type: z.literal("hello"), version: z.number().int(), name: z.string().max(64) }),
+  /** Join the public game that starts soonest, or open a new one. */
+  z.object({ type: z.literal("play") }).strict(),
+  /** Open a private game; the creator is its host. */
+  z.object({ type: z.literal("create") }).strict(),
+  /** Join a game by id, from the public list or an invite link. */
+  z.object({ type: z.literal("join"), game: gameId }).strict(),
+  /** Take back a seat after a dropped connection, receiving every turn from `from`. */
+  z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
+  /** Host only: start a private game now. */
+  z.object({ type: z.literal("start") }).strict(),
+  /** Leave the current game for good. */
+  z.object({ type: z.literal("leave") }).strict(),
+  /** Hash of the client's game state after running `tick`. */
+  z
+    .object({ type: z.literal("hash"), tick, hash: z.number().int().min(0).max(0xffffffff) })
+    .strict(),
+  /** Sent as a binary frame. */
+  z.object({ type: z.literal("order"), order: Order }).strict(),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
-/** Every intent received during one tick, in the order the server accepted them. */
-export const Turn = z.object({
-  tick: z.number().int().nonnegative(),
-  intents: z.array(z.object({ player: playerId, intent: Intent })),
-});
-export type Turn = z.infer<typeof Turn>;
+const PlayerInfo = z.object({ id: PlayerNumber, name: z.string() });
+export type PlayerInfo = z.infer<typeof PlayerInfo>;
+
+const Visibility = z.enum(["public", "private"]);
 
 export const ServerMessage = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("joined"), player: playerId, seed: z.number().int() }),
-  z.object({ type: z.literal("turn"), turn: Turn }),
-  z.object({ type: z.literal("error"), message: z.string() }),
+  z.object({ type: z.literal("welcome"), version: z.number().int() }),
+  /** State of the game being filled. Sent again after every change. */
+  z.object({
+    type: z.literal("lobby"),
+    game: gameId,
+    visibility: Visibility,
+    map: z.string(),
+    capacity: z.number().int().positive(),
+    players: z.array(PlayerInfo),
+    you: PlayerNumber,
+    /** Only private games have a host. */
+    host: PlayerNumber.nullable(),
+    /** Milliseconds before the game starts, when a countdown runs. */
+    startsIn: z.number().int().nonnegative().nullable(),
+  }),
+  /** The game starts, or the player rejoined it. Player numbers are final from here. */
+  z.object({
+    type: z.literal("started"),
+    game: gameId,
+    map: z.string(),
+    seed: z.number().int().min(0).max(0x7fffffff),
+    /** Bots that every client adds to the game and runs itself. */
+    bots: z.number().int().nonnegative(),
+    tickRate: z.number().int().positive(),
+    players: z.array(PlayerInfo),
+    you: PlayerNumber,
+    /** Secret that lets this player rejoin after a dropped connection. */
+    token,
+  }),
+  /** Sent as a binary frame. Turns are consecutive. */
+  z.object({
+    type: z.literal("turns"),
+    turns: z.array(
+      z.object({ tick, orders: z.array(z.object({ player: PlayerNumber, order: Order })) }),
+    ),
+  }),
+  /** Two clients reported different state hashes for this tick. */
+  z.object({ type: z.literal("desync"), tick }),
+  /** The game is over for this connection, which may join another one. */
+  z.object({ type: z.literal("ended"), reason: z.enum(["abandoned", "timeout", "left"]) }),
+  z.object({ type: z.literal("error"), code: ErrorCode, message: z.string() }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
-function parse<T>(schema: z.ZodType<T>, raw: string): ParseResult<T> {
+/** A WebSocket payload: text for JSON messages, bytes for binary frames. */
+export type Frame = string | Uint8Array;
+
+function parseJson<T>(schema: z.ZodType<T>, raw: string, binaryType: string): ParseResult<T> {
   let json: unknown;
   try {
     json = JSON.parse(raw);
@@ -51,13 +139,52 @@ function parse<T>(schema: z.ZodType<T>, raw: string): ParseResult<T> {
     return { ok: false, error: "malformed JSON" };
   }
   const result = schema.safeParse(json);
-  return result.success
-    ? { ok: true, value: result.data }
-    : { ok: false, error: z.prettifyError(result.error) };
+  if (!result.success) return { ok: false, error: z.prettifyError(result.error) };
+  if ((result.data as { type: string }).type === binaryType) {
+    return { ok: false, error: `${binaryType} must be sent as a binary frame` };
+  }
+  return { ok: true, value: result.data };
 }
 
-export const parseClientMessage = (raw: string): ParseResult<ClientMessage> =>
-  parse(ClientMessage, raw);
+function decodeBinary<T>(bytes: Uint8Array, expected: "order" | "turns"): ParseResult<T> {
+  try {
+    const frame = decodeFrame(bytes);
+    if (frame.kind !== expected) return { ok: false, error: `unexpected ${frame.kind} frame` };
+    const value =
+      frame.kind === "order"
+        ? { type: "order", order: frame.order }
+        : { type: "turns", turns: frame.turns };
+    return { ok: true, value: value as T };
+  } catch (error) {
+    if (error instanceof DecodeError) return { ok: false, error: error.message };
+    throw error;
+  }
+}
 
-export const parseServerMessage = (raw: string): ParseResult<ServerMessage> =>
-  parse(ServerMessage, raw);
+export function encodeClientMessage(message: ClientMessage): Frame {
+  return message.type === "order" ? encodeOrderFrame(message.order) : JSON.stringify(message);
+}
+
+export function parseClientMessage(frame: Frame): ParseResult<ClientMessage> {
+  return typeof frame === "string"
+    ? parseJson(ClientMessage, frame, "order")
+    : decodeBinary(frame, "order");
+}
+
+export function encodeServerMessage(message: ServerMessage): Frame {
+  if (message.type !== "turns") return JSON.stringify(message);
+  const from = message.turns[0]?.tick ?? 0;
+  return encodeTurnsFrame(
+    from,
+    message.turns.map((turn: Turn, index) => {
+      if (turn.tick !== from + index) throw new RangeError("turns must be consecutive");
+      return encodeTurnBody(turn.orders);
+    }),
+  );
+}
+
+export function parseServerMessage(frame: Frame): ParseResult<ServerMessage> {
+  return typeof frame === "string"
+    ? parseJson(ServerMessage, frame, "turns")
+    : decodeBinary(frame, "turns");
+}

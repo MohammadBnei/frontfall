@@ -1,5 +1,4 @@
 import { WorldGrid } from "@frontfall/engine";
-import { connect, socketUrl } from "./connection.ts";
 import {
   applyTranslations,
   onLanguageChange,
@@ -8,6 +7,7 @@ import {
   type Params,
 } from "./i18n/index.ts";
 import { InputController } from "./input/controller.ts";
+import { OnlineClient, socketUrl } from "./net/online.ts";
 import { FlatCamera } from "./render/camera.ts";
 import { MapView } from "./render/map-view.ts";
 import { WEBGL_MISSING_MESSAGE, hasWebGL2 } from "./render/webgl-support.ts";
@@ -75,18 +75,40 @@ onLanguageChange(() => {
   showStatus(shownStatus.key, shownStatus.params);
 });
 
-connect(socketUrl(location.href), {
-  onOpen(send) {
-    showStatus("status.joining");
-    send({ type: "join", lobby: "public", name: "Guest" });
-  },
-  onMessage(message) {
-    if (message.type === "joined") showStatus("status.connected", { player: message.player });
-    if (message.type === "turn" && message.turn.tick % 10 === 0) {
-      showStatus("status.turn", { tick: message.turn.tick });
-    }
-  },
-  onClose(retryInMs) {
-    showStatus("status.disconnected", { seconds: Math.ceil(retryInMs / 1000) });
+const seconds = (ms: number): number => Math.ceil(ms / 1000);
+
+const online = new OnlineClient({
+  url: socketUrl(location.href),
+  name: "Guest",
+  events: {
+    status(state, retryInMs) {
+      if (state === "connecting") showStatus("status.connecting");
+      if (state === "offline")
+        showStatus("status.disconnected", { seconds: seconds(retryInMs ?? 0) });
+      if (state === "outdated") showStatus("status.outdated");
+    },
+    lobby(lobby) {
+      const count = { players: lobby.players.length, capacity: lobby.capacity };
+      if (lobby.startsIn === null) showStatus("status.waiting", count);
+      else showStatus("status.starting", { ...count, seconds: seconds(lobby.startsIn) });
+    },
+    started(game) {
+      showStatus("status.playing", { player: game.you });
+    },
+    turns(turns) {
+      const last = turns.at(-1)?.tick ?? 0;
+      if (last % 10 === 0) showStatus("status.turn", { tick: last });
+    },
+    ended() {
+      showStatus("status.ended");
+    },
+    error(_code, message) {
+      showStatus("status.refused", { message });
+    },
   },
 });
+
+// An invite link carries the game id: ?game=<id>. Otherwise join the next public game.
+const invited = new URLSearchParams(location.search).get("game");
+if (invited) online.join(invited);
+else online.play();

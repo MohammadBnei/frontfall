@@ -8,7 +8,7 @@ export default defineConfig({
       include: [
         "packages/*/src/**",
         "apps/server/src/**",
-        "apps/client/src/connection.ts",
+        "apps/client/src/net/**",
         "apps/client/src/palette.ts",
         "tools/src/clean-room.ts",
         "apps/client/src/render/**",

@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseServerMessage, type ServerMessage } from "@frontfall/protocol";
+import {
+  CloseCode,
+  encodeClientMessage,
+  parseServerMessage,
+  type ClientMessage,
+  type ServerMessage,
+} from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
@@ -37,8 +43,8 @@ function open(host: string, headers: Record<string, string> = {}, autoPong = tru
   clients.push(socket);
   const inbox: ServerMessage[] = [];
   const waiters: (() => void)[] = [];
-  socket.on("message", (data: Buffer) => {
-    const parsed = parseServerMessage(data.toString("utf8"));
+  socket.on("message", (data: Buffer, isBinary: boolean) => {
+    const parsed = parseServerMessage(isBinary ? new Uint8Array(data) : data.toString("utf8"));
     if (parsed.ok) inbox.push(parsed.value);
     waiters.splice(0).forEach((wake) => {
       wake();
@@ -51,7 +57,10 @@ function open(host: string, headers: Record<string, string> = {}, autoPong = tru
       await new Promise<void>((resolve) => waiters.push(resolve));
     }
   };
-  return { socket, next };
+  const send = (message: ClientMessage) => {
+    socket.send(encodeClientMessage(message));
+  };
+  return { socket, next, send };
 }
 
 function opened(socket: WebSocket): Promise<void> {
@@ -65,6 +74,15 @@ function opened(socket: WebSocket): Promise<void> {
 
 function closed(socket: WebSocket): Promise<number> {
   return new Promise((resolve) => socket.once("close", resolve));
+}
+
+/** A connected client that has said hello. */
+async function player(host: string, name: string, autoPong = true) {
+  const client = open(host, {}, autoPong);
+  await opened(client.socket);
+  client.send({ type: "hello", version: 1, name });
+  await client.next("welcome");
+  return client;
 }
 
 describe("HTTP", () => {
@@ -105,30 +123,209 @@ describe("HTTP", () => {
 });
 
 describe("WebSocket", () => {
-  it("lets players join a lobby and relays their intents in turns", async () => {
+  const fast = { publicGame: { countdownMs: 50 } };
+
+  it("plays a public game: lobby, countdown, start, then the same turns for everyone", async () => {
+    const host = await start(fast);
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+
+    alice.send({ type: "play" });
+    expect(await alice.next("lobby")).toMatchObject({
+      visibility: "public",
+      players: [{ id: 1, name: "Alice" }],
+      startsIn: null,
+    });
+    bob.send({ type: "play" });
+    const lobby = await bob.next("lobby");
+    expect(lobby.players).toHaveLength(2);
+    expect(lobby.startsIn).toBeGreaterThan(0);
+
+    const [a, b] = await Promise.all([alice.next("started"), bob.next("started")]);
+    expect(a.seed).toBe(b.seed);
+    expect(a.game).toBe(lobby.game);
+    expect([a.you, b.you]).toEqual([1, 2]);
+
+    alice.send({ type: "order", order: { type: "spawn", tile: 7 } });
+    for (;;) {
+      const { turns } = await bob.next("turns");
+      const orders = turns.flatMap((turn) => turn.orders);
+      if (orders.length === 0) continue;
+      expect(orders).toEqual([{ player: 1, order: { type: "spawn", tile: 7 } }]);
+      break;
+    }
+  });
+
+  it("lists public games over HTTP", async () => {
     const host = await start();
-    const alice = open(host);
-    const bob = open(host);
-    await Promise.all([opened(alice.socket), opened(bob.socket)]);
+    const alice = await player(host, "Alice");
+    alice.send({ type: "play" });
+    const { game } = await alice.next("lobby");
+    const response = await fetch(`http://${host}/api/games`);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      games: [{ id: game, map: "default", players: 1, capacity: 16, startsIn: null }],
+    });
+  });
 
-    alice.socket.send(JSON.stringify({ type: "join", lobby: "test", name: "Alice" }));
-    const joined = await alice.next("joined");
-    bob.socket.send(JSON.stringify({ type: "join", lobby: "test", name: "Bob" }));
-    expect((await bob.next("joined")).seed).toBe(joined.seed);
+  it("plays a private game by invitation, started by its host", async () => {
+    const host = await start();
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "create" });
+    const { game, host: hostId } = await alice.next("lobby");
+    expect(hostId).toBe(1);
+    expect(await (await fetch(`http://${host}/api/games`)).json()).toEqual({
+      games: [],
+    });
 
-    alice.socket.send(JSON.stringify({ type: "intent", intent: { type: "spawn", tile: 7 } }));
-    let turn = await bob.next("turn");
-    while (turn.turn.intents.length === 0) turn = await bob.next("turn");
-    expect(turn.turn.intents).toEqual([
-      { player: joined.player, intent: { type: "spawn", tile: 7 } },
+    bob.send({ type: "join", game });
+    await bob.next("lobby");
+    bob.send({ type: "start" });
+    expect((await bob.next("error")).code).toBe("not_host");
+    alice.send({ type: "start" });
+    expect((await bob.next("started")).players).toEqual([
+      { id: 1, name: "Alice" },
+      { id: 2, name: "Bob" },
     ]);
   });
 
-  it("answers an invalid message with an error", async () => {
+  it("explains why a game cannot be joined", async () => {
+    const host = await start({ privateGame: { capacity: 1 } });
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    bob.send({ type: "join", game: "nosuchgame00" });
+    expect((await bob.next("error")).code).toBe("not_found");
+
+    alice.send({ type: "create" });
+    const { game } = await alice.next("lobby");
+    bob.send({ type: "join", game });
+    expect((await bob.next("error")).code).toBe("game_full");
+    alice.send({ type: "play" });
+    expect((await alice.next("error")).code).toBe("already_in_game");
+    bob.send({ type: "start" });
+    expect((await bob.next("error")).code).toBe("not_in_game");
+  });
+
+  it("lets a player leave and join another game", async () => {
+    const host = await start();
+    const alice = await player(host, "Alice");
+    alice.send({ type: "create" });
+    await alice.next("lobby");
+    alice.send({ type: "leave" });
+    expect((await alice.next("ended")).reason).toBe("left");
+    expect(server?.games.size).toBe(0);
+    alice.send({ type: "play" });
+    expect((await alice.next("lobby")).visibility).toBe("public");
+  });
+
+  it("gives a dropped player their seat back with every missed turn", async () => {
+    const host = await start();
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "create" });
+    const { game } = await alice.next("lobby");
+    bob.send({ type: "join", game });
+    await bob.next("lobby");
+    alice.send({ type: "start" });
+    const { token } = await bob.next("started");
+    await bob.next("turns");
+
+    bob.socket.close();
+    await closed(bob.socket);
+    alice.send({ type: "order", order: { type: "spawn", tile: 3 } });
+    let last: number;
+    for (;;) {
+      const { turns } = await alice.next("turns");
+      last = turns.at(-1)?.tick ?? 0;
+      if (turns.some((turn) => turn.orders.length > 0)) break;
+    }
+
+    const back = await player(host, "Bob");
+    back.send({ type: "rejoin", token, from: 0 });
+    expect((await back.next("started")).you).toBe(2);
+    const replayed = [];
+    while (replayed.length <= last) replayed.push(...(await back.next("turns")).turns);
+    expect(replayed.map((turn) => turn.tick).slice(0, last + 1)).toEqual(
+      Array.from({ length: last + 1 }, (_, tick) => tick),
+    );
+    expect(replayed.flatMap((turn) => turn.orders)).toEqual([
+      { player: 1, order: { type: "spawn", tile: 3 } },
+    ]);
+
+    const thief = await player(host, "Mallory");
+    thief.send({ type: "rejoin", token, from: 0 });
+    expect((await thief.next("error")).code).toBe("token_in_use");
+    thief.send({ type: "rejoin", token: "0123456789abcdefghij", from: 0 });
+    expect((await thief.next("error")).code).toBe("token_invalid");
+  });
+
+  it("drops a stale connection when its seat is claimed, so the owner can rejoin", async () => {
+    const host = await start({ probeTimeoutMs: 30 });
+    const alice = await player(host, "Alice");
+    // Bob's connection is half-open: it stays up but never answers pings.
+    const stale = await player(host, "Bob", false);
+    alice.send({ type: "create" });
+    const { game } = await alice.next("lobby");
+    stale.send({ type: "join", game });
+    await stale.next("lobby");
+    alice.send({ type: "start" });
+    const { token } = await stale.next("started");
+
+    const back = await player(host, "Bob");
+    back.send({ type: "rejoin", token, from: 0 });
+    expect((await back.next("error")).code).toBe("token_in_use");
+    expect(await closed(stale.socket)).toBe(1006);
+    back.send({ type: "rejoin", token, from: 0 });
+    expect((await back.next("started")).you).toBe(2);
+  });
+
+  it("closes a connection that speaks another protocol version", async () => {
     const client = open(await start());
     await opened(client.socket);
-    client.socket.send("{");
-    expect((await client.next("error")).message).toBe("malformed JSON");
+    client.send({ type: "hello", version: 0, name: "Old" });
+    expect(await closed(client.socket)).toBe(CloseCode.versionMismatch);
+  });
+
+  it("asks for another name when the name is not allowed", async () => {
+    const client = open(await start());
+    await opened(client.socket);
+    client.send({ type: "hello", version: 1, name: "<b>" });
+    expect((await client.next("error")).code).toBe("invalid_name");
+    client.send({ type: "hello", version: 1, name: "Bold" });
+    await client.next("welcome");
+    client.send({ type: "hello", version: 1, name: "Again" });
+    expect(await closed(client.socket)).toBe(CloseCode.invalidMessage);
+  });
+
+  it("closes a connection that skips hello or sends an invalid frame", async () => {
+    const host = await start();
+    const early = open(host);
+    await opened(early.socket);
+    early.send({ type: "play" });
+    expect(await closed(early.socket)).toBe(CloseCode.invalidMessage);
+
+    const garbage = open(host);
+    await opened(garbage.socket);
+    garbage.socket.send(new Uint8Array([2, 0x80]));
+    expect(await closed(garbage.socket)).toBe(CloseCode.invalidMessage);
+
+    const text = open(host);
+    await opened(text.socket);
+    text.socket.send("{");
+    expect(await closed(text.socket)).toBe(CloseCode.invalidMessage);
+  });
+
+  it("closes oversized frames", async () => {
+    const client = await player(await start(), "Big");
+    client.socket.send("x".repeat(2048));
+    expect(await closed(client.socket)).toBe(1009);
+  });
+
+  it("closes a connection that never says hello", async () => {
+    const client = open(await start({ helloTimeoutMs: 30 }));
+    await opened(client.socket);
+    expect(await closed(client.socket)).toBe(CloseCode.idle);
   });
 
   it("refuses pages from another origin", async () => {
@@ -167,13 +364,14 @@ describe("WebSocket", () => {
 
   it("caps the number of games open at once", async () => {
     const host = await start({ maxRooms: 1 });
-    const first = open(host);
-    const second = open(host);
-    await Promise.all([opened(first.socket), opened(second.socket)]);
-    first.socket.send(JSON.stringify({ type: "join", lobby: "a", name: "A" }));
-    await first.next("joined");
-    second.socket.send(JSON.stringify({ type: "join", lobby: "b", name: "B" }));
-    expect((await second.next("error")).message).toBe("too many games in progress");
+    const first = await player(host, "A");
+    const second = await player(host, "B");
+    first.send({ type: "create" });
+    await first.next("lobby");
+    second.send({ type: "create" });
+    expect((await second.next("error")).code).toBe("too_many_games");
+    second.send({ type: "play" });
+    expect((await second.next("error")).code).toBe("too_many_games");
   });
 
   it("drops a client that stops answering pings", async () => {
@@ -187,14 +385,12 @@ describe("WebSocket", () => {
 
   it("tells players the server is restarting when it closes", async () => {
     const host = await start();
-    const client = open(host);
-    await opened(client.socket);
-    client.socket.send(JSON.stringify({ type: "join", lobby: "x", name: "X" }));
-    await client.next("joined");
+    const client = await player(host, "X");
+    client.send({ type: "create" });
+    await client.next("lobby");
     const code = closed(client.socket);
     const closing = server?.close();
     server = undefined;
-    expect((await client.next("error")).message).toBe("server restarting");
     expect(await code).toBe(1012);
     await closing;
   });

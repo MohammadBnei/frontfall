@@ -5,11 +5,21 @@ import { createGameServer } from "./server.ts";
 const SHUTDOWN_GRACE_MS = 5_000;
 
 const port = Number(process.env.PORT ?? 8080);
+
+/** Reads a numeric setting from the environment, ignoring it when unset or invalid. */
+function optionalNumber<T>(name: string, use: (value: number) => T): T | undefined {
+  const value = Number(process.env[name]);
+  return process.env[name] && Number.isFinite(value) && value >= 0 ? use(value) : undefined;
+}
 const server = createGameServer({
   staticRoot:
     process.env.FRONTFALL_STATIC ?? fileURLToPath(new URL("../../client/dist", import.meta.url)),
   allowedOrigin: process.env.FRONTFALL_ORIGINE,
   version: process.env.FRONTFALL_VERSION ?? "dev",
+  publicGame:
+    optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
+      countdownMs: seconds * 1000,
+    })) ?? {},
 });
 
 function shutdown(): void {
