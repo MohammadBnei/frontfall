@@ -21,6 +21,7 @@ export { Terrain, TileKind } from "./terrain.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.ts";
 export type { Topology } from "./topology.ts";
+export { TurnClock } from "./turn-clock.ts";
 export { installVictory } from "./victory.ts";
 export { WorldGrid, type WorldGridOptions } from "./world-grid.ts";
 export {
