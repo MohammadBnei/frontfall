@@ -34,6 +34,7 @@ Words used throughout:
 - **R-SPAWN-03** A player who has not picked when the phase ends is placed on a random valid tile, drawn from the game's seed. If no tile is far enough from the others, the spacing of `R-SPAWN-02` is dropped; if no land is free at all, the player is not placed and is eliminated when play starts (`R-ECO-05`).
 - **R-SPAWN-04** Each player starts with the tiles within `B-SPAWN-RADIUS` of their start tile, and `B-START-TROOPS` troops.
 - **R-SPAWN-05** Nobody can attack or build during the spawn phase.
+- **R-SPAWN-06** Spawn values fit every map size: `B-SPAWN-DISTANCE` and `B-SPAWN-RADIUS` grow with the square root of the map's area beyond 2^19 tiles, and `B-START-TROOPS` with the start area.
 
 ## 3. Economy
 
@@ -47,7 +48,7 @@ Words used throughout:
 
 - **R-ATTACK-01** A player expands by sending troops from their territory towards a target: unowned land or a neighbouring player. The target can be any tile of that owner, however far: the attack pushes along the whole shared border and heads for that tile. A player has at most one attack against each owner; a new order against the same owner adds its troops to the running attack and moves its aim.
 - **R-ATTACK-02** The attack ratio, set by the player between `B-ATTACK-RATIO-MIN` and 100 %, decides the share of current troops each new attack takes.
-- **R-ATTACK-03** An attack advances along the shared border, one tile at a time, taking first the tiles closest to the point the player aimed at. Larger attacks take more tiles per tick (`B-ATTACK-SPEED`). Each captured tile costs the attacker troops, more for relief (`R-MAP-06`) and more against a defender with many troops per tile (`B-DEFENSE-DENSITY`). The defender loses their average troops per tile with each tile taken. Every attack's front for a tick is chosen before any attack of that tick moves.
+- **R-ATTACK-03** An attack advances along the shared border, one tile at a time, taking first the tiles closest in a straight line to the point the player aimed at; a tile that shares sides with the attacker's land counts as `B-ATTACK-SPREAD` tiles closer for each, so the front widens into a wedge. Larger attacks take more tiles per tick (`B-ATTACK-SPEED`). Each captured tile costs the attacker troops, more for relief (`R-MAP-06`) and more against a defender with many troops per tile (`B-DEFENSE-DENSITY`). The defender loses their average troops per tile with each tile taken. Every attack's front for a tick is chosen before any attack of that tick moves.
 - **R-ATTACK-04** Unowned land costs troops to take but never fights back (`B-NEUTRAL-COST`).
 - **R-ATTACK-05** An attack ends when its troops run out, when no reachable target tile remains, or when its player retreats.
 - **R-ATTACK-06** Retreating returns the attack's remaining troops to the player, minus a penalty (`B-RETREAT-PENALTY`).

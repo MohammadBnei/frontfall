@@ -18,9 +18,11 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 
 | Key                | Value | Unit   | Used by      | Notes                                           |
 | ------------------ | ----: | ------ | ------------ | ----------------------------------------------- |
-| `B-SPAWN-DISTANCE` |    30 | tiles  | `R-SPAWN-02` |                                                 |
-| `B-SPAWN-RADIUS`   |     3 | tiles  | `R-SPAWN-04` | Diamond of 25 tiles                             |
-| `B-START-TROOPS`   |  2500 | troops | `R-SPAWN-04` | Enough for a first expansion of about 100 tiles |
+| `B-SPAWN-DISTANCE` |    30 | tiles  | `R-SPAWN-02` | On a map of 2^19 tiles                          |
+| `B-SPAWN-RADIUS`   |     3 | tiles  | `R-SPAWN-04` | Diamond of 25 tiles on a map of 2^19 tiles      |
+| `B-START-TROOPS`   |  2500 | troops | `R-SPAWN-04` | Enough for a first expansion of about 300 tiles |
+
+Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a larger map, spacing and radius grow with the square root of the area, and starting troops with the start area: on World (2048 × 1024) players start 60 tiles apart with a radius of 6 and 10,000 troops. With the old fixed values, scripted players held 5 % of World's land after 30 s of play; they now hold 17 %, and the land is taken in about 90 s instead of 150 s (`pnpm sim -- --map world`).
 
 ## Economy
 
@@ -40,7 +42,8 @@ Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`
 | `B-NEUTRAL-COST`     |             8 | troops/tile                 | `R-ATTACK-04` |                                             |
 | `B-RELIEF-COST`      | 1 / 1.5 / 2.5 | multiplier                  | `R-MAP-06`    | Plains / hills / mountains                  |
 | `B-DEFENSE-DENSITY`  |           1.0 | defender troops/tile weight | `R-ATTACK-03` | Cost of a tile grows with defender density  |
-| `B-ATTACK-SPEED`     |             8 | divisor                     | `R-ATTACK-03` | Tiles taken per tick: 1 + isqrt(troops) / 8 |
+| `B-ATTACK-SPEED`     |             4 | divisor                     | `R-ATTACK-03` | Tiles taken per tick: 1 + isqrt(troops) / 4 |
+| `B-ATTACK-SPREAD`    |             4 | tiles                       | `R-ATTACK-03` | Head start per side shared with own land    |
 | `B-ENCIRCLE-MAX`     |          4000 | tiles                       | `R-ATTACK-08` | Larger pockets must be conquered            |
 | `B-RETREAT-PENALTY`  |            25 | % of returning troops       | `R-ATTACK-06` |                                             |
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
 import { Game, type Order } from "../src/game.ts";
-import { installSpawn } from "../src/spawn.ts";
+import { installSpawn, spawnSettings } from "../src/spawn.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { NEUTRAL } from "../src/territory/territory-map.ts";
 import { WorldGrid } from "../src/world-grid.ts";
@@ -129,5 +129,25 @@ describe("spawn phase", () => {
     run();
     expect(run([{ player: 1, order: spawn(grid.index(15, 2)) }])).toBe(0);
     expect(placed().get(1)).not.toBe(grid.index(15, 2));
+  });
+});
+
+describe("spawn values on maps of every size (R-SPAWN-06)", () => {
+  const settings = (width: number, height: number) =>
+    spawnSettings(
+      new Game({
+        terrain: new Terrain(new WorldGrid(width, height), new Uint8Array(width * height)),
+        seed: 1,
+        players: [],
+      }),
+    );
+
+  it("keeps the balance values up to the reference size", () => {
+    expect(settings(64, 32)).toEqual({ radius: 3, distance: 30, troops: 2500 });
+    expect(settings(1024, 512)).toEqual({ radius: 3, distance: 30, troops: 2500 });
+  });
+
+  it("grows them on larger maps, troops with the start area", () => {
+    expect(settings(2048, 1024)).toEqual({ radius: 6, distance: 60, troops: 10_000 });
   });
 });

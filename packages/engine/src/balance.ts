@@ -27,6 +27,8 @@ export interface Balance {
   reliefCostTenths: readonly [number, number, number];
   /** B-ATTACK-SPEED: an attack takes 1 + isqrt(troops) / attackSpeedDivisor tiles per tick */
   attackSpeedDivisor: number;
+  /** B-ATTACK-SPREAD, tiles of distance to the aim that each side shared with the attacker's land is worth */
+  attackSpread: number;
   /** B-DEFENSE-DENSITY, in tenths: share of the defender's troops per tile added to the cost of a tile */
   defenseDensityTenths: number;
   /** B-RETREAT-PENALTY, percent of the returning troops lost */
@@ -57,7 +59,8 @@ export const DEFAULT_BALANCE: Balance = {
   goldPerThousandTroops: 5,
   neutralCost: 8,
   reliefCostTenths: [10, 15, 25],
-  attackSpeedDivisor: 8,
+  attackSpeedDivisor: 4,
+  attackSpread: 4,
   defenseDensityTenths: 10,
   retreatPenaltyPercent: 25,
   encircleMaxTiles: 4000,

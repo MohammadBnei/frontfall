@@ -1,5 +1,26 @@
 import type { Game, Player } from "./game.ts";
+import { isqrt, mulDiv } from "./integer-math.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
+
+/** Side of the map the spawn values of balance.md are set for: about the square root of 2^19 tiles. */
+const REFERENCE_SIDE = 724;
+
+/**
+ * Spawn radius, spacing and starting troops for this map (R-SPAWN-06).
+ * The balance values hold on a map of 2^19 tiles; on larger maps the radius
+ * and spacing grow with the square root of the area, never shrink, and the
+ * starting troops grow with the start area.
+ */
+export function spawnSettings(game: Game): { radius: number; distance: number; troops: number } {
+  const { balance } = game;
+  const side = isqrt(game.terrain.topology.size);
+  const radius = Math.max(balance.spawnRadius, mulDiv(balance.spawnRadius, side, REFERENCE_SIDE));
+  return {
+    radius,
+    distance: Math.max(balance.spawnDistance, mulDiv(balance.spawnDistance, side, REFERENCE_SIDE)),
+    troops: mulDiv(balance.startTroops, radius * radius, balance.spawnRadius * balance.spawnRadius),
+  };
+}
 
 /** Random draws allowed when placing a player who did not pick, before giving up on spacing. */
 const PLACEMENT_ATTEMPTS = 1000;
@@ -30,7 +51,7 @@ function isValidStart(
   game: Game,
   player: Player,
   tile: number,
-  minDistance = game.balance.spawnDistance,
+  minDistance = spawnSettings(game).distance,
 ): boolean {
   if (!game.terrain.isOwnable(tile)) return false;
   const owner = game.territory.ownerOf(tile);
@@ -46,18 +67,19 @@ function isValidStart(
 /** R-SPAWN-04: the tiles around the start, and the starting troops. Moving the start releases the old area. */
 function place(game: Game, player: Player, tile: number): void {
   const { territory, terrain } = game;
+  const { radius, troops } = spawnSettings(game);
   if (player.start !== undefined) {
-    for (const old of terrain.topology.tilesWithin(player.start, game.balance.spawnRadius)) {
+    for (const old of terrain.topology.tilesWithin(player.start, radius)) {
       if (territory.ownerOf(old) === player.id) territory.setOwner(old, NEUTRAL);
     }
   }
-  for (const claimed of terrain.topology.tilesWithin(tile, game.balance.spawnRadius)) {
+  for (const claimed of terrain.topology.tilesWithin(tile, radius)) {
     if (terrain.isOwnable(claimed) && territory.ownerOf(claimed) === NEUTRAL) {
       territory.setOwner(claimed, player.id);
     }
   }
   player.start = tile;
-  player.troops = game.balance.startTroops;
+  player.troops = troops;
 }
 
 /**
