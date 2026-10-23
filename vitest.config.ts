@@ -11,6 +11,7 @@ export default defineConfig({
         "apps/client/src/connection.ts",
         "apps/client/src/palette.ts",
         "tools/src/clean-room.ts",
+        "apps/client/src/render/**",
       ],
       exclude: ["**/index.ts", "apps/server/src/main.ts"],
       reporter: ["text", "lcov"],
