@@ -1,4 +1,5 @@
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
+import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
 import type { Terrain } from "./terrain.ts";
 import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
@@ -36,7 +37,10 @@ export interface Player {
 
 export type Phase = "spawn" | "play";
 
-/** Applies one order. Returns false when the order is invalid and was ignored. */
+/**
+ * Carries out one order that passed validation. Returns false when the order
+ * is not for this handler, or cannot be carried out after all.
+ */
 export type OrderHandler = (game: Game, player: Player, order: Order) => boolean;
 
 /** Runs once per tick, after the orders of that tick, in registration order. */
@@ -90,7 +94,7 @@ export class Game {
     return [...this.playersById.values()].sort((a, b) => a.id - b.id);
   }
 
-  /** Order handlers are asked in turn until one accepts the order. */
+  /** Valid orders are offered to handlers in turn until one carries them out. */
   onOrder(handler: OrderHandler): void {
     this.handlers.push(handler);
   }
@@ -102,6 +106,7 @@ export class Game {
   /**
    * Runs one tick: the turn's orders, then every system. Turns must arrive in
    * sequence; a gap or a repeat means the client is out of step with the server.
+   * Invalid orders, and orders of eliminated or unknown players, are skipped.
    * Returns how many orders were applied.
    */
   step(turn: Turn): number {
@@ -111,7 +116,7 @@ export class Game {
     let applied = 0;
     for (const { player: id, order } of turn.orders) {
       const player = this.playersById.get(id);
-      if (!player?.alive) continue;
+      if (!player?.alive || orderError(this, player, order) !== undefined) continue;
       if (this.handlers.some((handle) => handle(this, player, order))) applied++;
     }
     for (const system of this.systems) system(this);

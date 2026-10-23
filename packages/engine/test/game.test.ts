@@ -75,7 +75,7 @@ describe("Game", () => {
     const log: string[] = [];
     game.onOrder((_, player, order) => {
       log.push(`order ${String(player.id)} ${order.type}`);
-      return order.type === "spawn";
+      return player.id === 2;
     });
     game.onTick(() => log.push("growth"));
     game.onTick((g) => log.push(`attacks at ${String(g.tick)}`));
@@ -84,13 +84,13 @@ describe("Game", () => {
       tick: 0,
       orders: [
         { player: 2, order: spawn(3) },
-        { player: 1, order: { type: "attack", target: 4, troops: 10 } },
+        { player: 1, order: spawn(4) },
         { player: 9, order: spawn(5) },
       ],
     });
 
     expect(applied).toBe(1);
-    expect(log).toEqual(["order 2 spawn", "order 1 attack", "growth", "attacks at 0"]);
+    expect(log).toEqual(["order 2 spawn", "order 1 spawn", "growth", "attacks at 0"]);
   });
 
   it("asks handlers in turn until one accepts, and ignores eliminated players", () => {
@@ -121,6 +121,24 @@ describe("Game", () => {
       }),
     ).toBe(1);
     expect(asked).toEqual(["first", "second"]);
+  });
+
+  it("never hands an invalid order to a handler", () => {
+    const game = new Game(setup());
+    const seen: Order[] = [];
+    game.onOrder((_, __, order) => {
+      seen.push(order);
+      return true;
+    });
+    const applied = game.step({
+      tick: 0,
+      orders: [
+        { player: 1, order: spawn(grid.size) },
+        { player: 1, order: spawn(2) },
+      ],
+    });
+    expect(applied).toBe(1);
+    expect(seen).toEqual([spawn(2)]);
   });
 
   it("holds the spawn phase for its configured length (R-SPAWN-01)", () => {
