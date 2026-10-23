@@ -60,3 +60,9 @@ test("lists public games as JSON", async ({ request, baseURL }) => {
   expect(response.headers()["cache-control"]).toBe("no-store");
   expect(await response.json()).toHaveProperty("games");
 });
+
+test("keeps the metrics private behind the proxy", async ({ request, baseURL }) => {
+  test.skip(!baseURL?.endsWith("/frontfall/"), "only a proxied server hides its metrics");
+  const response = await request.get(new URL("metrics", baseURL).href);
+  expect(response.status()).toBe(404);
+});

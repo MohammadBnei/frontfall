@@ -239,15 +239,15 @@ A request was refused; the connection stays open. `message` is for people, `code
 
 ## Close codes
 
-| Code   | Meaning                                              |
-| ------ | ---------------------------------------------------- |
-| `1009` | A frame was larger than 1 KiB                        |
-| `1012` | The server is restarting; games in progress are lost |
-| `4000` | Another protocol version: reload the page            |
-| `4001` | A frame could not be decoded or broke a rule         |
-| `4002` | Too many messages (reserved for rate limits)         |
-| `4003` | No `hello` within 10 seconds, or idle for too long   |
-| `4004` | Another connection took over this player (reserved)  |
+| Code   | Meaning                                                         |
+| ------ | --------------------------------------------------------------- |
+| `1009` | A frame was larger than 1 KiB                                   |
+| `1012` | The server is restarting; games in progress are lost            |
+| `4000` | Another protocol version: reload the page                       |
+| `4001` | A frame could not be decoded or broke a rule                    |
+| `4002` | More than 20 messages per second on average, or bursts above 40 |
+| `4003` | No `hello` within 10 seconds, or out of any game for 5 minutes  |
+| `4004` | Another connection took over this player (reserved)             |
 
 ## Binary frames
 

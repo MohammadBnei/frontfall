@@ -115,6 +115,20 @@ describe("HTTP", () => {
     expect(response.headers.get("cache-control")).toContain("immutable");
   });
 
+  it("serves metrics to the host only, never through the proxy", async () => {
+    const host = await start();
+    const direct = await fetch(`http://${host}/metrics`);
+    expect(direct.status).toBe(200);
+    expect(direct.headers.get("content-type")).toContain("text/plain");
+    const text = await direct.text();
+    expect(text).toContain('frontfall_games{state="open"} 0');
+    expect(text).toContain("frontfall_turn_duration_seconds_count");
+    for (const header of ["x-client-ip", "x-forwarded-for", "forwarded"]) {
+      const proxied = await fetch(`http://${host}/metrics`, { headers: { [header]: "1.2.3.4" } });
+      expect(proxied.status).toBe(404);
+    }
+  });
+
   it("rejects other methods", async () => {
     const response = await fetch(`http://${await start()}/`, { method: "POST" });
     expect(response.status).toBe(405);
@@ -326,6 +340,64 @@ describe("WebSocket", () => {
     const client = open(await start({ helloTimeoutMs: 30 }));
     await opened(client.socket);
     expect(await closed(client.socket)).toBe(CloseCode.idle);
+  });
+
+  it("closes a connection that sends too many messages", async () => {
+    const host = await start({ messageRate: { perSecond: 1, burst: 3 } });
+    const client = await player(host, "Flood");
+    for (let index = 0; index < 5; index++) {
+      client.send({ type: "order", order: { type: "spawn", tile: index } });
+    }
+    expect(await closed(client.socket)).toBe(CloseCode.rateLimited);
+    expect(server?.metrics.rejected.get({ reason: "rate_limited" })).toBe(1);
+  });
+
+  it("keeps other games at their pace while one connection floods", async () => {
+    const host = await start({ messageRate: { perSecond: 5, burst: 10 } });
+    const alice = await player(host, "Alice");
+    alice.send({ type: "create" });
+    await alice.next("lobby");
+    alice.send({ type: "start" });
+    await alice.next("started");
+    const flood = await player(host, "Flood");
+    const floodClosed = closed(flood.socket);
+    for (let index = 0; index < 200; index++) flood.send({ type: "hash", tick: index, hash: 1 });
+    const startedAt = Date.now();
+    for (let count = 0; count < 5; count++) await alice.next("turns");
+    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(await floodClosed).toBe(CloseCode.rateLimited);
+  });
+
+  it("closes a connection that stays out of any game too long", async () => {
+    const host = await start({ idleTimeoutMs: 50, pingIntervalMs: 20 });
+    const idle = await player(host, "Idle");
+    const waiting = await player(host, "Waiting");
+    waiting.send({ type: "create" });
+    await waiting.next("lobby");
+    expect(await closed(idle.socket)).toBe(CloseCode.idle);
+    expect(waiting.socket.readyState).toBe(WebSocket.OPEN);
+  });
+
+  it("logs games and rejected connections without client addresses", async () => {
+    const lines: string[] = [];
+    const host = await start({
+      logger: {
+        info: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
+        warn: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
+      },
+    });
+    const alice = await player(host, "Alice");
+    alice.send({ type: "create" });
+    await alice.next("lobby");
+    alice.send({ type: "start" });
+    await alice.next("started");
+    const rude = open(host, { "x-client-ip": "203.0.113.77" });
+    await opened(rude.socket);
+    rude.socket.send("{");
+    await closed(rude.socket);
+    expect(lines.some((line) => line.includes('"event":"game_started"'))).toBe(true);
+    expect(lines.some((line) => line.includes('"event":"connection_rejected"'))).toBe(true);
+    expect(lines.join("\n")).not.toContain("203.0.113.77");
   });
 
   it("refuses pages from another origin", async () => {
