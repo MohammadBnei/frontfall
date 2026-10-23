@@ -15,6 +15,9 @@ export class BoundedFloodFill {
   private queue = new Int32Array(64);
   private readonly around = new Int32Array(4);
   private found = 0;
+  private reachedCount = 0;
+  /** Stamp of the fill asked to stop; 0 when none was. */
+  private stoppedAt = 0;
   readonly grid: Topology;
 
   constructor(grid: Topology) {
@@ -31,6 +34,8 @@ export class BoundedFloodFill {
       throw new RangeError(`invalid fill limit ${String(limit)}`);
     }
     this.found = 0;
+    this.reachedCount = 0;
+    this.stoppedAt = 0;
     if (!accepts(start)) return 0;
     this.nextStamp();
     const { stamps, stamp, around, grid } = this;
@@ -43,14 +48,30 @@ export class BoundedFloodFill {
       const count = grid.neighborsInto(this.queue[head++] as number, around);
       for (let i = 0; i < count; i++) {
         const next = around[i] as number;
-        if (stamps[next] === stamp || !accepts(next)) continue;
-        if (tail === limit) return -1;
+        if (stamps[next] === stamp) continue;
+        const accepted = accepts(next);
+        if (this.stoppedAt === stamp || (accepted && tail === limit)) {
+          this.reachedCount = tail;
+          return -1;
+        }
+        if (!accepted) continue;
         stamps[next] = stamp;
         this.push(tail++, next, limit);
       }
     }
     this.found = tail;
+    this.reachedCount = tail;
     return tail;
+  }
+
+  /** Ends the current fill at once, from inside `accepts`; the fill then returns -1. */
+  stop(): void {
+    this.stoppedAt = this.stamp;
+  }
+
+  /** Tiles the last fill went through before it finished or gave up, in visiting order. */
+  reached(): Int32Array {
+    return this.queue.subarray(0, this.reachedCount);
   }
 
   /** Tiles reached by the last fill, in visiting order; empty if it gave up. */

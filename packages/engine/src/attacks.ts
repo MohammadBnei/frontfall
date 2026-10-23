@@ -32,6 +32,10 @@ export function installAttacks(game: Game): void {
   const around = new Int32Array(4);
   const pocketFill = new BoundedFloodFill(topology);
   const nextToCapture = new Int32Array(4);
+  // Defender tiles already found in an open or oversized region during the current check.
+  const examined = new Uint32Array(topology.size);
+  let examination = 0;
+  const captured: number[] = [];
 
   /**
    * The `limit` tiles of the attack's target that touch the player's territory
@@ -156,42 +160,56 @@ export function installAttacks(game: Game): void {
       finish(attack);
       return;
     }
+    captured.length = 0;
     for (const tile of tiles) {
       const cost = tileCost(tile, defender);
       if (attack.troops < cost) {
         finish(attack);
-        return;
+        break;
       }
       attack.troops -= cost;
       if (defender) defender.troops -= Math.min(defender.troops, defenderDensity(defender));
       territory.setOwner(tile, attack.player);
-      if (defender) captureEnclosedPockets(tile, attack.player, defender.id);
+      captured.push(tile);
     }
+    if (defender) captureEnclosedPockets(attack.player, defender.id);
   }
 
   /**
-   * R-ATTACK-08: after `tile` changes hands, any piece of the defender's land
-   * next to it that is now enclosed by the attacker alone goes to the attacker.
+   * R-ATTACK-08: once an attack has taken this tick's tiles, any piece of the
+   * defender's land next to them that is now enclosed by the attacker alone
+   * goes to the attacker. A region found open, or too large, is not walked
+   * again for the other tiles of the same tick: a long front costs one fill
+   * per region instead of one per captured tile.
    */
-  function captureEnclosedPockets(tile: number, attacker: number, defender: number): void {
-    const count = topology.neighborsInto(tile, nextToCapture);
-    for (let i = 0; i < count; i++) {
-      const start = nextToCapture[i] as number;
-      if (territory.ownerOf(start) !== defender) continue;
-      const pocket = { open: false };
-      const size = pocketFill.fill(
-        start,
-        (candidate) => {
-          const owner = territory.ownerOf(candidate);
-          if (owner === defender) return true;
-          // Any land not held by the attacker means the pocket still has a way out.
-          if (owner !== attacker && terrain.isOwnable(candidate)) pocket.open = true;
-          return false;
-        },
-        balance.encircleMaxTiles,
-      );
-      if (pocket.open || size <= 0) continue;
-      for (const captured of Array.from(pocketFill.tiles())) territory.setOwner(captured, attacker);
+  function captureEnclosedPockets(attacker: number, defender: number): void {
+    examination++;
+    for (const tile of captured) {
+      const count = topology.neighborsInto(tile, nextToCapture);
+      for (let i = 0; i < count; i++) {
+        const start = nextToCapture[i] as number;
+        if (territory.ownerOf(start) !== defender || examined[start] === examination) continue;
+        const size = pocketFill.fill(
+          start,
+          (candidate) => {
+            const owner = territory.ownerOf(candidate);
+            if (owner === defender) {
+              if (examined[candidate] !== examination) return true;
+              pocketFill.stop(); // joins a region already known to be open
+              return false;
+            }
+            // Any land not held by the attacker means the region still has a way out.
+            if (owner !== attacker && terrain.isOwnable(candidate)) pocketFill.stop();
+            return false;
+          },
+          balance.encircleMaxTiles,
+        );
+        if (size > 0) {
+          for (const pocket of Array.from(pocketFill.tiles())) territory.setOwner(pocket, attacker);
+        } else {
+          for (const open of pocketFill.reached()) examined[open] = examination;
+        }
+      }
     }
   }
 

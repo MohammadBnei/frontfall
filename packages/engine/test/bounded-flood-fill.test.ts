@@ -31,6 +31,35 @@ describe("BoundedFloodFill", () => {
     expect(fill.fill(0, open, 12)).toBe(12);
   });
 
+  it("keeps the tiles it went through when it gives up", () => {
+    const { grid, open } = parse(["......", "......"]);
+    const fill = new BoundedFloodFill(grid);
+    fill.fill(0, open, 5);
+    expect(fill.reached()).toHaveLength(5);
+    fill.fill(0, open, 20);
+    expect(fill.reached()).toHaveLength(12);
+  });
+
+  it("stops at once when asked from the acceptance test", () => {
+    const { grid, open } = parse(["......", "......"]);
+    const fill = new BoundedFloodFill(grid);
+    const seen: number[] = [];
+    const result = fill.fill(
+      0,
+      (tile) => {
+        seen.push(tile);
+        if (tile === 2) fill.stop();
+        return open(tile);
+      },
+      20,
+    );
+    expect(result).toBe(-1);
+    expect(fill.tiles()).toHaveLength(0);
+    expect(seen).not.toContain(3);
+    // The next fill starts afresh.
+    expect(fill.fill(0, open, 20)).toBe(12);
+  });
+
   it("returns nothing when the start is not accepted", () => {
     const { grid, open } = parse(["#."]);
     expect(new BoundedFloodFill(grid).fill(0, open, 5)).toBe(0);
