@@ -197,6 +197,62 @@ describe("encirclement", () => {
     expect(game.territory.ownerOf(grid.index(2, 1))).toBe(2);
   });
 
+  it("captures a pocket closed by expansion into unowned land", () => {
+    const { grid, game, ada, run, attack } = pocketGame(2);
+    game.territory.setOwner(grid.index(4, 1), NEUTRAL);
+    game.territory.setOwner(grid.index(7, 1), 2);
+    ada.troops = 1000;
+    run([attack(1, grid.index(4, 1), 100)]);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(3, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(7, 1))).toBe(2);
+  });
+
+  it("captures a pocket across the east-west seam", () => {
+    const { grid, game, ada, bea, run, attack } = newGame({ 1: [7, 8, 9, 0, 1] });
+    for (const x of [9, 0, 1, 2]) game.territory.setOwner(grid.index(x, 1), 2);
+    ada.troops = 1000;
+    bea.troops = 10;
+    run([attack(1, grid.index(1, 1), 100)]);
+    expect(game.territory.ownerOf(grid.index(9, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(0, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(2);
+  });
+
+  it("captures all that is left of a player when it is enclosed", () => {
+    const { grid, game, ada, bea, run, attack } = pocketGame(2);
+    game.territory.setOwner(grid.index(5, 1), NEUTRAL);
+    ada.troops = 1000;
+    bea.troops = 10;
+    run([attack(1, grid.index(4, 1), 100)]);
+    expect(game.territory.tileCount(2)).toBe(0);
+  });
+
+  it("captures the pocket of a player the attack was not aimed at", () => {
+    const grid = new WorldGrid(10, 3);
+    const game = new Game({
+      terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+      seed: 3,
+      players: [1, 2, 3].map((id) => ({ id, name: `P${String(id)}` })),
+      balance,
+    });
+    installAttacks(game);
+    for (let x = 0; x < 5; x++)
+      for (let y = 0; y < 3; y++) game.territory.setOwner(grid.index(x, y), 1);
+    // Carol's (2, 1) only escapes through Bea's (3, 1) and (4, 1).
+    game.territory.setOwner(grid.index(2, 1), 3);
+    game.territory.setOwner(grid.index(3, 1), 2);
+    game.territory.setOwner(grid.index(4, 1), 2);
+    for (let x = 5; x < 10; x++) game.territory.setOwner(grid.index(x, 1), 3);
+    (game.player(1) as Player).troops = 1000;
+    game.step({
+      tick: 0,
+      orders: [{ player: 1, order: { type: "attack", target: grid.index(3, 1), troops: 100 } }],
+    });
+    expect(game.territory.ownerOf(grid.index(3, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(1);
+  });
+
   it("leaves pockets larger than the limit (B-ENCIRCLE-MAX)", () => {
     const built = newGame({ 1: [0, 1, 2, 3, 4] }, undefined, { encircleMaxTiles: 1 });
     const { grid, game, ada, run, attack } = built;

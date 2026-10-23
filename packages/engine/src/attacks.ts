@@ -37,43 +37,75 @@ export function installAttacks(game: Game): void {
   let examination = 0;
   const captured: number[] = [];
 
+  // Each attack's front for the current tick: tiles to take, closest to its aim first.
+  const fronts: number[][] = [];
+  const frontDistances: number[][] = [];
+  const speeds: number[] = [];
+  const attacksOf = new Map<number, number[]>();
+
   /**
-   * The `limit` tiles of the attack's target that touch the player's territory
-   * and lie closest to its aim, closest first. Only the best few are kept while
-   * scanning the border, so a long front costs one pass and no sort.
+   * Plans every attack's front for this tick before any of them moves: up to
+   * its speed in tiles of its target that touch the player's territory, the
+   * closest to its aim first. One pass over each attacking player's border
+   * serves all of their attacks, and only the best few tiles are kept, so a
+   * long front costs one scan and no sort.
    */
-  function frontline(attack: Attack, limit: number): number[] {
-    scan++;
-    const tiles: number[] = [];
-    const distances: number[] = [];
-    const borders = territory.borderCount(attack.player);
-    for (let i = 0; i < borders; i++) {
-      const count = topology.neighborsInto(territory.borderTile(attack.player, i), around);
-      for (let j = 0; j < count; j++) {
-        const tile = around[j] as number;
-        if (seen[tile] === scan || territory.ownerOf(tile) !== attack.target) continue;
-        if (!terrain.isOwnable(tile)) continue;
-        seen[tile] = scan;
-        const distance = topology.distance(tile, attack.aim);
-        // Insertion into the sorted shortlist, ties broken by tile index.
-        let at = tiles.length;
-        while (
-          at > 0 &&
-          ((distances[at - 1] as number) > distance ||
-            ((distances[at - 1] as number) === distance && (tiles[at - 1] as number) > tile))
-        ) {
-          at--;
-        }
-        if (at >= limit) continue;
-        tiles.splice(at, 0, tile);
-        distances.splice(at, 0, distance);
-        if (tiles.length > limit) {
-          tiles.pop();
-          distances.pop();
+  function planFronts(): void {
+    attacksOf.clear();
+    for (let a = 0; a < attacks.length; a++) {
+      const attack = attacks[a] as Attack;
+      (fronts[a] ??= []).length = 0;
+      (frontDistances[a] ??= []).length = 0;
+      const alive = game.player(attack.player)?.alive === true;
+      speeds[a] =
+        alive && attack.troops > 0
+          ? 1 + divFloor(isqrt(attack.troops), balance.attackSpeedDivisor)
+          : 0;
+      if (speeds[a] === 0) continue;
+      const own = attacksOf.get(attack.player);
+      if (own) own.push(a);
+      else attacksOf.set(attack.player, [a]);
+    }
+    // Map iteration follows insertion, which follows the attack list: the same on every client.
+    for (const [player, own] of attacksOf) {
+      scan++;
+      const borders = territory.borderCount(player);
+      for (let i = 0; i < borders; i++) {
+        const count = topology.neighborsInto(territory.borderTile(player, i), around);
+        for (let j = 0; j < count; j++) {
+          const tile = around[j] as number;
+          if (seen[tile] === scan) continue;
+          const owner = territory.ownerOf(tile);
+          if (owner === player || !terrain.isOwnable(tile)) continue;
+          const a = own.find((index) => (attacks[index] as Attack).target === owner);
+          if (a === undefined) continue;
+          seen[tile] = scan;
+          shortlist(a, tile, topology.distance(tile, (attacks[a] as Attack).aim));
         }
       }
     }
-    return tiles;
+  }
+
+  /** Inserts a tile into an attack's front, kept sorted by distance then tile and cut at its speed. */
+  function shortlist(a: number, tile: number, distance: number): void {
+    const tiles = fronts[a] as number[];
+    const distances = frontDistances[a] as number[];
+    const limit = speeds[a] as number;
+    let at = tiles.length;
+    while (
+      at > 0 &&
+      ((distances[at - 1] as number) > distance ||
+        ((distances[at - 1] as number) === distance && (tiles[at - 1] as number) > tile))
+    ) {
+      at--;
+    }
+    if (at >= limit) return;
+    tiles.splice(at, 0, tile);
+    distances.splice(at, 0, distance);
+    if (tiles.length > limit) {
+      tiles.pop();
+      distances.pop();
+    }
   }
 
   /** Whether any land of `target` touches the player's territory. */
@@ -130,7 +162,8 @@ export function installAttacks(game: Game): void {
   game.onTick(() => {
     if (game.phase !== "play") return;
     cancelOpposingAttacks(attacks);
-    for (const attack of attacks) advance(attack);
+    planFronts();
+    for (let a = 0; a < attacks.length; a++) advance(attacks[a] as Attack, fronts[a] as number[]);
     // Troops of a finished attack went back to its player in finish(); a fallen player's are lost.
     for (let i = attacks.length - 1; i >= 0; i--) {
       const attack = attacks[i] as Attack;
@@ -138,19 +171,19 @@ export function installAttacks(game: Game): void {
     }
   });
 
-  /** Takes up to the attack's speed in tiles; an attack that cannot go on is marked done. */
-  function advance(attack: Attack): void {
+  /** Takes the tiles planned for this tick; an attack that cannot go on is marked done. */
+  function advance(attack: Attack, tiles: readonly number[]): void {
     const attacker = game.player(attack.player);
     const defender = attack.target === NEUTRAL ? undefined : game.player(attack.target);
     if (!attacker?.alive || attack.troops <= 0) return;
-    const speed = 1 + divFloor(isqrt(attack.troops), balance.attackSpeedDivisor);
-    const tiles = frontline(attack, speed);
     if (tiles.length === 0) {
       finish(attack);
       return;
     }
     captured.length = 0;
     for (const tile of tiles) {
+      // Another attack, or an encirclement, may have taken it earlier in the tick.
+      if (territory.ownerOf(tile) !== attack.target) continue;
       const cost = tileCost(tile, defender);
       if (attack.troops < cost) {
         finish(attack);
@@ -161,23 +194,25 @@ export function installAttacks(game: Game): void {
       territory.setOwner(tile, attack.player);
       captured.push(tile);
     }
-    if (defender) captureEnclosedPockets(attack.player, defender.id);
+    captureEnclosedPockets(attack.player);
   }
 
   /**
-   * R-ATTACK-08: once an attack has taken this tick's tiles, any piece of the
-   * defender's land next to them that is now enclosed by the attacker alone
-   * goes to the attacker. A region found open, or too large, is not walked
-   * again for the other tiles of the same tick: a long front costs one fill
-   * per region instead of one per captured tile.
+   * R-ATTACK-08: once an attack has taken this tick's tiles, any piece of
+   * another player's land next to them that is now enclosed by the attacker
+   * alone goes to the attacker, whoever the attack was aimed at. A region
+   * found open, or too large, is not walked again for the other tiles of the
+   * same tick: a long front costs one fill per region, not one per tile.
    */
-  function captureEnclosedPockets(attacker: number, defender: number): void {
+  function captureEnclosedPockets(attacker: number): void {
     examination++;
     for (const tile of captured) {
       const count = topology.neighborsInto(tile, nextToCapture);
       for (let i = 0; i < count; i++) {
         const start = nextToCapture[i] as number;
-        if (territory.ownerOf(start) !== defender || examined[start] === examination) continue;
+        const defender = territory.ownerOf(start);
+        if (defender === attacker || defender === NEUTRAL) continue;
+        if (examined[start] === examination) continue;
         const size = pocketFill.fill(
           start,
           (candidate) => {
@@ -194,7 +229,7 @@ export function installAttacks(game: Game): void {
           balance.encircleMaxTiles,
         );
         if (size > 0) {
-          for (const pocket of Array.from(pocketFill.tiles())) territory.setOwner(pocket, attacker);
+          for (const pocket of pocketFill.tiles()) territory.setOwner(pocket, attacker);
         } else {
           for (const open of pocketFill.reached()) examined[open] = examination;
         }

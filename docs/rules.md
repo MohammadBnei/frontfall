@@ -45,14 +45,14 @@ Words used throughout:
 
 ## 4. Expansion and attacks
 
-- **R-ATTACK-01** A player expands by sending troops from their territory towards a target: unowned land or a neighbouring player.
+- **R-ATTACK-01** A player expands by sending troops from their territory towards a target: unowned land or a neighbouring player. The target can be any tile of that owner, however far: the attack pushes along the whole shared border and heads for that tile. A player has at most one attack against each owner; a new order against the same owner adds its troops to the running attack and moves its aim.
 - **R-ATTACK-02** The attack ratio, set by the player between `B-ATTACK-RATIO-MIN` and 100 %, decides the share of current troops each new attack takes.
-- **R-ATTACK-03** An attack advances along the shared border, one tile at a time, taking first the tiles closest to the point the player aimed at. Larger attacks take more tiles per tick (`B-ATTACK-SPEED`). Each captured tile costs the attacker troops, more for relief (`R-MAP-06`) and more against a defender with many troops per tile (`B-DEFENSE-DENSITY`).
+- **R-ATTACK-03** An attack advances along the shared border, one tile at a time, taking first the tiles closest to the point the player aimed at. Larger attacks take more tiles per tick (`B-ATTACK-SPEED`). Each captured tile costs the attacker troops, more for relief (`R-MAP-06`) and more against a defender with many troops per tile (`B-DEFENSE-DENSITY`). The defender loses their average troops per tile with each tile taken. Every attack's front for a tick is chosen before any attack of that tick moves.
 - **R-ATTACK-04** Unowned land costs troops to take but never fights back (`B-NEUTRAL-COST`).
 - **R-ATTACK-05** An attack ends when its troops run out, when no reachable target tile remains, or when its player retreats.
 - **R-ATTACK-06** Retreating returns the attack's remaining troops to the player, minus a penalty (`B-RETREAT-PENALTY`).
 - **R-ATTACK-07** Two attacks between the same players in opposite directions cancel out first: troops fight troops before any tile changes hands.
-- **R-ATTACK-08** Territory that ends up surrounded by one other player, with no border to any third party, is captured by that player at once. Water and impassable land count as part of the surrounding; pockets larger than `B-ENCIRCLE-MAX` tiles are not captured this way.
+- **R-ATTACK-08** Territory that ends up surrounded by one other player, with no border to any third party or to unowned land, is captured by that player at once, whether or not the attack was aimed at its owner. Water and impassable land count as part of the surrounding; pockets larger than `B-ENCIRCLE-MAX` tiles are not captured this way.
 - **R-ATTACK-09** Players can attack across water only with ships (`R-UNIT-02`).
 
 ## 5. Diplomacy
@@ -97,7 +97,7 @@ Every structure is built on an owned land tile, costs gold, and takes `B-BUILD-T
 ## 9. Victory and game modes
 
 - **R-WIN-01** A player wins by owning `B-WIN-SHARE` of all ownable land, or by being the last player standing.
-- **R-WIN-02** A game that reaches `B-MAX-DURATION` ends; the player with the most territory wins.
+- **R-WIN-02** A game that reaches `B-MAX-DURATION` ends; the player with the most territory wins, the lowest player number on a tie.
 - **R-WIN-03** Eliminated players can keep watching the game.
 - **R-MODE-01** Free-for-all: every player for themselves; alliances follow `R-DIPLO`.
 - **R-MODE-02** Teams: players are split into teams of equal size. Team members are permanent allies and win together when their combined territory reaches `B-WIN-SHARE`.
