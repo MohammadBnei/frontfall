@@ -8,7 +8,7 @@ Phase 1 ships as a series of playable versions instead of one release at the end
 
 | Version                                                              | You can                                                                                     | Issues | Estimate |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -----: | -------: |
-| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.    |     23 |  69 days |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.    |     24 |  72 days |
 | [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.       |      8 |  24 days |
 | [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop. |     11 |  31 days |
 | [v0.4 · Sea and missiles](#v04--sea-and-missiles)                    | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.            |      5 |  19 days |
@@ -99,8 +99,9 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 | M3-08 | [#30](https://github.com/nic0lasm/frontfall/issues/30) Victory, defeat and end screen                   | S    | #11        |
 | M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) First playtest round                             | S    | #30        |
 | M1-12 | [#81](https://github.com/nic0lasm/frontfall/issues/81) Minimal sea transport                            | M    | #11        |
+| M3-12 | [#82](https://github.com/nic0lasm/frontfall/issues/82) Smooth territory and front updates               | M    | #24        |
 
-23 issues, about 69 days of work in four parallel streams: engine (30), maps (12), client (22) and bots (5). The worker is in v0.1 because the engine and the renderer share the page otherwise: a tick takes up to 9 ms on the World map, and moving the session later would mean writing it twice.
+24 issues, about 72 days of work in four parallel streams: engine (30), maps (12), client (25) and bots (5). The worker is in v0.1 because the engine and the renderer share the page otherwise: a tick takes up to 9 ms on the World map, and moving the session later would mean writing it twice.
 
 ## v0.2 · Online with friends
 
