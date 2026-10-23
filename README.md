@@ -81,6 +81,8 @@ flowchart LR
 | zod schemas            | Every message is validated on arrival, on both sides                                |
 | Single small container | Read-only filesystem, non-root user, multi-arch image scanned before every release  |
 
+Each choice is argued in an architecture decision record under [docs/adr](docs/adr/).
+
 ## Run it locally
 
 Requirements: Node.js 24 LTS (22.12 at minimum) and pnpm 10, which `corepack enable` provides.
@@ -132,7 +134,7 @@ If you like where this is going, a star helps other players find the project.
 
 ## Inspiration and legal
 
-Frontfall is an independent game inspired by OpenFront. It is not affiliated with or endorsed by OpenFront. It contains no code or assets from OpenFront. Game rules are written from scratch in this repository, and every third-party library or dataset is listed in [CREDITS.md](CREDITS.md) with its license.
+Frontfall is an independent game inspired by OpenFront. It is not affiliated with or endorsed by OpenFront. It contains no code or assets from OpenFront. Game rules are written from scratch in [docs/rules.md](docs/rules.md) under a [clean-room policy](docs/clean-room.md) that CI enforces, and every third-party library or dataset is listed in [CREDITS.md](CREDITS.md) with its license.
 
 ## License
 

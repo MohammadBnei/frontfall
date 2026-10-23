@@ -81,6 +81,8 @@ flowchart LR
 | Schémas zod                 | Chaque message est validé à l'arrivée, des deux côtés                                                          |
 | Un seul petit conteneur     | Système de fichiers en lecture seule, utilisateur non root, image multi-arch analysée avant chaque publication |
 
+Chaque choix est justifié dans une fiche de décision d'architecture, dans [docs/adr](docs/adr/) (en anglais).
+
 ## Lancer en local
 
 Prérequis : Node.js 24 LTS (22.12 au minimum) et pnpm 10, fourni par `corepack enable`.
@@ -132,7 +134,7 @@ Si la direction vous plaît, une étoile aide d'autres joueurs à trouver le pro
 
 ## Inspiration et mentions légales
 
-Frontfall est un jeu indépendant inspiré d'OpenFront. Il n'est ni affilié à OpenFront ni approuvé par OpenFront. Il ne contient aucun code ni aucun asset d'OpenFront. Les règles du jeu sont écrites de zéro dans ce dépôt, et chaque bibliothèque ou jeu de données tiers est listé dans [CREDITS.md](CREDITS.md) avec sa licence.
+Frontfall est un jeu indépendant inspiré d'OpenFront. Il n'est ni affilié à OpenFront ni approuvé par OpenFront. Il ne contient aucun code ni aucun asset d'OpenFront. Les règles du jeu sont écrites de zéro dans [docs/rules.md](docs/rules.md) (en anglais), selon une [politique de salle blanche](docs/clean-room.md) vérifiée par la CI, et chaque bibliothèque ou jeu de données tiers est listé dans [CREDITS.md](CREDITS.md) avec sa licence.
 
 ## Licence
 
