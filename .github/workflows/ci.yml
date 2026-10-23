@@ -34,6 +34,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:coverage
       - run: pnpm build
+      # A full game on a World-sized map, failing if the tick misses its budget (docs/performance.md).
+      - run: pnpm sim -- --width 2048 --height 1024 --players 16 --ticks 3000 --interval 10 --budget 30
 
   e2e:
     name: End-to-end

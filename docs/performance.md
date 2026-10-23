@@ -208,6 +208,34 @@ smaller than a pixel when the whole world is on screen. Frame rate budgets
 will be checked with `pnpm bench:render -- --gpu` on a laptop and with
 `--serve` on a phone; this section will be updated with those runs.
 
+### Full game rules
+
+`pnpm sim` plays a whole game with the real rules: a generated map of
+2048×1024 tiles with several continents, scripted players that each send a
+third of their troops every ten ticks, and `createGame` driven by a
+`TurnClock`. It is the measure that counts once players touch: the synthetic
+workload above has no attacks between players and no encirclement.
+
+```sh
+pnpm sim -- --width 2048 --height 1024 --players 16 --ticks 6000 --interval 10
+pnpm sim -- --budget 30   # exits with an error when the tick p95 is over 30 ms
+```
+
+CI runs the 16-player game for 3,000 ticks on every push with `--budget 30`.
+
+Measured on the same machine, before and after checking enclosures once per
+attack and tick instead of once per captured tile:
+
+| Players | Ticks          | Tick p50 | Tick p95 | Tick max | Before: p95 around tick 1,300 |
+| ------: | -------------- | -------: | -------: | -------: | ----------------------------: |
+|      16 | 4,663 (winner) |  2.36 ms |  7.61 ms | 31.36 ms |                             — |
+|      64 | 3,000          |  6.95 ms | 25.32 ms | 44.09 ms |                     172.39 ms |
+
+- With 64 players the worst stretch (ticks 1,500 to 1,900, over 100 attacks
+  under way) runs at a p95 of 30 to 36 ms, just over budget. The time goes to
+  finding each attack's front line (about half) and to enclosure fills (a
+  quarter). v0.1 games have 8 to 16 players; 64 is the target of M7.
+
 ## Next steps
 
 1. Run the render benchmark on real GPUs (a Mac laptop, a mid-range Android
@@ -220,5 +248,6 @@ will be checked with `pnpm bench:render -- --gpu` on a laptop and with
 4. Hide units, or draw them as points, when they are smaller than a pixel.
 5. Run `pnpm bench -- --quick` in CI and report the table on pull requests,
    without failing the build on noisy shared runners.
-6. Measure again once the real expansion and attack rules replace the
-   synthetic workload.
+6. Bring 64-player games under budget: keep each attack's front line between
+   ticks instead of rescanning the player's whole border, and share one border
+   scan between the attacks of the same player.

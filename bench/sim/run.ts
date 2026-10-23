@@ -12,6 +12,8 @@ const { values } = parseArgs({
     seed: { type: "string", default: "2026" },
     ticks: { type: "string", default: "6000" },
     interval: { type: "string", default: "20" },
+    // Tick p95 in milliseconds above which the run fails, for CI.
+    budget: { type: "string" },
   },
 });
 
@@ -68,3 +70,8 @@ console.log(
 );
 console.table(standings);
 console.log(`state hash: ${game.hash().toString(16).padStart(8, "0")}`);
+
+if (values.budget !== undefined && tick.p95 > Number(values.budget)) {
+  console.error(`tick p95 ${tick.p95.toFixed(2)} ms is over the ${values.budget} ms budget`);
+  process.exit(1);
+}
