@@ -17,6 +17,7 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 - Pre-commit hook that formats and lints staged files.
 - Map proposal issue form.
 - WebSocket protocol reference ([docs/protocol.md](docs/protocol.md)): connection URL, limits, and every message with an example.
+- The interface is available in English and French, chosen from the browser's languages; the client can switch language without reloading ([docs/client.md](docs/client.md#translations)).
 - **The README is now the project's front page**, in English and French: brand banner, a Play now section, the milestone table, an architecture diagram, self-hosting and a four-step contribution guide. Bug and feature forms label new issues for triage.
 
 ### Changed

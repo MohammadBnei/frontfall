@@ -1,0 +1,9 @@
+{
+  "status.connecting": "Connecting…",
+  "status.joining": "Joining…",
+  "status.connected": "Connected as {player}",
+  "status.turn": "Turn {tick}",
+  "status.disconnected": "Disconnected, retrying in {seconds} s",
+  "lobby.players.one": "{count} player",
+  "lobby.players.other": "{count} players"
+}

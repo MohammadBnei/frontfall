@@ -1,6 +1,13 @@
 import { WorldGrid } from "@frontfall/engine";
 import * as THREE from "three";
 import { connect, socketUrl } from "./connection.ts";
+import {
+  type MessageKey,
+  type Params,
+  applyTranslations,
+  onLanguageChange,
+  t,
+} from "./i18n/index.ts";
 import { MAP_COLORS, hexToRgb } from "./palette.ts";
 import { generateLand } from "./terrain.ts";
 
@@ -92,23 +99,31 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
+applyTranslations(document);
+
 const status = document.querySelector<HTMLElement>("#status");
-const showStatus = (text: string): void => {
-  if (status) status.textContent = text;
+let shownStatus: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
+const showStatus = (key: MessageKey, params: Params = {}): void => {
+  shownStatus = { key, params };
+  if (status) status.textContent = t(key, params);
 };
+onLanguageChange(() => {
+  applyTranslations(document);
+  showStatus(shownStatus.key, shownStatus.params);
+});
 
 connect(socketUrl(location.href), {
   onOpen(send) {
-    showStatus("Joining…");
+    showStatus("status.joining");
     send({ type: "join", lobby: "public", name: "Guest" });
   },
   onMessage(message) {
-    if (message.type === "joined") showStatus(`Connected as ${message.player}`);
+    if (message.type === "joined") showStatus("status.connected", { player: message.player });
     if (message.type === "turn" && message.turn.tick % 10 === 0) {
-      showStatus(`Turn ${String(message.turn.tick)}`);
+      showStatus("status.turn", { tick: message.turn.tick });
     }
   },
   onClose(retryInMs) {
-    showStatus(`Disconnected, retrying in ${String(Math.ceil(retryInMs / 1000))} s`);
+    showStatus("status.disconnected", { seconds: Math.ceil(retryInMs / 1000) });
   },
 });
