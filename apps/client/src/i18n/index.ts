@@ -15,7 +15,11 @@ const CATALOGUES = { en, fr } satisfies Record<string, Record<MessageKey, string
 
 export type Language = keyof typeof CATALOGUES;
 
-export const LANGUAGES = Object.keys(CATALOGUES) as readonly Language[];
+/** Supported languages, each named in itself so a lost player can find their own. */
+export const LANGUAGES: readonly { readonly id: Language; readonly label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "fr", label: "Français" },
+];
 
 const STORAGE_KEY = "frontfall.language";
 
@@ -102,20 +106,40 @@ export function plural(key: PluralKey, count: number, params: Params = {}): stri
   return format(template, { ...params, count });
 }
 
+/** Reads `data-i18n-params`, a JSON object; anything else gives no parameters. */
+function parseParams(json: string | undefined): Params {
+  if (!json) return {};
+  try {
+    const value: unknown = JSON.parse(json);
+    return typeof value === "object" && value !== null && !Array.isArray(value)
+      ? (value as Params)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Fills elements under `root` marked with `data-i18n="key"` (text) and
- * `data-i18n-attr="aria-label:key;title:key"` (attributes). Safe to call again
- * after a language change.
+ * Fills elements under `root` marked with `data-i18n="key"` (text, with
+ * placeholder values from the JSON in `data-i18n-params`) and
+ * `data-i18n-attr="aria-label:key;title:key"` (attributes, using the same
+ * parameters). The markers stay in place, so calling it again on the same
+ * subtree, after a language change for instance, gives the same result.
  */
 export function applyTranslations(root: ParentNode): void {
   for (const element of root.querySelectorAll<HTMLElement>("[data-i18n]")) {
     const key = element.dataset.i18n;
-    if (key) element.textContent = t(key as MessageKey);
+    if (key) element.textContent = t(key as MessageKey, parseParams(element.dataset.i18nParams));
   }
   for (const element of root.querySelectorAll<HTMLElement>("[data-i18n-attr]")) {
     for (const pair of (element.dataset.i18nAttr ?? "").split(";")) {
       const [attribute, key] = pair.split(":").map((part) => part.trim());
-      if (attribute && key) element.setAttribute(attribute, t(key as MessageKey));
+      if (attribute && key) {
+        element.setAttribute(
+          attribute,
+          t(key as MessageKey, parseParams(element.dataset.i18nParams)),
+        );
+      }
     }
   }
   const doc = "documentElement" in root ? (root as Document) : root.ownerDocument;

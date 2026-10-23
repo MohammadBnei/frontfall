@@ -25,7 +25,8 @@ plural("lobby.players", 4); // "4 players", the count is also {count}
 
 Static text in `index.html` is marked instead of written in code:
 `data-i18n="key"` sets the element's text and
-`data-i18n-attr="aria-label:key;title:key"` sets attributes. The English text
+`data-i18n-attr="aria-label:key;title:key"` sets attributes, with placeholder
+values, if any, as a JSON object in `data-i18n-params`. The English text
 stays in the HTML so the page reads correctly before the script runs.
 `applyTranslations` fills them, and the client calls it again whenever the
 language changes. Code that writes text itself should listen with
@@ -47,7 +48,8 @@ call `plural("your.key", count)`. A category a catalogue lacks falls back to
 
 1. Copy `en.json` to `<code>.json`, where `<code>` is the primary language
    subtag (`de`, `es`, …), and translate the values.
-2. Import it and add it to `CATALOGUES` in `i18n/index.ts`.
+2. Import it and add it to `CATALOGUES` in `i18n/index.ts`, and add its
+   native name to `LANGUAGES` for the language menu.
 
 The tests in `apps/client/test/i18n.test.ts` check that every catalogue has the
 English keys and placeholders, and that no source file outside `i18n/` and

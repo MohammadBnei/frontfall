@@ -198,6 +198,37 @@ describe("applyTranslations", () => {
     expect(attrs.attributes.get("aria-label")).toBe("Connexion…");
     expect(documentElement.lang).toBe("fr");
   });
+
+  it("takes placeholder values from data-i18n-params and ignores bad JSON", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    vi.stubGlobal("navigator", { languages: ["en"] });
+    const { applyTranslations } = await load();
+    const turn = new FakeElement({ i18n: "status.turn", i18nParams: '{"tick":40}' });
+    const label = new FakeElement({
+      i18nAttr: "aria-label:status.connected",
+      i18nParams: '{"player":"p2"}',
+    });
+    const broken = new FakeElement({ i18n: "status.turn", i18nParams: "{tick:" });
+    const list = new FakeElement({ i18n: "status.turn", i18nParams: "[1]" });
+    const root = {
+      ownerDocument: null,
+      querySelectorAll: (selector: string) =>
+        selector === "[data-i18n]" ? [turn, broken, list] : [label],
+    } as unknown as ParentNode;
+
+    applyTranslations(root);
+    applyTranslations(root);
+    expect(turn.textContent).toBe("Turn 40");
+    expect(label.attributes.get("aria-label")).toBe("Connected as p2");
+    expect(broken.textContent).toBe("Turn {tick}");
+    expect(list.textContent).toBe("Turn {tick}");
+  });
+
+  it("lists every catalogue under its own name", async () => {
+    const { LANGUAGES } = await load();
+    expect(LANGUAGES.map((lang) => lang.id).sort()).toEqual(Object.keys(catalogues).sort());
+    expect(LANGUAGES.find((lang) => lang.id === "fr")?.label).toBe("Français");
+  });
 });
 
 describe("hard-coded text", () => {
