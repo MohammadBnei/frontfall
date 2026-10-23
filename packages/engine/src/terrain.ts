@@ -15,10 +15,12 @@ const HIGHEST_KIND: number = TileKind.Impassable;
 
 /** Kind of every tile of a map, indexed like its topology. */
 export class Terrain {
-  constructor(
-    readonly topology: Topology,
-    readonly kinds: Uint8Array,
-  ) {
+  readonly topology: Topology;
+  readonly kinds: Uint8Array;
+
+  constructor(topology: Topology, kinds: Uint8Array) {
+    this.topology = topology;
+    this.kinds = kinds;
     if (kinds.length !== topology.size) {
       throw new RangeError(
         `terrain has ${String(kinds.length)} tiles, the map ${String(topology.size)}`,

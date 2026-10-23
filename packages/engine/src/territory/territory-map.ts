@@ -35,11 +35,12 @@ export class TerritoryMap {
   private changeCount = 0;
   private overflowed = false;
 
-  constructor(
-    readonly grid: Topology,
-    readonly maxPlayers: number,
-    changeLogCapacity = 1 << 16,
-  ) {
+  readonly grid: Topology;
+  readonly maxPlayers: number;
+
+  constructor(grid: Topology, maxPlayers: number, changeLogCapacity = 1 << 16) {
+    this.grid = grid;
+    this.maxPlayers = maxPlayers;
     if (!Number.isInteger(maxPlayers) || maxPlayers < 1 || maxPlayers > MAX_PLAYER_ID) {
       throw new RangeError(`invalid player limit ${String(maxPlayers)}`);
     }

@@ -11,17 +11,17 @@ export interface WorldGridOptions {
  * hard edges. Rendering it on a globe later changes the projection, not this.
  */
 export class WorldGrid implements Topology {
+  readonly width: number;
+  readonly height: number;
   readonly size: number;
   readonly wrapsX: boolean;
 
-  constructor(
-    readonly width: number,
-    readonly height: number,
-    options: WorldGridOptions = {},
-  ) {
+  constructor(width: number, height: number, options: WorldGridOptions = {}) {
     if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
       throw new RangeError(`invalid grid size ${String(width)}x${String(height)}`);
     }
+    this.width = width;
+    this.height = height;
     this.size = width * height;
     this.wrapsX = options.wrapsX ?? true;
   }

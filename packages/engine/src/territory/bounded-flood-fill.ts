@@ -15,8 +15,10 @@ export class BoundedFloodFill {
   private queue = new Int32Array(64);
   private readonly around = new Int32Array(4);
   private found = 0;
+  readonly grid: Topology;
 
-  constructor(readonly grid: Topology) {
+  constructor(grid: Topology) {
+    this.grid = grid;
     this.stamps = new Uint16Array(grid.size);
   }
 

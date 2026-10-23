@@ -6,9 +6,12 @@ import type { Game, Order, Turn } from "./game.ts";
  * due (an interval in the page, a loop in a test or a headless run).
  */
 export class TurnClock {
+  readonly game: Game;
   private pending: { player: number; order: Order }[] = [];
 
-  constructor(readonly game: Game) {}
+  constructor(game: Game) {
+    this.game = game;
+  }
 
   /** Queues an order for the next turn, after those already queued. */
   submit(player: number, order: Order): void {

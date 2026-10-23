@@ -2,7 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // No ambient Node or DOM types: the package must run anywhere, unchanged.
-    "types": []
+    "types": [],
+    // Only syntax that type stripping can erase, so Node runs the sources as they are.
+    "erasableSyntaxOnly": true
   },
   "include": ["src", "test"]
 }
