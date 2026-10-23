@@ -9,6 +9,12 @@ updates:
         dependency-type: development
       runtime-dependencies:
         dependency-type: production
+    ignore:
+      # Moved by hand: Node.js types follow .nvmrc, TypeScript waits for typescript-eslint.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
