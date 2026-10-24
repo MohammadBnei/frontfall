@@ -152,6 +152,7 @@
   "diplo.asksYou": "Asks you for an alliance",
   "diplo.asked": "Waiting for an answer",
   "diplo.notAllied": "Not allied",
+  "diplo.nation": "A nation: it makes no alliances",
   "diplo.traitorFor": "Traitor · {seconds} s",
   "diplo.eventAllied": "{a} and {b} are now allies",
   "diplo.eventEnded": "The alliance of {a} and {b} has ended",

@@ -35,11 +35,25 @@ async function findColor(page: Page, color: string): Promise<{ x: number; y: num
   })(${JSON.stringify(png)}, ${String(r)}, ${String(g)}, ${String(b)})`);
 }
 
-/** Starts a solo game on the skirmish map and spawns near the middle; returns the map's box. */
-async function startGame(
-  page: Page,
-): Promise<{ x: number; y: number; width: number; height: number }> {
-  await page.goto("./?map=skirmish&bots=2&difficulty=easy&nations=0&speed=5");
+/** Waits for the page to draw `count` frames. */
+async function frames(page: Page, count: number): Promise<void> {
+  await page.evaluate(`new Promise((resolve) => {
+    let left = ${String(count)};
+    const next = () => (--left > 0 ? requestAnimationFrame(next) : resolve());
+    requestAnimationFrame(next);
+  })`);
+}
+
+/** The land of the player at this screen, in % of the map, as the HUD shows it. */
+async function landShare(page: Page): Promise<number> {
+  const text =
+    (await page.locator(".stats .stat").nth(2).locator(".stat-value").textContent()) ?? "";
+  return Number.parseFloat(text.replace(",", ".")) || 0;
+}
+
+/** Starts a solo game on the skirmish map against `bots` bots and spawns near the middle. */
+async function startGame(page: Page, bots = 2): Promise<void> {
+  await page.goto(`./?map=skirmish&bots=${String(bots)}&difficulty=easy&nations=0&speed=5`);
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   const box = await page.locator("#map").boundingBox();
@@ -52,40 +66,39 @@ async function startGame(
       box.x + box.width / 2 + Math.cos(angle) * radius,
       box.y + box.height / 2 + Math.sin(angle) * radius,
     );
-    await page.waitForTimeout(150);
-    const land =
-      (await page.locator(".stats .stat").nth(2).locator(".stat-value").textContent()) ?? "";
-    if ((Number.parseFloat(land.replace(",", ".")) || 0) > 0) break;
+    const spawned = await expect
+      .poll(() => landShare(page), { timeout: 1000 })
+      .toBeGreaterThan(0)
+      .then(
+        () => true,
+        () => false,
+      );
+    if (spawned) break;
   }
   await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
-  return box;
 }
 
 test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)", async ({
   page,
 }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(90_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
-  await startGame(page);
-
-  // A bot accepts a smaller player (R-BOT-10): the player stays put while the bots grow.
-  const leader = page.locator(".leader-button").first();
+  // One bot, which grows while the player stays put: it accepts a smaller player (R-BOT-10).
+  await startGame(page, 1);
   const menu = page.locator("#player-menu");
-  const ally = page.locator(".leader .badge-ally").first();
-  const deadline = Date.now() + 100_000;
-  while (Date.now() < deadline && !(await ally.isVisible())) {
-    if (!(await menu.isVisible())) await leader.click();
-    const ask = menu.locator(".menu-action.ask");
-    if ((await ask.count()) > 0 && (await ask.isEnabled())) await ask.click();
-    await page.waitForTimeout(500);
-  }
-  await expect(ally).toBeVisible();
+  const ally = page.locator(".leader-button .badge-ally");
+  await page.locator(".leader-button").click();
+  const ask = menu.locator(".menu-action.ask");
+  await expect(ask).toBeEnabled();
+  await ask.click();
+  await expect(ask).toBeDisabled();
+  // The bot answers at its next decision, within B-BOT-INTERVAL (5 s of game time).
+  await expect(ally).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".event-feed")).toContainText("are now allies");
 
   // Betraying asks once more first.
-  if (!(await menu.isVisible()))
-    await page.locator(".leader-button:has(.badge-ally:visible)").click();
+  await expect(menu).toBeVisible();
   await menu.locator(".menu-action.betray").click();
   await expect(menu.locator(".menu-action.betray")).toContainText("Confirm");
   await menu.locator(".menu-action.betray").click();
@@ -117,27 +130,38 @@ test.describe("on a touch screen", () => {
     test.setTimeout(120_000);
     await startGame(page);
     const menu = page.locator("#player-menu");
-    // Zoomed out, the bots' land is in view, with their names over it.
-    // Keys move the camera while held.
-    await page.keyboard.down("Minus");
-    await page.waitForTimeout(2000);
-    await page.keyboard.up("Minus");
-    // A bot's land, found on screen by its colour in the leaderboard.
-    const bot = page.locator(".leader-button").first();
-    const name = (await bot.locator(".leader-name").textContent()) ?? "";
-    const color = await page.evaluate<string>(
-      `getComputedStyle(document.querySelector(".leader-button .swatch")).backgroundColor`,
+    // Zoomed out, the bots' land is in view.
+    const box = await page.locator("#map").boundingBox();
+    if (!box) throw new Error("the map has no size");
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 400);
+    // A bot's land, either bot's, found on screen by its colour in the leaderboard.
+    const bots = await page.evaluate<{ name: string; color: string }[]>(
+      `[...document.querySelectorAll(".leader-button")].map((button) => ({
+        name: button.querySelector(".leader-name").textContent,
+        color: getComputedStyle(button.querySelector(".swatch")).backgroundColor,
+      }))`,
     );
+    const search = async () => {
+      for (const bot of bots) {
+        const point = await findColor(page, bot.color);
+        if (point) return { ...point, name: bot.name };
+      }
+      return undefined;
+    };
     // A tall screen shows the map's whole height but not its width: pan east, then west.
-    let at = await findColor(page, color);
+    // Keys move the camera while held.
+    let at = await search();
     for (let i = 0; i < 24 && !at; i++) {
       const key = i < 8 ? "ArrowRight" : "ArrowLeft";
       await page.keyboard.down(key);
-      await page.waitForTimeout(400);
+      await frames(page, 24);
       await page.keyboard.up(key);
-      at = await findColor(page, color);
+      // Searched once the camera stands still, so that the press lands on what was found.
+      at = await search();
     }
-    if (!at) throw new Error(`no land of ${name} on screen`);
+    if (!at) throw new Error("no bot's land on screen");
+    const { name } = at;
     const { x, y } = at;
     // Synthetic pointer events carry their own time; a string, as the tests are not compiled for the DOM.
     await page.evaluate(`(async () => {
@@ -148,8 +172,10 @@ test.describe("on a touch screen", () => {
       map.dispatchEvent(new PointerEvent("pointerup", init));
     })()`);
     await expect(menu.locator("h2")).toHaveText(name);
-    // An attack would show up within a few updates.
-    await page.waitForTimeout(1000);
+    // An attack would show up with the next update, which brings more troops.
+    const troops = page.locator(".stats .stat").first().locator(".stat-value");
+    const before = await troops.textContent();
+    await expect(troops).not.toHaveText(before ?? "");
     await expect(page.locator(".attacks")).toBeHidden();
     await expect(menu).toBeVisible();
     await expect(menu.locator(".menu-action.ask")).toBeVisible();

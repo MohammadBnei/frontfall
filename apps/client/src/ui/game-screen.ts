@@ -140,7 +140,7 @@ export class GameScreen {
     );
     this.diplomacy = new DiplomacyPanel({
       onAlly: (player) => {
-        this.diplomaticOrder("ally", player);
+        return this.diplomaticOrder("ally", player);
       },
       onBetray: (player) => {
         this.diplomaticOrder("betray", player);
@@ -487,10 +487,14 @@ export class GameScreen {
     this.dirty = true;
   }
 
-  private diplomaticOrder(type: "ally" | "betray", target: number): void {
+  /** Whether the order went out. */
+  private diplomaticOrder(type: "ally" | "betray", target: number): boolean {
     const update = this.latest;
-    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) return;
+    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) {
+      return false;
+    }
     this.session.sendOrder({ type, target });
+    return true;
   }
 
   private retreat(attack: number): void {

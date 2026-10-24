@@ -9,8 +9,11 @@ const EVENT_MS = 8000;
 const EVENTS_SHOWN = 4;
 
 export interface DiplomacyActions {
-  /** Asks for an alliance, accepts one, or asks to renew one: the same order (R-DIPLO-01, -03). */
-  onAlly(player: number): void;
+  /**
+   * Asks for an alliance, accepts one, or asks to renew one: the same order
+   * (R-DIPLO-01, -03). False when it was not sent, during a pause or after the game.
+   */
+  onAlly(player: number): boolean;
   onBetray(player: number): void;
 }
 
@@ -156,11 +159,14 @@ export class DiplomacyPanel {
     const waiting = diplomacy.waiting.includes(id);
     const traitor = diplomacy.traitors.find((x) => x.id === id);
     const playing = update.phase === "play" && update.winner === undefined;
+    // Nations neither ask nor answer (R-BOT-02): no button that would wait for nothing.
+    const nation = id >= this.rules.firstNation;
 
     let status: string;
     if (ally) status = t("diplo.allyFor", { seconds: this.seconds(ally.ticksLeft) });
     else if (asked) status = t("diplo.asksYou");
     else if (pending) status = t("diplo.asked");
+    else if (nation) status = t("diplo.nation");
     else status = t("diplo.notAllied");
     const traitorText = traitor
       ? t("diplo.traitorFor", { seconds: this.seconds(traitor.ticksLeft) })
@@ -202,7 +208,7 @@ export class DiplomacyPanel {
               className: "betray",
             },
       );
-    } else {
+    } else if (!nation) {
       buttons.push({
         key: asked
           ? "diplo.accept"
@@ -293,7 +299,8 @@ export class DiplomacyPanel {
           t("diplo.accept"),
         );
         accept.addEventListener("click", () => {
-          this.actions.onAlly(from);
+          // A request accepted during a pause stays in the stack, still waiting.
+          if (!this.actions.onAlly(from)) return;
           this.ignored.add(from);
           this.requestsKey = "";
         });
