@@ -31,8 +31,8 @@ export interface Camera {
   panBy(dx: number, dy: number): void;
   /** Multiplies the zoom, keeping the map point under (x, y) where it is. */
   zoomAt(factor: number, x: number, y: number): void;
-  /** Centres the view on a tile. */
-  focus(tile: number): void;
+  /** Centres the view on a tile, at another zoom if one is given. */
+  focus(tile: number, zoom?: number): void;
   /** Size of the view in CSS pixels. */
   resize(width: number, height: number): void;
   readonly viewportWidth: number;
@@ -151,8 +151,11 @@ export class FlatCamera implements Camera {
     );
   }
 
-  focus(tile: number): void {
+  focus(tile: number, zoom?: number): void {
     const { width } = this.options;
+    if (zoom !== undefined && zoom > 0) {
+      this.zoomLevel = Math.min(this.maxZoom, Math.max(this.minZoom, zoom));
+    }
     const column = tile % width;
     this.moveTo(column + 0.5, (tile - column) / width + 0.5);
   }

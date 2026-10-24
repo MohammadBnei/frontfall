@@ -54,6 +54,15 @@ describe("FlatCamera", () => {
     }
   });
 
+  it("zooms while focusing when asked, within the zoom range", () => {
+    const flat = camera();
+    flat.focus(tile(100, 100), 8);
+    expect(flat.zoom).toBe(8);
+    expect(flat.screenToTile(600, 400)).toBe(tile(100, 100));
+    flat.focus(tile(100, 100), 1000);
+    expect(flat.zoom).toBe(flat.maxZoom);
+  });
+
   it("draws tiles across the seam next to the view, not a world away", () => {
     const flat = camera();
     flat.zoomAt(8, 600, 400);

@@ -10,6 +10,9 @@ import { MapView } from "../render/map-view.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
 import { Hud } from "./hud.ts";
 
+/** Size of a tile on screen once the view closes in on the player's start. */
+const START_TILE_PIXELS = 6;
+
 export interface GameScreenActions {
   onNewGame(): void;
   onMenu(): void;
@@ -186,11 +189,13 @@ export class GameScreen {
     }
     const human = update.players.find((player) => player.id === HUMAN_ID);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
-    if (!this.focused && human && human.tiles > 0 && update.phase === "play") {
-      // The player may not have picked a start: show where the game put them.
+    if (!this.focused && human && human.tiles > 0) {
+      // Once, when the player's start appears, picked or placed by the game:
+      // on a large map it is a few pixels wide at the zoom that shows it all.
       this.focused = true;
       const start = this.owners.indexOf(HUMAN_ID);
-      if (start >= 0) this.camera.focus(start);
+      const zoom = (START_TILE_PIXELS * this.camera.options.height) / this.camera.viewportHeight;
+      if (start >= 0) this.camera.focus(start, Math.max(this.camera.zoom, zoom));
     }
     this.latest = update;
     this.hud.update(update, performance.now());
@@ -204,7 +209,6 @@ export class GameScreen {
   private click(tile: number): void {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined) return;
-    if (update.phase === "spawn") this.focused = true;
     this.session.click(tile, this.hud.ratio);
   }
 
