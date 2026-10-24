@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MAP_COLORS } from "../palette.ts";
 import { bakeTerrainColors } from "./terrain-colors.ts";
 
 export interface TerritoryLayerOptions {
@@ -21,6 +22,9 @@ const SURF = "#8DA2B6";
 
 /** How long a tile that changed hands takes to fade into its new colour. */
 const FADE_SECONDS = 0.15;
+
+/** Luminance of lowland ground: the relief lightens owned land above it and darkens it below. */
+const GROUND_LEVEL = luminance(MAP_COLORS.land);
 
 const PALETTE_WIDTH = 256;
 
@@ -56,7 +60,9 @@ const fragmentShader = /* glsl */ `
   uniform float now;
   uniform float fadeSeconds;
   uniform vec3 surfColor;
-  uniform float fillOpacity;
+  uniform float reliefShading;
+  uniform float groundLevel;
+  uniform uint highlight;
 
   ivec2 wrapTile(ivec2 tile) {
     ivec2 size = ivec2(worldSize);
@@ -99,13 +105,19 @@ const fragmentShader = /* glsl */ `
       // Borders are found here rather than in the simulation: no border data to upload.
       bvec4 other = bvec4(ownerAt(tile + ivec2(1, 0)) != owner, ownerAt(tile - ivec2(1, 0)) != owner,
         ownerAt(tile + ivec2(0, 1)) != owner, ownerAt(tile - ivec2(0, 1)) != owner);
-      float width = max(0.28, 1.5 * pixel);
+      // Zoomed in, the fill lets the relief through; zoomed out, it is solid, so
+      // small countries keep their colour and the edge is one clean pixel.
+      float zoomedOut = smoothstep(0.4, 1.5, pixel);
+      // The relief shades the owner's colour rather than showing through it:
+      // pale colours stay apart from the grey of the mountains.
+      float relief = clamp(dot(color, vec3(0.2126, 0.7152, 0.0722)) / groundLevel, 0.8, 1.15);
+      vec3 fillColor = ownerColor * mix(mix(1.0, relief, reliefShading), 1.0, zoomedOut);
+      // The player's own land has a wider, whiter rim, to find it on a crowded map.
+      bool mine = owner == highlight;
+      float width = mine ? max(0.4, 2.5 * pixel) : max(0.22, pixel);
       float border = 1.0 - smoothstep(width - pixel, width, edgeDistance(f, other));
-      // Zoomed out, small countries would vanish into the relief: the fill thickens.
-      float fill = mix(fillOpacity, 0.92, smoothstep(0.4, 1.5, pixel));
-      // A rim brighter than the fill, which lets the relief through: it reads
-      // on dark land and sea, and neighbours of close colours stay apart.
-      vec3 owned = mix(mix(color, ownerColor, fill), mix(ownerColor, vec3(1.0), 0.3), border);
+      vec3 rimColor = mix(ownerColor, vec3(1.0), mine ? 0.75 : 0.3);
+      vec3 owned = mix(fillColor, rimColor, border);
       // A tile taken a moment ago fades in, so fronts creep instead of jumping each tick.
       float age = now - texelFetch(takenAt, tile, 0).r;
       color = mix(color, owned, smoothstep(0.0, fadeSeconds, age));
@@ -214,7 +226,9 @@ export class TerritoryLayer {
         now: { value: 0 },
         fadeSeconds: { value: FADE_SECONDS },
         surfColor: { value: new THREE.Color(SURF) },
-        fillOpacity: { value: 0.6 },
+        reliefShading: { value: 1 },
+        groundLevel: { value: GROUND_LEVEL },
+        highlight: { value: 0 },
       },
     });
     const geometry = new THREE.PlaneGeometry(wrapsX ? width * 3 : width, height);
@@ -238,6 +252,12 @@ export class TerritoryLayer {
       owner * 4,
     );
     this.paletteTexture.needsUpdate = true;
+  }
+
+  /** The owner whose land gets the wide rim, usually the player at this screen; 0 for none. */
+  setHighlight(owner: number): void {
+    const highlight = this.mesh.material.uniforms.highlight;
+    if (highlight) highlight.value = owner;
   }
 
   /** Seconds on the clock that fades new tiles in; set once per frame. */
@@ -334,4 +354,9 @@ export class TerritoryLayer {
     this.takenAtTexture.dispose();
     this.paletteTexture.dispose();
   }
+}
+
+function luminance(hex: string): number {
+  const { r, g, b } = new THREE.Color(hex);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }

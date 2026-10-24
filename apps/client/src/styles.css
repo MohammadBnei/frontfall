@@ -825,7 +825,8 @@ input[type="range"] {
   color: var(--ff-text);
   font-weight: 700;
   text-shadow:
-    0 0 3px var(--ff-night-900),
+    0 0 2px var(--ff-night-900),
+    0 0 4px var(--ff-night-900),
     0 1px 2px var(--ff-night-900);
   white-space: nowrap;
   will-change: transform;

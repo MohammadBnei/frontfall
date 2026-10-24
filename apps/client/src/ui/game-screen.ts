@@ -202,6 +202,7 @@ export class GameScreen {
     for (let id = 1; id <= this.options.bots + 1; id++) {
       view.setPlayerColor(id, playerColor(id - 1).hex);
     }
+    view.setHighlight(HUMAN_ID);
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
@@ -277,6 +278,12 @@ export class GameScreen {
     this.latest = update;
     this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
+    // The panels grow and shrink with their content: measured once per update.
+    this.labels.avoid(
+      [...this.hud.element.children]
+        .map((child) => child.getBoundingClientRect())
+        .filter((rect) => rect.width > 0),
+    );
     if (update.winner !== undefined && !this.ended) {
       this.ended = true;
       this.hud.update(update, performance.now(), true);

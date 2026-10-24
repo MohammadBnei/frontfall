@@ -76,6 +76,11 @@ export class MapView {
     this.territory.setOwnerColor(id, color);
   }
 
+  /** The player whose land gets the wide rim. */
+  setHighlight(id: number): void {
+    this.territory.setHighlight(id);
+  }
+
   /** Tiles whose owner changed in the shared array since the last frame; they fade in. */
   markChanged(tiles: ArrayLike<number>): void {
     this.territory.markChanged(tiles, this.clock());

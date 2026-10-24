@@ -95,7 +95,7 @@ describe("TerritoryLayer", () => {
   });
 
   it("accounts for its GPU memory", () => {
-    expect(layer(4096, 2048, 64).gpuBytes()).toBe(4096 * 2048 * 10 + 256 * 4);
+    expect(layer(512, 256, 64).gpuBytes()).toBe(512 * 256 * 10 + 256 * 4);
   });
 
   it("draws the three copies of the world with one mesh", () => {
