@@ -39,7 +39,7 @@ async function findColor(page: Page, color: string): Promise<{ x: number; y: num
 async function startGame(
   page: Page,
 ): Promise<{ x: number; y: number; width: number; height: number }> {
-  await page.goto("./?map=skirmish&bots=2&difficulty=easy&speed=5");
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy&nations=0&speed=5");
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   const box = await page.locator("#map").boundingBox();
