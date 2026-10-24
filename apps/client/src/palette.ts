@@ -74,8 +74,33 @@ export function nationColor(index: number): string {
   return NATION_COLORS[((index % count) + count) % count] as string;
 }
 
-/** Colour of player `id`: the palette for humans and bots, a muted tone from `firstNation` on. */
-export function colorOf(id: number, firstNation: number): string {
+/** Hue of each team in a team game (R-MODE-02): sky, vermilion, jade and gold. */
+export const TEAM_HUES: readonly number[] = [205, 15, 160, 48];
+
+/**
+ * Colour of the `rank`-th member of a team: the team's hue, lighter or
+ * paler from one member to the next, so teammates read as one side and can
+ * still be told apart.
+ */
+export function teamColor(team: number, rank: number): string {
+  const hue = TEAM_HUES[(((team - 1) % TEAM_HUES.length) + TEAM_HUES.length) % TEAM_HUES.length];
+  const lightness = 0.42 + (rank % 5) * 0.08;
+  const saturation = 0.8 - (Math.floor(rank / 5) % 3) * 0.2;
+  return hslToHex(hue ?? 0, saturation, lightness);
+}
+
+/**
+ * Colour of player `id`: the palette for humans and bots, a muted tone from
+ * `firstNation` on. In a team game, `teams` gives each id's team, and every
+ * player takes a shade of their team's colour instead.
+ */
+export function colorOf(id: number, firstNation: number, teams: readonly number[] = []): string {
+  const team = teams[id] ?? 0;
+  if (team > 0) {
+    let rank = 0;
+    for (let other = 1; other < id; other++) if (teams[other] === team) rank++;
+    return teamColor(team, rank);
+  }
   return id >= firstNation ? nationColor(id - firstNation) : playerColor(id - 1).hex;
 }
 

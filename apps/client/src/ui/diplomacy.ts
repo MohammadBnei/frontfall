@@ -51,10 +51,14 @@ export class DiplomacyPanel {
   private readonly events: { at: number; element: HTMLElement }[] = [];
   /** Requests answered or set aside here: the stack hides them until they run out. */
   private readonly ignored = new Set<number>();
-  private rules: Pick<GameRules, "ticksPerSecond" | "allianceRequestTicks" | "firstNation"> = {
+  private rules: Pick<
+    GameRules,
+    "ticksPerSecond" | "allianceRequestTicks" | "firstNation" | "teams"
+  > = {
     ticksPerSecond: 10,
     allianceRequestTicks: 200,
     firstNation: Infinity,
+    teams: [],
   };
   /** Drawn content of the menu and the stack, to rebuild them only when it changes. */
   private menuKey = "";
@@ -154,6 +158,8 @@ export class DiplomacyPanel {
     }
     const { diplomacy } = update;
     const ally = diplomacy.allies.find((a) => a.id === id);
+    // Teammates stay allies for the whole game (R-MODE-02): nothing to ask or betray.
+    const teammate = diplomacy.teammates.includes(id);
     const asked = diplomacy.incoming.some((r) => r.from === id);
     const pending = diplomacy.outgoing.includes(id);
     const waiting = diplomacy.waiting.includes(id);
@@ -163,7 +169,8 @@ export class DiplomacyPanel {
     const nation = id >= this.rules.firstNation;
 
     let status: string;
-    if (ally) status = t("diplo.allyFor", { seconds: this.seconds(ally.ticksLeft) });
+    if (teammate) status = t("diplo.teammate");
+    else if (ally) status = t("diplo.allyFor", { seconds: this.seconds(ally.ticksLeft) });
     else if (asked) status = t("diplo.asksYou");
     else if (pending) status = t("diplo.asked");
     else if (nation) status = t("diplo.nation");
@@ -208,7 +215,7 @@ export class DiplomacyPanel {
               className: "betray",
             },
       );
-    } else if (!nation) {
+    } else if (!nation && !teammate) {
       buttons.push({
         key: asked
           ? "diplo.accept"
@@ -253,7 +260,7 @@ export class DiplomacyPanel {
       h(
         "header",
         { class: "player-menu-head" },
-        swatch(colorOf(id, this.rules.firstNation)),
+        swatch(colorOf(id, this.rules.firstNation, this.rules.teams)),
         h("h2", { id: "player-menu-name" }, player.name),
         close,
       ),
@@ -319,7 +326,7 @@ export class DiplomacyPanel {
         return h(
           "li",
           { class: "request" },
-          swatch(colorOf(from, this.rules.firstNation)),
+          swatch(colorOf(from, this.rules.firstNation, this.rules.teams)),
           h(
             "span",
             { class: "request-text" },

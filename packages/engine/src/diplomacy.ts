@@ -46,12 +46,21 @@ export const DiplomacyError = {
   Renewal: "the alliance cannot be renewed yet",
   NotAllied: "not allied with this player",
   Ally: "the tile belongs to an ally",
+  Teammate: "teammates are allies for the whole game",
 } as const;
 
 export type DiplomacyError = (typeof DiplomacyError)[keyof typeof DiplomacyError];
 
+/** Players on the same team: allies for the whole game (R-MODE-02). */
+export function sameTeam(game: Game, a: number, b: number): boolean {
+  if (a === b || game.teams === 0) return false;
+  const team = game.player(a)?.team ?? 0;
+  return team !== 0 && team === game.player(b)?.team;
+}
+
+/** Allied by an alliance (R-DIPLO), or teammates (R-MODE-02). */
 export function isAllied(game: Game, a: number, b: number): boolean {
-  return allianceOf(game, a, b) !== undefined;
+  return sameTeam(game, a, b) || allianceOf(game, a, b) !== undefined;
 }
 
 export function allianceOf(game: Game, a: number, b: number): Alliance | undefined {
@@ -95,6 +104,7 @@ export function allyError(game: Game, player: Player, target: number): string | 
   if (game.phase !== "play") return DiplomacyError.Early;
   if (target === player.id) return DiplomacyError.Self;
   if (!game.player(target)?.alive) return DiplomacyError.Player;
+  if (sameTeam(game, player.id, target)) return DiplomacyError.Teammate;
   const alliance = allianceOf(game, player.id, target);
   if (alliance) {
     const voted = player.id === alliance.a ? alliance.renewA : alliance.renewB;
@@ -119,6 +129,7 @@ export function allyError(game: Game, player: Player, target: number): string | 
 export function betrayError(game: Game, player: Player, target: number): string | undefined {
   if (game.phase !== "play") return DiplomacyError.Early;
   if (!game.player(target)?.alive) return DiplomacyError.Player;
+  if (sameTeam(game, player.id, target)) return DiplomacyError.Teammate;
   return isAllied(game, player.id, target) ? undefined : DiplomacyError.NotAllied;
 }
 

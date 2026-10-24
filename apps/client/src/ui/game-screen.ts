@@ -74,6 +74,8 @@ export class GameScreen {
   private ticksPerSecond = 10;
   /** Lowest id of the nations, who take colours of their own. */
   private firstNation = Infinity;
+  /** Team of each player by id, in a team game. */
+  private teams: readonly number[] = [];
   private ownableTiles = 1;
   private peakTiles = 0;
   private frameHandle = 0;
@@ -197,6 +199,7 @@ export class GameScreen {
       {
         onStart: (info) => {
           this.firstNation = info.rules.firstNation;
+          this.teams = info.rules.teams;
           this.showMap(info.map, info.you, info.maxPlayer);
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
@@ -362,7 +365,7 @@ export class GameScreen {
       return undefined;
     }
     for (let id = 1; id <= maxPlayer; id++) {
-      view.setPlayerColor(id, colorOf(id, this.firstNation));
+      view.setPlayerColor(id, colorOf(id, this.firstNation, this.teams));
     }
     view.setHighlight(you);
     view.setHovered(this.hoveredOwner);
@@ -431,7 +434,7 @@ export class GameScreen {
         return {
           x: fromX + dx * progress,
           y: fromY + (toY - fromY) * progress,
-          color: colorOf(ship.player, this.firstNation),
+          color: colorOf(ship.player, this.firstNation, this.teams),
         };
       }),
     );
@@ -542,7 +545,10 @@ export class GameScreen {
   }
 
   private placeAllies(update: GameUpdate): void {
-    const allies = update.diplomacy.allies.map((ally) => ally.id);
+    const allies = [
+      ...update.diplomacy.teammates,
+      ...update.diplomacy.allies.map((ally) => ally.id),
+    ];
     const key = allies.join(",");
     if (!this.view || key === this.drawnAllies) return;
     this.drawnAllies = key;
@@ -711,6 +717,7 @@ export class GameScreen {
           peakTiles: this.peakTiles,
           // Only a published map can be pinned in a record.
           canRecord: this.published,
+          teams: this.teams,
         },
         {
           onNewGame: () => {

@@ -57,6 +57,13 @@ describe("SoloGame", () => {
     expect(without.step([]).players).toHaveLength(4);
   });
 
+  it("deals the players into teams and records them (R-MODE-02)", () => {
+    const solo = newGame({ ...options, teams: 2 });
+    expect(solo.teamsById()).toEqual([0, 1, 2, 1, 2]);
+    expect(solo.game.player(HUMAN_ID)?.team).toBe(1);
+    expect(newGame(options).teamsById()).toEqual([]);
+  });
+
   it("places the human where they click and reports the tiles that changed", () => {
     const solo = newGame(options);
     const tile = firstLand(options.map);

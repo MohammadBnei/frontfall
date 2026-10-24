@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -63,6 +63,10 @@ const stateHash = z.number().int().min(0).max(0xffffffff);
 export const Difficulty = z.enum(["easy", "normal", "hard"]);
 export type Difficulty = z.infer<typeof Difficulty>;
 
+/** Teams of a game (R-MODE-02): 0 for a free-for-all, or 2 to 4. */
+export const Teams = z.union([z.literal(0), z.literal(2), z.literal(3), z.literal(4)]);
+export type Teams = z.infer<typeof Teams>;
+
 /** What the host of a private game chooses before the start. */
 export const GameOptions = z
   .object({
@@ -75,6 +79,7 @@ export const GameOptions = z
     difficulty: Difficulty,
     /** Whether the nations of the map's manifest play (R-BOT-07). */
     nations: z.boolean(),
+    teams: Teams,
   })
   .strict();
 export type GameOptions = z.infer<typeof GameOptions>;
@@ -125,6 +130,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
     bots: z.number().int().nonnegative(),
     difficulty: Difficulty,
     nations: z.boolean(),
+    teams: Teams,
     capacity: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
@@ -144,6 +150,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     difficulty: Difficulty,
     /** Whether every client adds the map's nations after the bots, in the manifest's order. */
     nations: z.boolean(),
+    /** Teams every client deals the players into, in id order (R-MODE-02). */
+    teams: Teams,
     tickRate: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,

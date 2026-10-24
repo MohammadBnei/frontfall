@@ -14,7 +14,7 @@ import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
 import { h, present } from "./dom.ts";
-import { MAX_NAME_LENGTH, cleanName, type GameSetup } from "./setup.ts";
+import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 /** How often the list of public games is fetched again while the menu shows. */
@@ -143,6 +143,20 @@ export class Menu {
       botsValue.textContent = bots.value;
     };
 
+    const mode = h("div", {
+      class: "segmented",
+      role: "radiogroup",
+      "aria-labelledby": "mode-label",
+    });
+    for (const teams of TEAM_CHOICES) {
+      const input = h("input", { type: "radio", name: "teams", value: teams });
+      input.checked = teams === (this.setup.teams ?? 0);
+      input.addEventListener("change", () => {
+        this.setup.teams = teams;
+      });
+      mode.append(h("label", {}, input, h("span", { "data-i18n": `mode.${String(teams)}` })));
+    }
+
     const language = h("select", { id: "language", "data-i18n-attr": "aria-label:menu.language" });
     for (const { id, label } of LANGUAGES) {
       const option = h("option", { value: id, lang: id }, label);
@@ -198,6 +212,12 @@ export class Menu {
             h("span", { "data-i18n": "menu.nationsHint" }),
           ),
         ),
+      ),
+      h(
+        "div",
+        { class: "field" },
+        h("span", { id: "mode-label", class: "field-label", "data-i18n": "menu.mode" }),
+        mode,
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),
     );

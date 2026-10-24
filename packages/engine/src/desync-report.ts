@@ -27,6 +27,8 @@ export interface DesyncReport {
   bots: { ids: number[]; difficulty: BotDifficulty };
   /** Nations among the players, playing at the bots' difficulty; absent from reports of games without. */
   nations?: number[];
+  /** Number of teams (R-MODE-02); absent from free-for-all games. */
+  teams?: number;
   /** The player whose client wrote the report. */
   you: number;
   /** Ticks the client had run; turns and hashes come from ticks below this. */
@@ -47,6 +49,7 @@ export function recreateGame(recorded: RecordedGame, terrain: Terrain): Game {
     seed: recorded.seed,
     players: recorded.players,
     balance: recorded.balance,
+    ...(recorded.teams === undefined ? {} : { teams: recorded.teams }),
   });
   installBots(game, recorded.bots.ids, recorded.bots.difficulty);
   installNations(game, recorded.nations ?? [], recorded.bots.difficulty);
@@ -159,6 +162,7 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
     ...(report.nations === undefined
       ? {}
       : { nations: readList(report.nations, "nations").map((id) => readInteger(id, "nation id")) }),
+    ...(report.teams === undefined ? {} : { teams: readInteger(report.teams, "teams") }),
     you: readInteger(report.you, "you"),
     ticks: readInteger(report.ticks, "ticks"),
     turns: readList(report.turns, "turns").map((entry, i) => {

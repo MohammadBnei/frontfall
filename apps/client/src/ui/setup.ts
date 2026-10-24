@@ -7,6 +7,8 @@ export type GameSetup = Omit<SoloOptions, "seed">;
 const STORAGE_KEY = "frontfall.setup";
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 export const MAX_NAME_LENGTH = 20;
+/** Free-for-all, then 2, 3 or 4 teams (R-MODE-02). */
+export const TEAM_CHOICES = [0, 2, 3, 4] as const;
 
 /** The first map of the list with its nations, and the bots suggested with them. */
 export function defaultSetup(maps: readonly MapInfo[]): GameSetup {
@@ -41,6 +43,10 @@ export function sanitizeSetup(
   // Stored as a boolean, shared in a link as 1 or 0.
   if (input.nations === true || input.nations === "1") setup.nations = true;
   if (input.nations === false || input.nations === "0") setup.nations = false;
+  const teams = Number(input.teams);
+  if (input.teams !== undefined && (TEAM_CHOICES as readonly number[]).includes(teams)) {
+    setup.teams = teams;
+  }
   if (typeof input.name === "string") setup.playerName = cleanName(input.name);
   if (typeof input.playerName === "string") setup.playerName = cleanName(input.playerName);
   return setup;
@@ -86,6 +92,8 @@ export function setupQuery(setup: GameSetup): string {
     difficulty: setup.difficulty,
     nations: setup.nations ? "1" : "0",
   });
+  // Left out of free-for-all links, which read as they did before teams.
+  if (setup.teams) params.set("teams", String(setup.teams));
   return `?${params.toString()}`;
 }
 

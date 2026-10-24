@@ -19,6 +19,7 @@ export {
   isAllied,
   isTraitor,
   requestBetween,
+  sameTeam,
   type Alliance,
   type AllianceRequest,
   type DiplomacyEvent,
@@ -56,6 +57,7 @@ export {
 } from "./bots/index.ts";
 export {
   Game,
+  MAX_TEAMS,
   type GameSetup,
   type Order,
   type OrderHandler,

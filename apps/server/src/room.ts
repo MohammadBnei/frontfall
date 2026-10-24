@@ -10,6 +10,7 @@ import {
   type Order,
   type PlayerInfo,
   type ServerMessage,
+  type Teams,
   type Turn,
 } from "@frontfall/protocol";
 import { newToken } from "./ids.ts";
@@ -31,6 +32,8 @@ export interface RoomSettings {
   difficulty: Difficulty;
   /** Whether every client adds the map's nations after the bots. */
   nations: boolean;
+  /** Teams every client deals the players into (R-MODE-02); 0 for a free-for-all. */
+  teams: Teams;
   /** Public games: players needed before the countdown starts. */
   minPlayers: number;
   /** Public games: wait after reaching minPlayers, unless the game fills up first. */
@@ -389,6 +392,7 @@ export class Room {
           bots: this.settings.bots,
           difficulty: this.settings.difficulty,
           nations: this.settings.nations,
+          teams: this.settings.teams,
           capacity: this.settings.capacity,
           players,
           you: seat.id,
@@ -408,6 +412,7 @@ export class Room {
       bots: this.settings.bots,
       difficulty: this.settings.difficulty,
       nations: this.settings.nations,
+      teams: this.settings.teams,
       tickRate: TICK_RATE,
       players: this.players(),
       you: seat.id,

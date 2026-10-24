@@ -35,6 +35,14 @@ describe("game setup", () => {
     expect(initialSetup(setupQuery(setup), undefined, maps)).toEqual(setup);
   });
 
+  it("shares a team game in its link, and a free-for-all as before (R-MODE-02)", () => {
+    const setup = initialSetup("?map=pangaea&teams=3", undefined, maps);
+    expect(setup.teams).toBe(3);
+    expect(setupQuery(setup)).toContain("teams=3");
+    expect(setupQuery({ ...setup, teams: 0 })).not.toContain("teams");
+    expect(initialSetup("?teams=5", undefined, maps).teams ?? 0).toBe(0);
+  });
+
   it("ignores values it does not know", () => {
     const base = defaultSetup(maps);
     expect(

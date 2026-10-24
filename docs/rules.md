@@ -111,7 +111,7 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 - **R-WIN-02** A game that reaches `B-MAX-DURATION` ends; the player with the most territory wins, the lowest player number on a tie.
 - **R-WIN-03** Eliminated players can keep watching the game.
 - **R-MODE-01** Free-for-all: every player for themselves; alliances follow `R-DIPLO`.
-- **R-MODE-02** Teams: players are split into teams of equal size. Team members are permanent allies and win together when their combined territory reaches `B-WIN-SHARE`.
+- **R-MODE-02** Teams: 2, 3 or 4 teams. Every player, bots and nations included, is dealt into a team in turn by player number, so team sizes differ by at most one. Teammates are allies for the whole game: they cannot attack each other, ask each other for an alliance or betray each other. A team wins when its members together own `B-WIN-SHARE` of the ownable land, or when it is the last team standing; at `B-MAX-DURATION`, the team with the most land wins. The team's member with the most land is named the winner.
 - **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and disable structures or units.
 
 ## 10. Fairness and determinism

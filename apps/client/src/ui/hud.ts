@@ -95,6 +95,7 @@ export class Hud {
     retreatPenaltyPercent: 0,
     firstNation: Infinity,
     allianceRequestTicks: 200,
+    teams: [],
   };
 
   /** `pausable`: false online, where the game runs for everyone. */
@@ -339,12 +340,21 @@ export class Hud {
     const { ownableTiles, ticksPerSecond, winSharePercent, maxDurationTicks } = this.rules;
     const win = winSharePercent / 100;
     this.goal.textContent = t("hud.goal", { share: formatPercent(win) });
-    // R-WIN-02: among the players still in the game.
-    const leader = Math.max(0, ...update.players.filter((p) => p.alive).map((p) => p.tiles));
+    // R-WIN-02: among the players still in the game; teammates' land counts together (R-MODE-02).
+    const { teams } = this.rules;
+    const land = new Map<number, number>();
+    for (const player of update.players) {
+      if (!player.alive) continue;
+      const side = teams[player.id] ? -(teams[player.id] as number) : player.id;
+      land.set(side, (land.get(side) ?? 0) + player.tiles);
+    }
+    const leader = Math.max(0, ...land.values());
+    const yourTeam = human ? (teams[human.id] ?? 0) : 0;
+    const yours = yourTeam ? (land.get(-yourTeam) ?? 0) : (human?.tiles ?? 0);
     const width = (tiles: number): string =>
       `${String(Math.min(100, (tiles / ownableTiles / win) * 100))}%`;
     this.goalLeader.style.width = width(leader);
-    this.goalYou.style.width = width(human?.tiles ?? 0);
+    this.goalYou.style.width = width(yours);
     this.clock.textContent = Number.isFinite(maxDurationTicks)
       ? t("hud.clock", {
           elapsed: formatDuration(update.tick / ticksPerSecond),
@@ -383,6 +393,7 @@ export class Hud {
     const humanRank = ranked.findIndex((player) => player.id === you);
     if (humanRank >= LEADERBOARD_SIZE) shown.push(ranked[humanRank] as PlayerView);
     const allies = new Set(diplomacy.allies.map((ally) => ally.id));
+    const teammates = new Set(diplomacy.teammates);
     const traitors = new Set(diplomacy.traitors.map((traitor) => traitor.id));
     const rows = shown.map((player) => {
       let row = this.leaderRows.get(player.id);
@@ -390,7 +401,7 @@ export class Hud {
         row = leaderRow(
           player,
           player.id === you,
-          colorOf(player.id, this.rules.firstNation),
+          colorOf(player.id, this.rules.firstNation, this.rules.teams),
           this.onPlayer,
         );
         this.leaderRows.set(player.id, row);
@@ -400,7 +411,9 @@ export class Hud {
       // Set here, not once, so it follows a change of language.
       row.button?.setAttribute("aria-label", t("diplo.playerMenu", { name: player.name }));
       row.land.textContent = this.share(player.tiles);
-      row.ally.hidden = !allies.has(player.id);
+      const teammate = teammates.has(player.id);
+      row.ally.hidden = !teammate && !allies.has(player.id);
+      row.ally.textContent = t(teammate ? "diplo.teammateBadge" : "diplo.allyBadge");
       row.traitor.hidden = !traitors.has(player.id);
       return row.item;
     });

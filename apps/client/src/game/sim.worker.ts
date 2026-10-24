@@ -81,6 +81,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
         maxDurationTicks,
         retreatPenaltyPercent,
         firstNation: game.firstNation,
+        teams: game.teamsById(),
         allianceRequestTicks,
       },
     },

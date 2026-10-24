@@ -9,6 +9,7 @@ import {
   StructureKind,
   allianceOf,
   alliesOf,
+  sameTeam,
   canRenew,
   cityLimit,
   isAllied,
@@ -52,6 +53,8 @@ export interface SoloOptions {
   difficulty: Difficulty;
   /** Whether the map's nations play, after the bots (R-BOT-07); off when left out. */
   nations?: boolean | undefined;
+  /** Teams the players are dealt into (R-MODE-02): 2 to 4, or 0 or left out for a free-for-all. */
+  teams?: number | undefined;
   playerName: string;
   /**
    * For tests that play a game to its end: ticks run per beat of the clock
@@ -129,6 +132,8 @@ export interface GameUpdate {
   /** Set instead of the change lists when too much changed to list. */
   owners?: Uint16Array;
   winner?: number;
+  /** In a team game, the team that won (R-MODE-02). */
+  winningTeam?: number;
   /** Online: state hashes after the ticks the server checks (`HASH_INTERVAL`). */
   hashes?: { tick: number; hash: number }[];
   /** Set while watching a recorded game. */
@@ -205,6 +210,8 @@ function isBuildError(error: string): error is BuildError {
 /** Alliances and requests of the player at this screen, and every traitor, with their time left in ticks. */
 export interface DiplomacyView {
   allies: AllyView[];
+  /** The player's teammates (R-MODE-02), allies for the whole game; empty in a free-for-all. */
+  teammates: number[];
   /** Requests to the player, oldest first. */
   incoming: { from: number; ticksLeft: number }[];
   /** Players the player has asked and who have not answered yet. */
@@ -346,8 +353,9 @@ export class SoloGame {
       : newSetup(options, map);
     this.you = options.record?.you ?? options.you ?? HUMAN_ID;
     const seed = options.record?.seed ?? options.seed;
+    const teams = options.record ? (options.record.teams ?? 0) : (options.teams ?? 0);
     const difficulty = options.record?.bots.difficulty ?? options.difficulty;
-    this.game = createGame({ terrain, seed, players, balance });
+    this.game = createGame({ terrain, seed, players, balance, teams });
     installBots(this.game, botIds, difficulty);
     installNations(this.game, nationIds, difficulty);
     this.players = players;
@@ -371,6 +379,14 @@ export class SoloGame {
 
   get winner(): number | undefined {
     return this.game.winner;
+  }
+
+  /** Team of each player by id, 0 for none; empty in a free-for-all (R-MODE-02). */
+  teamsById(): number[] {
+    if (this.game.teams === 0) return [];
+    const teams: number[] = [];
+    for (const player of this.game.players()) teams[player.id] = player.team;
+    return Array.from(teams, (team: number | undefined) => team ?? 0);
   }
 
   /**
@@ -520,6 +536,7 @@ export class SoloGame {
       players: this.players,
       bots: { ids: this.botIds, difficulty: this.difficulty },
       ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
+      ...(this.game.teams > 0 ? { teams: this.game.teams } : {}),
       you: this.you,
       ticks: this.game.tick,
       turns: this.history,
@@ -550,6 +567,7 @@ export class SoloGame {
       players: this.players,
       bots: { ids: this.botIds, difficulty: this.difficulty },
       ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
+      ...(this.game.teams > 0 ? { teams: this.game.teams } : {}),
       you: this.you,
       ticks: this.game.tick,
       turns: this.history,
@@ -582,6 +600,10 @@ export class SoloGame {
             alliance !== undefined && (you === alliance.a ? alliance.renewA : alliance.renewB),
         };
       }),
+      teammates: game
+        .players()
+        .filter((player) => sameTeam(game, you, player.id))
+        .map((player) => player.id),
       incoming: game.allianceRequests
         .filter((request) => request.to === you && tick < request.expiresAt)
         .map((request) => ({ from: request.from, ticksLeft: request.expiresAt - tick })),
@@ -665,6 +687,7 @@ export class SoloGame {
       update.labels = labelAnchors(territory.owners, width, players.length, this.depth);
     }
     if (game.winner !== undefined) update.winner = game.winner;
+    if (game.winningTeam !== undefined) update.winningTeam = game.winningTeam;
     return update;
   }
 }

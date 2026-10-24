@@ -31,7 +31,9 @@ covers the conventions that are not obvious from the code.
   come from the map's manifest, numbered after the bots, each with its start
   tile. They take muted tones of their own (`NATION_COLORS` in palette.ts),
   each picked as far as possible from the player colours, the bare map and
-  the nations before it; a test keeps all 64 apart.
+  the nations before it; a test keeps all 64 apart. In a team game
+  (`?teams=2` to `4`), every player takes a shade of their team's hue instead
+  (`teamColor`), and the leaderboard's goal bar counts the team's land.
 - Only `apps/client/src/render` imports Three.js, which a test checks. The
   interface talks to the two contracts of ADR 0003, never to Three.js:
   `Renderer` (`render/renderer.ts`: player colours, changed tiles, ships, a
@@ -93,8 +95,9 @@ it started or ended for another reason, and why a request was refused.
 Once the server sends `started`, the page builds the same game as every
 other client: the map, the seed, the humans in the server's numbering,
 `bots` bots of the game's difficulty numbered after them, and the map's
-nations after the bots when `nations` is set. The host of a private game
-picks the map, bots, difficulty and nations in the lobby (`configure`),
+nations after the bots when `nations` is set, dealt into `teams` teams when
+it is not 0. The host of a private game
+picks the map, bots, difficulty, nations and teams in the lobby (`configure`),
 starting from the menu's choices; maps come from the published catalogue
 only, grouped like the menu's "World maps" and "Quick games" (`group` in
 `maps/index.json`, generated maps counting as quick), and only those that

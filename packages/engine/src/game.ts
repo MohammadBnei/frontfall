@@ -40,6 +40,11 @@ export interface GameSetup {
   seed: number;
   players: readonly PlayerSetup[];
   balance?: Balance;
+  /**
+   * Teams of the game (R-MODE-02): 2, 3 or 4, dealt in turn to the players
+   * in id order; 0 or left out for a free-for-all.
+   */
+  teams?: number;
 }
 
 export interface Player {
@@ -56,9 +61,14 @@ export interface Player {
   traitorUntil: number;
   /** Start tile the map sets for a nation (R-BOT-07); undefined for players who pick. */
   readonly home: number | undefined;
+  /** Team from 1, or 0 in a free-for-all (R-MODE-02). */
+  readonly team: number;
 }
 
 export type Phase = "spawn" | "play";
+
+/** Most teams a game can have (R-MODE-02). */
+export const MAX_TEAMS = 4;
 
 /**
  * Carries out one order that passed validation. Returns false when the order
@@ -98,8 +108,15 @@ export class Game {
    * empty. No rule reads it back, so it is not part of the state hash.
    */
   readonly diplomacyEvents: DiplomacyEvent[] = [];
-  /** Winner once the game is decided (R-WIN), and the tick it happened. */
+  /** Number of teams, 0 in a free-for-all (R-MODE-02). */
+  readonly teams: number;
+  /**
+   * Winner once the game is decided (R-WIN), and the tick it happened. In a
+   * team game, the member of the winning team with the most land.
+   */
   winner: number | undefined;
+  /** In a team game, the team that won. */
+  winningTeam: number | undefined;
   decidedAt: number | undefined;
   private readonly playersById = new Map<number, Player>();
   private readonly sortedPlayers: readonly Player[];
@@ -137,10 +154,20 @@ export class Game {
         start: undefined,
         traitorUntil: 0,
         home,
+        team: 0,
       });
       highest = Math.max(highest, id);
     }
-    this.sortedPlayers = [...this.playersById.values()].sort((a, b) => a.id - b.id);
+    const teams = setup.teams ?? 0;
+    if (teams !== 0 && !(Number.isInteger(teams) && teams >= 2 && teams <= MAX_TEAMS)) {
+      throw new RangeError(`invalid number of teams ${String(teams)}`);
+    }
+    this.teams = teams;
+    // R-MODE-02: dealt in turn, so team sizes differ by one at most.
+    this.sortedPlayers = [...this.playersById.values()]
+      .sort((a, b) => a.id - b.id)
+      .map((player, i) => (teams === 0 ? player : { ...player, team: (i % teams) + 1 }));
+    for (const player of this.sortedPlayers) this.playersById.set(player.id, player);
     this.territory = new TerritoryMap(setup.terrain.topology, highest);
   }
 
@@ -220,6 +247,12 @@ export class Game {
     mix(this.requestCooldowns.length);
     for (const c of this.requestCooldowns) for (const value of [c.from, c.to, c.until]) mix(value);
     mix(this.winner ?? 0);
+    // Free-for-all games hash as they did before teams existed.
+    if (this.teams > 0) {
+      mix(this.teams);
+      for (const p of this.sortedPlayers) mix(p.team);
+      mix(this.winningTeam ?? 0);
+    }
     mix(this.decidedAt ?? -1);
     return hash >>> 0;
   }

@@ -1,5 +1,5 @@
 import type { GameRecord } from "@frontfall/engine";
-import type { GameOptions } from "@frontfall/protocol";
+import type { GameOptions, Teams } from "@frontfall/protocol";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
@@ -362,6 +362,7 @@ function initialOptions(
     bots: Math.min(chosen.bots, botLimit(map, players)),
     difficulty: chosen.difficulty,
     nations: chosen.nations ?? true,
+    teams: (chosen.teams ?? 0) as Teams,
   };
 }
 
@@ -392,6 +393,7 @@ function startOnline(start: GameStart, client: OnlineClient): void {
       // Chosen by the host; every client runs the same bots.
       difficulty: start.difficulty,
       nations: start.nations,
+      teams: start.teams,
       playerName: "",
       players: start.players,
       you: start.you,

@@ -19,13 +19,17 @@ export interface GameSummary {
   peakTiles: number;
   /** Whether the game can be saved as a replay. */
   canRecord: boolean;
+  /** Team of each player by id, in a team game. */
+  teams: readonly number[];
 }
 
 /** Who won, how long it took, how far the player got, and a way to play again. */
 export function endScreen(summary: GameSummary, actions: EndScreenActions): HTMLElement {
   const { update } = summary;
   const winner = update.players.find((player) => player.id === update.winner);
-  const won = update.winner === update.you;
+  const team = update.winningTeam;
+  const won =
+    team === undefined ? update.winner === update.you : summary.teams[update.you] === team;
   const seconds = update.tick / summary.ticksPerSecond;
 
   const button = (key: MessageKey, onClick: () => void, primary = false): HTMLButtonElement => {
@@ -53,7 +57,13 @@ export function endScreen(summary: GameSummary, actions: EndScreenActions): HTML
       "aria-labelledby": "end-title",
     },
     h("h1", { id: "end-title", "data-i18n": won ? "end.victory" : "end.defeat" }),
-    h("p", { class: "end-winner" }, t("end.winner", { name: winner?.name ?? "" })),
+    h(
+      "p",
+      { class: "end-winner" },
+      team === undefined
+        ? t("end.winner", { name: winner?.name ?? "" })
+        : t("end.teamWinner", { team, name: winner?.name ?? "" }),
+    ),
     h(
       "dl",
       { class: "end-stats" },

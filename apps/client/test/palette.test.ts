@@ -8,6 +8,7 @@ import {
   STRUCTURE_COLORS,
   colorDistance,
   colorOf,
+  teamColor,
   hexToRgb,
   nationColor,
   playerColor,
@@ -63,5 +64,15 @@ describe("palette", () => {
     expect(colorOf(1, 4)).toBe(PLAYER_COLORS[0]?.hex);
     expect(colorOf(4, 4)).toBe(NATION_COLORS[0]);
     expect(nationColor(NATION_COLOR_COUNT)).toBe(NATION_COLORS[0]);
+  });
+
+  it("gives teammates shades of one colour, and other teams other colours (R-MODE-02)", () => {
+    const teams = [0, 1, 2, 1, 2];
+    const shades = [1, 2, 3, 4].map((id) => colorOf(id, 99, teams));
+    expect(new Set(shades).size).toBe(4);
+    expect(shades[0]).toBe(teamColor(1, 0));
+    expect(shades[2]).toBe(teamColor(1, 1));
+    expect(shades[1]).toBe(teamColor(2, 0));
+    expect(colorOf(1, 99, [])).toBe(PLAYER_COLORS[0]?.hex);
   });
 });

@@ -17,7 +17,10 @@ const CLIENT_MESSAGES: ClientMessage[] = [
   { type: "rejoin", token: "0123456789abcdefABCDEF", from: 1200 },
   { type: "start" },
   { type: "leave" },
-  { type: "configure", options: { map: "europe", bots: 6, difficulty: "easy", nations: true } },
+  {
+    type: "configure",
+    options: { map: "europe", bots: 6, difficulty: "easy", nations: true, teams: 2 },
+  },
   { type: "hash", tick: 50, hash: 0xdeadbeef },
   { type: "order", order: { type: "spawn", tile: 4096 } },
   { type: "order", order: { type: "attack", target: 2 ** 31 - 1, troops: 2 ** 40 } },
@@ -33,6 +36,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     bots: 3,
     difficulty: "normal",
     nations: true,
+    teams: 0,
     capacity: 16,
     players: [
       { id: 1, name: "Nico" },
@@ -50,6 +54,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     bots: 0,
     difficulty: "hard",
     nations: true,
+    teams: 4,
     tickRate: 10,
     players: [{ id: 1, name: "Nico" }],
     you: 1,

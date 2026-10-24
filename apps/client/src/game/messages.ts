@@ -20,6 +20,8 @@ export interface GameRules {
   readonly firstNation: number;
   /** B-ALLIANCE-REQUEST-TIMEOUT, in ticks. */
   readonly allianceRequestTicks: number;
+  /** Team of each player by id in a team game (R-MODE-02), empty in a free-for-all. */
+  readonly teams: readonly number[];
 }
 
 /** From the page to the simulation worker. */

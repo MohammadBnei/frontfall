@@ -1,6 +1,7 @@
-import type { Difficulty, ErrorCode, GameOptions } from "@frontfall/protocol";
+import type { Difficulty, ErrorCode, GameOptions, Teams } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
+import { TEAM_CHOICES } from "./setup.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
 import { playerColor } from "../palette.ts";
@@ -89,6 +90,7 @@ export class LobbyScreen {
   private readonly botsValue = h("output", { for: "lobby-bots", class: "range-value" });
   private readonly difficulty = h("select", { id: "lobby-difficulty" });
   private readonly nations = h("input", { id: "lobby-nations", type: "checkbox" });
+  private readonly teams = h("select", { id: "lobby-teams" });
   private readonly settings = h(
     "div",
     { class: "lobby-settings", hidden: true },
@@ -105,6 +107,8 @@ export class LobbyScreen {
       this.nations,
       h("span", { "data-i18n": "menu.nationsHint" }),
     ),
+    h("label", { for: "lobby-teams", "data-i18n": "menu.mode" }),
+    this.teams,
   );
   private readonly summary = h("p", { class: "lobby-summary", id: "lobby-summary" });
   private shown: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
@@ -140,11 +144,13 @@ export class LobbyScreen {
         bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.players.length)),
         difficulty: this.difficulty.value as Difficulty,
         nations: this.nations.checked,
+        teams: Number(this.teams.value) as Teams,
       });
     };
     this.mapSelect.addEventListener("change", configure);
     this.difficulty.addEventListener("change", configure);
     this.nations.addEventListener("change", configure);
+    this.teams.addEventListener("change", configure);
     this.bots.addEventListener("input", () => {
       this.botsValue.textContent = this.bots.value;
     });
@@ -281,11 +287,18 @@ export class LobbyScreen {
   private showSettings(lobby: LobbyState): void {
     const map = this.maps.find((candidate) => candidate.id === lobby.map);
     const mapName = map?.name?.[getLanguage()] ?? lobby.map;
-    this.summary.textContent = t(lobby.nations ? "online.summaryNations" : "online.summary", {
+    const summary = t(lobby.nations ? "online.summaryNations" : "online.summary", {
       map: mapName,
       bots: lobby.bots,
       difficulty: t(`difficulty.${lobby.difficulty}`),
     });
+    this.summary.textContent =
+      lobby.teams === 0
+        ? summary
+        : t("online.summaryTeams", {
+            summary,
+            mode: t(`mode.${String(lobby.teams)}` as MessageKey),
+          });
     const editable = lobby.visibility === "private" && lobby.host === lobby.you && map;
     this.settings.hidden = !editable;
     this.summary.hidden = Boolean(editable);
@@ -319,6 +332,12 @@ export class LobbyScreen {
     );
     this.difficulty.value = lobby.difficulty;
     this.nations.checked = lobby.nations;
+    this.teams.replaceChildren(
+      ...TEAM_CHOICES.map((teams) =>
+        h("option", { value: teams }, t(`mode.${String(teams)}` as MessageKey)),
+      ),
+    );
+    this.teams.value = String(lobby.teams);
     this.bots.max = String(botLimit(map, lobby.players.length));
     this.bots.value = String(lobby.bots);
     this.botsValue.textContent = String(lobby.bots);

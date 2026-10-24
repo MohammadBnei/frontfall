@@ -87,6 +87,7 @@ const START: Extract<ServerMessage, { type: "started" }> = {
   bots: 0,
   difficulty: "normal",
   nations: true,
+  teams: 0,
   tickRate: 10,
   players: [
     { id: 1, name: "Alice" },
@@ -164,7 +165,7 @@ describe("OnlineClient", () => {
 
     online.join("Xk3_9aB-q2Lm");
     online.create();
-    online.configure({ map: "europe", bots: 4, difficulty: "hard", nations: true });
+    online.configure({ map: "europe", bots: 4, difficulty: "hard", nations: true, teams: 0 });
     online.start();
     online.order({ type: "spawn", tile: 4 });
     online.hash(50, 7);
@@ -172,7 +173,10 @@ describe("OnlineClient", () => {
     expect(socket.sent.slice(2)).toEqual([
       { type: "join", game: "Xk3_9aB-q2Lm" },
       { type: "create" },
-      { type: "configure", options: { map: "europe", bots: 4, difficulty: "hard", nations: true } },
+      {
+        type: "configure",
+        options: { map: "europe", bots: 4, difficulty: "hard", nations: true, teams: 0 },
+      },
       { type: "start" },
       { type: "order", order: { type: "spawn", tile: 4 } },
       { type: "hash", tick: 50, hash: 7 },
@@ -192,6 +196,7 @@ describe("OnlineClient", () => {
       bots: 0,
       difficulty: "normal",
       nations: true,
+      teams: 0,
       capacity: 16,
       players: START.players,
       you: 2,
