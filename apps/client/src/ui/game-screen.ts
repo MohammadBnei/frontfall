@@ -24,6 +24,9 @@ import { DiplomacyPanel } from "./diplomacy.ts";
 import { Hud } from "./hud.ts";
 import { PlayerLabels } from "./labels.ts";
 
+/** Matches the fade of the territory layer, with a frame to spare. */
+const FADE_MS = 200;
+
 /** Tiles taken light their front this long (territory layer), with a frame to spare. */
 const FRONT_MS = FRONT_SECONDS * 1000 + 50;
 
@@ -76,8 +79,14 @@ export class GameScreen {
   private readonly labels = new PlayerLabels();
   /** Online: evens out the arrival of the server's turns before the worker plays them. */
   private readonly pacer: TurnPacer;
-  /** Tiles that changed hands fade in and light their front until then: frames are drawn until it passes. */
+  /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
   private fadingUntil = 0;
+  /**
+   * When the last fronts go dark: one more frame is drawn then. While an
+   * attack goes on, its ticks keep frames coming and the fronts move; once
+   * it stops, they are not animated to the end, only cleared.
+   */
+  private frontsOffAt = 0;
   /** What a click on the map does, picked in the HUD. */
   private mode: ClickMode = "attack";
   /** Build mode of the last click sent, picked again if the click is refused. */
@@ -253,7 +262,9 @@ export class GameScreen {
       const moved = !sameView(view, this.drawnView);
       const sailing = (this.latest?.boats.length ?? 0) > 0;
       const fading = now < this.fadingUntil;
-      if (this.view && (moved || this.dirty || sailing || fading)) {
+      const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
+      if (frontsOff) this.frontsOffAt = 0;
+      if (this.view && (moved || this.dirty || sailing || fading || frontsOff)) {
         this.placeShips(now);
         this.view.render(view);
         this.drawnView = view;
@@ -430,7 +441,8 @@ export class GameScreen {
       }
       this.view?.markChanged(changedTiles);
       this.dirty = true;
-      this.fadingUntil = performance.now() + FRONT_MS;
+      this.fadingUntil = performance.now() + FADE_MS;
+      this.frontsOffAt = performance.now() + FRONT_MS;
     }
     this.lightHovered();
     const human = update.players.find((player) => player.id === update.you);
