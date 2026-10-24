@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { MapDescription, ReplayResult } from "@frontfall/engine";
-import { chromium } from "playwright-core";
+import { chromium, firefox, type BrowserType, type Page } from "playwright-core";
 import { createServer } from "vite";
 import { playScenario, type ScenarioResult } from "./scenario.ts";
 
@@ -11,6 +11,8 @@ const { values } = parseArgs({
   options: {
     map: { type: "string", default: "world" },
     ticks: { type: "string", default: "10000" },
+    // Browsers to run the scenario and the golden replays in, as CI does.
+    browsers: { type: "string", default: "chromium,firefox" },
   },
 });
 const ticks = Number(values.ticks);
@@ -49,20 +51,37 @@ const server = await createServer({
 await server.listen();
 const address = server.resolvedUrls?.local[0];
 if (!address) throw new Error("the determinism page server did not start");
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH ?? chromium.executablePath(),
-});
+const engines: Record<string, { label: string; type: BrowserType; path: string | undefined }> = {
+  chromium: { label: "Chromium", type: chromium, path: process.env.CHROMIUM_PATH },
+  firefox: { label: "Firefox", type: firefox, path: process.env.FIREFOX_PATH },
+};
 try {
-  const page = await browser.newPage();
-  await page.goto(address);
+  for (const name of values.browsers.split(",").filter(Boolean)) {
+    const engine = engines[name];
+    if (!engine) throw new Error(`unknown browser ${name}`);
+    const browser = await engine.type.launch({
+      executablePath: engine.path ?? engine.type.executablePath(),
+    });
+    try {
+      await playInBrowser(await browser.newPage(), `${engine.label} worker`);
+    } finally {
+      await browser.close();
+    }
+  }
+} finally {
+  await server.close();
+}
+
+async function playInBrowser(page: Page, label: string): Promise<void> {
+  await page.goto(address as string);
   await page.waitForFunction(() => typeof window.playScenario === "function");
   const mapUrl = `/@fs${fileURLToPath(new URL(values.map, maps))}`;
-  await timed("Chromium worker", () =>
+  await timed(label, () =>
     page.evaluate(([url, count]) => window.playScenario(url, count), [mapUrl, ticks] as const),
   );
-  // The golden replays the engine's tests pin in Node, played again in the browser.
+  // The golden replays the bench tests pin in Node, played again in the browser.
   const replays = new URL("../../packages/engine/test/replays/", import.meta.url);
-  for (const file of readdirSync(replays).filter((name) => name.endsWith(".json"))) {
+  for (const file of readdirSync(replays).filter((entry) => entry.endsWith(".json"))) {
     const report = JSON.parse(readFileSync(new URL(file, replays), "utf8")) as {
       map: { id: string };
       ticks: number;
@@ -76,14 +95,11 @@ try {
     const seconds = ((performance.now() - start) / 1000).toFixed(1);
     if (result.firstLocalMismatch || result.ticks !== report.ticks) {
       goldenFailures.push(
-        `Chromium worker parts from ${file} at tick ${String(result.firstLocalMismatch?.tick ?? result.ticks)}`,
+        `${label} parts from ${file} at tick ${String(result.firstLocalMismatch?.tick ?? result.ticks)}`,
       );
     }
-    console.log(`Chromium worker, ${file}: ${String(result.ticks)} ticks in ${seconds} s`);
+    console.log(`${label}, ${file}: ${String(result.ticks)} ticks in ${seconds} s`);
   }
-} finally {
-  await browser.close();
-  await server.close();
 }
 
 const [reference, ...others] = runs;
@@ -100,5 +116,5 @@ if (goldenFailures.length > 0) same = false;
 console.log(`tiles: ${reference.result.tiles.join(", ")}`);
 if (!same) process.exit(1);
 console.log(
-  `${String(runs.length)} runs agree after ${String(ticks)} ticks, and the browser plays every golden replay to its hashes.`,
+  `${String(runs.length)} runs agree after ${String(ticks)} ticks, and every browser plays the golden replays to their hashes.`,
 );

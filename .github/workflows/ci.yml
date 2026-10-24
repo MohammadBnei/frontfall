@@ -77,9 +77,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
-      # Ten thousand ticks of bots on World, twice in Node and once in a Chromium worker:
-      # every run must reach the same state hash (R-FAIR-01).
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox
+      # Ten thousand ticks of bots on World, twice in Node and once in a Chromium and a Firefox
+      # worker, then the golden replays in both browsers: every run must reach the same state
+      # hashes (R-FAIR-01).
       - run: pnpm determinism
 
   clean-room:

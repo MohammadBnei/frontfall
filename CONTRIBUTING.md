@@ -52,6 +52,16 @@ The simulation runs on every client and must give exactly the same result everyw
 
 ESLint enforces the first three rules, and the engine compiles without browser or Node types.
 
+## Changing a rule or the balance
+
+Golden replays in `packages/engine/test/replays/` pin the state hash of scripted games every 50 ticks, and the hash covers every balance value. A change that alters how games play out, a rule in `packages/engine` or any value in `balance.ts`, therefore fails the bench tests and the Determinism job with the first tick that differs. When that change is meant:
+
+1. Run `pnpm golden`, which writes the replays again.
+2. Update the pinned hash in `packages/engine/test/hash.test.ts` if it changed.
+3. Commit the new replay files with the change, and say in the changelog how games change.
+
+A replay that fails after a change not meant to alter games, a refactor or a speed-up, is a bug: find it before regenerating anything.
+
 ## Pull requests
 
 1. Branch from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`.
