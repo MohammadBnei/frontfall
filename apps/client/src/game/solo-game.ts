@@ -1,17 +1,21 @@
 import {
   DEFAULT_BALANCE,
+  DESYNC_REPORT_VERSION,
   Terrain,
   WorldGrid,
   createGame,
   installBots,
   populationCap,
   seaRoute,
+  type DesyncReport,
   type Game,
   type Order,
+  type PlayerSetup,
   type Phase,
   type Turn,
 } from "@frontfall/engine";
-import { HASH_INTERVAL } from "@frontfall/protocol";
+import { HASH_INTERVAL, PROTOCOL_VERSION } from "@frontfall/protocol";
+import { RELEASE } from "../release.ts";
 import { labelAnchors, type LabelAnchor } from "./label-anchors.ts";
 import type { MapData } from "./maps.ts";
 
@@ -155,10 +159,17 @@ export class SoloGame {
   /** Online games report state hashes; a solo game has no one to compare with. */
   private readonly online: boolean;
   private readonly depth: Uint16Array;
+  private readonly players: PlayerSetup[];
+  private readonly botIds: number[];
+  /** Online, for a desync report: every turn with orders, and the hashes sent. */
+  private readonly history: Turn[] = [];
+  private readonly hashes: { tick: number; local: number }[] = [];
+  /** Hashes the server says most players had, where this client's differed. */
+  private readonly expected = new Map<number, number | null>();
 
   constructor(
     readonly options: SoloOptions,
-    map: MapData,
+    private readonly map: MapData,
   ) {
     const grid = new WorldGrid(map.width, map.height, { wrapsX: map.wrapsX });
     const terrain = new Terrain(grid, map.kinds);
@@ -181,6 +192,8 @@ export class SoloGame {
           };
     this.game = createGame({ terrain, seed: options.seed, players, balance });
     installBots(this.game, botIds, options.difficulty);
+    this.players = players;
+    this.botIds = botIds;
     this.online = options.players !== undefined;
     this.depth = new Uint16Array(grid.size);
     let ownable = 0;
@@ -263,12 +276,56 @@ export class SoloGame {
     const hashes: { tick: number; hash: number }[] = [];
     for (const turn of turns) {
       this.game.step(turn);
-      if (this.online && turn.tick % HASH_INTERVAL === 0)
-        hashes.push({ tick: turn.tick, hash: this.game.hash() });
+      if (!this.online) continue;
+      if (turn.orders.length > 0) this.history.push(turn);
+      if (turn.tick % HASH_INTERVAL === 0) {
+        const hash = this.game.hash();
+        hashes.push({ tick: turn.tick, hash });
+        this.hashes.push({ tick: turn.tick, local: hash });
+      }
     }
     const update = this.update();
     if (hashes.length > 0) update.hashes = hashes;
     return update;
+  }
+
+  /** The server found this client's hash after `tick` differs from most players'. */
+  desync(tick: number, expected: number | null): void {
+    this.expected.set(tick, expected);
+  }
+
+  /**
+   * Everything needed to replay this online game elsewhere and find where it
+   * went apart (docs/engine.md, "Desync reports"). Published maps only: a
+   * generated map has no terrain file to pin.
+   */
+  report(): DesyncReport | undefined {
+    const { source } = this.map;
+    if (!this.online || !source) return undefined;
+    const first = Math.min(...this.expected.keys());
+    return {
+      version: DESYNC_REPORT_VERSION,
+      build: { release: RELEASE, protocol: PROTOCOL_VERSION },
+      map: { id: this.map.id, ...source },
+      seed: this.options.seed,
+      balance: this.game.balance,
+      players: this.players,
+      bots: { ids: this.botIds, difficulty: this.options.difficulty },
+      you: this.you,
+      ticks: this.game.tick,
+      turns: this.history,
+      // Before the first desync the server had nothing to say: the hashes
+      // matched. After it, a tick it did not flag is unknown.
+      hashes: this.hashes.map(({ tick, local }) => ({
+        tick,
+        local,
+        expected: this.expected.has(tick)
+          ? (this.expected.get(tick) ?? null)
+          : tick < first
+            ? local
+            : null,
+      })),
+    };
   }
 
   private update(): GameUpdate {

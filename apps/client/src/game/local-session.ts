@@ -1,4 +1,4 @@
-import type { Order, Turn } from "@frontfall/engine";
+import type { DesyncReport, Order, Turn } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import type { MapInfo } from "./maps.ts";
@@ -18,6 +18,8 @@ export interface ServerLink {
  */
 export class LocalSession implements GameSession {
   private readonly worker: Worker;
+  /** Callers waiting for a desync report, answered in order. */
+  private readonly reports: ((report: DesyncReport | undefined) => void)[] = [];
 
   constructor(
     options: SoloOptions,
@@ -33,6 +35,8 @@ export class LocalSession implements GameSession {
       } else if (reply.type === "update") {
         for (const { tick, hash } of reply.update.hashes ?? []) link?.hash(tick, hash);
         events.onUpdate(reply.update);
+      } else if (reply.type === "report") {
+        this.reports.shift()?.(reply.report);
       } else if (reply.type === "click") {
         if (reply.order) link?.order(reply.order);
         events.onClick(reply.tile, reply.outcome);
@@ -58,6 +62,19 @@ export class LocalSession implements GameSession {
   /** Online: turns from the server, consecutive, from the next tick on. */
   pushTurns(turns: Turn[]): void {
     this.post({ type: "turns", turns });
+  }
+
+  /** Online: the server flagged this client's hash after `tick`. */
+  desync(tick: number, expected: number | null): void {
+    this.post({ type: "desync", tick, expected });
+  }
+
+  /** Online: everything needed to replay the game so far; none on a generated map. */
+  report(): Promise<DesyncReport | undefined> {
+    return new Promise((resolve) => {
+      this.reports.push(resolve);
+      this.post({ type: "report" });
+    });
   }
 
   setPaused(paused: boolean): void {

@@ -1,4 +1,4 @@
-import type { Order, Turn } from "@frontfall/engine";
+import type { DesyncReport, Order, Turn } from "@frontfall/engine";
 import type { MapInfo } from "./maps.ts";
 import type { StartInfo } from "./session.ts";
 import type { ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
@@ -28,6 +28,10 @@ export type WorkerRequest =
   /** A click on the map, turned into an order by the worker, which knows the game. */
   | { type: "click"; tile: number; ratio: number }
   | { type: "pause"; paused: boolean }
+  /** Online: the server flagged this client's hash after `tick`. */
+  | { type: "desync"; tick: number; expected: number | null }
+  /** Online: the desync report, as of now. */
+  | { type: "report" }
   /** The page leaves the game: the clock stops before the worker is terminated. */
   | { type: "stop" };
 
@@ -37,6 +41,8 @@ export type WorkerReply =
   | { type: "update"; update: GameUpdate }
   /** Online, `order` is what the page must send to the server; solo, the worker queued it. */
   | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order }
+  /** None for a game on a generated map. */
+  | { type: "report"; report: DesyncReport | undefined }
   | { type: "error"; message: string };
 
 /** Buffers of an update, handed over to the page instead of copied. */

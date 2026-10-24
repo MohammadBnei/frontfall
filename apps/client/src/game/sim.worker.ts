@@ -108,6 +108,12 @@ scope.onmessage = (event) => {
       if (game) playTurns(request.turns);
       else early.push(...request.turns);
       break;
+    case "desync":
+      game?.desync(request.tick, request.expected);
+      break;
+    case "report":
+      scope.postMessage({ type: "report", report: game?.report() });
+      break;
     case "pause":
       paused = request.paused;
       break;

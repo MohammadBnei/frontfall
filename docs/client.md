@@ -82,8 +82,13 @@ at once. A solo game goes down the same path: each tick, its orders become
 the turn a server would have sent. A click becomes an order
 the page sends to the server; it takes effect when its turn comes back.
 After every 50th tick the worker hashes the game state and the page reports
-it, so the server can tell a client out of step (`desync`). An online game
-never pauses, and its HUD has no pause button.
+it, so the server can tell a client out of step (`desync`). The worker keeps
+every turn with orders and every hash it sent; on a desync the notice offers
+"Download a report", a `DesyncReport` (docs/engine.md) that
+`pnpm sim -- --replay` plays again to find the first tick that differs. Games
+on generated maps have no report. Until its turn comes back, an online
+order's ring pulses on its target. An online game never pauses, and its HUD
+has no pause button.
 
 ## Drawing the map
 

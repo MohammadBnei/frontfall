@@ -58,6 +58,11 @@ canvas {
   pointer-events: none;
 }
 
+.notice button {
+  display: block;
+  margin-top: 12px;
+}
+
 .notice {
   position: fixed;
   top: 50%;

@@ -6,6 +6,7 @@ import { OnlineClient, socketUrl, type GameStart, type OnlineEntry } from "./net
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps } from "./ui/lobby.ts";
+import { h } from "./ui/dom.ts";
 import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 
@@ -90,6 +91,39 @@ function showNotice(key: MessageKey): void {
   notice.dataset.i18n = key;
   notice.textContent = t(key);
   document.body.append(notice);
+}
+
+/**
+ * The game no longer matches the other players': say so, and offer the
+ * report that lets a developer replay it (`pnpm sim -- --replay`).
+ */
+function showDesync(tick: number): void {
+  showNotice("online.desync");
+  const screen = game;
+  const notice = document.querySelector(".notice");
+  if (!screen || !notice) return;
+  const button = h("button", {
+    type: "button",
+    class: "secondary",
+    id: "desync-report",
+    "data-i18n": "online.desyncReport",
+  });
+  button.textContent = t("online.desyncReport");
+  button.addEventListener("click", () => {
+    void screen.desyncReport().then((report) => {
+      if (!report) return;
+      const blob = new Blob([JSON.stringify(report)], { type: "application/json" });
+      const link = h("a", {
+        href: URL.createObjectURL(blob),
+        download: `frontfall-desync-${String(tick)}.json`,
+      });
+      link.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(link.href);
+      }, 0);
+    });
+  });
+  notice.append(" ", button);
 }
 
 // iOS Safari zooms the page on a pinch even over a canvas with touch-action: none.
@@ -197,8 +231,9 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
       turns(turns) {
         game?.pushTurns(turns);
       },
-      desync() {
-        showNotice("online.desync");
+      desync(tick, _hash, expected) {
+        game?.desync(tick, expected);
+        showDesync(tick);
       },
       ended(reason) {
         if (game) {

@@ -12,6 +12,8 @@ export interface MapData {
   readonly kinds: Uint8Array;
   /** Elevation band on land, depth band on water, 0 to 31 (docs/map-format.md). Drawing only. */
   readonly relief: Uint8Array;
+  /** Published maps only: what pins the terrain, for a desync report. */
+  readonly source?: { readonly format: number; readonly version: number; readonly sha256: string };
 }
 
 export interface MapInfo {
@@ -132,6 +134,11 @@ export async function fetchMapData(info: MapInfo, fetcher: typeof fetch = fetch)
     wrapsX: topology.wrapsX,
     kinds: terrain.kinds,
     relief: magnitude,
+    source: {
+      format: manifest.format,
+      version: manifest.version,
+      sha256: manifest.terrain.sha256,
+    },
   };
 }
 

@@ -109,5 +109,6 @@
   "online.error.not_in_game": "You are not in a game any more.",
   "online.error.not_host": "Only the host can do this.",
   "online.error.invalid_settings": "The server refused these settings.",
-  "online.summary": "{map} · {bots} bots · {difficulty}"
+  "online.summary": "{map} · {bots} bots · {difficulty}",
+  "online.desyncReport": "Download a report"
 }

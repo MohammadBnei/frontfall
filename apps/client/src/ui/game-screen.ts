@@ -1,4 +1,4 @@
-import type { Turn } from "@frontfall/engine";
+import type { DesyncReport, Turn } from "@frontfall/engine";
 import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
@@ -368,6 +368,16 @@ export class GameScreen {
     const playing = !this.ended && human?.alive === true && human.tiles > 0;
     if (playing && !window.confirm(t("hud.leaveConfirm"))) return;
     this.actions.onMenu();
+  }
+
+  /** Online: the server flagged this client's state hash after `tick`. */
+  desync(tick: number, expected: number | null): void {
+    this.session.desync(tick, expected);
+  }
+
+  /** Online: the game so far as a desync report, or none on a generated map. */
+  desyncReport(): Promise<DesyncReport | undefined> {
+    return this.session.report();
   }
 
   /** Online: turns relayed by the server, in order. */
