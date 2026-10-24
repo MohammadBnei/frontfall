@@ -34,6 +34,8 @@ export interface RoomSettings {
   nations: boolean;
   /** Teams every client deals the players into (R-MODE-02); 0 for a free-for-all. */
   teams: Teams;
+  /** What every client leaves out of the game (R-MODE-03). */
+  disabled: number;
   /** Public games: players needed before the countdown starts. */
   minPlayers: number;
   /** Public games: wait after reaching minPlayers, unless the game fills up first. */
@@ -393,6 +395,7 @@ export class Room {
           difficulty: this.settings.difficulty,
           nations: this.settings.nations,
           teams: this.settings.teams,
+          disabled: this.settings.disabled,
           capacity: this.settings.capacity,
           players,
           you: seat.id,
@@ -413,6 +416,7 @@ export class Room {
       difficulty: this.settings.difficulty,
       nations: this.settings.nations,
       teams: this.settings.teams,
+      disabled: this.settings.disabled,
       tickRate: TICK_RATE,
       players: this.players(),
       you: seat.id,

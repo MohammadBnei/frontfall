@@ -1,3 +1,4 @@
+import { Disable } from "@frontfall/engine";
 import type { GameRules } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t } from "../i18n/index.ts";
@@ -49,6 +50,23 @@ const BUILD_MODES = [
   { mode: "heavyMissile", key: "N" },
   { mode: "demolish", key: "X" },
 ] as const satisfies readonly { mode: ClickMode; key: string }[];
+
+/** The `Disable` bit that leaves a build mode out of a game (R-MODE-03); missiles go with silos. */
+const MODE_BITS: Partial<Record<ClickMode, number>> = {
+  city: Disable.City,
+  fort: Disable.Fort,
+  port: Disable.Port,
+  silo: Disable.Silo,
+  airDefense: Disable.AirDefense,
+  warship: Disable.Warships,
+  missile: Disable.Silo,
+  heavyMissile: Disable.Silo,
+};
+
+/** Whether a game that leaves out `disabled` has this build mode. */
+export function offers(mode: ClickMode, disabled: number): boolean {
+  return (disabled & (MODE_BITS[mode] ?? 0)) === 0;
+}
 
 /**
  * Numbers the player plays by: their troops, gold and land, the attack
@@ -114,6 +132,7 @@ export class Hud {
     firstNation: Infinity,
     allianceRequestTicks: 200,
     teams: [],
+    disabled: 0,
   };
 
   /** `pausable`: false online, where the game runs for everyone. */
@@ -261,6 +280,7 @@ export class Hud {
 
   setRules(rules: GameRules): void {
     this.rules = { ...rules, ownableTiles: Math.max(1, rules.ownableTiles) };
+    for (const [mode, button] of this.buildButtons) button.hidden = !offers(mode, rules.disabled);
     // Colours depend on the rules (nations): rows are made again.
     this.leaderRows.clear();
   }

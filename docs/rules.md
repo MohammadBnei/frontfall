@@ -66,7 +66,7 @@ Diplomacy starts with the play phase, like attacks.
 - **R-DIPLO-03** An alliance lasts `B-ALLIANCE-DURATION`, then ends with no penalty. In its last `B-ALLIANCE-RENEWAL`, each ally may ask to renew it; once both have, it starts again for a full `B-ALLIANCE-DURATION`.
 - **R-DIPLO-04** To attack an ally, a player must first betray them, which ends the alliance at once. The betrayer is marked a traitor for `B-TRAITOR-DURATION`: their land costs `B-TRAITOR-DEFENSE` of the usual price to take, and every player is told. The betrayer then waits `B-ALLIANCE-REQUEST-COOLDOWN` before asking the betrayed player again.
 - **R-DIPLO-05** A player can place an embargo on any player but a teammate, at no cost and at once, and lift it the same way. While either of two players holds an embargo on the other, no trade ship sails between them, and those at sea between them are lost on arrival. Every player is told when an embargo starts or is lifted; an embargo also ends, unannounced, when either player falls.
-- **R-DIPLO-06** Players can send each other troops or gold. Gifts are refused between players at war.
+- **R-DIPLO-06** A player can send any other player still in the game troops, gold or both, at once. The receiver takes only the troops their population cap has room for; the rest stay with the sender. Gifts are refused between players at war (`R-UNIT-04`), and every player is told who sent a gift to whom. Bots and nations send none.
 - **R-DIPLO-07** Players can send preset quick messages and emoji to each other; free text chat is not part of v1.
 
 ## 6. Structures
@@ -120,7 +120,7 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 - **R-WIN-03** Eliminated players can keep watching the game.
 - **R-MODE-01** Free-for-all: every player for themselves; alliances follow `R-DIPLO`.
 - **R-MODE-02** Teams: 2, 3 or 4 teams. Every player, bots and nations included, is dealt into a team in turn by player number, so team sizes differ by at most one. Teammates are allies for the whole game: they cannot attack each other, ask each other for an alliance or betray each other. A team wins when its members together own `B-WIN-SHARE` of the ownable land, or when it is the last team standing; at `B-MAX-DURATION`, the team with the most land wins. The team's member with the most land is named the winner.
-- **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and disable structures or units.
+- **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and leave any of cities, forts, ports, missile silos, air defenses and warships out of the game. Leaving out ports also leaves out trade ships and warships, as they need one; leaving out silos leaves out missiles. No one, bots and nations included, can build or buy what the game leaves out.
 
 ## 10. Fairness and determinism
 

@@ -1,5 +1,5 @@
 import { embargoed, isAllied, logEvent } from "./diplomacy.ts";
-import type { Game, Player } from "./game.ts";
+import { Disable, type Game, type Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
 import { DrawUsage, derivedRandom } from "./random.ts";
 import { spawnSettings } from "./spawn.ts";
@@ -33,6 +33,7 @@ export interface Fight {
 /** Why a warship order is refused once its fields are known to be integers. */
 export const WarshipError = {
   Early: "warships come after the spawn phase",
+  Disabled: "warships are left out of this game",
   Port: "no ready port of yours on the tile",
   Shore: "the port has no water next to it",
   Max: "too many warships",
@@ -76,6 +77,7 @@ export function atWar(game: Game, a: number, b: number): boolean {
 /** Why `player` cannot buy a warship at the port on `port`, or undefined. */
 export function warshipError(game: Game, player: Player, port: number): string | undefined {
   if (game.phase !== "play") return WarshipError.Early;
+  if (!game.allows(Disable.Warships)) return WarshipError.Disabled;
   const structure = structureAt(game, port);
   if (
     structure?.kind !== StructureKind.Port ||

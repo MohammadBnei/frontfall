@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 11;
+export const PROTOCOL_VERSION = 12;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -67,6 +67,9 @@ export type Difficulty = z.infer<typeof Difficulty>;
 export const Teams = z.union([z.literal(0), z.literal(2), z.literal(3), z.literal(4)]);
 export type Teams = z.infer<typeof Teams>;
 
+/** What a private game leaves out (R-MODE-03): the engine's `Disable` bits, 0 for nothing. */
+export const Disabled = z.number().int().min(0).max(0x3f);
+
 /** What the host of a private game chooses before the start. */
 export const GameOptions = z
   .object({
@@ -80,6 +83,7 @@ export const GameOptions = z
     /** Whether the nations of the map's manifest play (R-BOT-07). */
     nations: z.boolean(),
     teams: Teams,
+    disabled: Disabled,
   })
   .strict();
 export type GameOptions = z.infer<typeof GameOptions>;
@@ -101,7 +105,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("join"), game: gameId }).strict(),
   /** Take back a seat after a dropped connection, receiving every turn from `from`. */
   z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
-  /** Host only: change the map, bots, difficulty or nations of a private game before it starts. */
+  /** Host only: change the options of a private game before it starts. */
   z.object({ type: z.literal("configure"), options: GameOptions }).strict(),
   /** Host only: start a private game now. */
   z.object({ type: z.literal("start") }).strict(),
@@ -131,6 +135,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
     difficulty: Difficulty,
     nations: z.boolean(),
     teams: Teams,
+    disabled: Disabled,
     capacity: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
@@ -152,6 +157,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     nations: z.boolean(),
     /** Teams every client deals the players into, in id order (R-MODE-02). */
     teams: Teams,
+    /** What every client leaves out of the game (R-MODE-03). */
+    disabled: Disabled,
     tickRate: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,

@@ -363,6 +363,7 @@ function initialOptions(
     difficulty: chosen.difficulty,
     nations: chosen.nations ?? true,
     teams: (chosen.teams ?? 0) as Teams,
+    disabled: chosen.disabled ?? 0,
   };
 }
 
@@ -394,6 +395,7 @@ function startOnline(start: GameStart, client: OnlineClient): void {
       difficulty: start.difficulty,
       nations: start.nations,
       teams: start.teams,
+      disabled: start.disabled,
       playerName: "",
       players: start.players,
       you: start.you,

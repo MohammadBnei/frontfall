@@ -53,6 +53,9 @@ covers the conventions that are not obvious from the code.
 - The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard&nations=1`),
   so a link starts the same game, and the last one is remembered in
   `localStorage` when storage is available.
+- `?off=silo,warship` leaves structures and units out of the game
+  (`R-MODE-03`), by the names `city`, `fort`, `port`, `silo`, `airDefense` and
+  `warship`; a private game created from the menu starts with the same choice.
 - `?view=globe` shows a map of the whole planet on a globe, and G switches
   between the globe and the flat map during the game. It is a prototype for
   v0.6, kept out of the menu; see [ADR 0005](adr/0005-globe-spike.md).
@@ -98,7 +101,7 @@ other client: the map, the seed, the humans in the server's numbering,
 `bots` bots of the game's difficulty numbered after them, and the map's
 nations after the bots when `nations` is set, dealt into `teams` teams when
 it is not 0. The host of a private game
-picks the map, bots, difficulty, nations and teams in the lobby (`configure`),
+picks the map, bots, difficulty, nations and teams in the lobby (`configure`), and unticks what the game leaves out (`R-MODE-03`), whose buttons and keys then disappear from the game;
 starting from the menu's choices; maps come from the published catalogue
 only, grouped like the menu's "World maps" and "Quick games" (`group` in
 `maps/index.json`, generated maps counting as quick), and only those that
@@ -179,14 +182,14 @@ visuals will still change. Vite passes the version to the page
 | `C`, `F`, `O`, `L`, `K`, `X`                  | Build a city, a fort, a port, a missile silo or an air defense, demolish: then click your land; the next click attacks again |
 | `V`                                           | Warships: click your port to buy one, or water to send your closest warship to patrol there                                  |
 | `M`, `N`                                      | Launch a missile or a heavy missile from your closest loaded silo: then click the target                                     |
-| Right click, long press, or a leaderboard row | Open that player's menu: ask for an alliance, accept, renew or betray, embargo their trade                                   |
+| Right click, long press, or a leaderboard row | Open that player's menu: ask for an alliance, accept, renew or betray, embargo their trade, send a gift                      |
 | `Esc`                                         | Close the player menu, or leave a build mode                                                                                 |
 | `P` or `Esc`                                  | Pause and resume                                                                                                             |
 | `H` or `?`                                    | Show the controls                                                                                                            |
 
 The build panel above the toolbar, in two columns (two rows of icons under the stats on phones and short windows), has the same modes as buttons, with the cost of each, and the cities owned against the most the land supports (`R-BUILD-07`). Structures are drawn as light diamonds (cities), triangles (forts), hexagons (ports), pentagons (silos) and discs (air defenses) on a dark outline, greyed while being built. Trade ships are small dots in their owner's colour, smaller than transport ships; warships are larger triangles. Missiles in flight are bright ember diamonds, larger for a heavy one, above everything else, and land under fallout turns a scorched olive until it clears: the territory layer rewrites the ground colours of those tiles only when the fallout changes. Zoomed out, ships keep a smallest size on screen (`SHIP_SIZES` in `render/map-view.ts`), as structures do.
 
-The player menu opens at the foot of the leaderboard (`R-DIPLO`). It says whether the player is an ally and for how long, and offers the one order that fits: ask, accept their request, renew in the last minute of an alliance, or betray, which asks for a second click. Every player but a teammate also has a button to put an embargo on their trade or lift it, and the menu says when either side holds one (`R-DIPLO-05`). Requests to the player wait under the banner with a bar that empties until they run out; Ignore hides one without an answer. Allies are marked in the leaderboard and their land has a dashed white rim, drawn by the territory shader from a flag in its palette. Traitors carry a badge while the mark lasts, and a feed under the stats tells every player who allied, whose alliance ended, who betrayed whom, who put or lifted an embargo on whom, whose warship took whose trade ship, who launched a missile at whom and whose air defense stopped it, in a polite live region. A click that would attack an ally is refused and says to betray first. A long press opens the menu only for a finger or a pen held still for 500 ms; a mouse uses its right button.
+The player menu opens at the foot of the leaderboard (`R-DIPLO`). It says whether the player is an ally and for how long, and offers the one order that fits: ask, accept their request, renew in the last minute of an alliance, or betray, which asks for a second click. Every player but a teammate also has a button to put an embargo on their trade or lift it, and the menu says when either side holds one (`R-DIPLO-05`). Two more buttons send the player the attack ratio's share of your troops or of your gold (`R-DIPLO-06`); the menu says when the two of you are at war, which refuses gifts. Requests to the player wait under the banner with a bar that empties until they run out; Ignore hides one without an answer. Allies are marked in the leaderboard and their land has a dashed white rim, drawn by the territory shader from a flag in its palette. Traitors carry a badge while the mark lasts, and a feed under the stats tells every player who allied, whose alliance ended, who betrayed whom, who put or lifted an embargo on whom, whose warship took whose trade ship, who launched a missile at whom and whose air defense stopped it, who sent a gift to whom, in a polite live region. A click that would attack an ally is refused and says to betray first. A long press opens the menu only for a finger or a pen held still for 500 ms; a mouse uses its right button.
 
 While attacks are under way, a panel at the bottom left lists each one, its
 target and its troops, with a Retreat button that calls it back

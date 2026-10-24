@@ -36,7 +36,9 @@ export type Order =
   /** Sends warship `ship` to patrol around water tile `tile`. */
   | { type: "patrol"; ship: number; tile: number }
   /** Launches a missile of `size` (a MissileSize code) at tile `target`. */
-  | { type: "missile"; target: number; size: number };
+  | { type: "missile"; target: number; size: number }
+  /** Sends player `target` troops and gold (R-DIPLO-06); either may be 0. */
+  | { type: "gift"; target: number; troops: number; gold: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -62,7 +64,24 @@ export interface GameSetup {
    * in id order; 0 or left out for a free-for-all.
    */
   teams?: number;
+  /** What this game leaves out (R-MODE-03), as `Disable` bits; 0 or left out for nothing. */
+  disabled?: number;
 }
+
+/**
+ * What a private game can leave out (R-MODE-03), one bit each: a structure
+ * by its StructureKind code (bit `1 << kind`), and warships.
+ */
+export const Disable = {
+  City: 1 << 0,
+  Fort: 1 << 1,
+  Port: 1 << 2,
+  Silo: 1 << 3,
+  AirDefense: 1 << 4,
+  Warships: 1 << 5,
+} as const;
+/** Every `Disable` bit. */
+export const DISABLE_ALL = 0x3f;
 
 export interface Player {
   readonly id: number;
@@ -149,6 +168,8 @@ export class Game {
   readonly diplomacyEvents: DiplomacyEvent[] = [];
   /** Number of teams, 0 in a free-for-all (R-MODE-02). */
   readonly teams: number;
+  /** `Disable` bits of what this game leaves out (R-MODE-03). */
+  readonly disabled: number;
   /**
    * Winner once the game is decided (R-WIN), and the tick it happened. In a
    * team game, the member of the winning team with the most land.
@@ -203,6 +224,11 @@ export class Game {
       throw new RangeError(`invalid number of teams ${String(teams)}`);
     }
     this.teams = teams;
+    const disabled = setup.disabled ?? 0;
+    if (!(Number.isInteger(disabled) && disabled >= 0 && disabled <= DISABLE_ALL)) {
+      throw new RangeError(`invalid disabled set ${String(disabled)}`);
+    }
+    this.disabled = disabled;
     // R-MODE-02: dealt in turn, so team sizes differ by one at most.
     this.sortedPlayers = [...this.playersById.values()]
       .sort((a, b) => a.id - b.id)
@@ -224,6 +250,11 @@ export class Game {
   /** Whether a tile can be taken now: ownable land with no fallout on it (R-UNIT-06). */
   usable(tile: number): boolean {
     return this.terrain.isOwnable(tile) && (this.falloutUntil[tile] as number) <= this.currentTick;
+  }
+
+  /** Whether this game has what a `Disable` bit stands for (R-MODE-03). */
+  allows(feature: number): boolean {
+    return (this.disabled & feature) === 0;
   }
 
   player(id: number): Player | undefined {
@@ -336,6 +367,8 @@ export class Game {
       for (const p of this.sortedPlayers) mix(p.team);
       mix(this.winningTeam ?? 0);
     }
+    // So do games that leave nothing out.
+    if (this.disabled !== 0) mix(this.disabled);
     mix(this.decidedAt ?? -1);
     return hash >>> 0;
   }

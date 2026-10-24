@@ -1,3 +1,4 @@
+import { offers } from "../src/ui/hud.ts";
 import { describe, expect, it } from "vitest";
 import { GENERATED_MAPS as maps } from "../src/game/maps.ts";
 import {
@@ -43,6 +44,20 @@ describe("game setup", () => {
     expect(initialSetup("?teams=5", undefined, maps).teams ?? 0).toBe(0);
   });
 
+  it("shares what a game leaves out by name (R-MODE-03)", () => {
+    const setup = initialSetup("?map=pangaea&off=silo,warship,nuke", undefined, maps);
+    expect(setup.disabled).toBe(8 | 32);
+    expect(setupQuery(setup)).toContain("off=silo%2Cwarship");
+    expect(initialSetup(setupQuery(setup), undefined, maps).disabled).toBe(40);
+    expect(setupQuery({ ...setup, disabled: 0 })).not.toContain("off");
+    // Missiles go with silos; nothing else does.
+    expect(offers("missile", 8)).toBe(false);
+    expect(offers("heavyMissile", 8)).toBe(false);
+    expect(offers("city", 8)).toBe(true);
+    expect(offers("demolish", 63)).toBe(true);
+    expect(offers("warship", 32)).toBe(false);
+  });
+
   it("ignores values it does not know", () => {
     const base = defaultSetup(maps);
     expect(
@@ -57,6 +72,9 @@ describe("game setup", () => {
     saveSetup({ ...defaultSetup(maps), playerName: "Ada", bots: 4 }, storage);
     expect(initialSetup("", storage, maps)).toMatchObject({ playerName: "Ada", bots: 4 });
     expect(initialSetup("?bots=6", storage, maps)).toMatchObject({ playerName: "Ada", bots: 6 });
+    // What a link left out stays with that link.
+    saveSetup({ ...defaultSetup(maps), disabled: 8 }, storage);
+    expect(initialSetup("", storage, maps).disabled).toBeUndefined();
   });
 
   it("works with storage disabled", () => {

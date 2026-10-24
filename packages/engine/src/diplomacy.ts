@@ -43,10 +43,19 @@ export interface DiplomacyEvent {
   /**
    * Besides alliances and embargoes: `a` took a trade ship of `b`
    * ("captured"), launched a missile at `b`'s land ("missile"), or stopped a
-   * missile of `b` with an air defense ("stopped").
+   * missile of `b` with an air defense ("stopped"), or sent `b` troops or
+   * gold ("gift").
    */
   readonly type:
-    "allied" | "ended" | "betrayed" | "embargo" | "lifted" | "captured" | "missile" | "stopped";
+    | "allied"
+    | "ended"
+    | "betrayed"
+    | "embargo"
+    | "lifted"
+    | "captured"
+    | "missile"
+    | "stopped"
+    | "gift";
   readonly a: number;
   readonly b: number;
 }

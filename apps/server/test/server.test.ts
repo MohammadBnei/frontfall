@@ -330,28 +330,42 @@ describe("WebSocket", () => {
 
     bob.send({
       type: "configure",
-      options: { map: "europe", bots: 2, difficulty: "hard", nations: true, teams: 0 },
+      options: { map: "europe", bots: 2, difficulty: "hard", nations: true, teams: 0, disabled: 0 },
     });
     expect((await bob.next("error")).code).toBe("not_host");
     alice.send({
       type: "configure",
-      options: { map: "mars", bots: 2, difficulty: "hard", nations: true, teams: 0 },
+      options: { map: "mars", bots: 2, difficulty: "hard", nations: true, teams: 0, disabled: 0 },
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
     alice.send({
       type: "configure",
-      options: { map: "world", bots: 26, difficulty: "hard", nations: true, teams: 0 },
+      options: { map: "world", bots: 26, difficulty: "hard", nations: true, teams: 0, disabled: 0 },
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
     // Europe holds 20: 19 bots would leave one seat for two players.
     alice.send({
       type: "configure",
-      options: { map: "europe", bots: 19, difficulty: "hard", nations: true, teams: 0 },
+      options: {
+        map: "europe",
+        bots: 19,
+        difficulty: "hard",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+      },
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
     alice.send({
       type: "configure",
-      options: { map: "europe", bots: 18, difficulty: "hard", nations: true, teams: 0 },
+      options: {
+        map: "europe",
+        bots: 18,
+        difficulty: "hard",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+      },
     });
     expect(await bob.next("lobby")).toMatchObject({
       map: "europe",
@@ -363,7 +377,14 @@ describe("WebSocket", () => {
     });
     alice.send({
       type: "configure",
-      options: { map: "europe", bots: 16, difficulty: "hard", nations: false, teams: 0 },
+      options: {
+        map: "europe",
+        bots: 16,
+        difficulty: "hard",
+        nations: false,
+        teams: 0,
+        disabled: 32,
+      },
     });
     expect(await bob.next("lobby")).toMatchObject({
       bots: 16,
@@ -379,10 +400,11 @@ describe("WebSocket", () => {
       difficulty: "hard",
       nations: false,
       teams: 0,
+      disabled: 32,
     });
     alice.send({
       type: "configure",
-      options: { map: "world", bots: 0, difficulty: "easy", nations: true, teams: 0 },
+      options: { map: "world", bots: 0, difficulty: "easy", nations: true, teams: 0, disabled: 0 },
     });
     expect((await alice.next("error")).code).toBe("game_started");
   });

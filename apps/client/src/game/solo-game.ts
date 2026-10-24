@@ -9,6 +9,7 @@ import {
   StructureKind,
   TileKind,
   WarshipError,
+  atWar,
   warshipCost,
   MissileError,
   MissileSize,
@@ -74,6 +75,8 @@ export interface SoloOptions {
   nations?: boolean | undefined;
   /** Teams the players are dealt into (R-MODE-02): 2 to 4, or 0 or left out for a free-for-all. */
   teams?: number | undefined;
+  /** What the game leaves out (R-MODE-03), as the engine's `Disable` bits; nothing when left out. */
+  disabled?: number | undefined;
   playerName: string;
   /**
    * For tests that play a game to its end: ticks run per beat of the clock
@@ -208,7 +211,9 @@ export type ClickRefusal =
   /** The land belongs to an ally: betray them first (R-DIPLO-02). */
   | "ally"
   /** A missile's blast would reach an ally's or a teammate's land (R-UNIT-05). */
-  | "allyNear";
+  | "allyNear"
+  /** Left out of this game by its host (R-MODE-03). */
+  | "disabled";
 
 export type ClickResult = { order: Order } | { refused: ClickRefusal };
 
@@ -264,6 +269,7 @@ const BUILD_REFUSALS: Readonly<Record<BuildError, ClickRefusal>> = {
   [BuildError.Land]: "land",
   [BuildError.Coast]: "coast",
   [BuildError.Gold]: "gold",
+  [BuildError.Disabled]: "disabled",
 };
 
 function isBuildError(error: string): error is BuildError {
@@ -286,6 +292,8 @@ export interface DiplomacyView {
   embargoes: number[];
   /** Players whose embargo is on the player at this screen. */
   embargoedBy: number[];
+  /** Players at war with the player at this screen, who take no gift (R-DIPLO-06). */
+  atWar: number[];
 }
 
 export interface AllyView {
@@ -299,7 +307,16 @@ export interface AllyView {
 
 /** An alliance formed, run out, or broken by `a`, or an embargo of `a` on `b` started or lifted. `a` and `b` are player ids. */
 export interface DiplomacyEvent {
-  type: "allied" | "ended" | "betrayed" | "embargo" | "lifted" | "captured" | "missile" | "stopped";
+  type:
+    | "allied"
+    | "ended"
+    | "betrayed"
+    | "embargo"
+    | "lifted"
+    | "captured"
+    | "missile"
+    | "stopped"
+    | "gift";
   a: number;
   b: number;
 }
@@ -453,8 +470,9 @@ export class SoloGame {
     this.you = options.record?.you ?? options.you ?? HUMAN_ID;
     const seed = options.record?.seed ?? options.seed;
     const teams = options.record ? (options.record.teams ?? 0) : (options.teams ?? 0);
+    const disabled = options.record ? (options.record.disabled ?? 0) : (options.disabled ?? 0);
     const difficulty = options.record?.bots.difficulty ?? options.difficulty;
-    this.game = createGame({ terrain, seed, players, balance, teams });
+    this.game = createGame({ terrain, seed, players, balance, teams, disabled });
     installBots(this.game, botIds, difficulty);
     installNations(this.game, nationIds, difficulty);
     this.players = players;
@@ -614,6 +632,7 @@ export class SoloGame {
     if (error === WarshipError.Max) return { refused: "warships" };
     if (error === WarshipError.Gold) return { refused: "gold" };
     if (error === WarshipError.Shore) return { refused: "shore" };
+    if (error === WarshipError.Disabled) return { refused: "disabled" };
     return { refused: "port" };
   }
 
@@ -716,6 +735,7 @@ export class SoloGame {
       bots: { ids: this.botIds, difficulty: this.difficulty },
       ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
       ...(this.game.teams > 0 ? { teams: this.game.teams } : {}),
+      ...(this.game.disabled > 0 ? { disabled: this.game.disabled } : {}),
       you: this.you,
       ticks: this.game.tick,
       turns: this.history,
@@ -747,6 +767,7 @@ export class SoloGame {
       bots: { ids: this.botIds, difficulty: this.difficulty },
       ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
       ...(this.game.teams > 0 ? { teams: this.game.teams } : {}),
+      ...(this.game.disabled > 0 ? { disabled: this.game.disabled } : {}),
       you: this.you,
       ticks: this.game.tick,
       turns: this.history,
@@ -798,6 +819,10 @@ export class SoloGame {
         .map((player) => ({ id: player.id, ticksLeft: player.traitorUntil - tick })),
       embargoes: game.embargoes.filter((e) => e.from === you).map((e) => e.to),
       embargoedBy: game.embargoes.filter((e) => e.to === you).map((e) => e.from),
+      atWar: game
+        .players()
+        .filter((player) => player.alive && atWar(game, you, player.id))
+        .map((player) => player.id),
     };
   }
 

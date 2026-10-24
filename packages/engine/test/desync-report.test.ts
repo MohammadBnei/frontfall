@@ -25,6 +25,7 @@ const report: DesyncReport = {
   ],
   bots: { ids: [2], difficulty: "easy" },
   nations: [3],
+  disabled: 8,
   you: 1,
   ticks: 60,
   turns: [
@@ -37,6 +38,7 @@ const report: DesyncReport = {
         { player: 1, order: { type: "demolish", tile: 40 } },
       ],
     },
+    { tick: 30, orders: [{ player: 1, order: { type: "gift", target: 2, troops: 10, gold: 0 } }] },
   ],
   hashes: [],
 };
@@ -71,6 +73,7 @@ describe("desync reports", () => {
     expect(broken({ balance: { ...DEFAULT_BALANCE, popPerTile: "40" } })).toThrow(/popPerTile/);
     expect(broken({ bots: { ids: [2], difficulty: "brutal" } })).toThrow(/brutal/);
     expect(broken({ nations: ["x"] })).toThrow(/nation id/);
+    expect(broken({ disabled: 64 })).toThrow(/disabled/);
     expect(broken({ players: [{ id: 3, name: "Norland", start: 1.5 }] })).toThrow(/player start/);
     expect(
       broken({ turns: [{ tick: 0, orders: [{ player: 1, order: { type: "nuke" } }] }] }),

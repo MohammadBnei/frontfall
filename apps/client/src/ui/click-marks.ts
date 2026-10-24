@@ -35,6 +35,7 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   silo: "click.silo",
   shore: "click.shore",
   allyNear: "click.allyNear",
+  disabled: "click.disabled",
 };
 
 interface Mark {

@@ -52,8 +52,8 @@ async function landShare(page: Page): Promise<number> {
 }
 
 /** Starts a solo game on the skirmish map against `bots` bots and spawns near the middle. */
-async function startGame(page: Page, bots = 2): Promise<void> {
-  await page.goto(`./?map=skirmish&bots=${String(bots)}&difficulty=easy&nations=0&speed=5`);
+async function startGame(page: Page, bots = 2, extra = ""): Promise<void> {
+  await page.goto(`./?map=skirmish&bots=${String(bots)}&difficulty=easy&nations=0&speed=5${extra}`);
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   const box = await page.locator("#map").boundingBox();
@@ -106,6 +106,27 @@ test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)
   await expect(page.locator(".event-feed")).toContainText("betrayed");
   await expect(page.locator(".leader.you .badge-traitor")).toBeVisible();
   await expect(page.locator(".leader .badge-ally:visible")).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
+test("sends a bot a gift of gold, in a game without silos (R-DIPLO-06, R-MODE-03)", async ({
+  page,
+}) => {
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  await startGame(page, 1, "&off=silo&gold=500");
+  await expect(page.locator("#build-city")).toBeVisible();
+  await expect(page.locator("#build-silo")).toBeHidden();
+  await expect(page.locator("#build-missile")).toBeHidden();
+  await page.keyboard.press("KeyL");
+  await expect(page.locator("#build-silo")).toHaveAttribute("aria-pressed", "false");
+  await page.locator(".leader-button").click();
+  const menu = page.locator("#player-menu");
+  const gold = menu.locator(".menu-action.gift-gold");
+  await expect(gold).toContainText("of your gold");
+  await expect(gold).toBeEnabled({ timeout: 10_000 });
+  await gold.click();
+  await expect(page.locator(".event-feed")).toContainText("sent a gift to");
   expect(pageErrors).toEqual([]);
 });
 

@@ -167,7 +167,7 @@ export function installNations(
     if (start === undefined) return;
     // Built around a start it still holds, with a pause after a search that found no room.
     const build = (kind: StructureKind): void => {
-      if (territory.ownerOf(start) !== nation.id) return;
+      if (!game.allows(1 << kind) || territory.ownerOf(start) !== nation.id) return;
       if (game.tick < (armCooldowns.get(nation.id) ?? 0)) return;
       const tile = inlandSite(game, nation, start);
       if (tile >= 0) game.apply(nation.id, { type: "build", structure: kind, tile });
@@ -283,7 +283,7 @@ export function installNations(
    */
   function buildFort(nation: Player, front: number): void {
     const kind = StructureKind.Fort;
-    if (nation.gold < structureCost(game, nation.id, kind)) return;
+    if (!game.allows(1 << kind) || nation.gold < structureCost(game, nation.id, kind)) return;
     const topology = game.terrain.topology;
     const radius = fortRadius(game);
     for (const s of game.structures) {

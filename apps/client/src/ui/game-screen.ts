@@ -23,7 +23,7 @@ import { ReplayBar } from "./replay-bar.ts";
 import { REPLAY_MAP_CHANGED } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
-import { Hud } from "./hud.ts";
+import { Hud, offers } from "./hud.ts";
 import { PlayerLabels } from "./labels.ts";
 
 /** Matches the fade of the territory layer, with a frame to spare. */
@@ -83,6 +83,8 @@ export class GameScreen {
   private firstNation = Infinity;
   /** Team of each player by id, in a team game. */
   private teams: readonly number[] = [];
+  /** What the game leaves out (R-MODE-03): its build keys do nothing. */
+  private disabled = 0;
   private ownableTiles = 1;
   private peakTiles = 0;
   private frameHandle = 0;
@@ -181,6 +183,10 @@ export class GameScreen {
       onBetray: (player) => {
         this.diplomaticOrder("betray", player);
       },
+      onGift: (player, what) => {
+        this.gift(player, what);
+      },
+      share: () => this.hud.ratio,
     });
     this.hud.leaderboard.append(this.diplomacy.menu);
     this.hud.element.append(this.diplomacy.requests, this.diplomacy.feed);
@@ -210,6 +216,7 @@ export class GameScreen {
         onStart: (info) => {
           this.firstNation = info.rules.firstNation;
           this.teams = info.rules.teams;
+          this.disabled = info.rules.disabled;
           this.showMap(info.map, info.you, info.maxPlayer);
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
@@ -630,6 +637,22 @@ export class GameScreen {
     return true;
   }
 
+  /** Sends a player the attack ratio's share of the troops or of the gold (R-DIPLO-06). */
+  private gift(target: number, what: "troops" | "gold"): void {
+    const update = this.latest;
+    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) return;
+    if (this.replayBar) return;
+    const you = update.players.find((p) => p.id === update.you);
+    const amount = Math.floor(((you?.[what] ?? 0) * this.hud.ratio) / 100);
+    if (amount < 1) return;
+    this.session.sendOrder({
+      type: "gift",
+      target,
+      troops: what === "troops" ? amount : 0,
+      gold: what === "gold" ? amount : 0,
+    });
+  }
+
   private retreat(attack: number): void {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
@@ -667,7 +690,7 @@ export class GameScreen {
       KeyX: "demolish",
     };
     const mode = this.replayBar ? undefined : modes[event.code];
-    if (mode) {
+    if (mode && offers(mode, this.disabled)) {
       this.setMode(mode);
       event.preventDefault();
       return;

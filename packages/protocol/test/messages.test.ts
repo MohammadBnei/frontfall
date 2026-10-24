@@ -19,7 +19,7 @@ const CLIENT_MESSAGES: ClientMessage[] = [
   { type: "leave" },
   {
     type: "configure",
-    options: { map: "europe", bots: 6, difficulty: "easy", nations: true, teams: 2 },
+    options: { map: "europe", bots: 6, difficulty: "easy", nations: true, teams: 2, disabled: 9 },
   },
   { type: "hash", tick: 50, hash: 0xdeadbeef },
   { type: "order", order: { type: "spawn", tile: 4096 } },
@@ -37,6 +37,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     difficulty: "normal",
     nations: true,
     teams: 0,
+    disabled: 0,
     capacity: 16,
     players: [
       { id: 1, name: "Nico" },
@@ -55,6 +56,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     difficulty: "hard",
     nations: true,
     teams: 4,
+    disabled: 32,
     tickRate: 10,
     players: [{ id: 1, name: "Nico" }],
     you: 1,
@@ -111,6 +113,15 @@ describe("client messages", () => {
   it("rejects unknown types and unknown fields", () => {
     expect(parseClientMessage(JSON.stringify({ type: "cheat" })).ok).toBe(false);
     expect(parseClientMessage(JSON.stringify({ type: "play", extra: 1 })).ok).toBe(false);
+  });
+
+  it("rejects left-out options outside the six known bits", () => {
+    const options = { map: "world", bots: 0, difficulty: "easy", nations: true, teams: 0 };
+    const configure = (disabled: number) =>
+      parseClientMessage(JSON.stringify({ type: "configure", options: { ...options, disabled } }));
+    expect(configure(63).ok).toBe(true);
+    expect(configure(64).ok).toBe(false);
+    expect(configure(-1).ok).toBe(false);
   });
 
   it("rejects game ids that could not come from the server", () => {

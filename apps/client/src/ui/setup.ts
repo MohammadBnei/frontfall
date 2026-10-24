@@ -1,3 +1,4 @@
+import { Disable } from "@frontfall/engine";
 import { suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty, type SoloOptions } from "../game/solo-game.ts";
 
@@ -9,6 +10,15 @@ const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 export const MAX_NAME_LENGTH = 20;
 /** Free-for-all, then 2, 3 or 4 teams (R-MODE-02). */
 export const TEAM_CHOICES = [0, 2, 3, 4] as const;
+/** What a game can leave out (R-MODE-03), by its name in links and in the interface. */
+export const LEFT_OUT = [
+  { name: "city", bit: Disable.City },
+  { name: "fort", bit: Disable.Fort },
+  { name: "port", bit: Disable.Port },
+  { name: "silo", bit: Disable.Silo },
+  { name: "airDefense", bit: Disable.AirDefense },
+  { name: "warship", bit: Disable.Warships },
+] as const;
 
 /** The first map of the list with its nations, and the bots suggested with them. */
 export function defaultSetup(maps: readonly MapInfo[]): GameSetup {
@@ -47,6 +57,14 @@ export function sanitizeSetup(
   if (input.teams !== undefined && (TEAM_CHOICES as readonly number[]).includes(teams)) {
     setup.teams = teams;
   }
+  // Shared in a link as names, off=silo,warship, and never remembered.
+  if (typeof input.off === "string") {
+    const names = input.off.split(",");
+    setup.disabled = LEFT_OUT.reduce(
+      (bits, { name, bit }) => bits | (names.includes(name) ? bit : 0),
+      0,
+    );
+  }
   if (typeof input.name === "string") setup.playerName = cleanName(input.name);
   if (typeof input.playerName === "string") setup.playerName = cleanName(input.playerName);
   return setup;
@@ -78,7 +96,8 @@ export function initialSetup(
 
 export function saveSetup(setup: GameSetup, storage: Storage | undefined): void {
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(setup));
+    // What a link left out does not carry over to the next game from the menu.
+    storage?.setItem(STORAGE_KEY, JSON.stringify({ ...setup, disabled: undefined }));
   } catch {
     // Not remembering the setup is fine.
   }
@@ -94,6 +113,8 @@ export function setupQuery(setup: GameSetup): string {
   });
   // Left out of free-for-all links, which read as they did before teams.
   if (setup.teams) params.set("teams", String(setup.teams));
+  const off = LEFT_OUT.filter(({ bit }) => ((setup.disabled ?? 0) & bit) !== 0);
+  if (off.length > 0) params.set("off", off.map(({ name }) => name).join(","));
   return `?${params.toString()}`;
 }
 

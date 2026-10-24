@@ -1,7 +1,14 @@
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import { BOT_DIFFICULTIES, installBots, installNations, type BotDifficulty } from "./bots/index.ts";
 import { createGame } from "./create-game.ts";
-import { MAX_TEAMS, type Game, type Order, type PlayerSetup, type Turn } from "./game.ts";
+import {
+  DISABLE_ALL,
+  MAX_TEAMS,
+  type Game,
+  type Order,
+  type PlayerSetup,
+  type Turn,
+} from "./game.ts";
 import type { Terrain } from "./terrain.ts";
 
 /** Version of the report format below; a reader refuses any other. */
@@ -29,6 +36,8 @@ export interface DesyncReport {
   nations?: number[];
   /** Number of teams (R-MODE-02); absent from free-for-all games. */
   teams?: number;
+  /** `Disable` bits of what the game left out (R-MODE-03); absent when it left nothing out. */
+  disabled?: number;
   /** The player whose client wrote the report. */
   you: number;
   /** Ticks the client had run; turns and hashes come from ticks below this. */
@@ -50,6 +59,7 @@ export function recreateGame(recorded: RecordedGame, terrain: Terrain): Game {
     players: recorded.players,
     balance: recorded.balance,
     ...(recorded.teams === undefined ? {} : { teams: recorded.teams }),
+    ...(recorded.disabled === undefined ? {} : { disabled: recorded.disabled }),
   });
   installBots(game, recorded.bots.ids, recorded.bots.difficulty);
   installNations(game, recorded.nations ?? [], recorded.bots.difficulty);
@@ -163,6 +173,7 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
       ? {}
       : { nations: readList(report.nations, "nations").map((id) => readInteger(id, "nation id")) }),
     ...(report.teams === undefined ? {} : { teams: readTeams(report.teams) }),
+    ...(report.disabled === undefined ? {} : { disabled: readDisabled(report.disabled) }),
     you: readInteger(report.you, "you"),
     ticks: readInteger(report.ticks, "ticks"),
     turns: readList(report.turns, "turns").map((entry, i) => {
@@ -200,6 +211,12 @@ function readTeams(value: unknown): number {
   const teams = readInteger(value, "teams");
   if (teams !== 0 && (teams < 2 || teams > MAX_TEAMS)) throw new DesyncReportError("invalid teams");
   return teams;
+}
+
+function readDisabled(value: unknown): number {
+  const disabled = readInteger(value, "disabled");
+  if (disabled < 0 || disabled > DISABLE_ALL) throw new DesyncReportError("invalid disabled set");
+  return disabled;
 }
 
 export class DesyncReportError extends Error {
@@ -250,6 +267,13 @@ function order(value: unknown): Order {
         type: "embargo",
         target: readInteger(raw.target, "order target"),
         on: readInteger(raw.on, "embargo switch"),
+      };
+    case "gift":
+      return {
+        type: "gift",
+        target: readInteger(raw.target, "order target"),
+        troops: readInteger(raw.troops, "gift troops"),
+        gold: readInteger(raw.gold, "gift gold"),
       };
     default:
       throw new DesyncReportError(`unknown order type ${String(raw.type)}`);

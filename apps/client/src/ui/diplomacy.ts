@@ -3,6 +3,7 @@ import type { DiplomacyEvent, GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
+import { formatPercent } from "./format.ts";
 
 /** An event stays in the feed this long. */
 const EVENT_MS = 8000;
@@ -17,6 +18,10 @@ export interface DiplomacyActions {
   onBetray(player: number): void;
   /** Starts (`on` true) or lifts an embargo on the player's trade (R-DIPLO-05). */
   onEmbargo(player: number, on: boolean): void;
+  /** Sends the player the attack ratio's share of the troops or of the gold (R-DIPLO-06). */
+  onGift(player: number, what: "troops" | "gold"): void;
+  /** The attack ratio, in percent: the share a gift sends. */
+  share(): number;
 }
 
 const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
@@ -28,6 +33,7 @@ const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
   captured: "diplo.eventCaptured",
   missile: "diplo.eventMissile",
   stopped: "diplo.eventStopped",
+  gift: "diplo.eventGift",
 };
 
 /**
@@ -191,8 +197,13 @@ export class DiplomacyPanel {
       ...(diplomacy.embargoedBy.includes(id) ? [t("diplo.embargoedBy")] : []),
     ].join(" · ");
 
-    const buttons: { key: MessageKey; action: () => void; enabled: boolean; className: string }[] =
-      [];
+    const buttons: {
+      key: MessageKey;
+      params?: Record<string, string>;
+      action: () => void;
+      enabled: boolean;
+      className: string;
+    }[] = [];
     if (ally) {
       if (ally.renewable) {
         buttons.push({
@@ -255,14 +266,39 @@ export class DiplomacyPanel {
       });
     }
 
+    // Gifts go to anyone not at war with the player (R-DIPLO-06).
+    const war = diplomacy.atWar.includes(id);
+    const you = update.players.find((p) => p.id === update.you);
+    const share = this.actions.share();
+    const percent = { percent: formatPercent(share / 100) };
+    // Troops go only where the receiver's cap has room for them.
+    const room = player.cap > player.troops;
+    for (const what of ["troops", "gold"] as const) {
+      buttons.push({
+        key: what === "troops" ? "diplo.sendTroops" : "diplo.sendGold",
+        params: percent,
+        action: () => {
+          this.actions.onGift(id, what);
+        },
+        enabled:
+          playing &&
+          !war &&
+          Math.floor(((you?.[what] ?? 0) * share) / 100) >= 1 &&
+          (what === "gold" || room),
+        className: `gift-${what}`,
+      });
+    }
+    const warText = war ? t("diplo.atWar") : "";
+
     const key = [
       id,
       player.name,
       status,
       traitorText,
       embargoText,
+      warText,
       this.confirming,
-      ...buttons.map((b) => `${b.key}:${String(b.enabled)}`),
+      ...buttons.map((b) => `${b.key}:${JSON.stringify(b.params ?? {})}:${String(b.enabled)}`),
     ].join("|");
     if (key === this.menuKey) return;
     // Focus stays on the button of the same kind when the menu is redrawn.
@@ -291,11 +327,12 @@ export class DiplomacyPanel {
       h("p", { class: "player-menu-status" }, status),
       ...(traitorText ? [h("p", { class: "player-menu-traitor" }, traitorText)] : []),
       ...(embargoText ? [h("p", { class: "player-menu-embargo" }, embargoText)] : []),
-      ...buttons.map(({ key: label, action, enabled, className }) => {
+      ...(warText ? [h("p", { class: "player-menu-war" }, warText)] : []),
+      ...buttons.map(({ key: label, params, action, enabled, className }) => {
         const button = h(
           "button",
           { type: "button", class: `menu-action ${className}`, "data-kind": className },
-          t(label),
+          t(label, params),
         );
         button.disabled = !enabled;
         button.addEventListener("click", action);

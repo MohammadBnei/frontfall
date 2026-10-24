@@ -85,12 +85,15 @@ test("two players meet in a private game without leaving the base path", async (
   await host.locator("#lobby-bots").fill("0");
   await host.locator("#lobby-difficulty").selectOption("hard");
   await expect(host.locator("#lobby-bots")).toHaveValue("0");
+  await host.locator("#lobby-allow-silo").uncheck();
 
   await guest.goto(link);
   await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
   await expect(guest.locator("#lobby-start")).toBeHidden();
   await expect(guest.locator("#lobby-map")).toBeHidden();
-  await expect(guest.locator("#lobby-summary")).toHaveText("World · 0 bots · nations · Hard");
+  await expect(guest.locator("#lobby-summary")).toHaveText(
+    "World · 0 bots · nations · Hard · left out: Silo",
+  );
   await host.locator("#lobby-start").click();
 
   for (const page of [host, guest]) {

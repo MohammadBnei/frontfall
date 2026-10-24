@@ -34,6 +34,7 @@ export const BuildError = {
   Crowded: "too close to another structure",
   Land: "not enough land for another city",
   Coast: "a port needs a coast",
+  Disabled: "left out of this game",
   Gold: "not enough gold",
 } as const;
 export type BuildError = (typeof BuildError)[keyof typeof BuildError];
@@ -126,6 +127,7 @@ export function placementError(
   kind: StructureKind,
   tile: number,
 ): BuildError | undefined {
+  if (!game.allows(1 << kind)) return BuildError.Disabled;
   if (game.territory.ownerOf(tile) !== player.id) return BuildError.Foreign;
   if (kind === StructureKind.Port && !game.terrain.isCoast(tile)) return BuildError.Coast;
   const spacing = game.balance.buildSpacing;

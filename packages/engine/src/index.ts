@@ -45,6 +45,7 @@ export {
   type GameRecord,
 } from "./game-record.ts";
 export { installEconomy, populationCap } from "./economy.ts";
+export { GiftError, giftError, giftedTroops, installGifts } from "./gifts.ts";
 export {
   installBots,
   installNations,
@@ -59,6 +60,8 @@ export {
   type BotParameters,
 } from "./bots/index.ts";
 export {
+  DISABLE_ALL,
+  Disable,
   Game,
   MAX_TEAMS,
   type GameSetup,

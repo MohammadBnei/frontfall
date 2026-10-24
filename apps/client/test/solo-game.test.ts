@@ -210,6 +210,57 @@ describe("SoloGame clicks", () => {
     expect(territory.ownerOf(target)).toBe(0);
   });
 
+  it("tells the player when an air defense stops their missile (R-BUILD-05)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory, structures } = solo.game;
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 100_000_000;
+    // The west half of the map is the player's, the east half the bot's.
+    const width = terrain.topology.width;
+    for (let tile = 0; tile < terrain.topology.size; tile++) {
+      if (terrain.isOwnable(tile))
+        territory.setOwner(tile, terrain.topology.x(tile) < width / 2 ? 1 : 2);
+    }
+    // The player's or the bot's tile away from coasts and borders closest to column `x`.
+    const inland = (owner: number, x: number) => {
+      let best = -1;
+      for (let tile = 0; tile < terrain.topology.size; tile++) {
+        if (territory.ownerOf(tile) !== owner || terrain.isCoast(tile) || territory.isBorder(tile))
+          continue;
+        const off = Math.abs(terrain.topology.x(tile) - x);
+        if (best < 0 || off < Math.abs(terrain.topology.x(best) - x)) best = tile;
+      }
+      return best;
+    };
+    const silo = inland(1, Math.floor(width / 4));
+    const defense = inland(2, Math.floor((2 * width) / 3));
+    // Beyond the defense, out of its own blast.
+    const target = inland(2, Math.floor((2 * width) / 3) + 24);
+    expect([silo, defense, target].every((tile) => tile >= 0)).toBe(true);
+    const bot = solo.game.player(2);
+    if (!bot) throw new Error("no bot");
+    bot.gold = 100_000_000;
+    solo.game.apply(2, { type: "build", structure: 4, tile: defense });
+    solo.step([{ type: "build", structure: 3, tile: silo }]);
+    expect(structures.map((s) => s.kind).sort()).toEqual([3, 4]);
+    for (let i = 0; i < solo.game.balance.longBuildTicks; i++) solo.step([]);
+    // Three missiles in four are stopped: a few launches see one stopped.
+    const seen: string[] = [];
+    for (let shot = 0; shot < 4 && !seen.includes("stopped"); shot++) {
+      while (!solo.step([]).build.loaded);
+      update = solo.step([{ type: "missile", target, size: 0 }]);
+      seen.push(...update.events.map((event) => event.type));
+      while (solo.game.missiles.length > 0) {
+        seen.push(...solo.step([]).events.map((event) => event.type));
+      }
+    }
+    expect(seen).toContain("missile");
+    expect(seen).toContain("stopped");
+  });
+
   it("puts a port only by the water, and shows embargoes both ways (R-BUILD-02, R-DIPLO-05)", () => {
     const solo = newGame({ ...options, bots: 1 });
     const { terrain, territory } = solo.game;
@@ -233,6 +284,24 @@ describe("SoloGame clicks", () => {
     expect(update.diplomacy.embargoes).toEqual([2]);
     expect(update.events).toContainEqual({ type: "embargo", a: HUMAN_ID, b: 2 });
     expect(update.tradeShips).toEqual([]);
+  });
+
+  it("sends gifts, shows who is at war, and keeps the game's left-out options in its record (R-DIPLO-06, R-MODE-03)", () => {
+    const solo = newGame({ ...options, bots: 1, disabled: 8 });
+    const land = firstLand(options.map);
+    let update = solo.step([{ type: "spawn", tile: land }]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 1_000_000;
+    expect(solo.orderForClick(land, 30, "silo")).toEqual({ refused: "disabled" });
+    update = solo.step([{ type: "gift", target: 2, troops: 0, gold: 400_000 }]);
+    expect(solo.game.player(2)?.gold).toBeGreaterThanOrEqual(400_000);
+    expect(update.events).toContainEqual({ type: "gift", a: HUMAN_ID, b: 2 });
+    expect(update.diplomacy.atWar).toEqual([]);
+    update = solo.step([{ type: "embargo", target: 2, on: 1 }]);
+    expect(update.diplomacy.atWar).toEqual([2]);
+    expect(solo.game.disabled).toBe(8);
   });
 
   it("builds and demolishes in the mode the HUD picked, and reports structures (R-BUILD)", () => {

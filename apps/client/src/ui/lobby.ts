@@ -1,7 +1,7 @@
 import type { Difficulty, ErrorCode, GameOptions, Teams } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
-import { TEAM_CHOICES } from "./setup.ts";
+import { LEFT_OUT, TEAM_CHOICES } from "./setup.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
 import { playerColor, teamColor } from "../palette.ts";
@@ -91,6 +91,12 @@ export class LobbyScreen {
   private readonly difficulty = h("select", { id: "lobby-difficulty" });
   private readonly nations = h("input", { id: "lobby-nations", type: "checkbox" });
   private readonly teams = h("select", { id: "lobby-teams" });
+  /** One box per structure or unit the game can leave out (R-MODE-03), checked when it stays in. */
+  private readonly allowed = LEFT_OUT.map(({ name, bit }) => ({
+    bit,
+    input: h("input", { id: `lobby-allow-${name}`, type: "checkbox", "data-bit": bit }),
+    name,
+  }));
   private readonly settings = h(
     "div",
     { class: "lobby-settings", hidden: true },
@@ -109,6 +115,14 @@ export class LobbyScreen {
     ),
     h("label", { for: "lobby-teams", "data-i18n": "menu.mode" }),
     this.teams,
+    h("span", { class: "lobby-allowed-label", "data-i18n": "online.allowed" }),
+    h(
+      "div",
+      { class: "lobby-allowed", role: "group", "data-i18n-attr": "aria-label:online.allowed" },
+      ...this.allowed.map(({ input, name }) =>
+        h("label", { class: "toggle" }, input, h("span", { "data-i18n": `hud.${name}` })),
+      ),
+    ),
   );
   private readonly summary = h("p", { class: "lobby-summary", id: "lobby-summary" });
   private shown: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
@@ -145,12 +159,17 @@ export class LobbyScreen {
         difficulty: this.difficulty.value as Difficulty,
         nations: this.nations.checked,
         teams: Number(this.teams.value) as Teams,
+        disabled: this.allowed.reduce(
+          (bits, { bit, input }) => bits | (input.checked ? 0 : bit),
+          0,
+        ),
       });
     };
     this.mapSelect.addEventListener("change", configure);
     this.difficulty.addEventListener("change", configure);
     this.nations.addEventListener("change", configure);
     this.teams.addEventListener("change", configure);
+    for (const { input } of this.allowed) input.addEventListener("change", configure);
     this.bots.addEventListener("input", () => {
       this.botsValue.textContent = this.bots.value;
     });
@@ -297,12 +316,20 @@ export class LobbyScreen {
       bots: lobby.bots,
       difficulty: t(`difficulty.${lobby.difficulty}`),
     });
-    this.summary.textContent =
+    const withMode =
       lobby.teams === 0
         ? summary
         : t("online.summaryTeams", {
             summary,
             mode: t(`mode.${String(lobby.teams)}` as MessageKey),
+          });
+    const off = LEFT_OUT.filter(({ bit }) => (lobby.disabled & bit) !== 0);
+    this.summary.textContent =
+      off.length === 0
+        ? withMode
+        : t("online.summaryOff", {
+            summary: withMode,
+            off: off.map(({ name }) => t(`hud.${name}`)).join(", "),
           });
     const editable = lobby.visibility === "private" && lobby.host === lobby.you && map;
     this.settings.hidden = !editable;
@@ -343,6 +370,7 @@ export class LobbyScreen {
       ),
     );
     this.teams.value = String(lobby.teams);
+    for (const { bit, input } of this.allowed) input.checked = (lobby.disabled & bit) === 0;
     this.bots.max = String(botLimit(map, lobby.players.length));
     this.bots.value = String(lobby.bots);
     this.botsValue.textContent = String(lobby.bots);

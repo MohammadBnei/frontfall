@@ -101,6 +101,11 @@ describe("frames", () => {
     });
   });
 
+  it("carries a gift's troops and gold, either of them 0", () => {
+    const order = { type: "gift" as const, target: 7, troops: 0, gold: 2 ** 40 + 3 };
+    expect(decodeFrame(encodeOrderFrame(order))).toEqual({ kind: "order", order });
+  });
+
   it("carries alliance requests and betrayals with their target player", () => {
     for (const type of ["ally", "betray"] as const) {
       expect(decodeFrame(encodeOrderFrame({ type, target: 0xffff }))).toEqual({
@@ -171,7 +176,7 @@ describe("order kinds", () => {
       version: PROTOCOL_VERSION,
       kinds: ORDER_KINDS.map((kind) => kind.type),
     }).toEqual({
-      version: 11,
+      version: 12,
       kinds: [
         "spawn",
         "attack",
@@ -185,6 +190,7 @@ describe("order kinds", () => {
         "warship",
         "patrol",
         "missile",
+        "gift",
       ],
     });
   });

@@ -101,11 +101,18 @@ Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting).
 ```json
 {
   "type": "configure",
-  "options": { "map": "europe", "bots": 6, "difficulty": "hard", "nations": true, "teams": 0 }
+  "options": {
+    "map": "europe",
+    "bots": 6,
+    "difficulty": "hard",
+    "nations": true,
+    "teams": 0,
+    "disabled": 0
+  }
 }
 ```
 
-The host of a private game sets its map, its number of bots, how hard computer players play and whether the map's nations play, and `teams`: 0 for a free-for-all, or 2, 3 or 4 teams, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps its 16 seats when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. Nations come on top of the players and bots. A new private game starts on World, without bots, with nations, at `normal`.
+The host of a private game sets its map, its number of bots, how hard computer players play and whether the map's nations play, and `teams`: 0 for a free-for-all, or 2, 3 or 4 teams, and `disabled`: what the game leaves out (`R-MODE-03`), as a sum of 1 for cities, 2 forts, 4 ports, 8 missile silos, 16 air defenses and 32 warships, 0 for nothing, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps its 16 seats when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. Nations come on top of the players and bots. A new private game starts on World, without bots, with nations, at `normal`.
 
 ### `start`
 
@@ -135,20 +142,21 @@ The client's 32-bit hash of its game state after running `tick`, sent for every 
 
 Binary frame. An order of the local player, in the shape of the engine's `Order`:
 
-| Order      | Fields                         | Meaning                                                                                                 |
-| ---------- | ------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `spawn`    | `tile`                         | Choose a starting tile during the spawn phase                                                           |
-| `attack`   | `target`, `troops` (`> 0`)     | Send troops towards a tile                                                                              |
-| `retreat`  | `attack` (`> 0`)               | Call back one of the player's attacks by its id                                                         |
-| `embark`   | `target`, `troops` (`> 0`)     | Ship troops to a coastal tile                                                                           |
-| `build`    | `structure` (0 to 255), `tile` | Build a structure on one of the player's tiles: `0` city, `1` fort, `2` port, `3` silo, `4` air defense |
-| `demolish` | `tile`                         | Demolish one of the player's structures                                                                 |
-| `ally`     | `target` (player 1 to 65535)   | Ask for an alliance, accept one, or renew one                                                           |
-| `betray`   | `target` (player 1 to 65535)   | End an alliance at once, as a betrayal                                                                  |
-| `embargo`  | `target` (player), `on` (0, 1) | Start (1) or lift (0) an embargo on a player's trade                                                    |
-| `warship`  | `port` (tile)                  | Buy a warship at one of your ports                                                                      |
-| `patrol`   | `ship` (id), `tile`            | Send one of your warships to patrol around a water tile                                                 |
-| `missile`  | `target`, `size` (0 to 255)    | Launch a missile (`0`) or a heavy missile (`1`) at a land tile                                          |
+| Order      | Fields                                          | Meaning                                                                                                 |
+| ---------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `spawn`    | `tile`                                          | Choose a starting tile during the spawn phase                                                           |
+| `attack`   | `target`, `troops` (`> 0`)                      | Send troops towards a tile                                                                              |
+| `retreat`  | `attack` (`> 0`)                                | Call back one of the player's attacks by its id                                                         |
+| `embark`   | `target`, `troops` (`> 0`)                      | Ship troops to a coastal tile                                                                           |
+| `build`    | `structure` (0 to 255), `tile`                  | Build a structure on one of the player's tiles: `0` city, `1` fort, `2` port, `3` silo, `4` air defense |
+| `demolish` | `tile`                                          | Demolish one of the player's structures                                                                 |
+| `ally`     | `target` (player 1 to 65535)                    | Ask for an alliance, accept one, or renew one                                                           |
+| `betray`   | `target` (player 1 to 65535)                    | End an alliance at once, as a betrayal                                                                  |
+| `embargo`  | `target` (player), `on` (0, 1)                  | Start (1) or lift (0) an embargo on a player's trade                                                    |
+| `warship`  | `port` (tile)                                   | Buy a warship at one of your ports                                                                      |
+| `patrol`   | `ship` (id), `tile`                             | Send one of your warships to patrol around a water tile                                                 |
+| `missile`  | `target`, `size` (0 to 255)                     | Launch a missile (`0`) or a heavy missile (`1`) at a land tile                                          |
+| `gift`     | `target` (player), `troops`, `gold` (0 or more) | Send a player troops and gold                                                                           |
 
 Tiles are indexes in the map, below 2^31. The server checks only the shape of an order; whether it can be carried out is decided by the engine of every client, the same way everywhere. Orders sent outside a running game are ignored.
 
@@ -174,6 +182,7 @@ The hello was accepted.
   "difficulty": "normal",
   "nations": true,
   "teams": 0,
+  "disabled": 0,
   "capacity": 16,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -199,6 +208,7 @@ The game being filled, sent after every change, the host's `configure` included.
   "difficulty": "normal",
   "nations": true,
   "teams": 0,
+  "disabled": 0,
   "tickRate": 10,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -209,7 +219,7 @@ The game being filled, sent after every change, the host's `configure` included.
 }
 ```
 
-Everything a client needs to create the same game as the others: map, seed, players, the number of bots each client adds and runs itself, whether it adds the map's nations, all at `difficulty`, and the number of `teams`, into which every client deals humans, bots and nations in id order (`R-MODE-02`). Bots take the numbers after the last player, then nations those after the last bot, in the order of the map's manifest. The server relays only human orders. `token` is secret: it lets this player rejoin after a dropped connection. The message is sent again after a successful `rejoin`.
+Everything a client needs to create the same game as the others: map, seed, players, the number of bots each client adds and runs itself, whether it adds the map's nations, all at `difficulty`, what the game leaves out (`disabled`), and the number of `teams`, into which every client deals humans, bots and nations in id order (`R-MODE-02`). Bots take the numbers after the last player, then nations those after the last bot, in the order of the map's manifest. The server relays only human orders. `token` is secret: it lets this player rejoin after a dropped connection. The message is sent again after a successful `rejoin`.
 
 ### `turns`
 
@@ -293,20 +303,21 @@ The first byte of a frame gives its kind:
 
 A turn is its order count, then for each order the player number and the order. An order is its kind code followed by its fields, in this order:
 
-| Code | Order      | Fields              |
-| ---- | ---------- | ------------------- |
-| `0`  | `spawn`    | `tile`              |
-| `1`  | `attack`   | `target`, `troops`  |
-| `2`  | `retreat`  | `attack`            |
-| `3`  | `embark`   | `target`, `troops`  |
-| `4`  | `build`    | `structure`, `tile` |
-| `5`  | `demolish` | `tile`              |
-| `6`  | `ally`     | `target`            |
-| `7`  | `betray`   | `target`            |
-| `8`  | `embargo`  | `target`, `on`      |
-| `9`  | `warship`  | `port`              |
-| `10` | `patrol`   | `ship`, `tile`      |
-| `11` | `missile`  | `target`, `size`    |
+| Code | Order      | Fields                     |
+| ---- | ---------- | -------------------------- |
+| `0`  | `spawn`    | `tile`                     |
+| `1`  | `attack`   | `target`, `troops`         |
+| `2`  | `retreat`  | `attack`                   |
+| `3`  | `embark`   | `target`, `troops`         |
+| `4`  | `build`    | `structure`, `tile`        |
+| `5`  | `demolish` | `tile`                     |
+| `6`  | `ally`     | `target`                   |
+| `7`  | `betray`   | `target`                   |
+| `8`  | `embargo`  | `target`, `on`             |
+| `9`  | `warship`  | `port`                     |
+| `10` | `patrol`   | `ship`, `tile`             |
+| `11` | `missile`  | `target`, `size`           |
+| `12` | `gift`     | `target`, `troops`, `gold` |
 
 The table is `ORDER_KINDS` in [`orders.ts`](../packages/protocol/src/orders.ts). New orders are added at the end, so existing codes never change. A frame with trailing bytes, an unknown kind or a count larger than the rest of the frame could hold is refused. A client that receives a `turns` frame it cannot read stops and asks for a reload: skipping a turn would desynchronise its game.
 
@@ -321,4 +332,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

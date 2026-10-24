@@ -295,6 +295,12 @@ input[type="range"] {
   color: inherit;
 }
 
+.lobby-allowed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
 .lobby-settings[hidden],
 .lobby-summary[hidden] {
   display: none;
@@ -522,6 +528,14 @@ input[type="range"] {
   top: 12px;
   right: 12px;
   width: 220px;
+  /* A long player menu scrolls inside the panel rather than running off the screen. */
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+
+/* An open player menu goes over the build panel below it. */
+.leaderboard:has(.player-menu:not([hidden])) {
+  z-index: 1;
 }
 
 .leaderboard h2 {

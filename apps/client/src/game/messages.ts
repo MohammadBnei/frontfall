@@ -23,6 +23,8 @@ export interface GameRules {
   readonly allianceRequestTicks: number;
   /** Team of each player by id in a team game (R-MODE-02), empty in a free-for-all. */
   readonly teams: readonly number[];
+  /** What the game leaves out (R-MODE-03), as the engine's `Disable` bits. */
+  readonly disabled: number;
 }
 
 /** From the page to the simulation worker. */

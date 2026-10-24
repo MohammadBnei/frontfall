@@ -10,6 +10,7 @@ const PUBLIC: RoomSettings = {
   difficulty: "normal",
   nations: true,
   teams: 0,
+  disabled: 0,
   minPlayers: 2,
   countdownMs: 10_000,
   reconnectGraceMs: 60_000,
@@ -194,6 +195,7 @@ describe("private lobby", () => {
       difficulty: "easy",
       nations: false,
       teams: 0,
+      disabled: 40,
       capacity: 6,
     } as const;
     expect(room.configure(guest.seat, options, 0)).toBe("not_host");
@@ -207,6 +209,7 @@ describe("private lobby", () => {
       difficulty: "easy",
       nations: false,
       teams: 0,
+      disabled: 40,
     });
     expect(room.configure(host.seat, options, 0)).toBe("game_started");
   });

@@ -5,6 +5,7 @@ export const MAX_TILE = 2 ** 31 - 1;
 
 const tile = z.number().int().min(0).max(MAX_TILE);
 const amount = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+const share = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 /** Code of a structure kind (the engine's StructureKind); the engine refuses codes it does not know. */
 const structure = z.number().int().min(0).max(255);
 
@@ -26,6 +27,7 @@ export const ORDER_KINDS = [
   { type: "warship", fields: ["port"] },
   { type: "patrol", fields: ["ship", "tile"] },
   { type: "missile", fields: ["target", "size"] },
+  { type: "gift", fields: ["target", "troops", "gold"] },
 ] as const;
 
 /** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
@@ -55,6 +57,8 @@ export const Order = z.discriminatedUnion("type", [
   z
     .object({ type: z.literal("missile"), target: tile, size: z.number().int().min(0).max(255) })
     .strict(),
+  /** Troops and gold sent to another player; the engine refuses a gift of neither. */
+  z.object({ type: z.literal("gift"), target: PlayerNumber, troops: share, gold: share }).strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 
