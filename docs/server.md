@@ -105,15 +105,19 @@ curl -s localhost:8080/metrics
 
 ## HTTP routes
 
-| Path          | Answer                                                   |
-| ------------- | -------------------------------------------------------- |
-| `/healthz`    | `ok`, with the build in the `X-Frontfall-Version` header |
-| `/api/games`  | Public games that have not started, as JSON              |
-| `/metrics`    | Metrics, from the host only                              |
-| `/ws`         | WebSocket upgrade                                        |
-| anything else | Files of the built client                                |
+| Path          | Answer                                                                         |
+| ------------- | ------------------------------------------------------------------------------ |
+| `/healthz`    | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header |
+| `/api/games`  | Public games that have not started, as JSON                                    |
+| `/metrics`    | Metrics, from the host only                                                    |
+| `/ws`         | WebSocket upgrade                                                              |
+| anything else | Files of the built client                                                      |
 
 HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Every file carries an `ETag` drawn from its content; maps and other files without a hashed name are sent with `no-cache`, so browsers revalidate them and get `304 Not Modified` until they change. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
+
+## Health check
+
+`/healthz` answers `200 ok` while the turn timer runs. The timer runs whether or not any game is in progress, so an idle server is healthy. It answers `503 stalled` when no turn has been closed for 5 seconds, and `200 ok` again from the next turn, and `503 stopping` to requests still in flight while it shuts down. A blocked event loop does not answer at all, which a check with a timeout reports as well. The deployment waits for this route, the image's `HEALTHCHECK` polls it, and an external uptime check alerts on it. Docker only marks an unhealthy container as such; it does not restart it.
 
 ## Shutdown
 

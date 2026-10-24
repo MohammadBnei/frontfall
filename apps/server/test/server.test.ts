@@ -1,5 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import type { AddressInfo } from "node:net";
+import { connect, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { get } from "node:http";
 import { join } from "node:path";
@@ -95,6 +95,45 @@ describe("HTTP", () => {
     expect(await response.text()).toBe("ok");
     expect(response.headers.get("x-frontfall-version")).toBe("abc123");
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("fails the health check once turns stop being closed", async () => {
+    // With no delay allowed, the last turn is always too old.
+    const response = await fetch(`http://${await start({ stallAfterMs: 0 })}/healthz`);
+    expect(response.status).toBe(503);
+    expect(await response.text()).toBe("stalled");
+    expect(response.headers.get("x-frontfall-version")).toBe("abc123");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("stays healthy while the turn timer keeps up, with no game running", async () => {
+    const host = await start({ stallAfterMs: 500 });
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect((await fetch(`http://${host}/healthz`)).status).toBe(200);
+  });
+
+  it("fails the health check of a request still in flight at shutdown", async () => {
+    const host = await start();
+    const [address, port] = host.split(":");
+    const socket = connect(Number(port), address);
+    await new Promise((resolve) => socket.once("connect", resolve));
+    // Half a request keeps the connection busy, so close() leaves it open.
+    socket.write("GET /healthz HTTP/1.1\r\nHost: x\r\n");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const closed = server?.close();
+    server = undefined;
+    const reply = new Promise<string>((resolve) => {
+      let text = "";
+      socket.on("data", (chunk: Buffer) => (text += chunk.toString()));
+      socket.on("end", () => {
+        resolve(text);
+      });
+    });
+    socket.end("Connection: close\r\n\r\n");
+    const text = await reply;
+    await closed;
+    expect(text).toMatch(/^HTTP\/1\.1 503/);
+    expect(text.slice(text.indexOf("\r\n\r\n"))).toContain("stopping");
   });
 
   it("serves the client, caching hashed assets only", async () => {

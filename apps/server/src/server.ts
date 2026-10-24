@@ -40,6 +40,8 @@ export interface ServerOptions {
   maxRooms?: number;
   /** Bots the host of a private game may add, within the map's player count. */
   maxBots?: number;
+  /** /healthz fails once no turn has been closed for this long. */
+  stallAfterMs?: number;
   /** A connection must say hello within this delay. */
   helloTimeoutMs?: number;
   /** A connection whose seat is claimed must answer a ping within this delay. */
@@ -166,6 +168,10 @@ export function createGameServer(options: ServerOptions): GameServer {
   const probeTimeoutMs = options.probeTimeoutMs ?? 5_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60_000;
   const messageRate = options.messageRate ?? { perSecond: 20, burst: 40 };
+  const stallAfterMs = options.stallAfterMs ?? 5000;
+  /** End of the last pass of the turn timer, and whether close() has begun. */
+  let lastTurnAt = performance.now();
+  let stopping = false;
   const logger = options.logger ?? silentLogger;
   const pseudonym = addressPseudonym();
   const metrics = new Metrics();
@@ -209,13 +215,20 @@ export function createGameServer(options: ServerOptions): GameServer {
   const http = createServer((request, response) => {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
     if (path === "/healthz") {
+      // An event loop that is blocked cannot answer at all; this catches a turn
+      // timer that has stopped or fallen far behind while requests still get through.
+      const status = stopping
+        ? "stopping"
+        : performance.now() - lastTurnAt > stallAfterMs
+          ? "stalled"
+          : "ok";
       response
-        .writeHead(200, {
+        .writeHead(status === "ok" ? 200 : 503, {
           "content-type": "text/plain",
           "cache-control": "no-store",
           "x-frontfall-version": options.version,
         })
-        .end("ok");
+        .end(status);
       return;
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
@@ -498,7 +511,8 @@ export function createGameServer(options: ServerOptions): GameServer {
   const ticker = setInterval(() => {
     const started = performance.now();
     games.update(Date.now());
-    metrics.turnDuration.observe((performance.now() - started) / 1000);
+    lastTurnAt = performance.now();
+    metrics.turnDuration.observe((lastTurnAt - started) / 1000);
   }, 1000 / TICK_RATE);
 
   function snapshot(): Snapshot {
@@ -543,6 +557,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     games,
     metrics,
     close() {
+      stopping = true;
       clearInterval(heartbeat);
       clearInterval(ticker);
       games.stopAll();

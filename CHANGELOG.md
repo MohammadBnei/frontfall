@@ -45,6 +45,7 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - **Online games, protocol version 2** ([docs/protocol.md](docs/protocol.md)): a version handshake, binary frames for orders and turns, public games that start after a countdown or when full, private games joined by invitation link (`?game=<id>`), a list of public games at `/api/games`, reconnection with every missed turn, desync detection from client state hashes, and player name rules.
 - Pages from an older build are asked to reload instead of joining a game they could desynchronise. Online games are played on the World map.
 - Server protection and monitoring ([docs/server.md](docs/server.md)): a message rate limit per connection, idle connections closed, JSON logs that never record client addresses, and Prometheus metrics at `/metrics`, answered only to requests from the host.
+- `/healthz` answers `503` when the turn timer has stalled for 5 seconds or the server is shutting down, so an uptime check sees a server that accepts requests but no longer plays.
 - The image caps the Node.js heap at 512 MiB, and `FRONTFALL_MAX_GAMES` and `FRONTFALL_MAX_CONNECTIONS` set the server's limits.
 - Large static files, map files included, are served gzipped to browsers that accept it.
 - Static files carry an `ETag`, so browsers revalidate maps and get `304 Not Modified` instead of downloading them again.
