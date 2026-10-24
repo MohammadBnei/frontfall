@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { loadMap, type MapDescription } from "@frontfall/engine";
 import { summarize } from "../engine/stats.ts";
@@ -87,6 +87,29 @@ console.log(
 );
 console.table(standings);
 console.log(`state hash: ${game.hash().toString(16).padStart(8, "0")}`);
+
+// On GitHub Actions, the run's numbers also go to the job summary.
+const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+if (summaryFile) {
+  const { width, height } = game.terrain.topology;
+  const verdict =
+    budget === undefined
+      ? ""
+      : ` (budget ${String(budget)} ms: ${tick.p95 > budget ? "over" : "within"})`;
+  appendFileSync(
+    summaryFile,
+    [
+      `### Simulation: ${values.map ?? `${String(width)}x${String(height)} generated`}, ${String(game.players().length)} players`,
+      "",
+      "| Ticks | Orders | Tick median | Tick p95 | Tick max |",
+      "| ---: | ---: | ---: | ---: | ---: |",
+      `| ${String(game.tick)} | ${String(orders)} | ${tick.p50.toFixed(2)} ms | ${tick.p95.toFixed(2)} ms | ${tick.max.toFixed(2)} ms |`,
+      "",
+      `Tick p95 ${tick.p95.toFixed(2)} ms${verdict}.`,
+      "",
+    ].join("\n"),
+  );
+}
 
 if (budget !== undefined && tick.p95 > budget) {
   console.error(`tick p95 ${tick.p95.toFixed(2)} ms is over the ${String(budget)} ms budget`);

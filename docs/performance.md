@@ -221,7 +221,9 @@ pnpm sim -- --width 2048 --height 1024 --players 16 --ticks 6000 --interval 10
 pnpm sim -- --budget 30   # exits with an error when the tick p95 is over 30 ms
 ```
 
-CI runs the 16-player game for 3,000 ticks on every push with `--budget 30`.
+CI runs the 16-player game for 3,000 ticks on every push with `--budget 30`,
+and writes its tick median, p95 and maximum to the job summary of the run
+(`GITHUB_STEP_SUMMARY`), so the numbers are on the run page without an artifact.
 
 Measured on the same machine, before and after checking enclosures once per
 attack and tick instead of once per captured tile:
