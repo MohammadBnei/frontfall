@@ -103,6 +103,63 @@ test("two players meet in a private game without leaving the base path", async (
   expect(outside).toEqual([]);
 });
 
+test("four players see the same game, without a desync", async ({ browser, baseURL }) => {
+  // The local server only: its metrics count desyncs, and four pages are heavy.
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
+  test.skip(test.info().project.name !== "root", "one browser is enough");
+  test.setTimeout(GAME_START_TIMEOUT + 60_000);
+  if (!baseURL) throw new Error("baseURL is not configured");
+  const names = ["Host", "Ana", "Bea", "Cyd"];
+  const pages = await Promise.all(names.map(() => browser.newPage()));
+  const [host, ...guests] = pages;
+  if (!host) throw new Error("no host page");
+  const pageErrors: Error[] = [];
+  for (const page of pages) page.on("pageerror", (error) => pageErrors.push(error));
+
+  await host.goto(baseURL);
+  await host.locator("#player-name").fill("Host");
+  await host.locator("#online-create").click();
+  const invite = host.locator("#invite-link");
+  await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
+  const link = await invite.inputValue();
+  for (const [index, guest] of guests.entries()) {
+    const invited = new URL(link);
+    invited.searchParams.set("name", names[index + 1] ?? "");
+    await guest.goto(invited.href);
+  }
+  await expect(host.locator("#lobby-players li")).toHaveCount(4, { timeout: 15_000 });
+  await host.locator("#lobby-start").click();
+
+  // Every page lists the same four players with the same colours.
+  const leaders = async (page: Page) => {
+    const rows = await Promise.all(
+      (await page.locator(".leaderboard-list li").all()).map(async (row) => ({
+        name: (await row.locator(".leader-name").textContent()) ?? "",
+        color: (await row.locator(".swatch").getAttribute("style")) ?? "",
+      })),
+    );
+    return rows.sort((a, b) => a.name.localeCompare(b.name));
+  };
+  for (const page of pages) {
+    await expect(page.locator(".leaderboard-list li")).toHaveCount(4, {
+      timeout: GAME_START_TIMEOUT,
+    });
+  }
+  const seen = await Promise.all(pages.map(leaders));
+  expect(seen[0]?.map((row) => row.name)).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  expect(new Set(seen[0]?.map((row) => row.color)).size).toBe(4);
+  for (const rows of seen) expect(rows).toEqual(seen[0]);
+
+  // Clients hash their state every 5 seconds; let two rounds be compared.
+  await expect.poll(() => clockOf(host), { timeout: 30_000 }).toBeGreaterThan(12);
+  for (const page of pages) await expect.poll(() => clockOf(page)).toBeGreaterThan(11);
+  const metrics = await (await fetch(new URL("metrics", baseURL))).text();
+  expect(metrics).toMatch(/^frontfall_desyncs_total 0$/m);
+  expect(pageErrors).toEqual([]);
+  // The server takes eight connections per address, and every test runs from this one.
+  await Promise.all(pages.map((page) => page.close()));
+});
+
 test("two players join a public game from the menu", async ({ browser, baseURL }) => {
   // Never against the public server: real players could join the test's game.
   test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
