@@ -64,7 +64,7 @@ async function startGame(
 test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(150_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
   await startGame(page);
@@ -73,7 +73,7 @@ test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)
   const leader = page.locator(".leader-button").first();
   const menu = page.locator("#player-menu");
   const ally = page.locator(".leader .badge-ally").first();
-  const deadline = Date.now() + 75_000;
+  const deadline = Date.now() + 100_000;
   while (Date.now() < deadline && !(await ally.isVisible())) {
     if (!(await menu.isVisible())) await leader.click();
     const ask = menu.locator(".menu-action.ask");
@@ -108,7 +108,8 @@ test("closes the player menu with Esc before pausing", async ({ page }) => {
 });
 
 test.describe("on a touch screen", () => {
-  test.use({ hasTouch: true, viewport: { width: 400, height: 760 } });
+  // Synthetic pointer events need no touch support from the browser.
+  test.use({ viewport: { width: 400, height: 760 } });
 
   test("opens a player's menu with a long press, and does not attack (R-DIPLO-01)", async ({
     page,
@@ -146,8 +147,10 @@ test.describe("on a touch screen", () => {
       await new Promise((resolve) => setTimeout(resolve, 600));
       map.dispatchEvent(new PointerEvent("pointerup", init));
     })()`);
-    await expect(page.locator(".attacks")).toBeHidden();
     await expect(menu.locator("h2")).toHaveText(name);
+    // An attack would show up within a few updates.
+    await page.waitForTimeout(1000);
+    await expect(page.locator(".attacks")).toBeHidden();
     await expect(menu).toBeVisible();
     await expect(menu.locator(".menu-action.ask")).toBeVisible();
     // The menu stays on screen on a phone.

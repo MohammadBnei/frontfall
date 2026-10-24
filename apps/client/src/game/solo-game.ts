@@ -276,9 +276,6 @@ export class SoloGame {
   private readonly hashes: { tick: number; local: number }[] = [];
   /** Hashes the server says most players had, where this client's differed. */
   private readonly expected = new Map<number, number | null>();
-  /** Alliances at the last update, as "a:b" with their end, and every player's traitor mark then. */
-  private alliancesSeen = new Map<string, number>();
-  private traitorMarks = new Map<number, number>();
 
   constructor(
     readonly options: SoloOptions,
@@ -519,34 +516,9 @@ export class SoloGame {
     };
   }
 
-  /** Alliances formed and gone since the last update; one gone with a new traitor mark was betrayed. */
+  /** What the engine logged between players since the last update, in order (R-DIPLO-04). */
   private diplomacyEvents(): DiplomacyEvent[] {
-    const { game } = this;
-    const events: DiplomacyEvent[] = [];
-    const now = new Map<string, number>();
-    for (const { a, b, until } of game.alliances) {
-      if (game.tick < until) now.set(`${String(a)}:${String(b)}`, until);
-    }
-    for (const key of now.keys()) {
-      if (this.alliancesSeen.has(key)) continue;
-      const [a, b] = key.split(":").map(Number) as [number, number];
-      events.push({ type: "allied", a, b });
-    }
-    const marked = (id: number): boolean =>
-      (game.player(id)?.traitorUntil ?? 0) !== (this.traitorMarks.get(id) ?? 0);
-    for (const [key, until] of this.alliancesSeen) {
-      if (now.has(key)) continue;
-      const [a, b] = key.split(":").map(Number) as [number, number];
-      // An alliance with a player who fell ends with them, unremarked.
-      if (!game.player(a)?.alive || !game.player(b)?.alive) continue;
-      if (game.tick >= until) events.push({ type: "ended", a, b });
-      else if (marked(a)) events.push({ type: "betrayed", a, b });
-      else if (marked(b)) events.push({ type: "betrayed", a: b, b: a });
-      else events.push({ type: "ended", a, b });
-    }
-    this.alliancesSeen = now;
-    this.traitorMarks = new Map(game.players().map((player) => [player.id, player.traitorUntil]));
-    return events;
+    return this.game.diplomacyEvents.splice(0).map(({ type, a, b }) => ({ type, a, b }));
   }
 
   private update(): GameUpdate {

@@ -397,6 +397,8 @@ export class Hud {
       }
       row.item.value = ranked.indexOf(player) + 1;
       row.name.textContent = player.name;
+      // Set here, not once, so it follows a change of language.
+      row.button?.setAttribute("aria-label", t("diplo.playerMenu", { name: player.name }));
       row.land.textContent = this.share(player.tiles);
       row.ally.hidden = !allies.has(player.id);
       row.traitor.hidden = !traitors.has(player.id);
@@ -424,6 +426,8 @@ interface LeaderRow {
   land: HTMLElement;
   ally: HTMLElement;
   traitor: HTMLElement;
+  /** Opens the player's menu; none on the row of the player at this screen. */
+  button?: HTMLElement;
 }
 
 function leaderRow(
@@ -456,12 +460,11 @@ function leaderRow(
       type: "button",
       class: "leader-button",
       "data-player": player.id,
-      "aria-label": t("diplo.playerMenu", { name: player.name }),
     },
     ...content,
   );
   button.addEventListener("click", () => {
     onPick(player.id);
   });
-  return { item: h("li", { class: "leader" }, button), name, land, ally, traitor };
+  return { item: h("li", { class: "leader" }, button), name, land, ally, traitor, button };
 }

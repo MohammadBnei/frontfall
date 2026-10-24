@@ -276,6 +276,22 @@ describe("diplomacy", () => {
     expect(game.allianceRequests).toHaveLength(0);
   });
 
+  it("logs who allied, whose alliance ran out and who betrayed whom, for every player (R-DIPLO-04)", () => {
+    const { game, ally, betray, run } = newGame();
+    ally(1, 2);
+    ally(2, 1);
+    ally(3, 1);
+    ally(1, 3);
+    betray(3, 1);
+    run(100);
+    expect(game.diplomacyEvents.map(({ type, a, b }) => [type, a, b])).toEqual([
+      ["allied", 1, 2],
+      ["allied", 1, 3],
+      ["betrayed", 3, 1],
+      ["ended", 1, 2],
+    ]);
+  });
+
   it("folds alliances, requests and traitor marks into the hash (R-FAIR-01)", () => {
     const a = newGame();
     const b = newGame();

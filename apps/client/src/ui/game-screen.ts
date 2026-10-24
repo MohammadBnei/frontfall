@@ -248,6 +248,7 @@ export class GameScreen {
         this.dirty = sailing;
       }
       this.labels.place(this.camera, this.camera.scale);
+      this.diplomacy.expire(now);
       this.marks.place(this.camera, now);
       this.frameHandle = requestAnimationFrame(frame);
     };
@@ -309,6 +310,7 @@ export class GameScreen {
       view.setPlayerColor(id, colorOf(id, this.firstNation));
     }
     view.setHighlight(you);
+    this.drawnAllies = "";
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
@@ -487,7 +489,7 @@ export class GameScreen {
 
   private diplomaticOrder(type: "ally" | "betray", target: number): void {
     const update = this.latest;
-    if (!update || update.winner !== undefined) return;
+    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) return;
     this.session.sendOrder({ type, target });
   }
 

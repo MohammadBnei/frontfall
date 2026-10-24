@@ -55,6 +55,8 @@ export class DiplomacyPanel {
   };
   /** Drawn content of the menu and the stack, to rebuild them only when it changes. */
   private menuKey = "";
+  /** What had focus before the menu opened. */
+  private opener: HTMLElement | undefined;
   private requestsKey = "";
 
   constructor(private readonly actions: DiplomacyActions) {}
@@ -72,6 +74,11 @@ export class DiplomacyPanel {
     const update = this.last;
     if (!update || player === update.you || player === 0) return;
     if (!update.players.some((p) => p.id === player && p.alive)) return;
+    // A long press can also raise the browser's menu event: the same pick twice keeps its state.
+    if (this.picked === player) return;
+    if (this.picked === undefined && document.activeElement instanceof HTMLElement) {
+      this.opener = document.activeElement;
+    }
     this.picked = player;
     this.confirming = false;
     this.menuKey = "";
@@ -80,12 +87,27 @@ export class DiplomacyPanel {
     (first ?? this.menu.querySelector<HTMLButtonElement>("button"))?.focus();
   }
 
+  /** Focus goes back to where the menu was opened from, if it had moved into the menu. */
   close(): void {
+    const inside = this.menu.contains(document.activeElement);
     this.picked = undefined;
     this.confirming = false;
     this.menu.hidden = true;
     this.menu.replaceChildren();
     this.menuKey = "";
+    if (inside || document.activeElement === document.body) this.opener?.focus();
+    this.opener = undefined;
+  }
+
+  /** Lets old events go even when no update comes, during a pause or after the game. */
+  expire(now: number): void {
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const event = this.events[i];
+      if (event && now - event.at > EVENT_MS) {
+        event.element.remove();
+        this.events.splice(i, 1);
+      }
+    }
   }
 
   update(update: GameUpdate, now: number): void {
@@ -104,13 +126,7 @@ export class DiplomacyPanel {
   private render(update: GameUpdate, now: number): void {
     this.renderMenu(update);
     this.renderRequests(update);
-    for (let i = this.events.length - 1; i >= 0; i--) {
-      const event = this.events[i];
-      if (event && now - event.at > EVENT_MS) {
-        event.element.remove();
-        this.events.splice(i, 1);
-      }
-    }
+    this.expire(now);
   }
 
   private addEvent(event: DiplomacyEvent, update: GameUpdate, now: number): void {
@@ -249,7 +265,7 @@ export class DiplomacyPanel {
       }),
     );
     this.menu.hidden = false;
-    if (focused) this.menu.querySelector<HTMLElement>(`[data-kind="${focused}"]`)?.focus();
+    if (focused) refocus(this.menu, focused);
   }
 
   private renderRequests(update: GameUpdate): void {
@@ -308,6 +324,22 @@ export class DiplomacyPanel {
         );
       }),
     );
-    if (focused) this.requests.querySelector<HTMLElement>(`[data-kind="${focused}"]`)?.focus();
+    if (focused && !refocus(this.requests, focused)) this.menuFocus();
   }
+
+  /** Where focus goes when the request it was on is gone: the player menu, or the map. */
+  private menuFocus(): void {
+    this.menu.querySelector<HTMLButtonElement>("button")?.focus();
+  }
+}
+
+/**
+ * Focus back on the button of the same kind after a redraw, or the first one
+ * usable when that one is now disabled or gone. Returns whether it found one.
+ */
+function refocus(root: HTMLElement, kind: string): boolean {
+  const same = root.querySelector<HTMLButtonElement>(`[data-kind="${kind}"]:not([disabled])`);
+  const target = same ?? root.querySelector<HTMLButtonElement>("button:not([disabled])");
+  target?.focus();
+  return target !== null;
 }

@@ -1,7 +1,7 @@
 import type { Attack } from "./attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import type { Boat } from "./boats.ts";
-import type { Alliance, AllianceRequest, RequestCooldown } from "./diplomacy.ts";
+import type { Alliance, AllianceRequest, DiplomacyEvent, RequestCooldown } from "./diplomacy.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
 import type { Structure } from "./structures.ts";
@@ -93,6 +93,11 @@ export class Game {
   readonly allianceRequests: AllianceRequest[] = [];
   /** Players who may not ask a given player again yet, oldest first. */
   readonly requestCooldowns: RequestCooldown[] = [];
+  /**
+   * What happened between players, oldest first, for interfaces to read and
+   * empty. No rule reads it back, so it is not part of the state hash.
+   */
+  readonly diplomacyEvents: DiplomacyEvent[] = [];
   /** Winner once the game is decided (R-WIN), and the tick it happened. */
   winner: number | undefined;
   decidedAt: number | undefined;

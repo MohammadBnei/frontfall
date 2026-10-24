@@ -35,7 +35,8 @@ export class InputController {
 
     this.listen(element, "pointerdown", (event) => {
       const pointer = event as PointerEvent;
-      if (pointer.pointerType === "mouse" && pointer.button !== 0) return;
+      // Only the main button: a pen's barrel button, like a mouse's right one, opens the menu instead.
+      if (pointer.button !== 0) return;
       // Keeps a drag going when the pointer leaves the canvas.
       try {
         element.setPointerCapture(pointer.pointerId);
@@ -53,6 +54,8 @@ export class InputController {
     // The browser's own menu is kept off the map only, never off the panels.
     this.listen(element, "contextmenu", (event) => {
       event.preventDefault();
+      // A finger held down raises this too: the long press opens the menu on release.
+      if (this.gestures.active > 0) return;
       const { x, y } = this.position(event as MouseEvent);
       this.gestures.menu(x, y);
     });

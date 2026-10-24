@@ -21,6 +21,7 @@ export {
   requestBetween,
   type Alliance,
   type AllianceRequest,
+  type DiplomacyEvent,
   type RequestCooldown,
 } from "./diplomacy.ts";
 export {

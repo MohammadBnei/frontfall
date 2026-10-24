@@ -336,9 +336,11 @@ export class TerritoryLayer {
     }
     const rgb = new THREE.Color(color).getRGB({ r: 0, g: 0, b: 0 }, THREE.SRGBColorSpace);
     this.paletteData.set(
-      [Math.round(rgb.r * 255), Math.round(rgb.g * 255), Math.round(rgb.b * 255), 255],
+      [Math.round(rgb.r * 255), Math.round(rgb.g * 255), Math.round(rgb.b * 255)],
       owner * 4,
     );
+    // The alpha holds the ally flag: a new colour keeps it.
+    this.paletteData[owner * 4 + 3] ||= 255;
     this.paletteTexture.needsUpdate = true;
   }
 

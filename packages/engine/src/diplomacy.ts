@@ -27,6 +27,14 @@ export interface RequestCooldown {
   readonly until: number;
 }
 
+/** An alliance formed, run out, or broken by `a` (R-DIPLO-04: every player is told). */
+export interface DiplomacyEvent {
+  readonly tick: number;
+  readonly type: "allied" | "ended" | "betrayed";
+  readonly a: number;
+  readonly b: number;
+}
+
 /** Refusals of diplomacy orders, so that interfaces can tell them apart without parsing text. */
 export const DiplomacyError = {
   Early: "diplomacy starts after the spawn phase",
@@ -158,6 +166,7 @@ export function installDiplomacy(game: Game): void {
     const broken = allianceOf(game, player.id, order.target);
     removeWhere(game.alliances, (a) => a === broken);
     player.traitorUntil = game.tick + balance.traitorTicks;
+    game.diplomacyEvents.push({ tick: game.tick, type: "betrayed", a: player.id, b: order.target });
     // No asking the betrayed player straight back.
     game.requestCooldowns.push({
       from: player.id,
@@ -182,6 +191,11 @@ export function installDiplomacy(game: Game): void {
       game.allianceRequests,
       (r) => tick >= r.expiresAt || !alive(r.from) || !alive(r.to),
     );
+    for (const alliance of game.alliances) {
+      // An alliance with a player who fell ends with them, unremarked.
+      if (tick < alliance.until || !alive(alliance.a) || !alive(alliance.b)) continue;
+      game.diplomacyEvents.push({ tick, type: "ended", a: alliance.a, b: alliance.b });
+    }
     removeWhere(game.alliances, (a) => tick >= a.until || !alive(a.a) || !alive(a.b));
     removeWhere(game.requestCooldowns, (c) => tick >= c.until);
   });
@@ -202,6 +216,7 @@ export function installDiplomacy(game: Game): void {
       renewB: false,
     });
     game.alliances.sort((x, y) => x.a - y.a || x.b - y.b);
+    game.diplomacyEvents.push({ tick: game.tick, type: "allied", a: low, b: high });
     for (const attack of game.attacks) {
       const against =
         (attack.player === low && attack.target === high) ||
