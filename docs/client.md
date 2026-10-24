@@ -81,6 +81,9 @@ visuals will still change. Vite passes the version to the page
 | `P` or `Esc`              | Pause and resume                                    |
 | `H` or `?`                | Show the controls                                   |
 
+`Esc` also closes a dialog: on the end screen it does what "Keep watching"
+does, and the menu button of the HUD stays the way out.
+
 A click on land the player cannot reach by land sends a transport ship when
 it is a coast within sailing range, from the player's nearest coast. A click
 that sends nothing (water, own land, too few troops, out of reach, every ship

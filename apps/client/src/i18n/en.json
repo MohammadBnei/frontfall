@@ -68,7 +68,7 @@
   "hud.menu": "Main menu",
   "hud.leaveConfirm": "Leave this game and go back to the menu?",
   "hud.under": "< {value}",
-  "hud.goal": "Win: {share} of the land, or the most land when time runs out",
+  "hud.goal": "Win: {share} of the land, be the last one standing, or hold the most land when time runs out",
   "hud.clock": "{elapsed} of {limit}",
   "click.terrain": "Only land can be taken.",
   "click.own": "This land is already yours.",

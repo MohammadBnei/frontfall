@@ -173,21 +173,22 @@ export class SoloGame {
     const troops = Math.floor((human.troops * Math.min(100, Math.max(0, ratio))) / 100);
     if (troops < 1) return { refused: "troops" };
 
-    // Land masses the player holds, and whether the target's owner borders them.
+    // By land when the player borders the target's owner on the target's own
+    // land mass: an attack starts from that border, so it must reach the click.
     const owner = territory.ownerOf(tile);
+    const mass = terrain.landmassOf(tile);
     const around = new Int32Array(4);
-    const masses = new Set<number>();
     let touches = false;
-    for (let i = 0; i < territory.borderCount(HUMAN_ID); i++) {
+    for (let i = 0; i < territory.borderCount(HUMAN_ID) && !touches; i++) {
       const border = territory.borderTile(HUMAN_ID, i);
-      masses.add(terrain.landmassOf(border));
+      if (terrain.landmassOf(border) !== mass) continue;
       const count = terrain.topology.neighborsInto(border, around);
       for (let j = 0; j < count; j++) {
         const next = around[j] as number;
         if (territory.ownerOf(next) === owner && terrain.isOwnable(next)) touches = true;
       }
     }
-    if (touches && masses.has(terrain.landmassOf(tile))) {
+    if (touches) {
       return { order: { type: "attack", target: tile, troops } };
     }
     if (terrain.isCoast(tile) && seaRoute(game, HUMAN_ID, tile)) {

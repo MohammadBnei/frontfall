@@ -21,7 +21,9 @@ export type WorkerRequest =
   | { type: "order"; order: Order }
   /** A click on the map, turned into an order by the worker, which knows the game. */
   | { type: "click"; tile: number; ratio: number }
-  | { type: "pause"; paused: boolean };
+  | { type: "pause"; paused: boolean }
+  /** The page leaves the game: the clock stops before the worker is terminated. */
+  | { type: "stop" };
 
 /** From the simulation worker to the page. */
 export type WorkerReply =

@@ -12,6 +12,7 @@ const scope = self as unknown as WorkerScope;
 
 let game: SoloGame | undefined;
 let started = false;
+let timer: ReturnType<typeof setInterval> | undefined;
 let paused = false;
 let pending: Order[] = [];
 
@@ -42,7 +43,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
     },
     [view.kinds.buffer, view.relief.buffer],
   );
-  setInterval(tick, 1000 / ticksPerSecond);
+  timer = setInterval(tick, 1000 / ticksPerSecond);
 }
 
 scope.onmessage = (event) => {
@@ -66,6 +67,11 @@ scope.onmessage = (event) => {
     }
     case "pause":
       paused = request.paused;
+      break;
+    case "stop":
+      clearInterval(timer);
+      timer = undefined;
+      game = undefined;
       break;
   }
 };

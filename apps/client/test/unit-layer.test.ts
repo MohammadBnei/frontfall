@@ -14,6 +14,14 @@ describe("UnitLayer", () => {
     expect([position.x, position.y]).toEqual([10.5, 49.5]);
   });
 
+  it("moves units across the seam only on a map that wraps", () => {
+    const wrapping = create();
+    const flat = new UnitLayer({ worldWidth: 100, worldHeight: 50, capacity: 10, wrapsX: false });
+    expect(wrapping.mesh.material.uniforms.wrapsX?.value).toBe(true);
+    expect(flat.mesh.material.uniforms.wrapsX?.value).toBe(false);
+    expect(flat.mesh.material.vertexShader).toContain("if (wrapsX)");
+  });
+
   it("uploads only the span of units that moved", () => {
     const units = create();
     units.count = 10;

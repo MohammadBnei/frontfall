@@ -152,5 +152,7 @@ describe("SoloGame clicks", () => {
     }
     expect(solo.game.territory.ownerOf(coast)).toBe(HUMAN_ID);
     expect(update.boats).toHaveLength(0);
+    // Ashore, the rest of the island is reached by land.
+    expect(solo.orderForClick(at(34, 6), 50)).toMatchObject({ order: { type: "attack" } });
   });
 });

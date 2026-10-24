@@ -4,6 +4,8 @@ export interface UnitLayerOptions {
   /** Width of the world in tiles, to wrap units across the seam. */
   readonly worldWidth: number;
   readonly worldHeight: number;
+  /** Whether the map wraps east-west; units on a flat map stay where they are. Default true. */
+  readonly wrapsX?: boolean;
   /** Most units drawn at once; the buffers are sized for it up front. */
   readonly capacity: number;
   /** Footprint of a unit in tiles. */
@@ -13,12 +15,13 @@ export interface UnitLayerOptions {
 const vertexShader = /* glsl */ `
   uniform float worldWidth;
   uniform float cameraX;
+  uniform bool wrapsX;
   out vec3 vColor;
 
   void main() {
     vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
     // Draw each unit on the copy of the world closest to the camera.
-    world.x += worldWidth * floor((cameraX - world.x) / worldWidth + 0.5);
+    if (wrapsX) world.x += worldWidth * floor((cameraX - world.x) / worldWidth + 0.5);
     vColor = instanceColor;
     gl_Position = projectionMatrix * viewMatrix * world;
   }
@@ -58,6 +61,7 @@ export class UnitLayer {
       uniforms: {
         worldWidth: { value: options.worldWidth },
         cameraX: this.cameraX,
+        wrapsX: { value: options.wrapsX ?? true },
       },
     });
     this.mesh = new THREE.InstancedMesh(geometry, material, options.capacity);

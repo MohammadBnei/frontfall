@@ -64,6 +64,7 @@ export class MapView {
       worldWidth: options.width,
       worldHeight: options.height,
       capacity: SHIP_CAPACITY,
+      wrapsX: options.wrapsX,
       size: 2.5,
     });
     this.ships.mesh.position.copy(this.territory.mesh.position);

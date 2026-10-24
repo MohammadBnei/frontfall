@@ -40,6 +40,7 @@ export class LocalSession implements GameSession {
   }
 
   dispose(): void {
+    this.post({ type: "stop" });
     this.worker.terminate();
   }
 
