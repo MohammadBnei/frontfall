@@ -9,20 +9,56 @@ not from estimates.
 
 ## Budgets
 
-| Area                             | Budget                                   | Why                                                         |
-| -------------------------------- | ---------------------------------------- | ----------------------------------------------------------- |
-| Simulation tick, largest map     | p95 ≤ 30 ms                              | 10 ticks/s leaves 100 ms; the rest goes to rules and AI     |
-| Simulation memory, largest map   | ≤ 96 MiB of typed arrays                 | Runs in a Web Worker next to the page on 4 GB phones        |
-| Allocation per tick              | None in the hot loops once warm          | GC pauses show up as dropped ticks                          |
-| Draw calls for map and units     | ≤ 10                                     | Draw call overhead dominates on mobile GPUs                 |
-| Frame time, desktop GPU          | ≤ 16.7 ms (60 fps)                       |                                                             |
-| Frame time, mid-range phone      | ≤ 33 ms (30 fps)                         |                                                             |
-| Territory upload per tick        | ≤ 1 MiB typical, full map only on resync | Uploads go through the browser's GPU process                |
-| GPU memory for map and units     | ≤ 64 MiB at 4096 × 2048                  | Mobile browsers evict contexts well before the device limit |
-| Main-thread CPU to issue a frame | ≤ 2 ms                                   | The page also runs input, UI and networking                 |
+Every budget names the scenario it is measured on and how to measure it.
+Those marked **CI** fail the build when they are missed; the others are
+checked by hand on the machines below until CI can measure them.
 
-The reference machine for the simulation budget is whatever CI or a
-contributor runs `pnpm bench` on; the results table names the machine used.
+| Area                              | Budget                                   | Scenario                                                  | Measure with                               | Enforced                 |
+| --------------------------------- | ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------ | ------------------------ |
+| Simulation tick, full lobby       | p95 ≤ 30 ms                              | Reference game: 64 normal bots on World, 3,000 ticks      | `pnpm perf:engine`                         | **CI**                   |
+| Simulation tick, against `main`   | Not slower: a 10 % slowdown fails        | Reference game, alternated with the merge base            | `pnpm perf:engine -- --base <checkout>`    | **CI**                   |
+| Simulation tick, scripted attacks | p95 ≤ 30 ms                              | 16 scripted players, generated 2048 × 1024, 3,000 ticks   | `pnpm sim -- … --budget 30`                | **CI**                   |
+| Simulation tick, largest map      | p95 ≤ 30 ms                              | Synthetic expansion on 4096 × 2048                        | `pnpm bench`                               | Exit status, run by hand |
+| Simulation memory, largest map    | ≤ 96 MiB of typed arrays                 | Synthetic expansion on 4096 × 2048                        | `pnpm bench` (Engine memory column)        | By hand                  |
+| Allocation per tick               | None in the hot loops once warm          | Synthetic expansion                                       | `pnpm bench` (heap growth per scenario)    | By hand                  |
+| Download, first visit             | ≤ 275 kB sent                            | Page, code, styles and Latin font of the production build | `pnpm perf:client`                         | **CI**                   |
+| Download, simulation worker       | ≤ 50 kB sent                             | Production build                                          | `pnpm perf:client`                         | **CI**                   |
+| Download, World map               | ≤ 175 kB sent                            | Production build                                          | `pnpm perf:client`                         | **CI**                   |
+| Download, every map               | ≤ 520 kB sent                            | Production build                                          | `pnpm perf:client`                         | **CI**                   |
+| Download, whole build but maps    | ≤ 850 kB sent                            | Production build, icons and preview image included        | `pnpm perf:client`                         | **CI**                   |
+| Load, menu and game screen        | Trend only                               | Solo game on World with 63 bots, headless Chromium        | `pnpm perf:client -- --trend`              | Reported in CI           |
+| Frame rate in a game              | Trend only                               | Same game, camera panning, software rendering             | `pnpm perf:client -- --trend`              | Reported in CI           |
+| Frame time, desktop GPU           | ≤ 16.7 ms (60 fps)                       | Same game, or `bench:render` on a laptop                  | `pnpm bench:render -- --gpu`, then by hand | By hand                  |
+| Frame time, mid-range phone       | ≤ 33 ms (30 fps)                         | `bench:render` page opened on the phone                   | `pnpm bench:render -- --serve`             | By hand                  |
+| Draw calls for map and units      | ≤ 10                                     | Synthetic renderer, 10,000 units                          | `pnpm bench:render`                        | By hand                  |
+| Territory upload per tick         | ≤ 1 MiB typical, full map only on resync | Synthetic renderer                                        | `pnpm bench:render`                        | By hand                  |
+| GPU memory for map and units      | ≤ 64 MiB at 4096 × 2048                  | Synthetic renderer                                        | `pnpm bench:render`                        | By hand                  |
+| Main-thread CPU to issue a frame  | ≤ 2 ms                                   | Synthetic renderer                                        | `pnpm bench:render`                        | By hand                  |
+
+Why these numbers:
+
+- **Tick, 30 ms.** Ten ticks per second leave 100 ms per tick. The engine
+  runs in a Web Worker next to the page on phones that are several times
+  slower than a CI machine, and the page needs the rest of the CPU.
+- **Memory, 96 MiB.** A 4 GB phone kills the tab well before the device limit.
+- **Download.** "Sent" is what the game server sends: gzip for text, code
+  and maps, as is for fonts and images. A CDN with Brotli sends a little less;
+  `perf:client` prints both. The budgets leave about 15 % of room over the
+  build of 2026-10-24: a new dependency or asset that takes more has to be
+  argued for, and the budget raised in [`bench/client/budget.json`](../bench/client/budget.json)
+  in the same commit.
+- **Frame time.** 60 fps on a laptop, 30 fps on a phone. CI has no GPU, so
+  its frame rate only shows whether the client got slower to draw, not
+  whether it holds the budget.
+
+### Reference machines
+
+| Machine                      | Used for                                        | Notes                                                     |
+| ---------------------------- | ----------------------------------------------- | --------------------------------------------------------- |
+| GitHub `ubuntu-24.04` runner | Every CI budget, and the comparison with `main` | 4 vCPU, shared: absolute times vary by run, ratios do not |
+| 4-core Intel Xeon, 2.1 GHz   | The results below                               | Cloud VM, 16 GB                                           |
+| A Mac laptop                 | Desktop frame time                              | To do: `pnpm bench:render -- --gpu` and a real game       |
+| A mid-range Android phone    | Phone frame time                                | To do: `pnpm bench:render -- --serve` on the same network |
 
 ## Running the benchmarks
 
@@ -30,6 +66,11 @@ contributor runs `pnpm bench` on; the results table names the machine used.
 pnpm bench                      # simulation scenarios, about a minute
 pnpm bench -- --quick           # a tenth of the ticks, for a quick check
 pnpm bench -- --scenario reference --json results.json
+
+pnpm perf:engine                # reference game, budget only, about a minute
+pnpm perf:engine -- --base ../frontfall-main   # alternated with another checkout
+pnpm perf:client                # download sizes of the production build
+pnpm perf:client -- --trend     # and load times and frame rate in Chromium
 
 pnpm bench:render               # renderer in headless Chromium (software GL)
 pnpm bench:render -- --gpu      # same, on the machine's GPU
@@ -66,6 +107,75 @@ measured again when they land.
 
 Each scenario runs untimed warm-up ticks first (300, or 100 for `assault`)
 so territories and border lists reach a realistic size, then times 300 ticks.
+
+## The performance gate in CI
+
+The Performance job of CI runs on every push and pull request. It writes its
+tables to the run's job summary, so the numbers are on the run page.
+
+### Engine
+
+[`bench/gate`](../bench/gate) plays the **reference game**: 64 bots of normal
+difficulty on the World map, seed 2026, for 3,000 ticks, the first 200 of
+which are the untimed spawn phase. It covers the busiest stretch of a full
+lobby: by tick 3,000 the bots have fought for most of the land, sailed, and
+built cities. Bots do not build forts, so every 50 ticks each bot with an even
+id is also ordered to put one on its border, up to two: about 70 forts stand
+by the end, and attacks go through fortified land. Nobody else gives orders,
+so the game depends only on the engine and the seed.
+
+The gate measures the tick time this way:
+
+1. The mean of each run's ticks at or below its 99th percentile, so that a
+   GC pause or a time slice stolen by a neighbour on the shared runner does
+   not move it. Every run is a fresh Node process.
+2. With `--base`, a checkout of the commit the branch started from (the merge
+   base with `main`, or the pull request's base), the game is played on both
+   engines in turn, on the same machine, with the same harness and map: a
+   warm-up pair that is thrown away, then pairs in ABBA order so that a
+   machine getting faster or slower during the job favours neither side.
+3. Each pair gives a ratio, this commit's time over the base's. After five
+   pairs, a median under 1.04 passes and one over 1.10 fails. Anything in
+   between gets five more pairs, and then fails when the median of the ten is
+   over 1.06 and at least 70 % of the pairs found this commit slower.
+
+The rule comes from the spread measured between two runs of the same engine:
+a few percent per pair on a cloud VM, and once 11.5 % for a single pair. The median
+of ten pairs puts a true 10 % slowdown well above 1.06 and an unchanged
+engine well below it. Absolute times are compared with nothing but the
+30 ms budget, which keeps three times the measured p95 as room.
+
+When `packages/engine` is the same as on the base, the comparison is skipped
+and only the budget is checked, on three runs. When the base cannot play the
+reference game (an engine API the harness relies on changed), the job says
+so and checks the budget only. When the two engines end in different states, the summary says the rules or
+the bots changed: the slowdown is then that of a different game, which may be
+what the change is for. A slowdown that is worth it is accepted in review with
+a trailer in the message of one of the branch's commits:
+
+```text
+Performance-Accepted: forts make every attack check its target's surroundings
+```
+
+The gate then reports the slowdown without failing; the 30 ms budget still
+applies.
+
+`pnpm perf:engine -- --base <checkout> --slowdown 10` slows this checkout's
+ticks down by 10 % with a busy wait, to check that the gate still catches it.
+
+### Client
+
+`pnpm perf:client` measures the production build in `apps/client/dist`
+against [`bench/client/budget.json`](../bench/client/budget.json), the way
+the game server sends it, and fails when a group is over. Sizes do not depend
+on the machine, so this check cannot be flaky.
+
+With `--trend`, it then serves the build with the real game server, opens a
+solo game on World with 63 normal bots in headless Chromium at 1280 × 720,
+and records the time to show the menu, the time from Play to the game screen,
+and the frame rate while the camera pans, once in the spawn phase and once
+bots are attacking. Chromium draws in software on CI, so these numbers never
+fail the job: compare them between runs to see a trend.
 
 ## Simulation data layout
 
@@ -177,6 +287,46 @@ Measured on 2026-10-23 with Node 22.22.0 on a 4-core Intel Xeon at 2.10 GHz
 - Memory on the largest map: 48 MiB for ownership (6 bytes per tile),
   16 MiB for the flood fill stamps, 8 MiB for terrain, and the border lists
   for the rest. The JavaScript heap grows by less than 1 MiB per scenario.
+
+### Performance gate
+
+Measured on 2026-10-24 on the same machine, with Node 22.22.0.
+
+| Run                                               | Pairs | Ratios                            | Median | Verdict                      |
+| ------------------------------------------------- | ----: | --------------------------------- | -----: | ---------------------------- |
+| Same engine on both sides (`main` against itself) |     5 | 0.942, 1.083, 1.011, 0.964, 0.971 |  0.971 | Not slower, after five pairs |
+| This commit slowed down by 10 % (`--slowdown 10`) |     5 | 1.104, 1.105, 1.096, 0.973, 1.135 |  1.104 | Slower, after five pairs     |
+
+The same two runs on a GitHub `ubuntu-24.04` runner (AMD EPYC 7763, 4 vCPU,
+Node 24.21.0) spread far less:
+
+| Run                                               | Pairs | Ratios                            | Median | Verdict                      |
+| ------------------------------------------------- | ----: | --------------------------------- | -----: | ---------------------------- |
+| Same engine on both sides                         |     5 | 1.005, 0.992, 1.000, 1.000, 0.987 |  1.000 | Not slower, after five pairs |
+| This commit slowed down by 10 % (`--slowdown 10`) |     5 | 1.100, 1.094, 1.075, 1.113, 1.106 |  1.100 | Slower, after five pairs     |
+
+There the reference game took 4.1 ms per tick on average, p95 6.4 ms, max
+12 to 13 ms. The Performance job takes about two minutes when the engine did not change,
+four when it did and five pairs decide, and six and a half with ten pairs.
+
+The reference game took 5.2 to 5.3 ms per tick on average, p95 8.5 to
+9.1 ms, max 17 to 26 ms; 54 bots were alive at tick 3,000, with 40 cities
+and 71 forts.
+
+### Client
+
+| Files                                       | Raw       | Sent (gzip) | Brotli   | Budget   |
+| ------------------------------------------- | --------- | ----------- | -------- | -------- |
+| First visit: page, code, styles, Latin font | 771.5 kB  | 239.2 kB    | 220.8 kB | 275.0 kB |
+| Simulation worker                           | 136.9 kB  | 40.5 kB     | 38.0 kB  | 50.0 kB  |
+| World map                                   | 2103.5 kB | 150.0 kB    | 137.1 kB | 175.0 kB |
+| Every map                                   | 7194.7 kB | 442.2 kB    | 390.4 kB | 520.0 kB |
+| Whole build but maps                        | 1357.7 kB | 728.0 kB    | 707.1 kB | 850.0 kB |
+
+In headless Chromium on SwiftShader, the menu showed 1.3 s after the page was
+requested and the World game 2.2 s after Play. Panning ran at 22 frames per
+second in the spawn phase (p95 83 ms) and 20 once 63 bots were attacking
+(p95 100 ms): software rendering, not a frame rate a player would see.
 
 ### Rendering, software GL
 
@@ -338,8 +488,8 @@ server. Reasons are now cut to 123 bytes.
 3. Wire `TerritoryLayer` and `UnitLayer` into the client in place of the
    current placeholder texture.
 4. Hide units, or draw them as points, when they are smaller than a pixel.
-5. Run `pnpm bench -- --quick` in CI and report the table on pull requests,
-   without failing the build on noisy shared runners.
+5. Measure the frame rate on a GPU in CI, on a runner that has one, and make
+   the frame-time budgets fail the build there as the tick budget does.
 6. Bring 64-player games under budget: keep each attack's front line between
    ticks instead of rescanning the player's whole border, and share one border
    scan between the attacks of the same player.

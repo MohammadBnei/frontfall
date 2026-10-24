@@ -83,6 +83,48 @@ jobs:
       # hashes (R-FAIR-01).
       - run: pnpm determinism
 
+  performance:
+    name: Performance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
+      - run: pnpm build
+      # Download sizes against bench/client/budget.json, failing when over; then load
+      # times and frame rate in headless Chromium, reported only (docs/performance.md).
+      - run: pnpm perf:client -- --trend
+      # The reference game on this commit and on the commit it branched from, alternated on
+      # this runner; fails when the engine got slower or its tick p95 is over 30 ms.
+      # A commit between the base and this one may accept a slowdown with a
+      # "Performance-Accepted: <reason>" trailer; the 30 ms budget still applies.
+      - name: Engine gate
+        if: ${{ !cancelled() }}
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          # A pull request is checked out as its merge commit, whose first parent is the base.
+          if [ "$EVENT" = pull_request ]; then base=$(git rev-parse HEAD^1); else base=$(git merge-base HEAD origin/main); fi
+          if [ "$base" = "$(git rev-parse HEAD)" ] || git diff --quiet "$base" HEAD -- packages/engine; then
+            echo "The engine is the same as on $base: absolute budget only."
+            pnpm perf:engine
+            exit
+          fi
+          accepted=$(git log --format=%B "$base..HEAD" | sed -n 's/^Performance-Accepted: *//p' | head -n 1)
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+          args=(--base "$RUNNER_TEMP/base" --base-label "${base:0:7}")
+          if [ -n "$accepted" ]; then args+=(--accept "$accepted"); fi
+          pnpm perf:engine -- "${args[@]}"
+
   clean-room:
     name: Clean room
     runs-on: ubuntu-24.04

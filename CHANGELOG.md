@@ -10,6 +10,10 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 - Engine: cities and forts ([docs/rules.md](docs/rules.md#6-structures)). Gold now buys structures: a city adds a twentieth of what the land holds to the population cap, a fort makes nearby land dearer to take and cheaper to lose, and both change hands with their tile. Players may own one city plus one more for every 10,000 tiles of land (40,000 on World), structures keep their distance, and bots build cities near their start. Protocol version 5 carries the new `build` and `demolish` orders.
 - Engine: alliances and betrayal ([docs/rules.md](docs/rules.md#5-diplomacy)). Players ask each other for an alliance of 5 minutes, renewable in its last minute; allies cannot attack each other, and breaking an alliance marks the betrayer, whose land is half price for 30 seconds. Bots accept an alliance from a smaller player they are not fighting, one ally at most, and never betray.
 
+### Changed
+
+- CI holds the game to a performance budget ([docs/performance.md](docs/performance.md#budgets)). A new Performance job plays 64 bots on World on the commit and on the commit it branched from, alternating on the same runner, and fails when the engine got slower or its tick p95 exceeds 30 ms; it also fails when the client's download outgrows its budget, and reports load times and frame rate in headless Chromium. `pnpm perf:engine` and `pnpm perf:client` run the same checks locally.
+
 ## [0.2.0] - 2026-10-24
 
 Online with friends: a player creates a private game from the menu, picks the map, the bots and their difficulty, and shares a link; every browser plays the same game in lockstep, and a desync is detected, reported and can be replayed. Eight maps, with the Panama and Suez canals open.

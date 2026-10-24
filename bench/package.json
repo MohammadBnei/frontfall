@@ -12,7 +12,9 @@
     "load": "node --import tsx server/run.ts",
     "typecheck": "tsc -p tsconfig.json",
     "determinism": "tsx determinism/run.ts",
-    "golden": "tsx determinism/golden.ts"
+    "golden": "tsx determinism/golden.ts",
+    "gate": "tsx gate/run.ts",
+    "client": "tsx client/run.ts"
   },
   "dependencies": {
     "@frontfall/engine": "workspace:*",
