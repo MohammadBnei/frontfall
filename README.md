@@ -27,6 +27,10 @@ The current build runs at **[nclsmgr.com/frontfall](https://nclsmgr.com/frontfal
 
 Play solo against bots, or online with friends through an invitation link or in a public game. Eight maps: World, Europe, the Americas, Africa and Asia drawn from Natural Earth, and three quick maps, Island, Strait and Ring. Ships carry troops across the sea, through the Panama and Suez canals. The interface is in English and French.
 
+<p align="center">
+  <img src="docs/assets/screenshot-world.png" alt="A game on the World map: a dozen empires spread across the continents, with their names and troops, the leaderboard and the attack slider" width="100%">
+</p>
+
 Frontfall is in beta until v1.0: rules, balance and visuals still change. [The roadmap](#roadmap) says what comes next.
 
 ## At a glance

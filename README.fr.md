@@ -27,6 +27,10 @@ La version en cours tourne sur **[nclsmgr.com/frontfall](https://nclsmgr.com/fro
 
 Jouez en solo contre des bots, ou en ligne entre amis par un lien d'invitation ou dans une partie publique. Huit cartes : Monde, Europe, Amériques, Afrique et Asie, tirées de Natural Earth, et trois cartes rapides, Île, Détroit et Anneau. Les navires portent les troupes par la mer, par les canaux de Panama et de Suez. L'interface est en français et en anglais.
 
+<p align="center">
+  <img src="docs/assets/screenshot-world.png" alt="Une partie sur la carte du Monde : une douzaine d'empires sur les continents, avec leurs noms et leurs troupes, le classement et le curseur d'attaque" width="100%">
+</p>
+
 Frontfall est en bêta jusqu'à la v1.0 : règles, équilibrage et visuels changent encore. [La feuille de route](#feuille-de-route) dit ce qui vient ensuite.
 
 ## En un coup d'œil
