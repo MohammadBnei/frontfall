@@ -10,12 +10,12 @@ game. The file layout is specified in
 | -------- | ----------- | ------------------------------------- | ------- | --------------------------------- |
 | World    | 2048 × 1024 | Cylinder, wraps east to west          | 64      | 2 / 24 / 64                       |
 | Europe   | 1280 × 1080 | Flat, 25° W to 45° E, 33° to 72° N    | 40      | 2 / 12 / 32                       |
-| Americas | 960 × 1024  | Flat, 170° W to 30° W, 57° S to 75° N | 23      | 2 / 10 / 24                       |
+| Americas | 960 × 1024  | Flat, 170° W to 30° W, 57° S to 75° N | 22      | 2 / 10 / 22                       |
 | Africa   | 1024 × 1024 | Flat, 20° W to 56° E, 36° S to 38° N  | 32      | 2 / 12 / 32                       |
 | Asia     | 1280 × 1088 | Flat, 25° E to 150° E, 12° S to 78° N | 40      | 2 / 14 / 40                       |
 | Island   | 256 × 192   | Flat, drawn                           | 6       | 2 / 4 / 8                         |
 | Strait   | 320 × 192   | Flat, drawn                           | 6       | 2 / 4 / 8                         |
-| Ring     | 512 × 256   | Cylinder, drawn                       | 6       | 2 / 6 / 12                        |
+| Ring     | 512 × 256   | Cylinder, drawn                       | 6       | 2 / 6 / 8                         |
 
 The three drawn maps are small and quick to play, and each exercises one
 case: a single landmass, two continents joined only across a four-tile
@@ -87,7 +87,9 @@ The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
    narrower than a tile, such as the Bosporus and the Dardanelles, would
    otherwise cut the Black Sea off from the ocean (R-MAP-05). Each is a path
    of points carved as a one-tile channel. Seas left enclosed on purpose,
-   such as the Caspian, stay lakes.
+   such as the Caspian, the Aral Sea and Lake Balkhash, stay lakes. The
+   Panama and Suez canals are not in Natural Earth's coastlines, so the
+   Americas and Africa are joined to their neighbours by land on every map.
 3. **Cleans the coast**: islands and lakes smaller than `minIslandTiles` and
    `minLakeTiles` are removed, except where they touch the edge of a flat map
    and continue beyond it.
@@ -107,6 +109,15 @@ The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
    gives way to an emptier one once it holds a few nations. The manifest
    lists nations in pick order, so its first n nations are spread as well as
    n can be.
+
+   On a continent map, `nations.continents` limits nations to the countries
+   Natural Earth places on those continents, and `nations.alsoCountries`
+   adds others by code: Asia takes Asian countries and Russia, so Egypt or
+   Ukraine never start there even though their land is on the map.
+   `nations.edgeMargin` keeps every start that many tiles from the edges of a
+   flat map. The build fails when fewer than `nations.count` nations can be
+   placed, and `players.max` never exceeds that count on a continent map.
+
 8. **Writes** the terrain file, a 256-pixel-wide thumbnail, the manifest with
    the terrain's SHA-256, and `index.json`, the list of maps for the menu.
 

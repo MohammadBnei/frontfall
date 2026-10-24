@@ -45,8 +45,15 @@ export function pickNations(
   tiles: Uint8Array,
   places: readonly Place[],
   countries: ReadonlyMap<string, Country>,
-  options: { count: number; minDistance: number },
+  options: { count: number; minDistance: number; edgeMargin?: number },
 ): Nation[] {
+  const margin = options.edgeMargin ?? 0;
+  const nearEdge = (tile: number): boolean => {
+    const x = topology.x(tile);
+    const y = topology.y(tile);
+    const fromSide = topology.wrapsX ? margin : Math.min(x, topology.width - 1 - x);
+    return Math.min(y, topology.height - 1 - y, fromSide) < margin;
+  };
   // One capital per country, the most populous when a country lists several.
   const byCountry = new Map<string, { nation: Nation; weight: number; cityPopulation: number }>();
   for (const place of places) {
@@ -60,7 +67,7 @@ export function pickNations(
     const at = tileAt(grid, place.lon, place.lat);
     if (at === undefined) continue;
     const tile = nearestOwnable(topology, tiles, at);
-    if (tile === undefined) continue;
+    if (tile === undefined || nearEdge(tile)) continue;
     byCountry.set(code, {
       nation: {
         name: String(place.properties.adm0name),

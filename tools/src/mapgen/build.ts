@@ -43,7 +43,16 @@ export const MapDefinition = z.object({
   minIslandTiles: z.number().int().nonnegative(),
   minLakeTiles: z.number().int().nonnegative(),
   players: MapPlayers,
-  nations: z.object({ count: z.number().int().nonnegative(), minDistance: z.number().int() }),
+  nations: z.object({
+    count: z.number().int().nonnegative(),
+    minDistance: z.number().int(),
+    /** Natural Earth continents whose countries may hold a nation; all when left out. */
+    continents: z.array(z.string()).optional(),
+    /** Countries outside those continents that still count, by ADM0_A3 code. */
+    alsoCountries: z.array(z.string()).default([]),
+    /** No nation starts closer than this many tiles to an edge of the map. */
+    edgeMargin: z.number().int().nonnegative().default(0),
+  }),
   /**
    * A test map drawn by hand instead of taken from Natural Earth: land and
    * mountain polygons as [lon, lat] rings, and nations at given points.
@@ -109,9 +118,14 @@ export function buildMap(
         topology,
         tiles,
         sources.places,
-        countryScores(grid, tiles, sources.countries),
+        eligibleCountries(countryScores(grid, tiles, sources.countries), definition.nations),
         definition.nations,
       );
+  if (!drawn && nations.length < definition.nations.count) {
+    throw new Error(
+      `${definition.id}: ${String(nations.length)} of ${String(definition.nations.count)} nations placed; lower nations.count or nations.minDistance`,
+    );
+  }
 
   const manifest = MapManifest.parse({
     format: 1,
@@ -163,13 +177,27 @@ function placeNations(
   });
 }
 
+/** The countries a definition lets hold a nation: its continents, plus any it names. */
+function eligibleCountries(
+  countries: Map<string, Country & { continent: string }>,
+  options: MapDefinition["nations"],
+): Map<string, Country> {
+  const { continents, alsoCountries } = options;
+  if (!continents) return countries;
+  return new Map(
+    [...countries].filter(
+      ([code, country]) => continents.includes(country.continent) || alsoCountries.includes(code),
+    ),
+  );
+}
+
 /** Population and ownable land on this map of every country, by ADM0_A3 code. */
 function countryScores(
   grid: GridSpec,
   tiles: Uint8Array,
   countries: readonly Shape[],
-): Map<string, Country> {
-  const scores = new Map<string, Country>();
+): Map<string, Country & { continent: string }> {
+  const scores = new Map<string, Country & { continent: string }>();
   const scratch = new Uint8Array(tiles.length);
   const crossings: number[][] = [];
   for (const country of countries) {
@@ -183,6 +211,7 @@ function countryScores(
     const previous = scores.get(code);
     scores.set(code, {
       population: Number(country.properties.POP_EST),
+      continent: String(country.properties.CONTINENT),
       land: land + (previous?.land ?? 0),
     });
   }

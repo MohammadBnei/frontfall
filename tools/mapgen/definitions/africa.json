@@ -1,14 +1,34 @@
 {
   "id": "africa",
-  "name": { "en": "Africa", "fr": "Afrique" },
+  "name": {
+    "en": "Africa",
+    "fr": "Afrique"
+  },
   "version": 1,
   "width": 1024,
   "height": 1024,
   "topology": "flat",
-  "bounds": { "west": -20, "east": 56, "south": -36, "north": 38 },
-  "ice": { "north": 80, "south": -60 },
+  "bounds": {
+    "west": -20,
+    "east": 56,
+    "south": -36,
+    "north": 38
+  },
+  "ice": {
+    "north": 80,
+    "south": -60
+  },
   "minIslandTiles": 6,
   "minLakeTiles": 6,
-  "players": { "min": 2, "recommended": 12, "max": 32 },
-  "nations": { "count": 32, "minDistance": 26 }
+  "players": {
+    "min": 2,
+    "recommended": 12,
+    "max": 32
+  },
+  "nations": {
+    "count": 32,
+    "minDistance": 26,
+    "continents": ["Africa"],
+    "edgeMargin": 24
+  }
 }

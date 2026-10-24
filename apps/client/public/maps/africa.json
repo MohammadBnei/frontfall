@@ -44,19 +44,9 @@
       "tile": 410390
     },
     {
-      "name": "Algeria",
-      "capital": "Algiers",
-      "tile": 17718
-    },
-    {
       "name": "Egypt",
       "capital": "Cairo",
       "tile": 112306
-    },
-    {
-      "name": "Iran",
-      "capital": "Tehran",
-      "tile": 33730
     },
     {
       "name": "Sudan",
@@ -67,11 +57,6 @@
       "name": "South Africa",
       "capital": "Cape Town",
       "tile": 1019397
-    },
-    {
-      "name": "Saudi Arabia",
-      "capital": "Riyadh",
-      "tile": 189314
     },
     {
       "name": "Tanzania",
@@ -114,11 +99,6 @@
       "tile": 367064
     },
     {
-      "name": "Iraq",
-      "capital": "Baghdad",
-      "tile": 66403
-    },
-    {
       "name": "Madagascar",
       "capital": "Antananarivo",
       "tile": 806797
@@ -127,11 +107,6 @@
       "name": "Zambia",
       "capital": "Lusaka",
       "tile": 757386
-    },
-    {
-      "name": "Yemen",
-      "capital": "Sanaa",
-      "tile": 321377
     },
     {
       "name": "Libya",
@@ -164,11 +139,6 @@
       "tile": 509808
     },
     {
-      "name": "Syria",
-      "capital": "Damascus",
-      "tile": 64246
-    },
-    {
       "name": "Zimbabwe",
       "capital": "Harare",
       "tile": 791215
@@ -187,6 +157,36 @@
       "name": "Burkina Faso",
       "capital": "Ouagadougou",
       "tile": 362744
+    },
+    {
+      "name": "Namibia",
+      "capital": "Windhoek",
+      "tile": 858611
+    },
+    {
+      "name": "Malawi",
+      "capital": "Lilongwe",
+      "tile": 736980
+    },
+    {
+      "name": "Ghana",
+      "capital": "Accra",
+      "tile": 459018
+    },
+    {
+      "name": "Senegal",
+      "capital": "Dakar",
+      "tile": 329762
+    },
+    {
+      "name": "Botswana",
+      "capital": "Gaborone",
+      "tile": 887402
+    },
+    {
+      "name": "Somaliland",
+      "capital": "Hargeisa",
+      "tile": 403295
     }
   ],
   "credits": [

@@ -25,7 +25,7 @@
   "players": {
     "min": 2,
     "recommended": 10,
-    "max": 24
+    "max": 22
   },
   "nations": [
     {
@@ -137,11 +137,6 @@
       "name": "Belize",
       "capital": "Belmopan",
       "tile": 429677
-    },
-    {
-      "name": "The Bahamas",
-      "capital": "Nassau",
-      "tile": 372150
     }
   ],
   "credits": [

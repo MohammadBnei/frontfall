@@ -59,16 +59,6 @@
       "tile": 654350
     },
     {
-      "name": "Ethiopia",
-      "capital": "Addis Ababa",
-      "tile": 1066380
-    },
-    {
-      "name": "Egypt",
-      "capital": "Cairo",
-      "tile": 741183
-    },
-    {
       "name": "Turkey",
       "capital": "Ankara",
       "tile": 588880
@@ -77,11 +67,6 @@
       "name": "Kazakhstan",
       "capital": "Nur-Sultan",
       "tile": 415195
-    },
-    {
-      "name": "Sudan",
-      "capital": "Khartoum",
-      "tile": 965197
     },
     {
       "name": "Saudi Arabia",
@@ -94,11 +79,6 @@
       "tile": 655255
     },
     {
-      "name": "Tanzania",
-      "capital": "Dar es Salaam",
-      "tile": 1312146
-    },
-    {
       "name": "Myanmar",
       "capital": "Naypyidaw",
       "tile": 900568
@@ -109,19 +89,9 @@
       "tile": 994053
     },
     {
-      "name": "Ukraine",
-      "capital": "Kyiv",
-      "tile": 426296
-    },
-    {
       "name": "Vietnam",
       "capital": "Hanoi",
       "tile": 881467
-    },
-    {
-      "name": "Kenya",
-      "capital": "Nairobi",
-      "tile": 1226360
     },
     {
       "name": "Philippines",
@@ -164,11 +134,6 @@
       "tile": 625684
     },
     {
-      "name": "Somalia",
-      "capital": "Mogadishu",
-      "tile": 1173968
-    },
-    {
       "name": "Nepal",
       "capital": "Kathmandu",
       "tile": 777577
@@ -179,16 +144,6 @@
       "tile": 619861
     },
     {
-      "name": "Papua New Guinea",
-      "capital": "Port Moresby",
-      "tile": 1354211
-    },
-    {
-      "name": "Romania",
-      "capital": "Bucharest",
-      "tile": 518411
-    },
-    {
       "name": "Syria",
       "capital": "Damascus",
       "tile": 687475
@@ -197,11 +152,6 @@
       "name": "Afghanistan",
       "capital": "Kabul",
       "tile": 672452
-    },
-    {
-      "name": "Uganda",
-      "capital": "Kampala",
-      "tile": 1201997
     },
     {
       "name": "Oman",
@@ -219,14 +169,64 @@
       "tile": 1028658
     },
     {
-      "name": "Belarus",
-      "capital": "Minsk",
-      "tile": 372506
-    },
-    {
       "name": "Taiwan",
       "capital": "Taipei",
       "tile": 820188
+    },
+    {
+      "name": "Kyrgyzstan",
+      "capital": "Bishkek",
+      "tile": 543227
+    },
+    {
+      "name": "Laos",
+      "capital": "Vientiane",
+      "tile": 928794
+    },
+    {
+      "name": "Azerbaijan",
+      "capital": "Baku",
+      "tile": 581374
+    },
+    {
+      "name": "Georgia",
+      "capital": "Tbilisi",
+      "tile": 560842
+    },
+    {
+      "name": "United Arab Emirates",
+      "capital": "Abu Dhabi",
+      "tile": 828461
+    },
+    {
+      "name": "North Korea",
+      "capital": "Pyongyang",
+      "tile": 603911
+    },
+    {
+      "name": "Tajikistan",
+      "capital": "Dushanbe",
+      "tile": 609728
+    },
+    {
+      "name": "Kuwait",
+      "capital": "Kuwait City",
+      "tile": 752875
+    },
+    {
+      "name": "East Timor",
+      "capital": "Dili",
+      "tile": 1339909
+    },
+    {
+      "name": "Israel",
+      "capital": "Jerusalem",
+      "tile": 714344
+    },
+    {
+      "name": "Brunei",
+      "capital": "Bandar Seri Begawan",
+      "tile": 1131160
     }
   ],
   "credits": [

@@ -212,6 +212,36 @@ describe("nations", () => {
     );
   });
 
+  it("keeps the nations of a continent map on that continent", () => {
+    for (const outside of ["Egypt", "Ethiopia", "Ukraine", "Papua New Guinea"]) {
+      expect(names("asia")).not.toContain(outside);
+    }
+    expect(names("asia")).toContain("Russia");
+    for (const outside of ["Iran", "Saudi Arabia", "Yemen", "Syria"]) {
+      expect(names("africa")).not.toContain(outside);
+    }
+  });
+
+  it.each(maps.filter((m) => m.definition.nations.edgeMargin > 0))(
+    "keeps the nations of $definition.id away from its edges",
+    ({ definition, manifest }) => {
+      const margin = definition.nations.edgeMargin;
+      for (const nation of manifest.nations) {
+        const x = nation.tile % manifest.width;
+        const y = Math.floor(nation.tile / manifest.width);
+        const fromEdge = Math.min(x, y, manifest.width - 1 - x, manifest.height - 1 - y);
+        expect(fromEdge, nation.name).toBeGreaterThanOrEqual(margin);
+      }
+    },
+  );
+
+  it("places every nation a map asks for", () => {
+    for (const { definition, manifest } of maps) {
+      const wanted = definition.drawn ? definition.drawn.nations.length : definition.nations.count;
+      expect(manifest.nations, definition.id).toHaveLength(wanted);
+    }
+  });
+
   it("reaches the north of Europe", () => {
     expect(names("europe")).toEqual(expect.arrayContaining(["Norway", "Sweden", "Finland"]));
   });

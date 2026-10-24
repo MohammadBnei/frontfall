@@ -209,6 +209,21 @@ describe("pickNations", () => {
     expect(pick(1e4)).toEqual(["A", "B", "C"]);
   });
 
+  it("keeps nations away from the edges of a flat map", () => {
+    const nations = pickNations(
+      wide,
+      topology,
+      tiles,
+      [capital("Edge", "AAA", 0.5, 2.5), capital("Inland", "BBB", 8.5, 2.5)],
+      new Map([
+        ["AAA", country(1e9)],
+        ["BBB", country(1)],
+      ]),
+      { count: 2, minDistance: 1, edgeMargin: 1 },
+    );
+    expect(nations.map((nation) => nation.capital)).toEqual(["Inland"]);
+  });
+
   it("weighs a country by its land on the map as well as its people", () => {
     const nations = pickNations(
       wide,

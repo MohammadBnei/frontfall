@@ -30,7 +30,7 @@
       "players": {
         "min": 2,
         "recommended": 10,
-        "max": 24
+        "max": 22
       },
       "manifest": "americas.json",
       "thumbnail": "americas.png"
@@ -98,7 +98,7 @@
       "players": {
         "min": 2,
         "recommended": 6,
-        "max": 12
+        "max": 8
       },
       "manifest": "ring.json",
       "thumbnail": "ring.png"

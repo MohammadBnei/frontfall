@@ -23,7 +23,7 @@
   "players": {
     "min": 2,
     "recommended": 6,
-    "max": 12
+    "max": 8
   },
   "nations": {
     "count": 6,

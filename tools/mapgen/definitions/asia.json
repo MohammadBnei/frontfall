@@ -1,14 +1,35 @@
 {
   "id": "asia",
-  "name": { "en": "Asia", "fr": "Asie" },
+  "name": {
+    "en": "Asia",
+    "fr": "Asie"
+  },
   "version": 1,
   "width": 1280,
   "height": 1088,
   "topology": "flat",
-  "bounds": { "west": 25, "east": 150, "south": -12, "north": 78 },
-  "ice": { "north": 80, "south": -60 },
+  "bounds": {
+    "west": 25,
+    "east": 150,
+    "south": -12,
+    "north": 78
+  },
+  "ice": {
+    "north": 80,
+    "south": -60
+  },
   "minIslandTiles": 6,
   "minLakeTiles": 6,
-  "players": { "min": 2, "recommended": 14, "max": 40 },
-  "nations": { "count": 40, "minDistance": 30 }
+  "players": {
+    "min": 2,
+    "recommended": 14,
+    "max": 40
+  },
+  "nations": {
+    "count": 40,
+    "minDistance": 30,
+    "continents": ["Asia"],
+    "alsoCountries": ["RUS"],
+    "edgeMargin": 12
+  }
 }
