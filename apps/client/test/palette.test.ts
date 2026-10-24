@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 import tokens from "../../../assets/brand/tokens.json" with { type: "json" };
 import {
   MAP_COLORS,
+  NATION_COLORS,
+  NATION_COLOR_COUNT,
   PLAYER_COLORS,
   STRUCTURE_COLORS,
+  colorDistance,
+  colorOf,
   hexToRgb,
+  nationColor,
   playerColor,
 } from "../src/palette.ts";
 
@@ -40,5 +45,23 @@ describe("palette", () => {
   it("converts hex to bytes", () => {
     expect(hexToRgb("#0E2233")).toEqual([14, 34, 51]);
     expect(hexToRgb("#FFFFFF")).toEqual([255, 255, 255]);
+  });
+
+  it("gives every nation of World a tone of its own, far from the players and the map", () => {
+    expect(NATION_COLORS).toHaveLength(NATION_COLOR_COUNT);
+    const nations = NATION_COLORS.map(hexToRgb);
+    const others = [...PLAYER_COLORS.map((c) => c.hex), ...Object.values(MAP_COLORS)].map(hexToRgb);
+    for (const [i, nation] of nations.entries()) {
+      for (const other of nations.slice(i + 1)) {
+        expect(colorDistance(nation, other)).toBeGreaterThanOrEqual(25);
+      }
+      for (const other of others) expect(colorDistance(nation, other)).toBeGreaterThanOrEqual(25);
+    }
+  });
+
+  it("colours nations from the first nation's id on", () => {
+    expect(colorOf(1, 4)).toBe(PLAYER_COLORS[0]?.hex);
+    expect(colorOf(4, 4)).toBe(NATION_COLORS[0]);
+    expect(nationColor(NATION_COLOR_COUNT)).toBe(NATION_COLORS[0]);
   });
 });

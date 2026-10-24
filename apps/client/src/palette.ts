@@ -56,20 +56,65 @@ export function playerColor(index: number): PlayerColor {
   return PLAYER_COLORS[((index % count) + count) % count] as PlayerColor;
 }
 
+/** Nations a map may have, at most: World's 64 each get a colour of their own. */
+export const NATION_COLOR_COUNT = 64;
+
 /**
- * Colour of the n-th nation of a map. Nations are many (64 on World), so
- * they take muted tones of their own rather than repeat the players'
- * colours: hues a golden angle apart, at low saturation, so humans and bots
- * stand out against them and no two neighbouring nations look alike.
+ * Colours of a map's nations. Nations are many, so they take muted tones of
+ * their own rather than repeat the players' colours. Each is picked, in
+ * turn, as the muted tone farthest from the player colours, the bare map and
+ * the nations before it, so the first nations of a map differ the most and
+ * none comes close to a human or a bot.
  */
+export const NATION_COLORS: readonly string[] = farthestTones(NATION_COLOR_COUNT);
+
+/** Colour of the n-th nation of a map; wraps around past NATION_COLOR_COUNT. */
 export function nationColor(index: number): string {
-  const hue = (index * 137.508) % 360;
-  return hslToHex(hue, 0.3, index % 2 === 0 ? 0.5 : 0.6);
+  const count = NATION_COLORS.length;
+  return NATION_COLORS[((index % count) + count) % count] as string;
 }
 
 /** Colour of player `id`: the palette for humans and bots, a muted tone from `firstNation` on. */
 export function colorOf(id: number, firstNation: number): string {
   return id >= firstNation ? nationColor(id - firstNation) : playerColor(id - 1).hex;
+}
+
+function farthestTones(count: number): string[] {
+  const candidates: string[] = [];
+  for (let hue = 0; hue < 360; hue += 6) {
+    for (const saturation of [0.15, 0.25, 0.35]) {
+      for (let step = 0; step <= 9; step++) {
+        candidates.push(hslToHex(hue, saturation, 0.3 + step * 0.05));
+      }
+    }
+  }
+  const taken = [...PLAYER_COLORS.map((c) => c.hex), ...Object.values(MAP_COLORS)].map(hexToRgb);
+  const rgbs = candidates.map(hexToRgb);
+  const nearest = rgbs.map((rgb) => Math.min(...taken.map((other) => colorDistance(rgb, other))));
+  const picked: string[] = [];
+  while (picked.length < count) {
+    // The first of equally far candidates wins, so the list never changes.
+    let best = 0;
+    for (let i = 1; i < candidates.length; i++) {
+      if ((nearest[i] as number) > (nearest[best] as number)) best = i;
+    }
+    picked.push(candidates[best] as string);
+    const rgb = rgbs[best] as [number, number, number];
+    for (let i = 0; i < candidates.length; i++) {
+      const distance = colorDistance(rgbs[i] as [number, number, number], rgb);
+      if (distance < (nearest[i] as number)) nearest[i] = distance;
+    }
+  }
+  return picked;
+}
+
+/** Euclidean distance between two colours in RGB bytes. */
+export function colorDistance(a: readonly number[], b: readonly number[]): number {
+  return Math.hypot(
+    (a[0] ?? 0) - (b[0] ?? 0),
+    (a[1] ?? 0) - (b[1] ?? 0),
+    (a[2] ?? 0) - (b[2] ?? 0),
+  );
 }
 
 function hslToHex(hue: number, saturation: number, lightness: number): string {

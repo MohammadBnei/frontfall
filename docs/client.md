@@ -29,7 +29,9 @@ covers the conventions that are not obvious from the code.
   `installNations`) and decide during the tick, from the game state and its
   seed, so every client of an online game computes the same moves. Nations
   come from the map's manifest, numbered after the bots, each with its start
-  tile.
+  tile. They take muted tones of their own (`NATION_COLORS` in palette.ts),
+  each picked as far as possible from the player colours, the bare map and
+  the nations before it; a test keeps all 64 apart.
 - Only `apps/client/src/render` imports Three.js, which a test checks. The
   interface talks to the two contracts of ADR 0003, never to Three.js:
   `Renderer` (`render/renderer.ts`: player colours, changed tiles, ships, a

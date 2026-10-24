@@ -97,7 +97,7 @@ The state objects are live: read them, never write them. A renderer reads after 
 
 ## Desync reports
 
-When a client's state hash disagrees with the other players', it can save a `DesyncReport` (format version `DESYNC_REPORT_VERSION`, now 2; version 2 added the nations and their starts): plain JSON with everything needed to play the game again on another machine.
+When a client's state hash disagrees with the other players', it can save a `DesyncReport` (format version `DESYNC_REPORT_VERSION`, now 2; version 2 added the nations and their starts; the reader refuses version 1, whose hashes no longer match a replay since the hash covers the start tiles): plain JSON with everything needed to play the game again on another machine.
 
 | Field     | Content                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
