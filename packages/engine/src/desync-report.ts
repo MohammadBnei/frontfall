@@ -275,6 +275,12 @@ function order(value: unknown): Order {
         troops: readInteger(raw.troops, "gift troops"),
         gold: readInteger(raw.gold, "gift gold"),
       };
+    case "quick":
+      return {
+        type: "quick",
+        target: readInteger(raw.target, "order target"),
+        phrase: readInteger(raw.phrase, "quick message"),
+      };
     default:
       throw new DesyncReportError(`unknown order type ${String(raw.type)}`);
   }

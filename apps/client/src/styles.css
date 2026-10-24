@@ -783,7 +783,8 @@ input[type="range"] {
     clip-path: inset(50%);
   }
 
-  .click-note {
+  /* Over the base rule, which comes later in this file. */
+  .game .click-note {
     bottom: auto;
     top: 242px;
   }
@@ -1351,6 +1352,26 @@ input[type="range"] {
 .menu-action:disabled {
   color: var(--ff-slate-400);
   cursor: default;
+}
+
+.quick-messages {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.quick-phrase {
+  padding: 4px 6px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quick-phrase:hover,
+.quick-phrase:focus-visible {
+  border-color: var(--ff-slate-400);
 }
 
 .menu-action.betray {

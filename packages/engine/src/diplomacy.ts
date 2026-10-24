@@ -43,8 +43,9 @@ export interface DiplomacyEvent {
   /**
    * Besides alliances and embargoes: `a` took a trade ship of `b`
    * ("captured"), launched a missile at `b`'s land ("missile"), or stopped a
-   * missile of `b` with an air defense ("stopped"), or sent `b` troops or
-   * gold ("gift").
+   * missile of `b` with an air defense ("stopped"), sent `b` troops or
+   * gold ("gift"), or sent `b` the quick message `phrase` ("quick"), which
+   * only those two are shown.
    */
   readonly type:
     | "allied"
@@ -55,9 +56,12 @@ export interface DiplomacyEvent {
     | "captured"
     | "missile"
     | "stopped"
-    | "gift";
+    | "gift"
+    | "quick";
   readonly a: number;
   readonly b: number;
+  /** A "quick" event's message, by number (R-DIPLO-07). */
+  readonly phrase?: number;
 }
 
 /** Refusals of diplomacy orders, so that interfaces can tell them apart without parsing text. */

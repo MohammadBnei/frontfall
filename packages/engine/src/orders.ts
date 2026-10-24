@@ -3,6 +3,7 @@ import { DiplomacyError, allyError, betrayError, embargoError, isAllied } from "
 import { BuildError, isStructureKind, placementError } from "./structures.ts";
 import { giftError } from "./gifts.ts";
 import { missileError } from "./missiles.ts";
+import { quickError } from "./quick-messages.ts";
 import { patrolError, warshipError } from "./warships.ts";
 
 /**
@@ -78,6 +79,8 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       return (
         playerError(order.target) ?? giftError(game, player, order.target, order.troops, order.gold)
       );
+    case "quick":
+      return playerError(order.target) ?? quickError(game, player, order.target, order.phrase);
   }
 }
 

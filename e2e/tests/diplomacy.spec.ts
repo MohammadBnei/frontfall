@@ -130,6 +130,17 @@ test("sends a bot a gift of gold, in a game without silos (R-DIPLO-06, R-MODE-03
   expect(pageErrors).toEqual([]);
 });
 
+test("sends a bot a quick message, which the feed shows (R-DIPLO-07)", async ({ page }) => {
+  await startGame(page, 1);
+  await page.locator(".leader-button").click();
+  const menu = page.locator("#player-menu");
+  await menu.locator(".menu-action.messages").click();
+  await expect(menu.locator(".quick-phrase")).toHaveCount(12);
+  await menu.locator(".quick-phrase").first().click();
+  await expect(menu.locator(".quick-phrase")).toHaveCount(0);
+  await expect(page.locator(".event-feed")).toContainText("Hello!");
+});
+
 test("closes the player menu with Esc before pausing", async ({ page }) => {
   await startGame(page);
   await page.locator(".leader-button").first().click();

@@ -1,3 +1,4 @@
+import { QUICK_MESSAGES } from "@frontfall/engine";
 import type { GameRules } from "../game/messages.ts";
 import type { DiplomacyEvent, GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
@@ -22,6 +23,8 @@ export interface DiplomacyActions {
   onGift(player: number, what: "troops" | "gold"): void;
   /** The attack ratio, in percent: the share a gift sends. */
   share(): number;
+  /** Sends the player a preset quick message, by number (R-DIPLO-07). */
+  onQuick(player: number, phrase: number): void;
 }
 
 const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
@@ -34,6 +37,7 @@ const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
   missile: "diplo.eventMissile",
   stopped: "diplo.eventStopped",
   gift: "diplo.eventGift",
+  quick: "diplo.eventQuick",
 };
 
 /**
@@ -60,6 +64,8 @@ export class DiplomacyPanel {
   private picked: number | undefined;
   /** The player menu asks once more before a betrayal. */
   private confirming = false;
+  /** The player menu shows its quick messages. */
+  private messaging = false;
   private last: GameUpdate | undefined;
   private readonly events: { at: number; element: HTMLElement }[] = [];
   /** Requests answered or set aside here: the stack hides them until they run out. */
@@ -101,6 +107,7 @@ export class DiplomacyPanel {
     }
     this.picked = player;
     this.confirming = false;
+    this.messaging = false;
     this.menuKey = "";
     this.render(update, performance.now());
     const first = this.menu.querySelector<HTMLButtonElement>(".menu-action:not([disabled])");
@@ -112,6 +119,7 @@ export class DiplomacyPanel {
     const inside = this.menu.contains(document.activeElement);
     this.picked = undefined;
     this.confirming = false;
+    this.messaging = false;
     this.menu.hidden = true;
     this.menu.replaceChildren();
     this.menuKey = "";
@@ -150,8 +158,14 @@ export class DiplomacyPanel {
   }
 
   private addEvent(event: DiplomacyEvent, update: GameUpdate, now: number): void {
+    // A quick message is for its sender and its receiver only (R-DIPLO-07).
+    if (event.type === "quick" && event.a !== update.you && event.b !== update.you) return;
     const name = (id: number) => update.players.find((p) => p.id === id)?.name ?? "";
-    const text = t(EVENT_TEXT[event.type], { a: name(event.a), b: name(event.b) });
+    const text = t(EVENT_TEXT[event.type], {
+      a: name(event.a),
+      b: name(event.b),
+      phrase: event.phrase === undefined ? "" : t(`quick.${String(event.phrase)}` as MessageKey),
+    });
     const element = h("li", { class: `event event-${event.type}` }, text);
     this.feed.append(element);
     this.events.push({ at: now, element });
@@ -289,6 +303,18 @@ export class DiplomacyPanel {
       });
     }
     const warText = war ? t("diplo.atWar") : "";
+    buttons.push({
+      key: this.messaging ? "diplo.messagesHide" : "diplo.messages",
+      action: () => {
+        this.messaging = !this.messaging;
+        this.menuKey = "";
+        this.renderMenu(update);
+        this.menu.querySelector<HTMLButtonElement>(".messages")?.focus();
+      },
+      // A message every QUICK_MESSAGE_TICKS at most: the button waits in between.
+      enabled: playing && (this.messaging || diplomacy.quickIn === 0),
+      className: "messages",
+    });
 
     const key = [
       id,
@@ -298,6 +324,7 @@ export class DiplomacyPanel {
       embargoText,
       warText,
       this.confirming,
+      this.messaging,
       ...buttons.map((b) => `${b.key}:${JSON.stringify(b.params ?? {})}:${String(b.enabled)}`),
     ].join("|");
     if (key === this.menuKey) return;
@@ -335,12 +362,42 @@ export class DiplomacyPanel {
           t(label, params),
         );
         button.disabled = !enabled;
+        if (className === "messages") button.setAttribute("aria-expanded", String(this.messaging));
         button.addEventListener("click", action);
         return button;
       }),
+      ...(this.messaging && playing ? [this.phrases(id, update)] : []),
     );
     this.menu.hidden = false;
     if (focused) refocus(this.menu, focused);
+  }
+
+  /** The quick messages, one button each: a click sends one and folds them away. */
+  private phrases(id: number, update: GameUpdate): HTMLElement {
+    return h(
+      "div",
+      { class: "quick-messages", role: "group", "aria-label": t("diplo.messages") },
+      ...Array.from({ length: QUICK_MESSAGES }, (_, phrase) => {
+        const button = h(
+          "button",
+          {
+            type: "button",
+            class: "quick-phrase",
+            "data-kind": `quick-${String(phrase)}`,
+            "data-phrase": phrase,
+          },
+          t(`quick.${String(phrase)}` as MessageKey),
+        );
+        button.addEventListener("click", () => {
+          this.actions.onQuick(id, phrase);
+          this.messaging = false;
+          this.menuKey = "";
+          this.renderMenu(update);
+          this.menu.querySelector<HTMLButtonElement>(".messages")?.focus();
+        });
+        return button;
+      }),
+    );
   }
 
   private renderRequests(update: GameUpdate): void {

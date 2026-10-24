@@ -10,6 +10,7 @@ import {
   TileKind,
   WarshipError,
   atWar,
+  quickAllowedAt,
   warshipCost,
   MissileError,
   MissileSize,
@@ -294,6 +295,8 @@ export interface DiplomacyView {
   embargoedBy: number[];
   /** Players at war with the player at this screen, who take no gift (R-DIPLO-06). */
   atWar: number[];
+  /** Ticks before the player at this screen may send another quick message (R-DIPLO-07). */
+  quickIn: number;
 }
 
 export interface AllyView {
@@ -316,9 +319,12 @@ export interface DiplomacyEvent {
     | "captured"
     | "missile"
     | "stopped"
-    | "gift";
+    | "gift"
+    | "quick";
   a: number;
   b: number;
+  /** A quick message, by number (R-DIPLO-07). */
+  phrase?: number;
 }
 
 /** A warship, where it is this tick. */
@@ -823,12 +829,17 @@ export class SoloGame {
         .players()
         .filter((player) => player.alive && atWar(game, you, player.id))
         .map((player) => player.id),
+      quickIn: Math.max(0, quickAllowedAt(game, you) - tick),
     };
   }
 
   /** What the engine logged between players since the last update, in order (R-DIPLO-04). */
   private diplomacyEvents(): DiplomacyEvent[] {
-    return this.game.diplomacyEvents.splice(0).map(({ type, a, b }) => ({ type, a, b }));
+    return this.game.diplomacyEvents
+      .splice(0)
+      .map(({ type, a, b, phrase }) =>
+        phrase === undefined ? { type, a, b } : { type, a, b, phrase },
+      );
   }
 
   private update(): GameUpdate {

@@ -38,7 +38,9 @@ export type Order =
   /** Launches a missile of `size` (a MissileSize code) at tile `target`. */
   | { type: "missile"; target: number; size: number }
   /** Sends player `target` troops and gold (R-DIPLO-06); either may be 0. */
-  | { type: "gift"; target: number; troops: number; gold: number };
+  | { type: "gift"; target: number; troops: number; gold: number }
+  /** Sends player `target` the preset quick message `phrase` (R-DIPLO-07). */
+  | { type: "quick"; target: number; phrase: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -161,6 +163,8 @@ export class Game {
   readonly requestCooldowns: RequestCooldown[] = [];
   /** Embargoes, oldest first (R-DIPLO-05). */
   readonly embargoes: Embargo[] = [];
+  /** Players waiting to send another quick message (R-DIPLO-07), by player id. */
+  readonly quickCooldowns: { readonly player: number; readonly until: number }[] = [];
   /**
    * What happened between players, oldest first, for interfaces to read and
    * empty. No rule reads it back, so it is not part of the state hash.
@@ -367,8 +371,11 @@ export class Game {
       for (const p of this.sortedPlayers) mix(p.team);
       mix(this.winningTeam ?? 0);
     }
-    // So do games that leave nothing out.
+    // So do games that leave nothing out, and games without quick messages.
     if (this.disabled !== 0) mix(this.disabled);
+    for (const c of this.quickCooldowns) {
+      if (this.currentTick < c.until) for (const value of [c.player, c.until]) mix(value);
+    }
     mix(this.decidedAt ?? -1);
     return hash >>> 0;
   }

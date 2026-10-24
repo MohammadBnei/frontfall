@@ -86,7 +86,7 @@ describe("gifts (R-DIPLO-06)", () => {
     expect(orderError(game, ada, gift(2, 100, 1))).toBeUndefined();
   });
 
-  it("are refused between players at war, and when there is nothing or too much to send", () => {
+  it("are refused between players at war, to players out of the game, and when there is nothing or too much to send", () => {
     const { game, grid, ada, step } = newGame();
     (game.player(3) as Player).troops = 0;
     expect(orderError(game, ada, gift(2, 0, 0))).toBe(GiftError.Empty);
@@ -101,6 +101,9 @@ describe("gifts (R-DIPLO-06)", () => {
     expect(orderError(game, ada, gift(3, 10, 0))).toBeUndefined();
     step([{ player: 2, order: { type: "embargo", target: 3, on: 1 } }]);
     expect(orderError(game, game.player(3) as Player, gift(2, 0, 10))).toBe(GiftError.War);
+    // Nobody gives to a player who is out of the game.
+    (game.player(3) as Player).alive = false;
+    expect(orderError(game, ada, gift(3, 10, 0))).toBe(DiplomacyError.Player);
   });
 });
 

@@ -28,6 +28,7 @@ export const ORDER_KINDS = [
   { type: "patrol", fields: ["ship", "tile"] },
   { type: "missile", fields: ["target", "size"] },
   { type: "gift", fields: ["target", "troops", "gold"] },
+  { type: "quick", fields: ["target", "phrase"] },
 ] as const;
 
 /** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
@@ -59,6 +60,14 @@ export const Order = z.discriminatedUnion("type", [
     .strict(),
   /** Troops and gold sent to another player; the engine refuses a gift of neither. */
   z.object({ type: z.literal("gift"), target: PlayerNumber, troops: share, gold: share }).strict(),
+  /** `phrase`: the engine's preset quick message, which it checks. */
+  z
+    .object({
+      type: z.literal("quick"),
+      target: PlayerNumber,
+      phrase: z.number().int().min(0).max(255),
+    })
+    .strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 

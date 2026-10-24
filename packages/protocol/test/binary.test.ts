@@ -106,6 +106,11 @@ describe("frames", () => {
     expect(decodeFrame(encodeOrderFrame(order))).toEqual({ kind: "order", order });
   });
 
+  it("carries a quick message's target and number", () => {
+    const order = { type: "quick" as const, target: 3, phrase: 11 };
+    expect(decodeFrame(encodeOrderFrame(order))).toEqual({ kind: "order", order });
+  });
+
   it("carries alliance requests and betrayals with their target player", () => {
     for (const type of ["ally", "betray"] as const) {
       expect(decodeFrame(encodeOrderFrame({ type, target: 0xffff }))).toEqual({
@@ -176,7 +181,7 @@ describe("order kinds", () => {
       version: PROTOCOL_VERSION,
       kinds: ORDER_KINDS.map((kind) => kind.type),
     }).toEqual({
-      version: 12,
+      version: 13,
       kinds: [
         "spawn",
         "attack",
@@ -191,6 +196,7 @@ describe("order kinds", () => {
         "patrol",
         "missile",
         "gift",
+        "quick",
       ],
     });
   });

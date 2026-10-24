@@ -157,6 +157,7 @@ Binary frame. An order of the local player, in the shape of the engine's `Order`
 | `patrol`   | `ship` (id), `tile`                             | Send one of your warships to patrol around a water tile                                                 |
 | `missile`  | `target`, `size` (0 to 255)                     | Launch a missile (`0`) or a heavy missile (`1`) at a land tile                                          |
 | `gift`     | `target` (player), `troops`, `gold` (0 or more) | Send a player troops and gold                                                                           |
+| `quick`    | `target` (player), `phrase` (0 to 255)          | Send a player a preset quick message, by number                                                         |
 
 Tiles are indexes in the map, below 2^31. The server checks only the shape of an order; whether it can be carried out is decided by the engine of every client, the same way everywhere. Orders sent outside a running game are ignored.
 
@@ -318,6 +319,7 @@ A turn is its order count, then for each order the player number and the order. 
 | `10` | `patrol`   | `ship`, `tile`             |
 | `11` | `missile`  | `target`, `size`           |
 | `12` | `gift`     | `target`, `troops`, `gold` |
+| `13` | `quick`    | `target`, `phrase`         |
 
 The table is `ORDER_KINDS` in [`orders.ts`](../packages/protocol/src/orders.ts). New orders are added at the end, so existing codes never change. A frame with trailing bytes, an unknown kind or a count larger than the rest of the frame could hold is refused. A client that receives a `turns` frame it cannot read stops and asks for a reload: skipping a turn would desynchronise its game.
 
@@ -332,4 +334,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

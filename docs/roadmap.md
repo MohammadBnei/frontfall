@@ -15,7 +15,7 @@ The game ships as a series of playable versions instead of one release at the en
 | [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.         | Shipped |     23 |  71 days |
 | [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.            | Shipped |      8 |  24 days |
 | [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities, ports and defence posts, ally and betray, face named nations, on a watched server. | Current |     12 |  24 days |
-| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.                 | Planned |      5 |  17 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.                 | Planned |      6 |  19 days |
 | [v0.5 · Balanced](#v05--balanced)                                       | Play a flat-map game where no strategy or start position runs away with it.                      | Planned |      1 |   3 days |
 | [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                        | Planned |      7 |  21 days |
 | [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.               | Planned |      6 |  16 days |
@@ -179,17 +179,18 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 
 1. Every rule of `docs/rules.md` v1 is implemented and covered by a test that names it.
 2. A team game of 4 against 4 is played to the end on the public server.
-3. A finished game can be replayed from its link and ends with the same hash.
+3. A finished game can be replayed from its file and ends with the same hash.
 
-| ID    | Issue                                                                                     | Size | Depends on |
-| ----- | ----------------------------------------------------------------------------------------- | ---- | ---------- |
-| M5-02 | [#44](https://github.com/nic0lasm/frontfall/issues/44) Ships leave from ports, path cache | M    | #43, #81   |
-| M5-03 | [#45](https://github.com/nic0lasm/frontfall/issues/45) Warships and naval combat          | M    | #44        |
-| M5-04 | [#46](https://github.com/nic0lasm/frontfall/issues/46) Missiles and air defence           | L    | #43        |
-| M5-06 | [#48](https://github.com/nic0lasm/frontfall/issues/48) Team games                         | M    | #35, #47   |
-| M5-08 | [#50](https://github.com/nic0lasm/frontfall/issues/50) Replays                            | M    | #38        |
+| ID    | Issue                                                                                    | Size | Depends on |
+| ----- | ---------------------------------------------------------------------------------------- | ---- | ---------- |
+| M5-02 | [#44](https://github.com/nic0lasm/frontfall/issues/44) Ports, trade ships and embargoes  | M    | #43, #81   |
+| M5-03 | [#45](https://github.com/nic0lasm/frontfall/issues/45) Warships and naval combat         | M    | #44        |
+| M5-04 | [#46](https://github.com/nic0lasm/frontfall/issues/46) Missiles and air defence          | L    | #43        |
+| M5-06 | [#48](https://github.com/nic0lasm/frontfall/issues/48) Team games                        | M    | #35, #47   |
+| M5-08 | [#50](https://github.com/nic0lasm/frontfall/issues/50) Replays                           | M    | #38        |
+| M5-09 | Gifts, private-game options and quick messages (`R-DIPLO-06`, `R-MODE-03`, `R-DIPLO-07`) | S    | #47        |
 
-5 issues, about 17 days. Transport by sea already exists since v0.1 (#81): #44 keeps departures from ports, a path cache per port pair and the cost budget for 50 ships.
+6 items, about 19 days. Transport by sea already exists since v0.1 (#81) and keeps leaving from any coast; #44 brings ports, the trade ships between them with a route cache per port pair, and embargoes. The last rules of v1, gifts, private-game options and quick messages, close the version, so that criterion 1 holds.
 
 ## v0.5 · Balanced
 
@@ -295,19 +296,22 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 
 Reviewed on 24 October 2026, once v0.1 and v0.2 were live and played. The order of the versions stays; what moved, and why:
 
-| Change                                           | Why                                                                                                                                                                           |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #20, #31, #40, #41 and #42 closed as done        | Map manifests and thumbnails, the French interface, server abuse limits, metrics and logs, the load test and the fuzzing shipped with v0.1 and v0.2.                          |
-| #18 and #39 cut to what is left                  | Relief costs and polar ice already apply; a seat is already taken back after a drop or a reload, but catching up late in a game is too slow.                                  |
-| #24 and #82 closed, the rest in a new v0.3 issue | The data texture and smooth fronts are done; the hover highlight and the animated attack edge gate nothing. The 16 ms frame measurement goes to the performance budget (#60). |
-| #51 uptime monitoring from v0.5 to v0.3          | The game is public. An outage should page the owner, not wait for a player to say so.                                                                                         |
-| #60 and #61 from v0.7 to v0.3                    | Nations and structures add work to every tick. Measuring 64 players now is cheaper than finding a slow hot path after the globe is built.                                     |
-| Stronger bots, new in v0.3                       | A scripted player that sails beats seven normal bots in seven seeds out of eight. Nations are tuned on top of bots, so bots come first.                                       |
-| Globe spike during v0.3                          | The 3D globe is the main risk for v1.0 and the Renderer contract has one implementation. Three days now can save a rework of the 2D view later.                               |
-| Outside playtest (#33) from v0.1 to v0.3         | v0.1 and v0.2 are tagged after the owner's playtest; three outside players are a check of v0.3.                                                                               |
-| #44 from L to M                                  | Ships, sea routes across the seam and bots that sail came with v0.1 (#81).                                                                                                    |
-| Embargoes (`R-DIPLO-05`) from v0.3 to v0.4       | An embargo stops trade, and trade comes with ports in v0.4. Until then it would be a button that does nothing.                                                                |
-| v0.5 renamed "Balanced"                          | Monitoring moved out; the balance pass is what is left.                                                                                                                       |
+| Change                                             | Why                                                                                                                                                                           |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #20, #31, #40, #41 and #42 closed as done          | Map manifests and thumbnails, the French interface, server abuse limits, metrics and logs, the load test and the fuzzing shipped with v0.1 and v0.2.                          |
+| #18 and #39 cut to what is left                    | Relief costs and polar ice already apply; a seat is already taken back after a drop or a reload, but catching up late in a game is too slow.                                  |
+| #24 and #82 closed, the rest in a new v0.3 issue   | The data texture and smooth fronts are done; the hover highlight and the animated attack edge gate nothing. The 16 ms frame measurement goes to the performance budget (#60). |
+| #51 uptime monitoring from v0.5 to v0.3            | The game is public. An outage should page the owner, not wait for a player to say so.                                                                                         |
+| #60 and #61 from v0.7 to v0.3                      | Nations and structures add work to every tick. Measuring 64 players now is cheaper than finding a slow hot path after the globe is built.                                     |
+| Stronger bots, new in v0.3                         | A scripted player that sails beats seven normal bots in seven seeds out of eight. Nations are tuned on top of bots, so bots come first.                                       |
+| Globe spike during v0.3                            | The 3D globe is the main risk for v1.0 and the Renderer contract has one implementation. Three days now can save a rework of the 2D view later.                               |
+| Outside playtest (#33) from v0.1 to v0.3           | v0.1 and v0.2 are tagged after the owner's playtest; three outside players are a check of v0.3.                                                                               |
+| #44 from L to M                                    | Ships, sea routes across the seam and bots that sail came with v0.1 (#81).                                                                                                    |
+| Embargoes (`R-DIPLO-05`) from v0.3 to v0.4         | An embargo stops trade, and trade comes with ports in v0.4. Until then it would be a button that does nothing.                                                                |
+| v0.5 renamed "Balanced"                            | Monitoring moved out; the balance pass is what is left.                                                                                                                       |
+| #44 now ports and trade, transports from any coast | Ships that must leave from a port would make every landing wait for one; trade is what a port is for.                                                                         |
+| Replays from a file                                | A link would need the server to keep every game; a file saved from the end screen needs nothing.                                                                              |
+| Gifts, lobby options and quick messages in v0.4    | They are the last rules of v1, and v0.4 is the version that implements all of them.                                                                                           |
 
 ## Good first issues
 

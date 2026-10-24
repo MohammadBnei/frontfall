@@ -47,6 +47,14 @@ export {
 export { installEconomy, populationCap } from "./economy.ts";
 export { GiftError, giftError, giftedTroops, installGifts } from "./gifts.ts";
 export {
+  QUICK_MESSAGES,
+  QUICK_MESSAGE_TICKS,
+  QuickError,
+  installQuickMessages,
+  quickAllowedAt,
+  quickError,
+} from "./quick-messages.ts";
+export {
   installBots,
   installNations,
   NATION_EXTRA_RESERVE,

@@ -39,6 +39,7 @@ const report: DesyncReport = {
       ],
     },
     { tick: 30, orders: [{ player: 1, order: { type: "gift", target: 2, troops: 10, gold: 0 } }] },
+    { tick: 40, orders: [{ player: 1, order: { type: "quick", target: 2, phrase: 5 } }] },
   ],
   hashes: [],
 };

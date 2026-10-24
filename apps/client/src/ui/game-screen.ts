@@ -110,6 +110,8 @@ export class GameScreen {
   private mode: ClickMode = "attack";
   /** Build mode of the last click sent, picked again if the click is refused. */
   private modeSent: ClickMode | undefined;
+  /** Clicks the worker has not answered yet; it answers each one, in order. */
+  private clicksInFlight = 0;
   /** The structures last drawn, as a key that changes when any of them does. */
   private drawnStructures = "";
   /** Flat map or globe; G switches when the globe was asked for and the map allows it. */
@@ -187,6 +189,9 @@ export class GameScreen {
         this.gift(player, what);
       },
       share: () => this.hud.ratio,
+      onQuick: (player, phrase) => {
+        this.quick(player, phrase);
+      },
     });
     this.hud.leaderboard.append(this.diplomacy.menu);
     this.hud.element.append(this.diplomacy.requests, this.diplomacy.feed);
@@ -550,17 +555,19 @@ export class GameScreen {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
     this.session.click(tile, this.hud.ratio, this.mode);
+    this.clicksInFlight++;
     // One structure per pick of the button: the next click attacks again,
     // unless the worker refuses this one (afterBuildClick).
-    if (this.mode !== "attack") {
-      const sent = this.mode;
-      this.setMode("attack");
-      this.modeSent = sent;
-    }
+    const sent = this.mode === "attack" ? undefined : this.mode;
+    if (sent) this.setMode("attack");
+    this.modeSent = sent;
   }
 
   /** A refused build gives its mode back, if the player has not picked another since. */
   private afterBuildClick(outcome: ClickOutcome): void {
+    this.clicksInFlight = Math.max(0, this.clicksInFlight - 1);
+    // An answer to an older click says nothing about the latest one.
+    if (this.clicksInFlight > 0) return;
     const sent = this.modeSent;
     this.modeSent = undefined;
     if (!sent || outcome === "build" || outcome === "demolish" || outcome === "missile") return;
@@ -651,6 +658,14 @@ export class GameScreen {
       troops: what === "troops" ? amount : 0,
       gold: what === "gold" ? amount : 0,
     });
+  }
+
+  /** Sends a player a preset quick message (R-DIPLO-07). */
+  private quick(target: number, phrase: number): void {
+    const update = this.latest;
+    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) return;
+    if (this.replayBar) return;
+    this.session.sendOrder({ type: "quick", target, phrase });
   }
 
   private retreat(attack: number): void {
