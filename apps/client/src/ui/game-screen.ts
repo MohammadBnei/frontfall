@@ -5,7 +5,7 @@ import { HUMAN_ID, type GameUpdate, type SoloOptions } from "../game/solo-game.t
 import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
-import { FlatCamera } from "../render/camera.ts";
+import { FlatCamera, type CameraView } from "../render/camera.ts";
 import { MapView } from "../render/map-view.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
 import { ClickMarks } from "./click-marks.ts";
@@ -48,6 +48,9 @@ export class GameScreen {
   private readonly marks = new ClickMarks();
   private previousShips = new Map<number, number>();
   private updatedAt = 0;
+  /** Something to draw that the camera alone does not show. */
+  private dirty = true;
+  private drawnView: CameraView | undefined;
   private wrapsX = true;
 
   constructor(
@@ -134,8 +137,18 @@ export class GameScreen {
     const frame = (now: number): void => {
       this.input.update(now - last);
       last = now;
-      this.placeShips(now);
-      this.view?.render(this.camera.view());
+      // A frame is drawn only when something on the map changed: the GPU
+      // idles while nothing moves, during a pause above all.
+      const view = this.camera.view();
+      const moved = !sameView(view, this.drawnView);
+      const sailing = (this.latest?.boats.length ?? 0) > 0;
+      if (this.view && (moved || this.dirty || sailing)) {
+        this.placeShips(now);
+        this.view.render(view);
+        this.drawnView = view;
+        // Ships still glide after their last tick: one more frame to settle them.
+        this.dirty = sailing;
+      }
       this.marks.place(this.camera, now);
       this.frameHandle = requestAnimationFrame(frame);
     };
@@ -177,6 +190,7 @@ export class GameScreen {
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
     this.view = view;
+    this.dirty = true;
     this.resize();
   }
 
@@ -211,6 +225,7 @@ export class GameScreen {
   }
 
   private resize(): void {
+    this.dirty = true;
     const width = window.innerWidth;
     const height = window.innerHeight;
     this.view?.resize(width, height);
@@ -223,12 +238,14 @@ export class GameScreen {
     if (update.owners) {
       this.owners.set(update.owners);
       this.view?.markAllChanged();
+      this.dirty = true;
     } else if (update.changedTiles.length > 0) {
       const { changedTiles, changedOwners } = update;
       for (let i = 0; i < changedTiles.length; i++) {
         this.owners[changedTiles[i] as number] = changedOwners[i] as number;
       }
       this.view?.markChanged(changedTiles);
+      this.dirty = true;
     }
     const human = update.players.find((player) => player.id === HUMAN_ID);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
@@ -354,4 +371,14 @@ export class GameScreen {
       ),
     );
   }
+}
+
+function sameView(a: CameraView, b: CameraView | undefined): boolean {
+  return (
+    b !== undefined &&
+    a.centerX === b.centerX &&
+    a.centerY === b.centerY &&
+    a.halfWidth === b.halfWidth &&
+    a.halfHeight === b.halfHeight
+  );
 }
