@@ -2,6 +2,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { loadMap, type MapDescription } from "@frontfall/engine";
 import { summarize } from "../engine/stats.ts";
+import { replay } from "./replay.ts";
 import { Simulation } from "./simulation.ts";
 
 const { values } = parseArgs({
@@ -18,8 +19,12 @@ const { values } = parseArgs({
     interval: { type: "string", default: "20" },
     // Tick p95 in milliseconds above which the run fails, for CI.
     budget: { type: "string" },
+    // A desync report to play again instead of a scripted game.
+    replay: { type: "string" },
   },
 });
+
+if (values.replay !== undefined) process.exit(replay(values.replay));
 
 const integer = (name: keyof typeof values): number => {
   const value = Number(values[name]);

@@ -87,6 +87,32 @@ The state objects are live: read them, never write them. A renderer reads after 
 
 `DEFAULT_BALANCE` holds the values of [balance.md](balance.md), converted to ticks and integers. Each field names its `B-` key. Tests and private lobbies may pass their own `balance`; a multiplayer game must use the same one on every client.
 
+## Desync reports
+
+When a client's state hash disagrees with the other players', it can save a `DesyncReport` (format version `DESYNC_REPORT_VERSION`, now 1): plain JSON with everything needed to play the game again on another machine.
+
+| Field     | Content                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `version` | `1`. Readers refuse any other.                                                                                                  |
+| `build`   | `release`, the build's release name, and `protocol`, the `PROTOCOL_VERSION` it spoke.                                           |
+| `map`     | The published map: `id`, the manifest's `format` and `version`, and `sha256`, the hash of its terrain file.                     |
+| `seed`    | The game's seed.                                                                                                                |
+| `balance` | Every balance value the game ran with, the defaults included.                                                                   |
+| `players` | Every player, humans and bots, as `{ id, name }` with the ids the game used.                                                    |
+| `bots`    | `ids` of the computer players and their `difficulty`.                                                                           |
+| `you`     | The id of the player whose client wrote the report.                                                                             |
+| `ticks`   | Ticks the client had run.                                                                                                       |
+| `turns`   | `{ tick, orders: [{ player, order }] }` for every tick with orders, in tick order; other ticks ran without orders.              |
+| `hashes`  | `{ tick, local, expected }` for each checked tick: the client's hash after it, and the hash most other players sent, or `null`. |
+
+`readDesyncReport(json)` checks a parsed file and returns the report, or throws `DesyncReportError`. `replayDesyncReport(report, terrain)` plays it again and returns `firstDesync`, the first tick where `local` and `expected` differ, and `firstLocalMismatch`, the first tick where the replay does not give `local` back; the second should never happen, since it means the engine is not deterministic or the report was damaged.
+
+```sh
+pnpm sim -- --replay report.json
+```
+
+loads the published map the report names, refuses a map whose terrain hash differs, replays the game, prints the first desync tick, and exits with 1 when the replay does not reproduce the client's hashes.
+
 ## Helpers
 
 - `Random`: the seeded generator. Anything random in a game comes from `game.random`.

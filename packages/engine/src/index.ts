@@ -2,6 +2,14 @@ export { captureCost, installAttacks, troopsPerTile, type Attack } from "./attac
 export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
 export { createGame } from "./create-game.ts";
+export {
+  DESYNC_REPORT_VERSION,
+  DesyncReportError,
+  readDesyncReport,
+  replayDesyncReport,
+  type DesyncReport,
+  type ReplayResult,
+} from "./desync-report.ts";
 export { installEconomy, populationCap } from "./economy.ts";
 export {
   installBots,
