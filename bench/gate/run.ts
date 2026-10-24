@@ -179,7 +179,8 @@ if (verdict?.outcome === "fail") {
     console.error(`the engine is slower than the base: ${verdict.reason}`);
     failed = true;
   } else {
-    console.warn(`the engine is slower than the base, accepted: ${values.accept}`);
+    const message = `the engine is slower than the base, accepted: ${values.accept}`;
+    console.warn(process.env.GITHUB_ACTIONS ? `::warning::${message}` : message);
   }
 }
 process.exit(failed ? 1 : 0);

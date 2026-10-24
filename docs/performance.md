@@ -157,8 +157,16 @@ a trailer in the message of one of the branch's commits:
 Performance-Accepted: forts make every attack check its target's surroundings
 ```
 
-The gate then reports the slowdown without failing; the 30 ms budget still
-applies.
+The gate then reports the slowdown with a warning on the run instead of
+failing; the 30 ms budget still applies. The trailer counts in any commit
+between the base and the branch's head, so it covers the whole branch, and
+it only matters while the engine differs from the base.
+
+The job runs on every push and pull request, Dependabot's included, so a
+dependency update is held to the download budgets too. Publish does not wait
+for CI: once a commit is on `main` it is deployed whatever the gate said,
+which is why branches are fast-forwarded onto `main` only after their run is
+green (CONTRIBUTING).
 
 `pnpm perf:engine -- --base <checkout> --slowdown 10` slows this checkout's
 ticks down by 10 % with a busy wait, to check that the gate still catches it.
