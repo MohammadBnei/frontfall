@@ -22,6 +22,7 @@ export const ORDER_KINDS = [
   { type: "demolish", fields: ["tile"] },
   { type: "ally", fields: ["target"] },
   { type: "betray", fields: ["target"] },
+  { type: "embargo", fields: ["target", "on"] },
 ] as const;
 
 /** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
@@ -37,6 +38,14 @@ export const Order = z.discriminatedUnion("type", [
   z.object({ type: z.literal("demolish"), tile }).strict(),
   z.object({ type: z.literal("ally"), target: PlayerNumber }).strict(),
   z.object({ type: z.literal("betray"), target: PlayerNumber }).strict(),
+  /** `on`: 1 starts an embargo, 0 lifts it. */
+  z
+    .object({
+      type: z.literal("embargo"),
+      target: PlayerNumber,
+      on: z.number().int().min(0).max(1),
+    })
+    .strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 

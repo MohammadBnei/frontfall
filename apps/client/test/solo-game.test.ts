@@ -144,6 +144,31 @@ describe("SoloGame attacks", () => {
 });
 
 describe("SoloGame clicks", () => {
+  it("puts a port only by the water, and shows embargoes both ways (R-BUILD-02, R-DIPLO-05)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory } = solo.game;
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 1_000_000;
+    for (let tile = 0; tile < terrain.topology.size; tile++) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    const coast = [...terrain.kinds.keys()].find((tile) => terrain.isCoast(tile)) ?? -1;
+    const inland =
+      [...terrain.kinds.keys()].find((tile) => terrain.isOwnable(tile) && !terrain.isCoast(tile)) ??
+      -1;
+    expect(solo.orderForClick(inland, 30, "port")).toEqual({ refused: "coast" });
+    expect(solo.orderForClick(coast, 30, "port")).toEqual({
+      order: { type: "build", structure: 2, tile: coast },
+    });
+    update = solo.step([{ type: "embargo", target: 2, on: 1 }]);
+    expect(update.diplomacy.embargoes).toEqual([2]);
+    expect(update.events).toContainEqual({ type: "embargo", a: HUMAN_ID, b: 2 });
+    expect(update.tradeShips).toEqual([]);
+  });
+
   it("builds and demolishes in the mode the HUD picked, and reports structures (R-BUILD)", () => {
     const solo = newGame({ ...options, bots: 1 });
     const land = firstLand(options.map);

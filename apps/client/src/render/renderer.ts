@@ -12,13 +12,15 @@ export interface UnitMark {
   readonly x: number;
   readonly y: number;
   readonly color: string;
+  /** A trade ship, drawn smaller than a transport (R-UNIT-03). */
+  readonly trade?: boolean;
 }
 
 /** A structure to draw on its tile, y counted from the north. */
 export interface StructureMark {
   readonly x: number;
   readonly y: number;
-  readonly type: "city" | "fort";
+  readonly type: "city" | "fort" | "port";
   /** Drawn faded while it is being built. */
   readonly ready: boolean;
 }
@@ -59,7 +61,7 @@ export interface Renderer {
   markChanged(tiles: ArrayLike<number>): void;
   /** Every tile changed at once, after a full resynchronisation. */
   markAllChanged(): void;
-  /** Ships at sea, replacing the previous ones. */
+  /** Transport and trade ships at sea, replacing the previous ones. */
   setShips(ships: readonly UnitMark[]): void;
   /** Every structure on the map, replacing the previous ones. */
   setStructures(structures: readonly StructureMark[]): void;

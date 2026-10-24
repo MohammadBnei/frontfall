@@ -7,10 +7,11 @@ import { NEUTRAL } from "./territory/territory-map.ts";
 export const StructureKind = {
   City: 0,
   Fort: 1,
+  Port: 2,
 } as const;
 export type StructureKind = (typeof StructureKind)[keyof typeof StructureKind];
 
-const HIGHEST_KIND: number = StructureKind.Fort;
+const HIGHEST_KIND: number = StructureKind.Port;
 
 /** A structure on one land tile. It works from `readyAt` on, and changes hands with its tile. */
 export interface Structure {
@@ -28,6 +29,7 @@ export const BuildError = {
   Foreign: "the tile is not yours",
   Crowded: "too close to another structure",
   Land: "not enough land for another city",
+  Coast: "a port needs a coast",
   Gold: "not enough gold",
 } as const;
 export type BuildError = (typeof BuildError)[keyof typeof BuildError];
@@ -58,8 +60,9 @@ export function structureCount(game: Game, player: number, kind: StructureKind):
  * B-COST-GROWTH for each one of that kind they already own (R-BUILD).
  */
 export function structureCost(game: Game, player: number, kind: StructureKind): number {
-  const { cityCost, fortCost, costGrowthPercent } = game.balance;
-  let cost = kind === StructureKind.City ? cityCost : fortCost;
+  const { cityCost, fortCost, portCost, costGrowthPercent } = game.balance;
+  let cost =
+    kind === StructureKind.City ? cityCost : kind === StructureKind.Fort ? fortCost : portCost;
   const owned = structureCount(game, player, kind);
   for (let i = 0; i < owned && cost < Number.MAX_SAFE_INTEGER; i++) {
     cost = Math.min(Number.MAX_SAFE_INTEGER, mulDiv(cost, costGrowthPercent, 100));
@@ -98,6 +101,7 @@ export function placementError(
   tile: number,
 ): BuildError | undefined {
   if (game.territory.ownerOf(tile) !== player.id) return BuildError.Foreign;
+  if (kind === StructureKind.Port && !game.terrain.isCoast(tile)) return BuildError.Coast;
   const spacing = game.balance.buildSpacing;
   const topology = game.terrain.topology;
   for (const structure of game.structures) {

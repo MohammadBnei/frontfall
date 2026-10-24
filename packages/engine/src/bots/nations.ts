@@ -7,6 +7,7 @@ import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
 import {
   RETRY_DECISIONS,
   buildCity,
+  buildPort,
   sail,
   scanBorder,
   type Cooldowns,
@@ -71,6 +72,7 @@ export function installNations(
   }
   const seaCooldowns: Cooldowns = new Map();
   const cityCooldowns: Cooldowns = new Map();
+  const portCooldowns: Cooldowns = new Map();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -86,6 +88,7 @@ export function installNations(
     const tiles = territory.tileCount(nation.id);
     if (tiles === 0 || territory.borderCount(nation.id) === 0) return;
     buildCity(game, nation, cityCooldowns, retryTicks);
+    buildPort(game, nation, portCooldowns, retryTicks);
     const cap = populationCap(game, nation);
     const reserve = percentOf(cap, reservePercent);
     const troops = Math.min(

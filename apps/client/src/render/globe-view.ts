@@ -8,6 +8,7 @@ import { TerritoryLayer } from "./territory-layer.ts";
 
 /** Same limits as the flat map's (map-view.ts). */
 const SHIP_CAPACITY = 128;
+const TRADE_CAPACITY = 512;
 const STRUCTURE_CAPACITY = 1024;
 const STRUCTURE_MIN_PIXELS = 9;
 
@@ -33,6 +34,7 @@ export class GlobeView implements Renderer {
   private readonly camera = new THREE.PerspectiveCamera(GLOBE_FOV, 1, 0.001, 100);
   private readonly territory: TerritoryLayer;
   private readonly ships: GlobeMarkers;
+  private readonly tradeShips: GlobeMarkers;
   private readonly structures: Record<StructureMark["type"], StructureMarkers>;
   private readonly startedAt = performance.now();
   private cssWidth = 1;
@@ -56,11 +58,16 @@ export class GlobeView implements Renderer {
     });
     this.territory.mesh.renderOrder = 0;
     this.scene.add(this.territory.mesh);
-    const markers = (size: number, sides: number, order: number): GlobeMarkers => {
+    const markers = (
+      size: number,
+      sides: number,
+      order: number,
+      capacity = sides === 8 ? SHIP_CAPACITY : STRUCTURE_CAPACITY,
+    ): GlobeMarkers => {
       const layer = new GlobeMarkers({
         worldWidth: options.width,
         worldHeight: options.height,
-        capacity: sides === 8 ? SHIP_CAPACITY : STRUCTURE_CAPACITY,
+        capacity,
         size,
         sides,
         order,
@@ -69,9 +76,11 @@ export class GlobeView implements Renderer {
       return layer;
     };
     this.ships = markers(2.5, 8, 1);
+    this.tradeShips = markers(1.6, 8, 1, TRADE_CAPACITY);
     this.structures = {
       city: { outline: markers(5.5, 4, 2), fill: markers(4, 4, 3), size: 4 },
       fort: { outline: markers(6, 3, 2), fill: markers(4.5, 3, 3), size: 4.5 },
+      port: { outline: markers(5.5, 6, 2), fill: markers(4, 6, 3), size: 4 },
     };
   }
 
@@ -104,16 +113,21 @@ export class GlobeView implements Renderer {
   }
 
   setShips(ships: readonly UnitMark[]): void {
-    const count = Math.min(ships.length, SHIP_CAPACITY);
-    for (let i = 0; i < count; i++) {
-      const ship = ships[i] as UnitMark;
-      this.ships.set(i, ship.x, ship.y, ship.color);
+    let transports = 0;
+    let trade = 0;
+    for (const ship of ships) {
+      if (ship.trade) {
+        if (trade < TRADE_CAPACITY) this.tradeShips.set(trade++, ship.x, ship.y, ship.color);
+      } else if (transports < SHIP_CAPACITY) {
+        this.ships.set(transports++, ship.x, ship.y, ship.color);
+      }
     }
-    this.ships.count = count;
+    this.ships.count = transports;
+    this.tradeShips.count = trade;
   }
 
   setStructures(structures: readonly StructureMark[]): void {
-    for (const type of ["city", "fort"] as const) {
+    for (const type of ["city", "fort", "port"] as const) {
       const { outline, fill } = this.structures[type];
       let count = 0;
       for (const structure of structures) {
@@ -155,6 +169,7 @@ export class GlobeView implements Renderer {
     // At the middle of the screen a row of tiles has the flat map's size.
     const tilesPerPixel = (2 * view.halfHeight) / this.cssHeight;
     this.ships.setScale(1);
+    this.tradeShips.setScale(1);
     for (const { outline, fill, size } of Object.values(this.structures)) {
       const scale = Math.max(1, (STRUCTURE_MIN_PIXELS * tilesPerPixel) / size);
       outline.setScale(scale);
@@ -170,6 +185,7 @@ export class GlobeView implements Renderer {
   dispose(): void {
     this.territory.dispose();
     this.ships.dispose();
+    this.tradeShips.dispose();
     for (const { outline, fill } of Object.values(this.structures)) {
       outline.dispose();
       fill.dispose();

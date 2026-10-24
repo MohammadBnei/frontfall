@@ -15,12 +15,16 @@ export interface DiplomacyActions {
    */
   onAlly(player: number): boolean;
   onBetray(player: number): void;
+  /** Starts (`on` true) or lifts an embargo on the player's trade (R-DIPLO-05). */
+  onEmbargo(player: number, on: boolean): void;
 }
 
 const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
   allied: "diplo.eventAllied",
   ended: "diplo.eventEnded",
   betrayed: "diplo.eventBetrayed",
+  embargo: "diplo.eventEmbargo",
+  lifted: "diplo.eventLifted",
 };
 
 /**
@@ -178,6 +182,11 @@ export class DiplomacyPanel {
     const traitorText = traitor
       ? t("diplo.traitorFor", { seconds: this.seconds(traitor.ticksLeft) })
       : "";
+    const embargoing = diplomacy.embargoes.includes(id);
+    const embargoText = [
+      ...(embargoing ? [t("diplo.embargoing")] : []),
+      ...(diplomacy.embargoedBy.includes(id) ? [t("diplo.embargoedBy")] : []),
+    ].join(" · ");
 
     const buttons: { key: MessageKey; action: () => void; enabled: boolean; className: string }[] =
       [];
@@ -232,11 +241,23 @@ export class DiplomacyPanel {
       });
     }
 
+    if (!teammate) {
+      buttons.push({
+        key: embargoing ? "diplo.liftEmbargo" : "diplo.embargo",
+        action: () => {
+          this.actions.onEmbargo(id, !embargoing);
+        },
+        enabled: playing,
+        className: "embargo",
+      });
+    }
+
     const key = [
       id,
       player.name,
       status,
       traitorText,
+      embargoText,
       this.confirming,
       ...buttons.map((b) => `${b.key}:${String(b.enabled)}`),
     ].join("|");
@@ -266,6 +287,7 @@ export class DiplomacyPanel {
       ),
       h("p", { class: "player-menu-status" }, status),
       ...(traitorText ? [h("p", { class: "player-menu-traitor" }, traitorText)] : []),
+      ...(embargoText ? [h("p", { class: "player-menu-embargo" }, embargoText)] : []),
       ...buttons.map(({ key: label, action, enabled, className }) => {
         const button = h(
           "button",

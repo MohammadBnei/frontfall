@@ -27,10 +27,20 @@ export interface RequestCooldown {
   readonly until: number;
 }
 
-/** An alliance formed, run out, or broken by `a` (R-DIPLO-04: every player is told). */
+/** Player `from` trades nothing with player `to` since tick `since` (R-DIPLO-05). */
+export interface Embargo {
+  readonly from: number;
+  readonly to: number;
+  readonly since: number;
+}
+
+/**
+ * An alliance formed, run out, or broken by `a` (R-DIPLO-04), or an embargo
+ * of `a` on `b` started or lifted (R-DIPLO-05): every player is told.
+ */
 export interface DiplomacyEvent {
   readonly tick: number;
-  readonly type: "allied" | "ended" | "betrayed";
+  readonly type: "allied" | "ended" | "betrayed" | "embargo" | "lifted";
   readonly a: number;
   readonly b: number;
 }
@@ -47,6 +57,8 @@ export const DiplomacyError = {
   NotAllied: "not allied with this player",
   Ally: "the tile belongs to an ally",
   Teammate: "teammates are allies for the whole game",
+  Embargoed: "already under your embargo",
+  NotEmbargoed: "not under your embargo",
 } as const;
 
 export type DiplomacyError = (typeof DiplomacyError)[keyof typeof DiplomacyError];
@@ -133,8 +145,31 @@ export function betrayError(game: Game, player: Player, target: number): string 
   return isAllied(game, player.id, target) ? undefined : DiplomacyError.NotAllied;
 }
 
+/** Whether trade between two players is cut: an embargo of either on the other (R-DIPLO-05). */
+export function embargoed(game: Game, a: number, b: number): boolean {
+  return game.embargoes.some((e) => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+}
+
+/** Why `player` cannot start (`on` 1) or lift (`on` 0) an embargo on `target` now, or undefined. */
+export function embargoError(
+  game: Game,
+  player: Player,
+  target: number,
+  on: number,
+): string | undefined {
+  if (game.phase !== "play") return DiplomacyError.Early;
+  if (on !== 0 && on !== 1) return "invalid embargo switch";
+  if (target === player.id) return DiplomacyError.Self;
+  if (!game.player(target)?.alive) return DiplomacyError.Player;
+  if (sameTeam(game, player.id, target)) return DiplomacyError.Teammate;
+  const held = game.embargoes.some((e) => e.from === player.id && e.to === target);
+  if (on === 1 && held) return DiplomacyError.Embargoed;
+  if (on === 0 && !held) return DiplomacyError.NotEmbargoed;
+  return undefined;
+}
+
 /**
- * Diplomacy (R-DIPLO-01 to R-DIPLO-04). `ally` asks for an alliance, accepts
+ * Diplomacy (R-DIPLO-01 to R-DIPLO-05). `ally` asks for an alliance, accepts
  * the other side's request, or votes to renew a running alliance; `betray`
  * ends one at once and marks the player who broke it. Requests, alliances and
  * cooldowns run out on ticks, so every client drops them at the same moment.
@@ -187,9 +222,24 @@ export function installDiplomacy(game: Game): void {
     return true;
   });
 
+  game.onOrder((_, player, order) => {
+    if (order.type !== "embargo") return false;
+    const target = order.target;
+    if (order.on === 1) game.embargoes.push({ from: player.id, to: target, since: game.tick });
+    else removeWhere(game.embargoes, (e) => e.from === player.id && e.to === target);
+    logEvent(game, {
+      tick: game.tick,
+      type: order.on === 1 ? "embargo" : "lifted",
+      a: player.id,
+      b: target,
+    });
+    return true;
+  });
+
   game.onTick(() => {
     const tick = game.tick;
     const alive = (id: number) => game.player(id)?.alive === true;
+    removeWhere(game.embargoes, (e) => !alive(e.from) || !alive(e.to));
     for (const request of game.allianceRequests) {
       if (tick < request.expiresAt || !alive(request.from) || !alive(request.to)) continue;
       game.requestCooldowns.push({

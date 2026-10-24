@@ -1,11 +1,18 @@
 import type { Attack } from "./attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import type { Boat } from "./boats.ts";
-import type { Alliance, AllianceRequest, DiplomacyEvent, RequestCooldown } from "./diplomacy.ts";
+import type {
+  Alliance,
+  AllianceRequest,
+  DiplomacyEvent,
+  Embargo,
+  RequestCooldown,
+} from "./diplomacy.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
 import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
+import type { TradeShip } from "./trade.ts";
 import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
 
 /** An order from a player, as relayed by the server in a turn. */
@@ -19,7 +26,9 @@ export type Order =
   | { type: "demolish"; tile: number }
   /** `target` is a player id. */
   | { type: "ally"; target: number }
-  | { type: "betray"; target: number };
+  | { type: "betray"; target: number }
+  /** `on`: 1 starts an embargo on player `target`, 0 lifts it. */
+  | { type: "embargo"; target: number; on: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -87,6 +96,8 @@ export class Game {
   readonly terrain: Terrain;
   readonly territory: TerritoryMap;
   readonly random: Random;
+  /** Seed of the game, for draws derived from it (`derivedRandom`). */
+  readonly seed: number;
   readonly balance: Balance;
   /** Attacks under way, oldest first. Owned by the attack rules; read only elsewhere. */
   readonly attacks: Attack[] = [];
@@ -97,12 +108,17 @@ export class Game {
   /** Structures on the map, oldest first. Owned by the structure rules; read only elsewhere. */
   readonly structures: Structure[] = [];
   nextStructureId = 1;
+  /** Trade ships at sea, oldest first. Owned by the trade rules; read only elsewhere. */
+  readonly tradeShips: TradeShip[] = [];
+  nextTradeShipId = 1;
   /** Alliances by ascending pair of ids. Owned by the diplomacy rules; read only elsewhere. */
   readonly alliances: Alliance[] = [];
   /** Alliance requests waiting for an answer, oldest first. */
   readonly allianceRequests: AllianceRequest[] = [];
   /** Players who may not ask a given player again yet, oldest first. */
   readonly requestCooldowns: RequestCooldown[] = [];
+  /** Embargoes, oldest first (R-DIPLO-05). */
+  readonly embargoes: Embargo[] = [];
   /**
    * What happened between players, oldest first, for interfaces to read and
    * empty. No rule reads it back, so it is not part of the state hash.
@@ -129,6 +145,7 @@ export class Game {
   constructor(setup: GameSetup) {
     this.terrain = setup.terrain;
     this.random = new Random(setup.seed);
+    this.seed = setup.seed >>> 0;
     this.balance = setup.balance ?? DEFAULT_BALANCE;
     checkBalance(this.balance);
     this.balanceDigest = digestBalance(this.balance);
@@ -246,6 +263,12 @@ export class Game {
       for (const value of [r.from, r.to, r.expiresAt]) mix(value);
     mix(this.requestCooldowns.length);
     for (const c of this.requestCooldowns) for (const value of [c.from, c.to, c.until]) mix(value);
+    mix(this.nextTradeShipId);
+    for (const t of this.tradeShips) {
+      for (const value of [t.id, t.player, t.from, t.to, t.step, t.path.length]) mix(value);
+    }
+    mix(this.embargoes.length);
+    for (const e of this.embargoes) for (const value of [e.from, e.to, e.since]) mix(value);
     mix(this.winner ?? 0);
     // Free-for-all games hash as they did before teams existed.
     if (this.teams > 0) {
@@ -324,6 +347,8 @@ function checkBalance(balance: Balance): void {
     "boatMax",
     "boatRange",
     "cityLand",
+    "tradeRange",
+    "tradeIntervalTicks",
     "allianceRequestTicks",
     "allianceTicks",
     "maxDurationTicks",
@@ -341,7 +366,11 @@ function checkBalance(balance: Balance): void {
   for (const key of [
     "cityCost",
     "fortCost",
+    "portCost",
     "buildTicks",
+    "tradeMax",
+    "tradeBase",
+    "tradePerTile",
     "allianceRenewTicks",
     "allianceCooldownTicks",
     "traitorTicks",
@@ -356,4 +385,5 @@ function checkBalance(balance: Balance): void {
   }
   // Ship routes keep their distances in 16 bits.
   if (balance.boatRange > 0xffff) throw new RangeError("balance boatRange is above 65535");
+  if (balance.tradeRange > 0xffff) throw new RangeError("balance tradeRange is above 65535");
 }

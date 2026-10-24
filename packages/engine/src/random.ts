@@ -59,6 +59,28 @@ export class Random {
   }
 }
 
+/**
+ * A draw that depends only on its inputs: the game's seed, the tick, the id
+ * of what draws and what for. Rules that draw this way share no state with
+ * `game.random`, so adding or removing one of them leaves every other draw
+ * of the game as it was.
+ */
+export function derivedRandom(seed: number, tick: number, id: number, usage: number): number {
+  let h = seed >>> 0;
+  for (const word of [tick, id, usage]) {
+    h = Math.imul(h ^ (word >>> 0), 0x9e3779b1);
+    h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+    h ^= h >>> 16;
+  }
+  return h >>> 0;
+}
+
+/** What derived draws are for: two rules drawing on the same tick for the same id still differ. */
+export const DrawUsage = {
+  TradeDestination: 1,
+} as const;
+
 export type RandomState = readonly [number, number, number, number];
 
 function rotl(value: number, shift: number): number {

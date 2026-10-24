@@ -28,6 +28,9 @@ export const RETRY_DECISIONS = 4; // B-BOT-SEA-RETRY
 /** Tiles around its start within which a computer player looks for room for a city. */
 const CITY_SEARCH_RADIUS = 40; // B-BOT-CITY-SEARCH
 
+/** Tiles around its start within which a computer player looks for a coast for its port. */
+const PORT_SEARCH_RADIUS = 60; // B-BOT-PORT-SEARCH
+
 /** Owners a computer player is willing to attack; unowned land is always fair game. */
 export type OwnerFilter = (owner: number) => boolean;
 
@@ -106,6 +109,42 @@ export function buildCity(game: Game, bot: Player, cooldowns: Cooldowns, retryTi
     if (nearby.some((s) => topology.distance(s.tile, tile) < spacing)) continue;
     const distance = topology.distance(tile, center);
     // Row order breaks ties, the same on every client.
+    if (best < 0 || distance < bestDistance) {
+      best = tile;
+      bestDistance = distance;
+    }
+  }
+  if (best >= 0) game.apply(bot.id, { type: "build", structure: kind, tile: best });
+  else cooldowns.set(bot.id, game.tick + retryTicks);
+}
+
+/**
+ * R-BOT-06: once it has a city, one port on its own coast closest to its
+ * start, when its gold allows. A player whose start is lost, or with no
+ * coast near it, tries again later.
+ */
+export function buildPort(game: Game, bot: Player, cooldowns: Cooldowns, retryTicks: number): void {
+  const { territory, terrain, balance } = game;
+  const topology = terrain.topology;
+  const kind = StructureKind.Port;
+  if (structureCount(game, bot.id, kind) > 0) return;
+  if (structureCount(game, bot.id, StructureKind.City) === 0) return;
+  if (bot.gold < structureCost(game, bot.id, kind)) return;
+  if (game.tick < (cooldowns.get(bot.id) ?? 0)) return;
+  const start = bot.start;
+  if (start === undefined || territory.ownerOf(start) !== bot.id) {
+    cooldowns.set(bot.id, game.tick + retryTicks);
+    return;
+  }
+  const spacing = balance.buildSpacing;
+  const radius = PORT_SEARCH_RADIUS + spacing;
+  const nearby = game.structures.filter((s) => topology.distance(s.tile, start) < radius);
+  let best = -1;
+  let bestDistance = 0;
+  for (const tile of topology.tilesWithin(start, PORT_SEARCH_RADIUS)) {
+    if (territory.ownerOf(tile) !== bot.id || !terrain.isCoast(tile)) continue;
+    if (nearby.some((s) => topology.distance(s.tile, tile) < spacing)) continue;
+    const distance = topology.distance(tile, start);
     if (best < 0 || distance < bestDistance) {
       best = tile;
       bestDistance = distance;

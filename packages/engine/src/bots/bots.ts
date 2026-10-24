@@ -3,7 +3,14 @@ import { allianceOf, alliesOf, canRenew, isTraitor } from "../diplomacy.ts";
 import type { Game, Player } from "../game.ts";
 import { divFloor, mulDiv, percentOf } from "../integer-math.ts";
 import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
-import { RETRY_DECISIONS, buildCity, sail, scanBorder, type Cooldowns } from "./shared.ts";
+import {
+  RETRY_DECISIONS,
+  buildCity,
+  buildPort,
+  sail,
+  scanBorder,
+  type Cooldowns,
+} from "./shared.ts";
 
 /** Allies a bot keeps at most, so that it always has someone left to fight. */
 const ALLIANCE_MAX = 1; // B-BOT-ALLIANCE-MAX
@@ -20,7 +27,8 @@ const ALLIANCE_MAX = 1; // B-BOT-ALLIANCE-MAX
  * ships at sea (R-BOT-05).
  *
  * Whenever their gold pays for a city their land supports, they build one
- * as close as they can to where they started, away from the front (R-BOT-06).
+ * as close as they can to where they started, away from the front, and
+ * after their first city, one port on their coast closest to it (R-BOT-06).
  *
  * Bots never ask for an alliance. They accept one from a smaller player, not
  * a traitor, with no attack between them, while the two hold less than B-WIN-SHARE of the land
@@ -41,6 +49,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
   }
   const seaCooldowns: Cooldowns = new Map();
   const cityCooldowns: Cooldowns = new Map();
+  const portCooldowns: Cooldowns = new Map();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -57,6 +66,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     if (tiles === 0 || territory.borderCount(bot.id) === 0) return;
     answerAlliances(bot, tiles);
     buildCity(game, bot, cityCooldowns, retryTicks);
+    buildPort(game, bot, portCooldowns, retryTicks);
     const reserve = percentOf(populationCap(game, bot), params.reservePercent);
     const troops = Math.min(percentOf(bot.troops, params.attackRatioPercent), bot.troops - reserve);
     // Less than the price of one tile would come straight back.

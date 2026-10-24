@@ -51,6 +51,8 @@ export interface Balance {
   cityCost: number;
   /** B-COST-FORT, gold for a player's first fort */
   fortCost: number;
+  /** B-COST-PORT, gold for a player's first port */
+  portCost: number;
   /** B-COST-GROWTH, percent: each structure of a kind already owned multiplies the cost of the next by this */
   costGrowthPercent: number;
   /** B-BUILD-SPACING, smallest distance in tiles between two structures */
@@ -63,6 +65,16 @@ export interface Balance {
   fortStrengthPercent: number;
   /** B-FORT-LOSSES, percent of the usual troops a defender loses with a tile a fort covers */
   fortLossPercent: number;
+  /** B-TRADE-RANGE, longest trade route between two ports, in water tiles */
+  tradeRange: number;
+  /** B-TRADE-INTERVAL, ticks between two departures from one port */
+  tradeIntervalTicks: number;
+  /** B-TRADE-MAX, trade ships from one port at sea at once */
+  tradeMax: number;
+  /** B-TRADE-BASE, gold each side earns from a trade ship that arrives */
+  tradeBase: number;
+  /** B-TRADE-PER-TILE, gold each side earns on top for each water tile of the route */
+  tradePerTile: number;
   /** B-ALLIANCE-REQUEST-TIMEOUT, in ticks */
   allianceRequestTicks: number;
   /** B-ALLIANCE-DURATION, in ticks */
@@ -106,12 +118,18 @@ export const DEFAULT_BALANCE: Balance = {
   buildTicks: 5 * 10,
   cityCost: 60_000,
   fortCost: 30_000,
+  portCost: 100_000,
   costGrowthPercent: 150,
   buildSpacing: 10,
   cityLand: 10_000,
   fortRadius: 25,
   fortStrengthPercent: 200,
   fortLossPercent: 50,
+  tradeRange: 500,
+  tradeIntervalTicks: 10 * 10,
+  tradeMax: 3,
+  tradeBase: 2000,
+  tradePerTile: 20,
   allianceRequestTicks: 20 * 10,
   allianceTicks: 300 * 10,
   allianceRenewTicks: 60 * 10,

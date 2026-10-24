@@ -26,16 +26,15 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 ## Economy
 
-| Key                   | Value | Unit                        | Used by      | Notes                                          |
-| --------------------- | ----: | --------------------------- | ------------ | ---------------------------------------------- |
-| `B-POP-BASE`          | start | troops                      | `R-ECO-01`   | The map's starting troops (`R-SPAWN-06`)       |
-| `B-POP-PER-TILE`      |    40 | troops                      | `R-ECO-01`   | Cap contribution of each owned land tile       |
-| `B-POP-PER-CITY`      |     5 | % of the land's cap         | `R-BUILD-01` | Per working city                               |
-| `B-POP-FALLOFF-SHARE` |    20 | % of all ownable land       | `R-ECO-06`   | Land past this share counts for less           |
-| `B-POP-FALLOFF`       |   100 | % of `B-POP-PER-TILE`       | `R-ECO-06`   | What each tile past that share adds to the cap |
-| `B-GROWTH-RATE`       |   3.2 | % of the gap to cap/second  | `R-ECO-02`   | Applied per tick as an integer ratio           |
-| `B-GOLD-RATE`         |   0.5 | gold per 100 idle troops/s  | `R-ECO-03`   |                                                |
-| `B-TRADE-GOLD`        |    60 | gold per 100 tiles of route | `R-UNIT-03`  | Paid to both ports on arrival                  |
+| Key                   | Value | Unit                       | Used by      | Notes                                          |
+| --------------------- | ----: | -------------------------- | ------------ | ---------------------------------------------- |
+| `B-POP-BASE`          | start | troops                     | `R-ECO-01`   | The map's starting troops (`R-SPAWN-06`)       |
+| `B-POP-PER-TILE`      |    40 | troops                     | `R-ECO-01`   | Cap contribution of each owned land tile       |
+| `B-POP-PER-CITY`      |     5 | % of the land's cap        | `R-BUILD-01` | Per working city                               |
+| `B-POP-FALLOFF-SHARE` |    20 | % of all ownable land      | `R-ECO-06`   | Land past this share counts for less           |
+| `B-POP-FALLOFF`       |   100 | % of `B-POP-PER-TILE`      | `R-ECO-06`   | What each tile past that share adds to the cap |
+| `B-GROWTH-RATE`       |   3.2 | % of the gap to cap/second | `R-ECO-02`   | Applied per tick as an integer ratio           |
+| `B-GOLD-RATE`         |   0.5 | gold per 100 idle troops/s | `R-ECO-03`   |                                                |
 
 ## Attacks
 
@@ -58,6 +57,18 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 | `B-BOAT-MAX`   |     3 | ships per player | `R-UNIT-02` | Transport ships at sea at once                    |
 | `B-BOAT-RANGE` |  1000 | water tiles      | `R-UNIT-02` | Longest route; also bounds the cost of the search |
 
+## Trade
+
+| Key                | Value | Unit                | Used by     | Notes                                                                |
+| ------------------ | ----: | ------------------- | ----------- | -------------------------------------------------------------------- |
+| `B-TRADE-RANGE`    |   500 | water tiles         | `R-UNIT-03` | Longest trade route, the same on every map; also bounds the search   |
+| `B-TRADE-INTERVAL` |    10 | s                   | `R-UNIT-03` | Between two departures from one port, counted from when it was built |
+| `B-TRADE-MAX`      |     3 | ships per port      | `R-UNIT-03` | Trade ships of one port at sea at once                               |
+| `B-TRADE-BASE`     |  2000 | gold                | `R-UNIT-03` | Earned by each side when a ship arrives                              |
+| `B-TRADE-PER-TILE` |    20 | gold per water tile | `R-UNIT-03` | Earned by each side on top, for the length of the route              |
+
+A route of 100 tiles pays 4,000 gold to each side, one of 500 tiles 12,000. With three ships at sea at most, a port sees 400 to 1,200 gold per second go out and as much come in, whatever the distance: some 15 to 40 % of the income of an average player four to six minutes into a game on World, and 1 to 2 % of the leader's. Trade helps the small empires and does little for the one that is running away with the game.
+
 ## Diplomacy
 
 | Key                           | Value | Unit | Used by      | Notes                                                     |
@@ -71,22 +82,23 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 ## Structures
 
-| Key                    | Value | Unit       | Used by      | Notes                                                  |
-| ---------------------- | ----: | ---------- | ------------ | ------------------------------------------------------ |
-| `B-BUILD-TIME`         |     5 | s          | `R-BUILD-*`  | Missile silo and air defense: 10 s                     |
-| `B-COST-CITY`          | 60000 | gold       | `R-BUILD-01` | First city                                             |
-| `B-COST-FORT`          | 30000 | gold       | `R-BUILD-03` | First fort                                             |
-| `B-COST-GROWTH`        |   1.5 | multiplier | `R-BUILD-*`  | Cost of the n-th structure of a kind: base × 1.5^(n−1) |
-| `B-BUILD-SPACING`      |    10 | tiles      | `R-BUILD-07` | Between any two structures                             |
-| `B-CITY-LAND`          | 10000 | tiles      | `R-BUILD-07` | Land each city beyond the first needs                  |
-| `B-FORT-RADIUS`        |    25 | tiles      | `R-BUILD-03` |                                                        |
-| `B-FORT-STRENGTH`      |   200 | % of price | `R-BUILD-03` | Paid by attackers inside the radius                    |
-| `B-FORT-LOSSES`        |    50 | % of loss  | `R-BUILD-03` | Lost by the defender inside the radius                 |
-| `B-AIR-DEFENSE-RADIUS` |    60 | tiles      | `R-BUILD-05` | 75 % chance to stop each missile                       |
+| Key                    |  Value | Unit       | Used by      | Notes                                                  |
+| ---------------------- | -----: | ---------- | ------------ | ------------------------------------------------------ |
+| `B-BUILD-TIME`         |      5 | s          | `R-BUILD-*`  | Missile silo and air defense: 10 s                     |
+| `B-COST-CITY`          |  60000 | gold       | `R-BUILD-01` | First city                                             |
+| `B-COST-FORT`          |  30000 | gold       | `R-BUILD-03` | First fort                                             |
+| `B-COST-PORT`          | 100000 | gold       | `R-BUILD-02` | First port                                             |
+| `B-COST-GROWTH`        |    1.5 | multiplier | `R-BUILD-*`  | Cost of the n-th structure of a kind: base × 1.5^(n−1) |
+| `B-BUILD-SPACING`      |     10 | tiles      | `R-BUILD-07` | Between any two structures                             |
+| `B-CITY-LAND`          |  10000 | tiles      | `R-BUILD-07` | Land each city beyond the first needs                  |
+| `B-FORT-RADIUS`        |     25 | tiles      | `R-BUILD-03` |                                                        |
+| `B-FORT-STRENGTH`      |    200 | % of price | `R-BUILD-03` | Paid by attackers inside the radius                    |
+| `B-FORT-LOSSES`        |     50 | % of loss  | `R-BUILD-03` | Lost by the defender inside the radius                 |
+| `B-AIR-DEFENSE-RADIUS` |     60 | tiles      | `R-BUILD-05` | 75 % chance to stop each missile                       |
 
 Structure values were set on World with eight normal bots, five seeds. Before structures, a bot reached `B-WIN-SHARE` after 8.8 to 13.0 minutes (median 10.1). With cities worth 10 % and one per 20,000 tiles of World, the snowball brought that down to 7.5 to 9.8 minutes; at 5 % and one per 40,000 tiles it is 7.9 to 10.6 (median 10.1), and a scripted casual player that also builds cities wins against seven normal bots as often as before (2 seeds out of 5).
 
-Base costs still to come, in gold: port 100 000, missile silo 800 000, air defense 1 000 000.
+Base costs still to come, in gold: missile silo 800 000, air defense 1 000 000.
 
 Distances and land are given for a map of 2^19 tiles, like the spawn values: on a larger map `B-FORT-RADIUS` grows with the spawn radius and `B-CITY-LAND` with the spawn area, so on World a fort covers 50 tiles around it and each city beyond the first needs 40,000 tiles.
 
@@ -105,6 +117,7 @@ Each value is given for easy / normal / hard (`R-BOT-04`); the others are the sa
 | `B-BOT-SEA-MIN`      |              16 | water tiles                     | `R-BOT-05` | Coasts closer to the bot's shore count as the same front                                                                                       |
 | `B-BOT-SEA-RETRY`    |               4 | decisions                       | `R-BOT-05` | Skipped after a sea search that found nothing, since one search can walk `B-BOAT-RANGE` of sea                                                 |
 | `B-BOT-CITY-SEARCH`  |              40 | tiles                           | `R-BOT-06` | Radius around its start in which a bot looks for room for a city                                                                               |
+| `B-BOT-PORT-SEARCH`  |              60 | tiles                           | `R-BOT-06` | Radius around its start in which a bot looks for a coast for its port                                                                          |
 | `B-BOT-ALLIANCE-MAX` |               1 | allies                          | `R-BOT-10` | So that a bot always has someone left to fight                                                                                                 |
 | `B-NATION-ODDS`      |              80 | % of the nation's troop density | `R-BOT-09` | Attacks a player at most this dense, half while land is free; by sea as well                                                                   |
 | `B-NATION-FULL`      |              90 | % of population cap             | `R-BOT-09` | From here a nation takes the odds of `B-BOT-BOLDNESS` instead: troops past the cap would be wasted                                             |

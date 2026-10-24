@@ -28,6 +28,7 @@ export interface HudActions {
 const MODE_BANNERS = {
   city: "hud.modeCity",
   fort: "hud.modeFort",
+  port: "hud.modePort",
   demolish: "hud.modeDemolish",
 } as const;
 
@@ -35,6 +36,7 @@ const MODE_BANNERS = {
 const BUILD_MODES = [
   { mode: "city", key: "C" },
   { mode: "fort", key: "F" },
+  { mode: "port", key: "P" },
   { mode: "demolish", key: "X" },
 ] as const satisfies readonly { mode: ClickMode; key: string }[];
 
@@ -85,6 +87,7 @@ export class Hud {
   private readonly buildButtons = new Map<ClickMode, HTMLButtonElement>();
   private readonly cityCost = h("span", { class: "build-cost" });
   private readonly fortCost = h("span", { class: "build-cost" });
+  private readonly portCost = h("span", { class: "build-cost" });
   private readonly cityCount = h("span", { class: "build-count" });
   private mode: ClickMode = "attack";
   private rules: GameRules = {
@@ -151,7 +154,9 @@ export class Hud {
             ? [this.cityCost, this.cityCount]
             : mode === "fort"
               ? [this.fortCost]
-              : [];
+              : mode === "port"
+                ? [this.portCost]
+                : [];
         const button = h(
           "button",
           {
@@ -277,7 +282,8 @@ export class Hud {
 
   /** Costs of the next city and fort, greyed out while the player cannot pay or has no room. */
   private renderBuild(update: GameUpdate, human: PlayerView): void {
-    const { cityCost, fortCost, cities, cityLimit } = update.build;
+    const { cityCost, fortCost, portCost, cities, cityLimit } = update.build;
+    this.portCost.textContent = formatCount(portCost);
     this.cityCost.textContent = formatCount(cityCost);
     this.fortCost.textContent = formatCount(fortCost);
     this.cityCount.textContent = plural("hud.cities", cityLimit, { built: cities });
@@ -285,6 +291,7 @@ export class Hud {
     const can: Partial<Record<ClickMode, boolean>> = {
       city: playing && human.gold >= cityCost && cities < cityLimit,
       fort: playing && human.gold >= fortCost,
+      port: playing && human.gold >= portCost,
       demolish: playing,
     };
     // Still pressable: a click on the map then says what is missing.

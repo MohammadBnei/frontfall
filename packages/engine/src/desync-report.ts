@@ -231,6 +231,12 @@ function order(value: unknown): Order {
     case "ally":
     case "betray":
       return { type: raw.type, target: readInteger(raw.target, "order target") };
+    case "embargo":
+      return {
+        type: "embargo",
+        target: readInteger(raw.target, "order target"),
+        on: readInteger(raw.on, "embargo switch"),
+      };
     default:
       throw new DesyncReportError(`unknown order type ${String(raw.type)}`);
   }

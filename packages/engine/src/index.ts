@@ -15,6 +15,8 @@ export {
   allyError,
   betrayError,
   canRenew,
+  embargoError,
+  embargoed,
   installDiplomacy,
   isAllied,
   isTraitor,
@@ -23,6 +25,7 @@ export {
   type Alliance,
   type AllianceRequest,
   type DiplomacyEvent,
+  type Embargo,
   type RequestCooldown,
 } from "./diplomacy.ts";
 export {
@@ -69,7 +72,7 @@ export {
 } from "./game.ts";
 export { clamp, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 export { orderError } from "./orders.ts";
-export { Random, type RandomState } from "./random.ts";
+export { DrawUsage, Random, derivedRandom, type RandomState } from "./random.ts";
 export { installSpawn, spawnSettings } from "./spawn.ts";
 export {
   BuildError,
@@ -87,6 +90,7 @@ export {
   type Structure,
 } from "./structures.ts";
 export { Terrain, TileKind } from "./terrain.ts";
+export { installTrade, type TradeShip } from "./trade.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.ts";
 export type { Topology } from "./topology.ts";

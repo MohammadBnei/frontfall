@@ -168,6 +168,9 @@ export class GameScreen {
       onAlly: (player) => {
         return this.diplomaticOrder("ally", player);
       },
+      onEmbargo: (player, on) => {
+        this.diplomaticOrder("embargo", player, on);
+      },
       onBetray: (player) => {
         this.diplomaticOrder("betray", player);
       },
@@ -281,7 +284,7 @@ export class GameScreen {
       // idles while nothing moves, during a pause above all.
       const view = this.camera.view();
       const moved = !sameView(view, this.drawnView);
-      const sailing = (this.latest?.boats.length ?? 0) > 0;
+      const sailing = (this.latest?.boats.length ?? 0) + (this.latest?.tradeShips.length ?? 0) > 0;
       const fading = now < this.fadingUntil;
       const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
       if (frontsOff) this.frontsOffAt = 0;
@@ -416,8 +419,13 @@ export class GameScreen {
    */
   private placeShips(now: number): void {
     const view = this.view;
-    const ships = this.latest?.boats;
-    if (!view || !ships) return;
+    const latest = this.latest;
+    if (!view || !latest) return;
+    // Trade ships by negative id, apart from transports.
+    const ships = [
+      ...latest.boats,
+      ...latest.tradeShips.map((ship) => ({ ...ship, id: -ship.id, trade: true })),
+    ];
     const { width } = this.mapSize;
     const progress = Math.min(1, (now - this.updatedAt) / (1000 / this.ticksPerSecond));
     view.setShips(
@@ -435,6 +443,7 @@ export class GameScreen {
           x: fromX + dx * progress,
           y: fromY + (toY - fromY) * progress,
           color: colorOf(ship.player, this.firstNation, this.teams),
+          trade: "trade" in ship,
         };
       }),
     );
@@ -449,7 +458,10 @@ export class GameScreen {
   }
 
   private apply(update: GameUpdate): void {
-    this.previousShips = new Map((this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile]));
+    this.previousShips = new Map([
+      ...(this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile] as const),
+      ...(this.latest?.tradeShips ?? []).map((ship) => [-ship.id, ship.tile] as const),
+    ]);
     this.updatedAt = performance.now();
     if (update.owners) {
       this.owners.set(update.owners);
@@ -557,7 +569,7 @@ export class GameScreen {
   }
 
   /** Whether the order went out. */
-  private diplomaticOrder(type: "ally" | "betray", target: number): boolean {
+  private diplomaticOrder(type: "ally" | "betray" | "embargo", target: number, on = true): boolean {
     const update = this.latest;
     if (
       !update ||
@@ -568,7 +580,9 @@ export class GameScreen {
     ) {
       return false;
     }
-    this.session.sendOrder({ type, target });
+    this.session.sendOrder(
+      type === "embargo" ? { type, target, on: on ? 1 : 0 } : { type, target },
+    );
     return true;
   }
 
@@ -600,6 +614,7 @@ export class GameScreen {
     const modes: Partial<Record<string, ClickMode>> = {
       KeyC: "city",
       KeyF: "fort",
+      KeyP: "port",
       KeyX: "demolish",
     };
     const mode = this.replayBar ? undefined : modes[event.code];

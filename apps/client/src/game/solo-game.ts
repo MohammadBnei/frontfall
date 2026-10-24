@@ -41,7 +41,7 @@ export const HUMAN_ID = 1;
 export type Difficulty = "easy" | "normal" | "hard";
 
 /** What a click on the map does: attack by default, or build or demolish once picked in the HUD. */
-export type ClickMode = "attack" | "city" | "fort" | "demolish";
+export type ClickMode = "attack" | "city" | "fort" | "port" | "demolish";
 
 /** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
 const DEMOLISH_REACH = 3;
@@ -119,8 +119,10 @@ export interface GameUpdate {
   changedOwners: Uint16Array;
   /** Where players' names go, every LABEL_TICKS ticks; the last ones hold in between. */
   labels?: LabelAnchor[];
-  /** Every ship at sea. */
+  /** Every transport ship at sea. */
   boats: BoatView[];
+  /** Every trade ship at sea (R-UNIT-03). */
+  tradeShips: TradeShipView[];
   /** Every structure on the map. */
   structures: StructureView[];
   /** What the player at this screen can build next. */
@@ -159,6 +161,8 @@ export type ClickRefusal =
   | "early"
   /** A structure goes on the player's own land only. */
   | "foreign"
+  /** A port needs a tile by the water (R-BUILD-02). */
+  | "coast"
   /** Another structure stands closer than B-BUILD-SPACING. */
   | "crowded"
   /** The player's land supports no more cities (R-BUILD-07). */
@@ -171,7 +175,7 @@ export type ClickRefusal =
 
 export type ClickResult = { order: Order } | { refused: ClickRefusal };
 
-export type StructureType = "city" | "fort";
+export type StructureType = "city" | "fort" | "port";
 
 export interface StructureView {
   id: number;
@@ -186,6 +190,7 @@ export interface BuildView {
   /** Gold the next city and the next fort cost the player. */
   cityCost: number;
   fortCost: number;
+  portCost: number;
   cities: number;
   /** Most cities the player's land supports now. */
   cityLimit: number;
@@ -194,6 +199,13 @@ export interface BuildView {
 const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   city: StructureKind.City,
   fort: StructureKind.Fort,
+  port: StructureKind.Port,
+};
+
+const STRUCTURE_TYPES: Readonly<Record<StructureKind, StructureType>> = {
+  [StructureKind.City]: "city",
+  [StructureKind.Fort]: "fort",
+  [StructureKind.Port]: "port",
 };
 
 /** Engine refusals of a build order, as the interface explains them: one for each BuildError. */
@@ -202,6 +214,7 @@ const BUILD_REFUSALS: Readonly<Record<BuildError, ClickRefusal>> = {
   [BuildError.Foreign]: "foreign",
   [BuildError.Crowded]: "crowded",
   [BuildError.Land]: "land",
+  [BuildError.Coast]: "coast",
   [BuildError.Gold]: "gold",
 };
 
@@ -221,6 +234,10 @@ export interface DiplomacyView {
   /** Players who may not be asked yet: a request ran out, or the player betrayed them. */
   waiting: number[];
   traitors: { id: number; ticksLeft: number }[];
+  /** Players under the embargo of the player at this screen (R-DIPLO-05). */
+  embargoes: number[];
+  /** Players whose embargo is on the player at this screen. */
+  embargoedBy: number[];
 }
 
 export interface AllyView {
@@ -232,11 +249,18 @@ export interface AllyView {
   renewing: boolean;
 }
 
-/** An alliance formed, run out, or broken by `a`. `a` and `b` are player ids. */
+/** An alliance formed, run out, or broken by `a`, or an embargo of `a` on `b` started or lifted. `a` and `b` are player ids. */
 export interface DiplomacyEvent {
-  type: "allied" | "ended" | "betrayed";
+  type: "allied" | "ended" | "betrayed" | "embargo" | "lifted";
   a: number;
   b: number;
+}
+
+/** A trade ship at sea, where it is this tick. */
+export interface TradeShipView {
+  id: number;
+  player: number;
+  tile: number;
 }
 
 /** A transport ship at sea, where it is this tick. */
@@ -414,7 +438,7 @@ export class SoloGame {
     ) {
       return { refused: sameTeam(game, this.you, territory.ownerOf(tile)) ? "teammate" : "ally" };
     }
-    if (mode === "city" || mode === "fort") {
+    if (mode === "city" || mode === "fort" || mode === "port") {
       const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };
       const error = orderError(game, human, order);
       if (error === undefined) return { order };
@@ -619,6 +643,8 @@ export class SoloGame {
         .players()
         .filter((player) => player.alive && tick < player.traitorUntil)
         .map((player) => ({ id: player.id, ticksLeft: player.traitorUntil - tick })),
+      embargoes: game.embargoes.filter((e) => e.from === you).map((e) => e.to),
+      embargoedBy: game.embargoes.filter((e) => e.to === you).map((e) => e.from),
     };
   }
 
@@ -657,16 +683,22 @@ export class SoloGame {
         tile: boat.path[Math.max(0, Math.min(boat.step, boat.path.length) - 1)] ?? boat.target,
         troops: boat.troops,
       })),
+      tradeShips: game.tradeShips.map((ship) => ({
+        id: ship.id,
+        player: ship.player,
+        tile: ship.path[Math.max(0, Math.min(ship.step, ship.path.length) - 1)] ?? ship.from,
+      })),
       structures: game.structures.map((structure) => ({
         id: structure.id,
         player: structure.player,
-        type: structure.kind === StructureKind.City ? "city" : "fort",
+        type: STRUCTURE_TYPES[structure.kind],
         tile: structure.tile,
         ready: isReady(game, structure),
       })),
       build: {
         cityCost: structureCost(game, this.you, StructureKind.City),
         fortCost: structureCost(game, this.you, StructureKind.Fort),
+        portCost: structureCost(game, this.you, StructureKind.Port),
         cities: structureCount(game, this.you, StructureKind.City),
         cityLimit: cityLimit(game, this.you),
       },
