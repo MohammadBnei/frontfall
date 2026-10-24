@@ -7,6 +7,8 @@ export interface PointerSample {
   readonly y: number;
   /** When the sample was taken, in milliseconds; tells a long press from a click. */
   readonly time?: number;
+  /** A finger on a touch screen, which cannot hover: its press shows the land under it. */
+  readonly finger?: boolean;
 }
 
 export interface MapCallbacks {
@@ -52,8 +54,10 @@ export class PointerGestures {
   private pressTime: number | undefined;
   private pinch: Pinch | undefined;
   private hovered: number | undefined;
-  /** The hover comes from a finger or a pen, not a mouse: it ends with the press. */
+  /** The hover comes from a finger: it ends with the press. */
   private touchHover = false;
+  /** Where a mouse or a pen last hovered, to find its tile again when the map moves under it. */
+  private hoverAt: { x: number; y: number } | undefined;
 
   constructor(
     private readonly camera: Camera,
@@ -73,7 +77,7 @@ export class PointerGestures {
       this.pressY = sample.y;
       this.pressTime = sample.time;
       // Fingers cannot hover: the one resting on the map shows whose land it is on.
-      if (sample.time !== undefined) {
+      if (sample.finger) {
         this.touchHover = true;
         this.hover(sample.x, sample.y);
       }
@@ -87,6 +91,7 @@ export class PointerGestures {
   move(sample: PointerSample): void {
     const last = this.pointers.get(sample.id);
     if (!last) {
+      this.hoverAt = { x: sample.x, y: sample.y };
       this.hover(sample.x, sample.y);
       return;
     }
@@ -122,6 +127,11 @@ export class PointerGestures {
       this.pressTime !== undefined &&
       sample.time - this.pressTime >= LONG_PRESS_MS;
     this.release(sample.id);
+    // A mouse or a pen let go after a drag hovers where it stopped.
+    if (!sample.finger && this.pointers.size === 0) {
+      this.hoverAt = { x: sample.x, y: sample.y };
+      this.hover(sample.x, sample.y);
+    }
     if (!click) return;
     const tile = this.camera.screenToTile(sample.x, sample.y);
     if (tile === undefined) return;
@@ -148,9 +158,18 @@ export class PointerGestures {
     this.endTouchHover();
   }
 
+  /**
+   * Finds the tile under a still mouse again, after the map moved under it
+   * from the wheel or the keyboard. Cheap enough to call every frame.
+   */
+  refreshHover(): void {
+    if (this.hoverAt && this.pointers.size === 0) this.hover(this.hoverAt.x, this.hoverAt.y);
+  }
+
   /** The mouse left the map. */
   leave(): void {
     this.touchHover = false;
+    this.hoverAt = undefined;
     if (this.hovered === undefined) return;
     this.hovered = undefined;
     this.callbacks.onHover?.(undefined);

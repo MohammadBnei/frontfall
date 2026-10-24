@@ -129,6 +129,8 @@ function run(): RenderResult {
     renderer.render(scene, globe ? perspective : camera);
   };
 
+  // As in a game, the land of a player is under the pointer.
+  layer.setHovered(1);
   const firstFrameMs = time(draw);
   for (let i = 0; i < 10; i++) time(draw);
 
@@ -147,9 +149,7 @@ function run(): RenderResult {
   const updateSamples: number[] = [];
   let texels = 0;
   let rows = 0;
-  // As in a game: the first player's land is under the pointer, and the
-  // tiles taken light their fronts, at ten ticks a second.
-  layer.setHovered(1);
+  // As in a game: the tiles taken light their fronts, at ten ticks a second.
   for (let i = 0; i < frames; i++) {
     workload.tick();
     const changes = territory.changes();

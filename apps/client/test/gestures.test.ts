@@ -164,17 +164,17 @@ describe("PointerGestures", () => {
   it("lights a finger's tile while it rests, until it lifts, drags or pinches", () => {
     const { camera, gestures, onHover } = setup();
     const tile = camera.screenToTile(600, 400);
-    gestures.down({ id: 1, x: 600, y: 400, time: 0 });
-    gestures.up({ id: 1, x: 600, y: 400, time: 800 });
-    gestures.down({ id: 1, x: 600, y: 400, time: 1000 });
-    gestures.move({ id: 1, x: 700, y: 400, time: 1100 });
-    gestures.up({ id: 1, x: 700, y: 400, time: 1200 });
+    gestures.down({ id: 1, x: 600, y: 400, time: 0, finger: true });
+    gestures.up({ id: 1, x: 600, y: 400, time: 800, finger: true });
+    gestures.down({ id: 1, x: 600, y: 400, time: 1000, finger: true });
+    gestures.move({ id: 1, x: 700, y: 400, time: 1100, finger: true });
+    gestures.up({ id: 1, x: 700, y: 400, time: 1200, finger: true });
     // The drag moved the map: another tile is under the same spot.
     const after = camera.screenToTile(600, 400);
-    gestures.down({ id: 1, x: 600, y: 400, time: 2000 });
-    gestures.down({ id: 2, x: 700, y: 400, time: 2010 });
-    gestures.up({ id: 2, x: 700, y: 400, time: 2100 });
-    gestures.up({ id: 1, x: 600, y: 400, time: 2100 });
+    gestures.down({ id: 1, x: 600, y: 400, time: 2000, finger: true });
+    gestures.down({ id: 2, x: 700, y: 400, time: 2010, finger: true });
+    gestures.up({ id: 2, x: 700, y: 400, time: 2100, finger: true });
+    gestures.up({ id: 1, x: 600, y: 400, time: 2100, finger: true });
     expect(onHover.mock.calls).toEqual([
       [tile],
       [undefined],
@@ -191,6 +191,34 @@ describe("PointerGestures", () => {
     gestures.down({ id: 1, x: 600, y: 400 });
     gestures.up({ id: 1, x: 600, y: 400 });
     expect(onHover.mock.calls).toEqual([[camera.screenToTile(600, 400)]]);
+  });
+
+  it("keeps a pen's hover when it lifts", () => {
+    const { camera, gestures, onHover } = setup();
+    gestures.move({ id: 1, x: 600, y: 400 });
+    gestures.down({ id: 1, x: 600, y: 400, time: 0 });
+    gestures.up({ id: 1, x: 600, y: 400, time: 100 });
+    expect(onHover.mock.calls).toEqual([[camera.screenToTile(600, 400)]]);
+  });
+
+  it("finds the tile under a still mouse again once the map moved", () => {
+    const { camera, gestures, onHover } = setup();
+    const first = camera.screenToTile(600, 400);
+    gestures.move({ id: 1, x: 600, y: 400 });
+    gestures.down({ id: 1, x: 600, y: 400 });
+    gestures.move({ id: 1, x: 700, y: 400 });
+    gestures.up({ id: 1, x: 700, y: 400 });
+    // The map moved with the mouse: the same land is under it after the drag.
+    const dropped = camera.screenToTile(700, 400);
+    camera.zoomAt(2, 100, 100);
+    gestures.refreshHover();
+    const zoomed = camera.screenToTile(700, 400);
+    expect(onHover.mock.calls).toEqual(
+      [[first], [dropped], [zoomed]].filter(
+        (call, i, calls) => i === 0 || call[0] !== calls[i - 1]?.[0],
+      ),
+    );
+    expect(zoomed).not.toBe(dropped);
   });
 });
 

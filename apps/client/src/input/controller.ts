@@ -99,6 +99,7 @@ export class InputController {
   /** Applies held keys for a frame that lasted dtMs milliseconds. */
   update(dtMs: number): void {
     this.keys.update(dtMs);
+    this.gestures.refreshHover();
   }
 
   dispose(): void {
@@ -131,6 +132,7 @@ export class InputController {
       id: event.pointerId,
       ...this.position(event),
       ...(time === undefined ? {} : { time }),
+      ...(event.pointerType === "touch" ? { finger: true } : {}),
     };
   }
 }
