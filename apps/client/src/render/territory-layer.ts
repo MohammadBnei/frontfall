@@ -39,6 +39,13 @@ const SURF = "#8DA2B6";
 /** How long a tile that changed hands takes to fade into its new colour. */
 const FADE_SECONDS = 0.15;
 
+/**
+ * How long a tile that changed hands lights the edge it was taken across.
+ * An attack takes at least one tile every tick, so while it goes on its
+ * front stays lit. The client keeps drawing for that long after a change.
+ */
+export const FRONT_SECONDS = 1.5;
+
 /** Luminance of lowland ground: the relief lightens owned land above it and darkens it below. */
 const GROUND_LEVEL = luminance(MAP_COLORS.land);
 
@@ -93,10 +100,13 @@ const fragmentShader = /* glsl */ `
   uniform bool wrapsX;
   uniform float now;
   uniform float fadeSeconds;
+  uniform float frontSeconds;
+  uniform float frontMotion;
   uniform vec3 surfColor;
   uniform float reliefShading;
   uniform float groundLevel;
   uniform uint highlight;
+  uniform uint hovered;
 
   ivec2 wrapTile(ivec2 tile) {
     ivec2 size = ivec2(worldSize);
@@ -176,16 +186,36 @@ const fragmentShader = /* glsl */ `
       // pale colours stay apart from the grey of the mountains.
       float relief = clamp(dot(color, vec3(0.2126, 0.7152, 0.0722)) / groundLevel, 0.8, 1.15);
       vec3 fillColor = ownerColor * mix(mix(1.0, relief, reliefShading), 1.0, zoomedOut);
+      // The land under the pointer is lit whole, wherever its pieces lie.
+      bool pointed = owner == hovered;
+      if (pointed) fillColor = mix(fillColor, vec3(1.0), 0.25);
       // The player's own land has a wider, whiter rim, to find it on a crowded map.
       bool mine = owner == highlight;
-      float width = mine || allied ? max(0.4, 2.5 * pixel) : max(0.22, pixel);
-      float border = 1.0 - smoothstep(width - pixel, width, edgeDistance(f, other, columnWidth));
+      bool wide = mine || allied || pointed;
+      float width = wide ? max(0.4, 2.5 * pixel) : max(0.22, pixel);
+      float edge = edgeDistance(f, other, columnWidth);
+      float border = 1.0 - smoothstep(width - pixel, width, edge);
       // An ally's rim is as wide, in dashes about eight pixels long.
       if (allied) border *= step(0.5, fract((at.x + at.y) / (16.0 * pixel)));
-      vec3 rimColor = mix(ownerColor, vec3(1.0), mine || allied ? 0.75 : 0.3);
+      vec3 rimColor = mix(ownerColor, vec3(1.0), wide ? 0.75 : 0.3);
       vec3 owned = mix(fillColor, rimColor, border);
-      // A tile taken a moment ago fades in, so fronts creep instead of jumping each tick.
       float age = now - texelFetch(takenAt, tile, 0).r;
+      // Land taken in the last moments marks the front of an attack: its edge
+      // turns to light and dark stripes that march along it, readable on any
+      // colour, and the strip behind it pulses. Zoomed out, where a tile is
+      // under a pixel and edges vanish, the strip takes the stripes instead.
+      float front = 1.0 - smoothstep(fadeSeconds, frontSeconds, age);
+      if (front > 0.0) {
+        float march = fract((at.x + at.y) / (14.0 * pixel) - now * 1.6 * frontMotion);
+        vec3 stripes = step(0.5, march) > 0.0 ? vec3(1.0, 0.96, 0.86) : vec3(0.04, 0.075, 0.11);
+        float pulse = mix(0.75, 0.5 + 0.5 * sin(now * 7.0), frontMotion);
+        vec3 wake = mix(vec3(1.0), stripes, zoomedOut);
+        owned = mix(owned, wake, front * mix(0.18 + 0.17 * pulse, 0.7, zoomedOut));
+        float frontWidth = max(0.6, 3.5 * pixel);
+        float frontEdge = 1.0 - smoothstep(frontWidth - pixel, frontWidth, edge);
+        owned = mix(owned, stripes, front * frontEdge);
+      }
+      // A tile taken a moment ago fades in, so fronts creep instead of jumping each tick.
       color = mix(color, owned, smoothstep(0.0, fadeSeconds, age));
     }
   #ifdef SPHERE
@@ -305,10 +335,13 @@ export class TerritoryLayer {
         wrapsX: { value: wrapsX },
         now: { value: 0 },
         fadeSeconds: { value: FADE_SECONDS },
+        frontSeconds: { value: FRONT_SECONDS },
+        frontMotion: { value: 1 },
         surfColor: { value: new THREE.Color(SURF) },
         reliefShading: { value: 1 },
         groundLevel: { value: GROUND_LEVEL },
         highlight: { value: 0 },
+        hovered: { value: 0 },
         eye: { value: this.rays.eye },
         rayForward: { value: this.rays.rayForward },
         rayRight: { value: this.rays.rayRight },
@@ -357,6 +390,18 @@ export class TerritoryLayer {
   setHighlight(owner: number): void {
     const highlight = this.mesh.material.uniforms.highlight;
     if (highlight) highlight.value = owner;
+  }
+
+  /** The owner whose land is under the pointer, lit whole; 0 for none. */
+  setHovered(owner: number): void {
+    const hovered = this.mesh.material.uniforms.hovered;
+    if (hovered) hovered.value = owner;
+  }
+
+  /** Whether the glint runs along attack fronts; off for players who ask for less motion. */
+  setMotion(moving: boolean): void {
+    const motion = this.mesh.material.uniforms.frontMotion;
+    if (motion) motion.value = moving ? 1 : 0;
   }
 
   /** Points the rays of a globe at the planet; set once per frame. Ignored on a plane. */

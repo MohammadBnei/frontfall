@@ -2,6 +2,8 @@ import { FlatCamera, type CameraView, type ViewCamera } from "./camera.ts";
 import type * as Globe from "./globe.ts";
 import { MapView } from "./map-view.ts";
 
+export { FRONT_SECONDS } from "./territory-layer.ts";
+
 /** How the map is shown: flat, or on a globe for a map of the whole planet (a prototype, ADR 0005). */
 export type ViewKind = "flat" | "globe";
 
@@ -49,7 +51,11 @@ export interface Renderer {
   setHighlight(id: number): void;
   /** Allies of that player, whose land is marked out too, with dashes. */
   setAllies(ids: readonly number[]): void;
-  /** Tiles whose owner changed in the shared array; they fade in. */
+  /** The player whose land is under the pointer, lit whole; 0 for none. */
+  setHovered(id: number): void;
+  /** Whether attack fronts glint as they move; off when the player asks for less motion. */
+  setMotion(moving: boolean): void;
+  /** Tiles whose owner changed in the shared array; they fade in and light their front for FRONT_SECONDS. */
   markChanged(tiles: ArrayLike<number>): void;
   /** Every tile changed at once, after a full resynchronisation. */
   markAllChanged(): void;

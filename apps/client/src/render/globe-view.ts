@@ -83,6 +83,14 @@ export class GlobeView implements Renderer {
     this.territory.setHighlight(id);
   }
 
+  setHovered(id: number): void {
+    this.territory.setHovered(id);
+  }
+
+  setMotion(moving: boolean): void {
+    this.territory.setMotion(moving);
+  }
+
   setAllies(ids: readonly number[]): void {
     this.territory.setAllies(ids);
   }

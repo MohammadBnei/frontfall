@@ -117,11 +117,21 @@ The territory layer draws the whole map in one draw call (ADR 0003):
   small countries stay visible.
 - A tile that changes hands fades in over 150 ms, from the time it changed:
   a front moves smoothly instead of jumping once a tick.
+- For a second and a half after that, the tile marks the front of an
+  attack: its edge turns to light and dark stripes that march along it, and
+  the strip behind pulses. An attack takes at least one tile every tick, so
+  its front stays lit for as long as it lasts, and no attack data reaches the
+  renderer. Zoomed out, where a tile is smaller than a pixel, the strip takes
+  the stripes. With the system's reduced motion setting the stripes hold
+  still.
+- The land of the player under the mouse is lit whole, with a wide white
+  rim; on a touch screen, the land under a resting finger, until it lifts or
+  moves on. The shader compares owners, so pieces across the seam light too.
 - Names and troops sit on the deepest tile of each country, found by a
   distance transform in the worker every half second
   (`game/label-anchors.ts`), and as large as the land around that tile allows.
-- A frame is drawn only when the camera moved, tiles changed or are still
-  fading, or ships are at sea.
+- A frame is drawn only when the camera moved, the hovered land changed,
+  tiles changed or still light a front, or ships are at sea.
 
 ## Beta
 

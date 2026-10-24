@@ -147,13 +147,18 @@ function run(): RenderResult {
   const updateSamples: number[] = [];
   let texels = 0;
   let rows = 0;
+  // As in a game: the first player's land is under the pointer, and the
+  // tiles taken light their fronts, at ten ticks a second.
+  layer.setHovered(1);
   for (let i = 0; i < frames; i++) {
     workload.tick();
     const changes = territory.changes();
     rows += new Set(Array.from(changes, (tile) => Math.floor(tile / width))).size;
+    const seconds = (i + 1) / 10;
     updateSamples.push(
       time(() => {
-        layer.markChanged(changes);
+        layer.setTime(seconds);
+        layer.markChanged(changes, seconds);
         texels += layer.flush();
         units.update(camera.position.x);
         renderer.render(scene, globe ? perspective : camera);

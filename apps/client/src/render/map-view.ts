@@ -101,6 +101,14 @@ export class MapView implements Renderer {
     this.territory.setHighlight(id);
   }
 
+  setHovered(id: number): void {
+    this.territory.setHovered(id);
+  }
+
+  setMotion(moving: boolean): void {
+    this.territory.setMotion(moving);
+  }
+
   /** Tiles whose owner changed in the shared array since the last frame; they fade in. */
   markChanged(tiles: ArrayLike<number>): void {
     this.territory.markChanged(tiles, this.clock());

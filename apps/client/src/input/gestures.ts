@@ -14,7 +14,10 @@ export interface MapCallbacks {
   readonly onTileClick?: (tile: number) => void;
   /** A press held still for LONG_PRESS_MS, or a right click: the player wants the menu of this tile. */
   readonly onTileHold?: (tile: number) => void;
-  /** The tile under a hovering mouse changed; undefined off the map or when it left. */
+  /**
+   * The tile under a hovering mouse changed, or under a finger resting on the
+   * map; undefined off the map, when the mouse left or the finger lifted or moved on.
+   */
   readonly onHover?: (tile: number | undefined) => void;
 }
 
@@ -49,6 +52,8 @@ export class PointerGestures {
   private pressTime: number | undefined;
   private pinch: Pinch | undefined;
   private hovered: number | undefined;
+  /** The hover comes from a finger or a pen, not a mouse: it ends with the press. */
+  private touchHover = false;
 
   constructor(
     private readonly camera: Camera,
@@ -67,9 +72,15 @@ export class PointerGestures {
       this.pressX = sample.x;
       this.pressY = sample.y;
       this.pressTime = sample.time;
+      // Fingers cannot hover: the one resting on the map shows whose land it is on.
+      if (sample.time !== undefined) {
+        this.touchHover = true;
+        this.hover(sample.x, sample.y);
+      }
     } else {
       this.mode = "pinch";
       this.pinch = this.measurePinch();
+      this.endTouchHover();
     }
   }
 
@@ -84,6 +95,7 @@ export class PointerGestures {
     if (this.mode === "press") {
       if (Math.hypot(x - this.pressX, y - this.pressY) > DRAG_THRESHOLD_PX) {
         this.mode = "pan";
+        this.endTouchHover();
         this.camera.panBy(x - this.pressX, y - this.pressY);
       }
     } else if (this.mode === "pan") {
@@ -133,13 +145,19 @@ export class PointerGestures {
     this.pointers.clear();
     this.mode = "idle";
     this.pinch = undefined;
+    this.endTouchHover();
   }
 
   /** The mouse left the map. */
   leave(): void {
+    this.touchHover = false;
     if (this.hovered === undefined) return;
     this.hovered = undefined;
     this.callbacks.onHover?.(undefined);
+  }
+
+  private endTouchHover(): void {
+    if (this.touchHover) this.leave();
   }
 
   private hover(x: number, y: number): void {
@@ -152,6 +170,7 @@ export class PointerGestures {
   private release(id: number): void {
     this.pointers.delete(id);
     if (this.pointers.size === 0) {
+      this.endTouchHover();
       this.mode = "idle";
       this.pinch = undefined;
     } else if (this.pointers.size === 1) {

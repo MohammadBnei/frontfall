@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { TerritoryLayer } from "../src/render/territory-layer.ts";
+import { FRONT_SECONDS, TerritoryLayer } from "../src/render/territory-layer.ts";
 
 function layer(width = 256, height = 4, maxOwner = 3): TerritoryLayer {
   return new TerritoryLayer({
@@ -87,6 +87,22 @@ describe("TerritoryLayer", () => {
     expect(() => {
       territory.setOwnerColor(4, 0);
     }).toThrow(RangeError);
+  });
+
+  it("lights up the hovered owner and lets the fronts move or hold still", () => {
+    const territory = layer();
+    const { hovered, frontMotion, frontSeconds } = territory.mesh.material.uniforms;
+    expect(hovered?.value).toBe(0);
+    territory.setHovered(2);
+    expect(hovered?.value).toBe(2);
+    territory.setHovered(0);
+    expect(hovered?.value).toBe(0);
+    expect(frontMotion?.value).toBe(1);
+    territory.setMotion(false);
+    expect(frontMotion?.value).toBe(0);
+    // A front glows longer than a tile fades in, and the client draws for that long.
+    expect(frontSeconds?.value).toBe(FRONT_SECONDS);
+    expect(FRONT_SECONDS).toBeGreaterThan(0.5);
   });
 
   it("sizes the palette to the number of owners", () => {

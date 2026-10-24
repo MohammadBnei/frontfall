@@ -13,6 +13,7 @@ import {
   createCamera,
   createRenderer,
   fitsGlobe,
+  FRONT_SECONDS,
   globeLoaded,
   type Renderer,
   type ViewKind,
@@ -23,8 +24,8 @@ import { DiplomacyPanel } from "./diplomacy.ts";
 import { Hud } from "./hud.ts";
 import { PlayerLabels } from "./labels.ts";
 
-/** Matches the fade of the territory layer, with a frame to spare. */
-const FADE_MS = 200;
+/** Tiles taken light their front this long (territory layer), with a frame to spare. */
+const FRONT_MS = FRONT_SECONDS * 1000 + 50;
 
 /** How often the turns of an online game are checked for being due. */
 const PACER_MS = 10;
@@ -75,7 +76,7 @@ export class GameScreen {
   private readonly labels = new PlayerLabels();
   /** Online: evens out the arrival of the server's turns before the worker plays them. */
   private readonly pacer: TurnPacer;
-  /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
+  /** Tiles that changed hands fade in and light their front until then: frames are drawn until it passes. */
   private fadingUntil = 0;
   /** What a click on the map does, picked in the HUD. */
   private mode: ClickMode = "attack";
@@ -92,6 +93,11 @@ export class GameScreen {
   private readonly diplomacy: DiplomacyPanel;
   /** The allies last marked on the map. */
   private drawnAllies = "";
+  /** The tile under the mouse or a resting finger, and the owner lit for it. */
+  private hoveredTile: number | undefined;
+  private hoveredOwner = 0;
+  /** Players who ask the system for less motion see fronts without their glint. */
+  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   constructor(
     readonly options: SoloOptions,
@@ -195,6 +201,10 @@ export class GameScreen {
       this.resize();
     };
     window.addEventListener("resize", resize);
+    const motion = (): void => {
+      this.view?.setMotion(!this.reducedMotion.matches);
+    };
+    this.reducedMotion.addEventListener("change", motion);
     this.pacer = new TurnPacer((turns) => {
       this.session.pushTurns(turns);
       const mine = turns.reduce(
@@ -218,6 +228,9 @@ export class GameScreen {
       },
       () => {
         window.removeEventListener("resize", resize);
+      },
+      () => {
+        this.reducedMotion.removeEventListener("change", motion);
       },
       onLanguageChange(() => {
         applyTranslations(this.surface);
@@ -272,7 +285,20 @@ export class GameScreen {
       onTileHold: (tile) => {
         this.diplomacy.pick(this.owners[tile] ?? 0);
       },
+      onHover: (tile) => {
+        this.hoveredTile = tile;
+        this.lightHovered();
+      },
     });
+  }
+
+  /** Lights the land of whoever owns the hovered tile, which changes as it is taken. */
+  private lightHovered(): void {
+    const owner = this.hoveredTile === undefined ? 0 : (this.owners[this.hoveredTile] ?? 0);
+    if (owner === this.hoveredOwner) return;
+    this.hoveredOwner = owner;
+    this.view?.setHovered(owner);
+    this.dirty = true;
   }
 
   private showMap(map: MapData, you: number, maxPlayer: number): void {
@@ -310,6 +336,8 @@ export class GameScreen {
       view.setPlayerColor(id, colorOf(id, this.firstNation));
     }
     view.setHighlight(you);
+    view.setHovered(this.hoveredOwner);
+    view.setMotion(!this.reducedMotion.matches);
     this.drawnAllies = "";
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
@@ -338,6 +366,9 @@ export class GameScreen {
     this.camera.focus(centre, zoom);
     this.input.dispose();
     this.input = this.createInput();
+    // The tile under the pointer is another one in the new view, known on its next move.
+    this.hoveredTile = undefined;
+    this.lightHovered();
     if (!this.view) return;
     this.view.dispose();
     this.view = undefined;
@@ -399,8 +430,9 @@ export class GameScreen {
       }
       this.view?.markChanged(changedTiles);
       this.dirty = true;
-      this.fadingUntil = performance.now() + FADE_MS;
+      this.fadingUntil = performance.now() + FRONT_MS;
     }
+    this.lightHovered();
     const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
     if (!this.focused && human && human.tiles > 0) {

@@ -160,6 +160,38 @@ describe("PointerGestures", () => {
       [undefined],
     ]);
   });
+
+  it("lights a finger's tile while it rests, until it lifts, drags or pinches", () => {
+    const { camera, gestures, onHover } = setup();
+    const tile = camera.screenToTile(600, 400);
+    gestures.down({ id: 1, x: 600, y: 400, time: 0 });
+    gestures.up({ id: 1, x: 600, y: 400, time: 800 });
+    gestures.down({ id: 1, x: 600, y: 400, time: 1000 });
+    gestures.move({ id: 1, x: 700, y: 400, time: 1100 });
+    gestures.up({ id: 1, x: 700, y: 400, time: 1200 });
+    // The drag moved the map: another tile is under the same spot.
+    const after = camera.screenToTile(600, 400);
+    gestures.down({ id: 1, x: 600, y: 400, time: 2000 });
+    gestures.down({ id: 2, x: 700, y: 400, time: 2010 });
+    gestures.up({ id: 2, x: 700, y: 400, time: 2100 });
+    gestures.up({ id: 1, x: 600, y: 400, time: 2100 });
+    expect(onHover.mock.calls).toEqual([
+      [tile],
+      [undefined],
+      [tile],
+      [undefined],
+      [after],
+      [undefined],
+    ]);
+  });
+
+  it("keeps a mouse's hover through its presses", () => {
+    const { camera, gestures, onHover } = setup();
+    gestures.move({ id: 1, x: 600, y: 400 });
+    gestures.down({ id: 1, x: 600, y: 400 });
+    gestures.up({ id: 1, x: 600, y: 400 });
+    expect(onHover.mock.calls).toEqual([[camera.screenToTile(600, 400)]]);
+  });
 });
 
 describe("wheelZoomFactor", () => {

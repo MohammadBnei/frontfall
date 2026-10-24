@@ -72,6 +72,7 @@ describe("InputController", () => {
 
   it("pans on drag, forgets cancelled pointers and reports hover", () => {
     const { element, camera, onTileClick, onHover } = setup();
+    const pressed = camera.screenToTile(300, 300);
     element.dispatchEvent(pointer("pointerdown", 1, 300, 300));
     element.dispatchEvent(pointer("pointermove", 1, 400, 300));
     element.dispatchEvent(pointer("pointercancel", 1, 400, 300));
@@ -80,7 +81,13 @@ describe("InputController", () => {
     expect(onTileClick).not.toHaveBeenCalled();
     element.dispatchEvent(pointer("pointermove", 9, 600, 400, { pointerType: "mouse" }));
     element.dispatchEvent(pointer("pointerleave", 9, 600, 400, { pointerType: "mouse" }));
-    expect(onHover.mock.calls).toEqual([[camera.screenToTile(600, 400)], [undefined]]);
+    // The finger shows its tile until it drags; the mouse until it leaves.
+    expect(onHover.mock.calls).toEqual([
+      [pressed],
+      [undefined],
+      [camera.screenToTile(600, 400)],
+      [undefined],
+    ]);
   });
 
   it("zooms on the wheel at the cursor and keeps the page from zooming", () => {
