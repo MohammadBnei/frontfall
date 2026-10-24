@@ -54,6 +54,18 @@ describe("varint", () => {
 });
 
 describe("frames", () => {
+  it("makes a busy turn at least three times smaller than JSON", () => {
+    const orders = Array.from({ length: 32 }, (_, index) => ({
+      player: (index % 16) + 1,
+      order: { type: "attack" as const, target: 1_500_000 + index * 997, troops: 25_000 + index },
+    }));
+    const turn = { tick: 36_000, orders };
+    const json = JSON.stringify({ type: "turns", turns: [turn] });
+    const frame = encodeTurnsFrame(turn.tick, [encodeTurnBody(turn.orders)]);
+    // The JSON is ASCII: one byte per character.
+    expect(frame.byteLength * 3).toBeLessThanOrEqual(json.length);
+  });
+
   it("decodes an order frame", () => {
     expect(decodeFrame(encodeOrderFrame({ type: "attack", target: 5, troops: 6 }))).toEqual({
       kind: "order",
