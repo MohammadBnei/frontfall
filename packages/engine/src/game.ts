@@ -3,6 +3,7 @@ import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import type { Boat } from "./boats.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
+import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
 import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
 
@@ -11,7 +12,10 @@ export type Order =
   | { type: "spawn"; tile: number }
   | { type: "attack"; target: number; troops: number }
   | { type: "retreat"; attack: number }
-  | { type: "embark"; target: number; troops: number };
+  | { type: "embark"; target: number; troops: number }
+  /** `structure` is a StructureKind code. */
+  | { type: "build"; structure: number; tile: number }
+  | { type: "demolish"; tile: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -70,6 +74,9 @@ export class Game {
   /** Transport ships at sea, oldest first. Owned by the boat rules; read only elsewhere. */
   readonly boats: Boat[] = [];
   nextBoatId = 1;
+  /** Structures on the map, oldest first. Owned by the structure rules; read only elsewhere. */
+  readonly structures: Structure[] = [];
+  nextStructureId = 1;
   /** Winner once the game is decided (R-WIN), and the tick it happened. */
   winner: number | undefined;
   decidedAt: number | undefined;
@@ -169,6 +176,9 @@ export class Game {
       for (const value of [b.id, b.player, b.target, b.troops, b.step, b.path.length]) mix(value);
       for (const tile of b.path) mix(tile);
     }
+    mix(this.nextStructureId);
+    for (const s of this.structures)
+      for (const value of [s.id, s.player, s.kind, s.tile, s.readyAt]) mix(value);
     mix(this.winner ?? 0);
     mix(this.decidedAt ?? -1);
     return hash >>> 0;
@@ -240,6 +250,7 @@ function checkBalance(balance: Balance): void {
     "boatSpeed",
     "boatMax",
     "boatRange",
+    "cityLand",
     "maxDurationTicks",
   ];
   for (const key of atLeastOne) {
@@ -247,6 +258,18 @@ function checkBalance(balance: Balance): void {
     if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
       throw new RangeError(`balance ${key} must be a positive integer`);
     }
+  }
+  // Two structures on one tile would make demolition ambiguous; a cheaper next structure, or a negative cost, would print gold.
+  if (!Number.isSafeInteger(balance.buildSpacing) || balance.buildSpacing < 1) {
+    throw new RangeError("balance buildSpacing must be a positive integer");
+  }
+  for (const key of ["cityCost", "fortCost", "buildTicks"] as const) {
+    if (!Number.isSafeInteger(balance[key]) || balance[key] < 0) {
+      throw new RangeError(`balance ${key} must be a non-negative integer`);
+    }
+  }
+  if (!Number.isSafeInteger(balance.costGrowthPercent) || balance.costGrowthPercent < 100) {
+    throw new RangeError("balance costGrowthPercent must be 100 or more");
   }
   // Ship routes keep their distances in 16 bits.
   if (balance.boatRange > 0xffff) throw new RangeError("balance boatRange is above 65535");

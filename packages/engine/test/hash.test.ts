@@ -88,6 +88,6 @@ describe("Game.hash", () => {
     // Update this value only for a deliberate change to the rules, and say so in the changelog.
     const game = scriptedGame(600);
     expect(game.players().map((p) => game.territory.tileCount(p.id))).toEqual([0, 900, 192, 186]);
-    expect(game.hash()).toBe(2305961487);
+    expect(game.hash()).toBe(4092530933);
   });
 });

@@ -147,6 +147,9 @@ describe("order kinds", () => {
     expect({
       version: PROTOCOL_VERSION,
       kinds: ORDER_KINDS.map((kind) => kind.type),
-    }).toEqual({ version: 4, kinds: ["spawn", "attack", "retreat", "embark"] });
+    }).toEqual({
+      version: 5,
+      kinds: ["spawn", "attack", "retreat", "embark", "build", "demolish"],
+    });
   });
 });

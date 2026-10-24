@@ -165,6 +165,14 @@ function order(value: unknown): Order {
       };
     case "retreat":
       return { type: "retreat", attack: integer(raw.attack, "retreat attack") };
+    case "build":
+      return {
+        type: "build",
+        structure: integer(raw.structure, "build structure"),
+        tile: integer(raw.tile, "build tile"),
+      };
+    case "demolish":
+      return { type: "demolish", tile: integer(raw.tile, "demolish tile") };
     default:
       throw new DesyncReportError(`unknown order type ${String(raw.type)}`);
   }

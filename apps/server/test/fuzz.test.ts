@@ -45,7 +45,7 @@ function edgyInt(rng: Random): number {
 
 /** A message the server accepts, to start mutations from. */
 function validClientMessage(rng: Random): ClientMessage {
-  switch (int(rng, 9)) {
+  switch (int(rng, 11)) {
     case 0:
       return {
         type: "hello",
@@ -66,6 +66,20 @@ function validClientMessage(rng: Random): ClientMessage {
       return { type: "hash", tick: edgyInt(rng), hash: int(rng, 2 ** 32) };
     case 7:
       return { type: "order", order: { type: "spawn", tile: Math.min(edgyInt(rng), 2 ** 31 - 1) } };
+    case 8:
+      return {
+        type: "order",
+        order: {
+          type: "build",
+          structure: int(rng, 256),
+          tile: Math.min(edgyInt(rng), 2 ** 31 - 1),
+        },
+      };
+    case 9:
+      return {
+        type: "order",
+        order: { type: "demolish", tile: Math.min(edgyInt(rng), 2 ** 31 - 1) },
+      };
     default:
       return {
         type: "order",

@@ -1,22 +1,26 @@
 import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
 import { spawnSettings } from "./spawn.ts";
+import { workingCities } from "./structures.ts";
 
 /**
  * R-ECO-01: the most troops a player's territory and cities can hold. A base
  * equal to the starting troops of the map comes on top, so a player who has
  * just spawned, or is down to a few tiles, still grows. Land beyond a share of
  * the map counts for less (R-ECO-06), so the largest empires stop refilling
- * as fast as they can be taken apart.
+ * as fast as they can be taken apart. Each working city adds a share of what
+ * the land holds (R-BUILD-01), so a city is worth as much to a large empire
+ * as to a small one.
  */
-export function populationCap(game: Game, player: Player, cities = 0): number {
-  const { popPerTile, popPerCity, popFalloffSharePercent, popFalloffPercent } = game.balance;
+export function populationCap(game: Game, player: Player): number {
+  const { popPerTile, popPerCityPercent, popFalloffSharePercent, popFalloffPercent } = game.balance;
   const base = spawnSettings(game).troops;
   const tiles = game.territory.tileCount(player.id);
   // Past B-POP-FALLOFF-SHARE of the land, each tile holds only B-POP-FALLOFF of the usual troops.
   const full = Math.min(tiles, mulDiv(game.terrain.ownableCount, popFalloffSharePercent, 100));
   const land = full * popPerTile + mulDiv((tiles - full) * popPerTile, popFalloffPercent, 100);
-  return base + land + cities * popPerCity;
+  const cities = workingCities(game, player);
+  return base + land + mulDiv(land, cities * popPerCityPercent, 100);
 }
 
 /**

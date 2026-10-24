@@ -28,6 +28,13 @@ const report: DesyncReport = {
   turns: [
     { tick: 0, orders: [{ player: 1, order: { type: "spawn", tile: 40 } }] },
     { tick: 10, orders: [{ player: 1, order: { type: "attack", target: 300, troops: 200 } }] },
+    {
+      tick: 20,
+      orders: [
+        { player: 1, order: { type: "build", structure: 0, tile: 40 } },
+        { player: 1, order: { type: "demolish", tile: 40 } },
+      ],
+    },
   ],
   hashes: [],
 };

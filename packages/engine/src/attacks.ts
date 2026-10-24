@@ -1,5 +1,6 @@
 import type { Game, Player } from "./game.ts";
 import { divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
+import { fortified } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
 import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
@@ -140,7 +141,6 @@ export function installAttacks(game: Game): void {
 
   const tileCost = (tile: number, defender: Player | undefined): number =>
     captureCost(game, tile, defender);
-  const defenderDensity = (defender: Player): number => troopsPerTile(game, defender);
 
   // R-ATTACK-06: a player calls back one of their own attacks, losing part of its troops.
   game.onOrder((_, player, order) => {
@@ -207,7 +207,7 @@ export function installAttacks(game: Game): void {
         break;
       }
       attack.troops -= cost;
-      if (defender) defender.troops -= Math.min(defender.troops, defenderDensity(defender));
+      if (defender) defender.troops -= defenderLoss(game, tile, defender);
       territory.setOwner(tile, attack.player);
       captured.push(tile);
     }
@@ -298,7 +298,10 @@ function cancelOpposingAttacks(attacks: Attack[]): void {
   }
 }
 
-/** Troops it costs to take one tile (R-ATTACK-03, R-ATTACK-04, R-MAP-06). */
+/**
+ * Troops it costs to take one tile (R-ATTACK-03, R-ATTACK-04, R-MAP-06),
+ * more within reach of one of the defender's forts (R-BUILD-03).
+ */
 export function captureCost(game: Game, tile: number, defender: Player | undefined): number {
   const { balance, terrain } = game;
   const kind = terrain.kind(tile);
@@ -306,7 +309,16 @@ export function captureCost(game: Game, tile: number, defender: Player | undefin
     balance.reliefCostTenths[kind === TileKind.Mountains ? 2 : kind === TileKind.Hills ? 1 : 0];
   const density = defender ? troopsPerTile(game, defender) : 0;
   const base = balance.neutralCost + mulDiv(density, balance.defenseDensityTenths, 10);
-  return Math.max(1, mulDiv(base, relief, 10));
+  const cost = Math.max(1, mulDiv(base, relief, 10));
+  if (!defender || !fortified(game, tile, defender.id)) return cost;
+  return Math.max(1, mulDiv(cost, balance.fortStrengthPercent, 100));
+}
+
+/** Troops a defender loses with one of their tiles: their density, less within reach of their forts (R-BUILD-03). */
+export function defenderLoss(game: Game, tile: number, defender: Player): number {
+  let loss = troopsPerTile(game, defender);
+  if (fortified(game, tile, defender.id)) loss = mulDiv(loss, game.balance.fortLossPercent, 100);
+  return Math.min(defender.troops, loss);
 }
 
 /** A defender's troops spread over their land: what they lose with each tile taken. */

@@ -5,7 +5,9 @@ import {
   DESYNC_REPORT_VERSION,
   installBots,
   loadMap,
+  orderError,
   reachableCoasts,
+  StructureKind,
   type BotDifficulty,
   type DesyncReport,
   type MapDescription,
@@ -61,7 +63,8 @@ function record(golden: Golden): DesyncReport {
 
   // The scripted player: a start near the middle of the map, then a third of
   // its troops every five seconds at free land, else the first neighbour,
-  // else by sea.
+  // else by sea. When its gold allows, it also builds a city near its start,
+  // or else a fort.
   let start = topology.index(Math.floor(topology.width / 2), Math.floor(topology.height / 3));
   while (!terrain.isOwnable(start)) start = (start + 1) % topology.size;
   const around = new Int32Array(4);
@@ -87,15 +90,27 @@ function record(golden: Golden): DesyncReport {
     return coast === undefined ? undefined : { type: "embark", target: coast, troops };
   };
 
+  const build = (): Order | undefined => {
+    for (const structure of [StructureKind.City, StructureKind.Fort]) {
+      for (const tile of topology.tilesWithin(start, 30)) {
+        const order: Order = { type: "build", structure, tile };
+        if (orderError(game, human, order) === undefined) return order;
+      }
+    }
+    return undefined;
+  };
+
   const turns: Turn[] = [];
   const hashes: DesyncReport["hashes"] = [];
   while (game.tick < golden.ticks) {
     const tick = game.tick;
-    let order: Order | undefined;
-    if (tick === 0) order = { type: "spawn", tile: start };
-    else if (game.phase === "play" && human.alive && tick % every === 0) order = choose();
-    const turn: Turn = { tick, orders: order ? [{ player: 1, order }] : [] };
-    if (order) turns.push(turn);
+    const orders: Order[] = [];
+    if (tick === 0) orders.push({ type: "spawn", tile: start });
+    else if (game.phase === "play" && human.alive && tick % every === 0) {
+      for (const order of [build(), choose()]) if (order) orders.push(order);
+    }
+    const turn: Turn = { tick, orders: orders.map((order) => ({ player: 1, order })) };
+    if (orders.length > 0) turns.push(turn);
     game.step(turn);
     if ((tick + 1) % GOLDEN_HASH_INTERVAL === 0) {
       const hash = game.hash();

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
 import { installEconomy, populationCap } from "../src/economy.ts";
 import { Game, type Player } from "../src/game.ts";
+import { StructureKind } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
@@ -9,7 +10,7 @@ const balance: Balance = {
   ...DEFAULT_BALANCE,
   spawnPhaseTicks: 0,
   popPerTile: 100,
-  popPerCity: 1000,
+  popPerCityPercent: 10,
   growthBasisPoints: 1000,
   goldPerThousandTroops: 5,
   // No base population, so caps below are tiles and cities only.
@@ -38,10 +39,17 @@ function newGame(overrides: Partial<Balance> = {}) {
 }
 
 describe("economy", () => {
-  it("caps population by territory and cities (R-ECO-01)", () => {
-    const { game, ada } = newGame();
+  it("caps population by territory and cities (R-ECO-01, R-BUILD-01)", () => {
+    const { game, ada } = newGame({ cityLand: 1 });
     expect(populationCap(game, ada)).toBe(1000);
-    expect(populationCap(game, ada, 2)).toBe(3000);
+    // Two working cities add 10 % each of what the land holds.
+    for (const [id, tile] of [
+      [1, 2],
+      [2, 7],
+    ] as const) {
+      game.structures.push({ id, player: 1, kind: StructureKind.City, tile, readyAt: 0 });
+    }
+    expect(populationCap(game, ada)).toBe(1200);
   });
 
   it("adds the map's starting troops as a base, so a fresh start grows (R-ECO-01)", () => {

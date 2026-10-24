@@ -19,8 +19,8 @@ export interface Balance {
   popFalloffSharePercent: number;
   /** B-POP-FALLOFF, percent of B-POP-PER-TILE that each tile beyond that share adds */
   popFalloffPercent: number;
-  /** B-POP-PER-CITY */
-  popPerCity: number;
+  /** B-POP-PER-CITY, percent of the cap the player's land gives that each working city adds */
+  popPerCityPercent: number;
   /** B-GROWTH-RATE, in basis points of the gap to the cap per second (320 = 3.2 %) */
   growthBasisPoints: number;
   /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
@@ -45,6 +45,24 @@ export interface Balance {
   boatMax: number;
   /** B-BOAT-RANGE, longest sea route in water tiles */
   boatRange: number;
+  /** B-BUILD-TIME, in ticks from the order to the first tick a structure works */
+  buildTicks: number;
+  /** B-COST-CITY, gold for a player's first city */
+  cityCost: number;
+  /** B-COST-FORT, gold for a player's first fort */
+  fortCost: number;
+  /** B-COST-GROWTH, percent: each structure of a kind already owned multiplies the cost of the next by this */
+  costGrowthPercent: number;
+  /** B-BUILD-SPACING, smallest distance in tiles between two structures */
+  buildSpacing: number;
+  /** B-CITY-LAND, tiles of land each city beyond the first needs, on a map of 2^19 tiles */
+  cityLand: number;
+  /** B-FORT-RADIUS, in tiles on a map of 2^19 tiles */
+  fortRadius: number;
+  /** B-FORT-STRENGTH, percent of the usual price an attacker pays for a tile a fort covers */
+  fortStrengthPercent: number;
+  /** B-FORT-LOSSES, percent of the usual troops a defender loses with a tile a fort covers */
+  fortLossPercent: number;
   /** B-WIN-SHARE, percent of all ownable land */
   winSharePercent: number;
   /** B-MAX-DURATION, in ticks */
@@ -60,7 +78,7 @@ export const DEFAULT_BALANCE: Balance = {
   popPerTile: 40,
   popFalloffSharePercent: 20,
   popFalloffPercent: 100,
-  popPerCity: 25_000,
+  popPerCityPercent: 5,
   growthBasisPoints: 320,
   goldPerThousandTroops: 5,
   neutralCost: 8,
@@ -73,6 +91,15 @@ export const DEFAULT_BALANCE: Balance = {
   boatSpeed: 2,
   boatMax: 3,
   boatRange: 1000,
+  buildTicks: 5 * 10,
+  cityCost: 60_000,
+  fortCost: 30_000,
+  costGrowthPercent: 150,
+  buildSpacing: 10,
+  cityLand: 10_000,
+  fortRadius: 25,
+  fortStrengthPercent: 200,
+  fortLossPercent: 50,
   winSharePercent: 75,
   maxDurationTicks: 3600 * 10,
 };

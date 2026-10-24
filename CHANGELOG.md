@@ -37,6 +37,7 @@ The first playable beta: a solo game in the browser against bots on a map of the
 
 ### Added
 
+- Engine: cities and forts ([docs/rules.md](docs/rules.md#6-structures)). Gold now buys structures: a city adds a twentieth of what the land holds to the population cap, a fort makes nearby land dearer to take and cheaper to lose, and both change hands with their tile. Players may own one city plus one more for every 10,000 tiles of land (40,000 on World), structures keep their distance, and bots build cities near their start. Protocol version 5 carries the new `build` and `demolish` orders.
 - **Online games, protocol version 2** ([docs/protocol.md](docs/protocol.md)): a version handshake, binary frames for orders and turns, public games that start after a countdown or when full, private games joined by invitation link (`?game=<id>`), a list of public games at `/api/games`, reconnection with every missed turn, desync detection from client state hashes, and player name rules.
 - Pages from an older build are asked to reload instead of joining a game they could desynchronise. Online games are played on the World map.
 - Server protection and monitoring ([docs/server.md](docs/server.md)): a message rate limit per connection, idle connections closed, JSON logs that never record client addresses, and Prometheus metrics at `/metrics`, answered only to requests from the host.

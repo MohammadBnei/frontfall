@@ -1,4 +1,4 @@
-import { captureCost, troopsPerTile } from "./attacks.ts";
+import { captureCost, defenderLoss } from "./attacks.ts";
 import type { Game } from "./game.ts";
 import { TileKind } from "./terrain.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
@@ -103,7 +103,7 @@ export function installBoats(game: Game): void {
     const cost = captureCost(game, boat.target, defender);
     // Too few troops to take the beach: they are lost.
     if (boat.troops < cost) return;
-    if (defender) defender.troops -= Math.min(defender.troops, troopsPerTile(game, defender));
+    if (defender) defender.troops -= defenderLoss(game, boat.target, defender);
     territory.setOwner(boat.target, player.id);
     const troops = boat.troops - cost;
     player.troops += troops;

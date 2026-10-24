@@ -26,16 +26,16 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 ## Economy
 
-| Key                   | Value | Unit                        | Used by     | Notes                                          |
-| --------------------- | ----: | --------------------------- | ----------- | ---------------------------------------------- |
-| `B-POP-BASE`          | start | troops                      | `R-ECO-01`  | The map's starting troops (`R-SPAWN-06`)       |
-| `B-POP-PER-TILE`      |    40 | troops                      | `R-ECO-01`  | Cap contribution of each owned land tile       |
-| `B-POP-PER-CITY`      | 25000 | troops                      | `R-ECO-01`  |                                                |
-| `B-POP-FALLOFF-SHARE` |    20 | % of all ownable land       | `R-ECO-06`  | Land past this share counts for less           |
-| `B-POP-FALLOFF`       |   100 | % of `B-POP-PER-TILE`       | `R-ECO-06`  | What each tile past that share adds to the cap |
-| `B-GROWTH-RATE`       |   3.2 | % of the gap to cap/second  | `R-ECO-02`  | Applied per tick as an integer ratio           |
-| `B-GOLD-RATE`         |   0.5 | gold per 100 idle troops/s  | `R-ECO-03`  |                                                |
-| `B-TRADE-GOLD`        |    60 | gold per 100 tiles of route | `R-UNIT-03` | Paid to both ports on arrival                  |
+| Key                   | Value | Unit                        | Used by      | Notes                                          |
+| --------------------- | ----: | --------------------------- | ------------ | ---------------------------------------------- |
+| `B-POP-BASE`          | start | troops                      | `R-ECO-01`   | The map's starting troops (`R-SPAWN-06`)       |
+| `B-POP-PER-TILE`      |    40 | troops                      | `R-ECO-01`   | Cap contribution of each owned land tile       |
+| `B-POP-PER-CITY`      |     5 | % of the land's cap         | `R-BUILD-01` | Per working city                               |
+| `B-POP-FALLOFF-SHARE` |    20 | % of all ownable land       | `R-ECO-06`   | Land past this share counts for less           |
+| `B-POP-FALLOFF`       |   100 | % of `B-POP-PER-TILE`       | `R-ECO-06`   | What each tile past that share adds to the cap |
+| `B-GROWTH-RATE`       |   3.2 | % of the gap to cap/second  | `R-ECO-02`   | Applied per tick as an integer ratio           |
+| `B-GOLD-RATE`         |   0.5 | gold per 100 idle troops/s  | `R-ECO-03`   |                                                |
+| `B-TRADE-GOLD`        |    60 | gold per 100 tiles of route | `R-UNIT-03`  | Paid to both ports on arrival                  |
 
 ## Attacks
 
@@ -68,18 +68,28 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 ## Structures
 
-| Key                    | Value | Unit       | Used by      | Notes                                                      |
-| ---------------------- | ----: | ---------- | ------------ | ---------------------------------------------------------- |
-| `B-BUILD-TIME`         |     5 | s          | `R-BUILD-*`  | Missile silo and air defense: 10 s                         |
-| `B-COST-GROWTH`        |   1.5 | multiplier | `R-BUILD-*`  | Cost of the n-th structure: base × 1.5^(n−1), capped at 5× |
-| `B-FORT-RADIUS`        |    25 | tiles      | `R-BUILD-03` | Losses halved inside the radius                            |
-| `B-AIR-DEFENSE-RADIUS` |    60 | tiles      | `R-BUILD-05` | 75 % chance to stop each missile                           |
+| Key                    | Value | Unit       | Used by      | Notes                                                  |
+| ---------------------- | ----: | ---------- | ------------ | ------------------------------------------------------ |
+| `B-BUILD-TIME`         |     5 | s          | `R-BUILD-*`  | Missile silo and air defense: 10 s                     |
+| `B-COST-CITY`          | 60000 | gold       | `R-BUILD-01` | First city                                             |
+| `B-COST-FORT`          | 30000 | gold       | `R-BUILD-03` | First fort                                             |
+| `B-COST-GROWTH`        |   1.5 | multiplier | `R-BUILD-*`  | Cost of the n-th structure of a kind: base × 1.5^(n−1) |
+| `B-BUILD-SPACING`      |    10 | tiles      | `R-BUILD-07` | Between any two structures                             |
+| `B-CITY-LAND`          | 10000 | tiles      | `R-BUILD-07` | Land each city beyond the first needs                  |
+| `B-FORT-RADIUS`        |    25 | tiles      | `R-BUILD-03` |                                                        |
+| `B-FORT-STRENGTH`      |   200 | % of price | `R-BUILD-03` | Paid by attackers inside the radius                    |
+| `B-FORT-LOSSES`        |    50 | % of loss  | `R-BUILD-03` | Lost by the defender inside the radius                 |
+| `B-AIR-DEFENSE-RADIUS` |    60 | tiles      | `R-BUILD-05` | 75 % chance to stop each missile                       |
 
-Base costs, in gold: city 120 000, port 100 000, fort 50 000, missile silo 800 000, air defense 1 000 000.
+Structure values were set on World with eight normal bots, five seeds. Before structures, a bot reached `B-WIN-SHARE` after 8.8 to 13.0 minutes (median 10.1). With cities worth 10 % and one per 20,000 tiles of World, the snowball brought that down to 7.5 to 9.8 minutes; at 5 % and one per 40,000 tiles it is 7.9 to 10.6 (median 10.1), and a scripted casual player that also builds cities wins against seven normal bots as often as before (2 seeds out of 5).
+
+Base costs still to come, in gold: port 100 000, missile silo 800 000, air defense 1 000 000.
+
+Distances and land are given for a map of 2^19 tiles, like the spawn values: on a larger map `B-FORT-RADIUS` grows with the spawn radius and `B-CITY-LAND` with the spawn area, so on World a fort covers 50 tiles around it and each city beyond the first needs 40,000 tiles.
 
 ## Bots
 
-Each value is given for easy / normal / hard (`R-BOT-04`); the last four are the same at every difficulty.
+Each value is given for easy / normal / hard (`R-BOT-04`); the last five are the same at every difficulty.
 
 | Key                  |           Value | Unit                         | Used by    | Notes                                                                                                                                          |
 | -------------------- | --------------: | ---------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -91,6 +101,7 @@ Each value is given for easy / normal / hard (`R-BOT-04`); the last four are the
 | `B-BOT-SEA-TARGETS`  |               8 | coasts per sea search        | `R-BOT-05` | Weighed closest first                                                                                                                          |
 | `B-BOT-SEA-MIN`      |              16 | water tiles                  | `R-BOT-05` | Coasts closer to the bot's shore count as the same front                                                                                       |
 | `B-BOT-SEA-RETRY`    |               4 | decisions                    | `R-BOT-05` | Skipped after a sea search that found nothing, since one search can walk `B-BOAT-RANGE` of sea                                                 |
+| `B-BOT-CITY-SEARCH`  |              40 | tiles                        | `R-BOT-06` | Radius around its start in which a bot looks for room for a city                                                                               |
 
 Bot values were tuned on World against a scripted stand-in for a casual player (an order every 5 s with 30 % of its troops, unowned land first, then its weakest neighbour), three seeds, seven bots. With the first values, hard bots wiped it out in under 3 minutes in two games out of three; with these, it survives every game at every difficulty, and the leading hard bot holds about half the land after 4 minutes, against a quarter for easy bots.
 

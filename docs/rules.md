@@ -38,7 +38,7 @@ Words used throughout:
 
 ## 3. Economy
 
-- **R-ECO-01** Each player has a population cap that grows with territory and cities (`B-POP-PER-TILE`, `B-POP-PER-CITY`), on top of a base equal to the map's starting troops (`B-POP-BASE`), so a player who has just spawned, or is down to a few tiles, still grows.
+- **R-ECO-01** Each player has a population cap that grows with territory and cities (`B-POP-PER-TILE`, `R-BUILD-01`), on top of a base equal to the map's starting troops (`B-POP-BASE`), so a player who has just spawned, or is down to a few tiles, still grows.
 - **R-ECO-02** Troops grow every tick. Growth is fastest when the player is far below the cap and falls to zero at the cap (`B-GROWTH-RATE`); below the cap, a player always gains at least one troop per tick, so the cap is reached.
 - **R-ECO-03** A player earns gold every tick in proportion to the troops they hold back from attacks (`B-GOLD-RATE`). Trade adds to this income (`R-UNIT-03`).
 - **R-ECO-04** Troops and gold are whole numbers. When a computation produces a fraction, it is rounded down.
@@ -69,14 +69,15 @@ Words used throughout:
 
 ## 6. Structures
 
-Every structure is built on an owned land tile, costs gold, and takes `B-BUILD-TIME` before it works. Costs rise with the number of the same structure already owned (`B-COST-GROWTH`). A structure captured with its tile changes owner.
+Every structure is built on an owned land tile, costs gold, paid when the order is carried out, and takes `B-BUILD-TIME` before it works. Costs rise with the number of the same structure already owned, those still being built included (`B-COST-GROWTH`). A structure captured with its tile changes owner, finished or not.
 
-- **R-BUILD-01** City: raises the population cap (`R-ECO-01`).
+- **R-BUILD-01** City: raises the population cap by `B-POP-PER-CITY` of what the player's land holds (`R-ECO-01`), so a city is worth as much to a large empire as to a small one.
 - **R-BUILD-02** Port: built on a coastal tile. Launches ships and trade (`R-UNIT-02`, `R-UNIT-03`).
-- **R-BUILD-03** Fort: troops defending tiles within `B-FORT-RADIUS` lose fewer troops per tile lost.
+- **R-BUILD-03** Fort: on the owner's tiles within `B-FORT-RADIUS`, attackers pay `B-FORT-STRENGTH` of the usual price per tile, and the defender loses `B-FORT-LOSSES` of the usual troops per tile lost. Land taken by encirclement (`R-ATTACK-08`) pays no price, fort or not.
 - **R-BUILD-04** Missile silo: launches missiles (`R-UNIT-05`). Needs a reload time between launches.
 - **R-BUILD-05** Air defense: has a chance to destroy missiles that pass within its radius (`B-AIR-DEFENSE-RADIUS`).
 - **R-BUILD-06** A structure can be demolished by its owner, with no refund.
+- **R-BUILD-07** Two structures, whoever owns them, stand at least `B-BUILD-SPACING` tiles apart. A player may own one city, and one more for every `B-CITY-LAND` tiles of land; cities beyond what their land supports, after a loss of land or a capture, do not count towards the cap.
 
 ## 7. Units
 
@@ -96,6 +97,7 @@ Every structure is built on an owned land tile, costs gold, and takes `B-BUILD-T
 - **R-BOT-03** Computer players follow the same rules as humans and send their orders the same way. They take decisions only from the game state and the game's seed, so every client computes the same decisions.
 - **R-BOT-04** The difficulty setting changes how often and how boldly computer players act, never the rules they follow.
 - **R-BOT-05** A bot with nothing worth taking by land sends a transport ship to the closest unowned coast it can reach away from its own shore, or else to the coast of a weaker player there, with up to `B-BOAT-MAX` ships at sea. A large empire looks at more of its border before deciding, so a narrow land front is not missed.
+- **R-BOT-06** A bot whose gold pays for a city its land supports builds one on the free inland tile closest to its start, or to one of its border tiles once the start is lost. Bots build no other structure.
 
 ## 9. Victory and game modes
 

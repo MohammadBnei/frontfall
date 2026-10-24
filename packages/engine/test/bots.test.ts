@@ -6,6 +6,7 @@ import { BOT_DIFFICULTIES, installBots, type BotDifficulty } from "../src/bots/i
 import { installEconomy } from "../src/economy.ts";
 import { Game, type Order, type Player } from "../src/game.ts";
 import { installSpawn } from "../src/spawn.ts";
+import { StructureKind, installStructures } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { NEUTRAL } from "../src/territory/territory-map.ts";
 import { WorldGrid } from "../src/world-grid.ts";
@@ -281,5 +282,46 @@ describe("bots", () => {
     expect(() => {
       installBots(game, [3], "easy");
     }).toThrow(RangeError);
+  });
+
+  it("build a city close to their start once their gold pays for it (R-BOT-06)", () => {
+    const grid = new WorldGrid(60, 30, { wrapsX: false });
+    const game = new Game({
+      terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+      seed: 3,
+      players: [
+        { id: 1, name: "Bot" },
+        { id: 2, name: "Ada" },
+      ],
+      balance: { ...balance, spawnPhaseTicks: 0, cityCost: 500, cityLand: 400 },
+    });
+    installStructures(game);
+    installBots(game, [1], "normal");
+    // The bot holds the west half; its start is near the middle of it, the front at x = 30.
+    for (let tile = 0; tile < grid.size; tile++) {
+      game.territory.setOwner(tile, grid.x(tile) < 30 ? 1 : 2);
+    }
+    const bot = game.player(1) as Player;
+    bot.start = grid.index(15, 15);
+    bot.gold = 499;
+    const run = (ticks: number) => {
+      for (let i = 0; i < ticks; i++) game.step({ tick: game.tick, orders: [] });
+    };
+    run(30);
+    expect(game.structures).toHaveLength(0);
+    bot.gold = 500 + 750;
+    run(30);
+    expect(game.structures.map((s) => [s.kind, s.player, s.tile])).toEqual([
+      [StructureKind.City, 1, grid.index(15, 15)],
+    ]);
+    // 900 tiles support three cities; the next ones go further out, off the front.
+    bot.gold = 10_000;
+    run(60);
+    expect(game.structures).toHaveLength(3);
+    for (const city of game.structures) {
+      expect(game.territory.isBorder(city.tile)).toBe(false);
+      expect(grid.distance(city.tile, bot.start)).toBeLessThanOrEqual(2 * balance.buildSpacing);
+    }
+    expect(bot.gold).toBe(10_000 - 750 - 1125);
   });
 });

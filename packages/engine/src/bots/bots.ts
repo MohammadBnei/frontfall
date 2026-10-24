@@ -3,6 +3,7 @@ import { reachableCoasts } from "../boats.ts";
 import { populationCap } from "../economy.ts";
 import type { Game, Player } from "../game.ts";
 import { divFloor, isqrt, percentOf } from "../integer-math.ts";
+import { StructureKind, cityLimit, structureCost, structureCount } from "../structures.ts";
 import { NEUTRAL } from "../territory/territory-map.ts";
 import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
 
@@ -25,6 +26,9 @@ const SEA_MIN_DISTANCE = 16; // B-BOT-SEA-MIN
  */
 const SEA_RETRY_DECISIONS = 4; // B-BOT-SEA-RETRY
 
+/** Tiles around its start within which a bot looks for room for a city. */
+const CITY_SEARCH_RADIUS = 40; // B-BOT-CITY-SEARCH
+
 /**
  * Bots (R-BOT-01, R-BOT-03, R-BOT-04): the given players expand into unowned
  * land while some is in reach and attack weaker neighbours, keeping a reserve
@@ -35,6 +39,9 @@ const SEA_RETRY_DECISIONS = 4; // B-BOT-SEA-RETRY
  * With nothing worth taking by land, a bot sails to the closest free coast it
  * can reach, or else to the coast of a weaker player, up to B-BOAT-MAX
  * ships at sea (R-BOT-05).
+ *
+ * Whenever their gold pays for a city their land supports, they build one
+ * as close as they can to where they started, away from the front (R-BOT-06).
  *
  * Bots do not pick a start: the spawn phase places them at random when it
  * ends (R-SPAWN-03).
@@ -51,6 +58,8 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
   const around = new Int32Array(4);
   // Tick before which a bot whose last sea search found nothing does not search again.
   const nextSeaSearch = new Map<number, number>();
+  // Same for a bot that found no room for a city: the search walks thousands of tiles.
+  const nextCitySearch = new Map<number, number>();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -66,6 +75,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     const tiles = territory.tileCount(bot.id);
     const borders = territory.borderCount(bot.id);
     if (tiles === 0 || borders === 0) return;
+    buildCity(bot);
     const reserve = percentOf(populationCap(game, bot), params.reservePercent);
     const troops = Math.min(percentOf(bot.troops, params.attackRatioPercent), bot.troops - reserve);
     // Less than the price of one tile would come straight back.
@@ -104,6 +114,37 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     const target = neutralTarget >= 0 && !muchWeaker ? neutralTarget : weak ? enemyTarget : -1;
     if (target >= 0) game.apply(bot.id, { type: "attack", target, troops });
     else sail(bot, troops, ownDensity);
+  }
+
+  /** R-BOT-06: a city on the closest free inland tile to the bot's start, or to a border tile once the start is lost. */
+  function buildCity(bot: Player): void {
+    const kind = StructureKind.City;
+    if (bot.gold < structureCost(game, bot.id, kind)) return;
+    if (structureCount(game, bot.id, kind) >= cityLimit(game, bot.id)) return;
+    if (game.tick < (nextCitySearch.get(bot.id) ?? 0)) return;
+    const start = bot.start;
+    const center =
+      start !== undefined && territory.ownerOf(start) === bot.id
+        ? start
+        : territory.borderTile(bot.id, random.nextInt(0, territory.borderCount(bot.id)));
+    const spacing = balance.buildSpacing;
+    // Structures close enough to rule out a tile in the search area.
+    const radius = CITY_SEARCH_RADIUS + spacing;
+    const nearby = game.structures.filter((s) => topology.distance(s.tile, center) < radius);
+    let best = -1;
+    let bestDistance = 0;
+    for (const tile of topology.tilesWithin(center, CITY_SEARCH_RADIUS)) {
+      if (territory.ownerOf(tile) !== bot.id || territory.isBorder(tile)) continue;
+      if (nearby.some((s) => topology.distance(s.tile, tile) < spacing)) continue;
+      const distance = topology.distance(tile, center);
+      // Row order breaks ties, the same on every client.
+      if (best < 0 || distance < bestDistance) {
+        best = tile;
+        bestDistance = distance;
+      }
+    }
+    if (best >= 0) game.apply(bot.id, { type: "build", structure: kind, tile: best });
+    else nextCitySearch.set(bot.id, game.tick + SEA_RETRY_DECISIONS * interval);
   }
 
   function sail(bot: Player, troops: number, ownDensity: number): void {

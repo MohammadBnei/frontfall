@@ -5,6 +5,8 @@ export const MAX_TILE = 2 ** 31 - 1;
 
 const tile = z.number().int().min(0).max(MAX_TILE);
 const amount = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+/** Code of a structure kind (the engine's StructureKind); the engine refuses codes it does not know. */
+const structure = z.number().int().min(0).max(255);
 
 /**
  * Every kind of order, in wire order: the position of a kind in this list is
@@ -16,6 +18,8 @@ export const ORDER_KINDS = [
   { type: "attack", fields: ["target", "troops"] },
   { type: "retreat", fields: ["attack"] },
   { type: "embark", fields: ["target", "troops"] },
+  { type: "build", fields: ["structure", "tile"] },
+  { type: "demolish", fields: ["tile"] },
 ] as const;
 
 /** An order from a player. The server relays orders; every client executes them. */
@@ -24,6 +28,8 @@ export const Order = z.discriminatedUnion("type", [
   z.object({ type: z.literal("attack"), target: tile, troops: amount }).strict(),
   z.object({ type: z.literal("retreat"), attack: amount }).strict(),
   z.object({ type: z.literal("embark"), target: tile, troops: amount }).strict(),
+  z.object({ type: z.literal("build"), structure, tile }).strict(),
+  z.object({ type: z.literal("demolish"), tile }).strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 

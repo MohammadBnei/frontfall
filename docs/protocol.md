@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 4, name } ---------> |
+  | -- hello { version: 5, name } ---------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection gives its seat up. The client joins a
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 4, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 5, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -132,12 +132,14 @@ The client's 32-bit hash of its game state after running `tick`, sent for every 
 
 Binary frame. An order of the local player, in the shape of the engine's `Order`:
 
-| Order     | Fields                     | Meaning                                         |
-| --------- | -------------------------- | ----------------------------------------------- |
-| `spawn`   | `tile`                     | Choose a starting tile during the spawn phase   |
-| `attack`  | `target`, `troops` (`> 0`) | Send troops towards a tile                      |
-| `retreat` | `attack` (`> 0`)           | Call back one of the player's attacks by its id |
-| `embark`  | `target`, `troops` (`> 0`) | Ship troops to a coastal tile                   |
+| Order      | Fields                         | Meaning                                                            |
+| ---------- | ------------------------------ | ------------------------------------------------------------------ |
+| `spawn`    | `tile`                         | Choose a starting tile during the spawn phase                      |
+| `attack`   | `target`, `troops` (`> 0`)     | Send troops towards a tile                                         |
+| `retreat`  | `attack` (`> 0`)               | Call back one of the player's attacks by its id                    |
+| `embark`   | `target`, `troops` (`> 0`)     | Ship troops to a coastal tile                                      |
+| `build`    | `structure` (0 to 255), `tile` | Build a structure on one of the player's tiles: `0` city, `1` fort |
+| `demolish` | `tile`                         | Demolish one of the player's structures                            |
 
 Tiles are indexes in the map, below 2^31. The server checks only the shape of an order; whether it can be carried out is decided by the engine of every client, the same way everywhere. Orders sent outside a running game are ignored.
 
@@ -146,7 +148,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 4 }
+{ "type": "welcome", "version": 5 }
 ```
 
 The hello was accepted.
@@ -278,12 +280,14 @@ The first byte of a frame gives its kind:
 
 A turn is its order count, then for each order the player number and the order. An order is its kind code followed by its fields, in this order:
 
-| Code | Order     | Fields             |
-| ---- | --------- | ------------------ |
-| `0`  | `spawn`   | `tile`             |
-| `1`  | `attack`  | `target`, `troops` |
-| `2`  | `retreat` | `attack`           |
-| `3`  | `embark`  | `target`, `troops` |
+| Code | Order      | Fields              |
+| ---- | ---------- | ------------------- |
+| `0`  | `spawn`    | `tile`              |
+| `1`  | `attack`   | `target`, `troops`  |
+| `2`  | `retreat`  | `attack`            |
+| `3`  | `embark`   | `target`, `troops`  |
+| `4`  | `build`    | `structure`, `tile` |
+| `5`  | `demolish` | `tile`              |
 
 The table is `ORDER_KINDS` in [`orders.ts`](../packages/protocol/src/orders.ts). New orders are added at the end, so existing codes never change. A frame with trailing bytes, an unknown kind or a count larger than the rest of the frame could hold is refused. A client that receives a `turns` frame it cannot read stops and asks for a reload: skipping a turn would desynchronise its game.
 
@@ -298,4 +302,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

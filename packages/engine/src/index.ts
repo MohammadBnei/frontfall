@@ -1,4 +1,10 @@
-export { captureCost, installAttacks, troopsPerTile, type Attack } from "./attacks.ts";
+export {
+  captureCost,
+  defenderLoss,
+  installAttacks,
+  troopsPerTile,
+  type Attack,
+} from "./attacks.ts";
 export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
 export { createGame } from "./create-game.ts";
@@ -32,6 +38,20 @@ export { clamp, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 export { orderError } from "./orders.ts";
 export { Random, type RandomState } from "./random.ts";
 export { installSpawn, spawnSettings } from "./spawn.ts";
+export {
+  StructureKind,
+  cityLimit,
+  fortRadius,
+  fortified,
+  installStructures,
+  isReady,
+  placementError,
+  structureAt,
+  structureCost,
+  structureCount,
+  workingCities,
+  type Structure,
+} from "./structures.ts";
 export { Terrain, TileKind } from "./terrain.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.ts";

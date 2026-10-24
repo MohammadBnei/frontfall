@@ -58,6 +58,10 @@ describe("Game", () => {
     expect(() => new Game(withBalance({ attackSpeedDivisor: 0 }))).toThrow(/attackSpeedDivisor/);
     expect(() => new Game(withBalance({ encircleMaxTiles: 1.5 }))).toThrow(/encircleMaxTiles/);
     expect(() => new Game(withBalance({ boatRange: 70_000 }))).toThrow(/boatRange/);
+    expect(() => new Game(withBalance({ buildSpacing: 0 }))).toThrow(/buildSpacing/);
+    expect(() => new Game(withBalance({ cityCost: -1 }))).toThrow(/cityCost/);
+    expect(() => new Game(withBalance({ costGrowthPercent: 90 }))).toThrow(/costGrowthPercent/);
+    expect(() => new Game(withBalance({ cityLand: 0 }))).toThrow(/cityLand/);
     expect(() => new Game(withBalance({ boatSpeed: 3 }))).not.toThrow();
   });
 
