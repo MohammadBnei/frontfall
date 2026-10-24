@@ -13,6 +13,7 @@ import {
   createCamera,
   createRenderer,
   fitsGlobe,
+  globeLoaded,
   type Renderer,
   type ViewKind,
 } from "../render/renderer.ts";
@@ -97,7 +98,7 @@ export class GameScreen {
     /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
     view: ViewKind = "flat",
   ) {
-    this.globeAllowed = view === "globe" && fitsGlobe(map);
+    this.globeAllowed = view === "globe" && fitsGlobe(map) && globeLoaded();
     this.viewKind = this.globeAllowed ? "globe" : "flat";
     this.mapSize = { width: map.width, height: map.height };
     this.camera = createCamera(map, this.viewKind);
@@ -259,8 +260,8 @@ export class GameScreen {
   }
 
   /** Makes the renderer of the current kind over the owners array, already filled or not. */
-  private mountRenderer(): void {
-    if (!this.shown) return;
+  private mountRenderer(): Renderer | undefined {
+    if (!this.shown) return undefined;
     const { map, you, maxPlayer } = this.shown;
     let view: Renderer;
     try {
@@ -280,14 +281,12 @@ export class GameScreen {
       // Most likely the WebGL context, lost or refused after the check of the menu.
       console.error(error);
       this.actions.onFailure("webgl.missing");
-      return;
+      return undefined;
     }
     for (let id = 1; id <= maxPlayer; id++) {
       view.setPlayerColor(id, colorOf(id, this.firstNation));
     }
     view.setHighlight(you);
-    // After a switch of view the owners are already there to draw.
-    view.markAllChanged();
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
@@ -295,6 +294,7 @@ export class GameScreen {
     this.dirty = true;
     this.drawnView = undefined;
     this.resize();
+    return view;
   }
 
   /**
@@ -317,7 +317,8 @@ export class GameScreen {
     if (!this.view) return;
     this.view.dispose();
     this.view = undefined;
-    this.mountRenderer();
+    // The owners are already there to draw.
+    this.mountRenderer()?.markAllChanged();
     this.drawnStructures = "";
     if (this.latest) this.placeStructures(this.latest);
   }
