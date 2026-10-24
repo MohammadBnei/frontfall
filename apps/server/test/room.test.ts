@@ -186,13 +186,17 @@ describe("private lobby", () => {
     const room = new Room("game0000", PRIVATE, 1);
     const host = seated(room, "Host");
     const guest = seated(room, "Guest");
-    const options = { map: "europe", bots: 5, difficulty: "easy" } as const;
+    const options = { map: "europe", bots: 5, difficulty: "easy", capacity: 6 } as const;
     expect(room.configure(guest.seat, options, 0)).toBe("not_host");
     expect(room.configure(host.seat, options, 0)).toBeUndefined();
     expect(guest.peer.last("lobby")).toMatchObject(options);
     expect(PRIVATE.map).toBe("world");
     room.requestStart(host.seat, 0);
-    expect(guest.peer.last("started")).toMatchObject(options);
+    expect(guest.peer.last("started")).toMatchObject({
+      map: "europe",
+      bots: 5,
+      difficulty: "easy",
+    });
     expect(room.configure(host.seat, options, 0)).toBe("game_started");
   });
 

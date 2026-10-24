@@ -17,16 +17,16 @@
 
 ## Games
 
-| Setting                        | Value                                                  | Notes                                                        |
-| ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------ |
-| Players per game               | 16                                                     | A public game starts at once when full                       |
-| Players to start a public game | 2                                                      | Then the countdown runs; it stops if a player leaves below 2 |
-| Seat kept after a drop         | 2 minutes                                              | The player rejoins with their token and every missed turn    |
-| Longest game                   | 4 hours                                                | Then the game ends with reason `timeout`                     |
-| Games at once                  | 500                                                    | Further `play` and `create` requests get `too_many_games`    |
-| Bots in a private game         | 25, and seats plus bots within the map's `players.max` | Set by the host with `configure`                             |
-| Game not started               | 10 minutes after it opened                             | Then the game ends with reason `expired`                     |
-| Private games per address      | 3 not yet started                                      | Further `create` requests get `too_many_games`               |
+| Setting                        | Value                      | Notes                                                                        |
+| ------------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
+| Players per game               | 16                         | A public game starts at once when full                                       |
+| Players to start a public game | 2                          | Then the countdown runs; it stops if a player leaves below 2                 |
+| Seat kept after a drop         | 2 minutes                  | The player rejoins with their token and every missed turn                    |
+| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                     |
+| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                    |
+| Bots in a private game         | 25                         | Seats shrink to fit the map's `players.max`, never below the players present |
+| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                     |
+| Private games per address      | 3 not yet started          | Further `create` requests get `too_many_games`                               |
 
 A game is freed as soon as it ends: when its last player leaves before the start, when it has not started ten minutes after it opened, when every player has been gone for two minutes, or at the time limit. Its turn log, about one byte per quiet tick, goes with it.
 

@@ -122,17 +122,22 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   invalid_settings: "no such map, or too many bots for it",
 };
 
-/** Bots below the server's cap that leave room on the map for every seat. */
-function validOptions(
+/**
+ * Seats a private game keeps with these options: the usual number, fewer on a
+ * small map or with many bots, never fewer than the players already in. Bots
+ * beyond the server's cap or that leave no seat for them give undefined.
+ */
+function seatsFor(
   options: GameOptions,
   maps: MapLimits,
   maxBots: number,
-  capacity: number,
-): boolean {
+  usualSeats: number,
+  players: number,
+): number | undefined {
   const maxPlayers = maps.get(options.map);
-  return (
-    maxPlayers !== undefined && options.bots <= maxBots && options.bots + capacity <= maxPlayers
-  );
+  if (maxPlayers === undefined || options.bots > maxBots) return undefined;
+  const seats = Math.min(usualSeats, maxPlayers - options.bots);
+  return seats >= Math.max(players, 1) ? seats : undefined;
 }
 
 /** What one WebSocket connection has done so far. */
@@ -373,11 +378,18 @@ export function createGameServer(options: ServerOptions): GameServer {
         else rejoin(session, message.token, message.from);
         return;
       case "configure": {
+        const seats =
+          current &&
+          seatsFor(message.options, maps, maxBots, privateGame.capacity, current.room.playerCount);
         const error = !current
           ? "not_in_game"
-          : !validOptions(message.options, maps, maxBots, current.room.settings.capacity)
+          : seats === undefined
             ? "invalid_settings"
-            : current.room.configure(current.seat, message.options, Date.now());
+            : current.room.configure(
+                current.seat,
+                { ...message.options, capacity: seats },
+                Date.now(),
+              );
         if (error) reply(session, error);
         return;
       }

@@ -287,10 +287,20 @@ describe("WebSocket", () => {
     expect((await bob.next("error")).code).toBe("not_host");
     alice.send({ type: "configure", options: { map: "mars", bots: 2, difficulty: "hard" } });
     expect((await alice.next("error")).code).toBe("invalid_settings");
-    alice.send({ type: "configure", options: { map: "europe", bots: 17, difficulty: "hard" } });
+    alice.send({ type: "configure", options: { map: "world", bots: 26, difficulty: "hard" } });
     expect((await alice.next("error")).code).toBe("invalid_settings");
+    // Europe holds 20: 19 bots would leave one seat for two players.
+    alice.send({ type: "configure", options: { map: "europe", bots: 19, difficulty: "hard" } });
+    expect((await alice.next("error")).code).toBe("invalid_settings");
+    alice.send({ type: "configure", options: { map: "europe", bots: 18, difficulty: "hard" } });
+    expect(await bob.next("lobby")).toMatchObject({
+      map: "europe",
+      bots: 18,
+      difficulty: "hard",
+      capacity: 2,
+    });
     alice.send({ type: "configure", options: { map: "europe", bots: 16, difficulty: "hard" } });
-    expect(await bob.next("lobby")).toMatchObject({ map: "europe", bots: 16, difficulty: "hard" });
+    expect(await bob.next("lobby")).toMatchObject({ bots: 16, capacity: 4 });
 
     alice.send({ type: "start" });
     expect(await bob.next("started")).toMatchObject({

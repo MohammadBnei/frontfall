@@ -206,8 +206,12 @@ export class Room {
     return undefined;
   }
 
-  /** Host of a private game: map, bots and difficulty, until the start. */
-  configure(seat: Seat, options: GameOptions, now: number): ErrorCode | undefined {
+  /** Host of a private game: map, bots, difficulty and seats, until the start. */
+  configure(
+    seat: Seat,
+    options: GameOptions & { capacity: number },
+    now: number,
+  ): ErrorCode | undefined {
     if (!this.holds(seat)) return "not_in_game";
     if (this.stateValue === "running") return "game_started";
     if (this.host !== seat) return "not_host";

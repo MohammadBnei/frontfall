@@ -102,7 +102,7 @@ Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting).
 { "type": "configure", "options": { "map": "europe", "bots": 6, "difficulty": "hard" } }
 ```
 
-The host of a private game sets its map, its number of bots and how hard they play, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The bots and the seats of the game together must fit the most players the map allows (`players.max` in the catalog), and the server adds at most 25 bots. Every player receives the new options in `lobby`. A new private game starts on World, without bots, at `normal`.
+The host of a private game sets its map, its number of bots and how hard they play, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps its 16 seats when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. A new private game starts on World, without bots, at `normal`.
 
 ### `start`
 
