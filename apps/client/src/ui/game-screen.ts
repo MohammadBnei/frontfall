@@ -47,6 +47,9 @@ export interface GameScreenActions {
   onRecord?(record: GameRecord): void;
 }
 
+/** Offset of warship ids among the ships the screen moves, past any transport's. */
+const WARSHIP_IDS = 2 ** 40;
+
 /**
  * One game on screen: the map, the input that drives the camera and sends
  * orders, the HUD, and the dialogs on top. Owns everything it creates and
@@ -284,7 +287,11 @@ export class GameScreen {
       // idles while nothing moves, during a pause above all.
       const view = this.camera.view();
       const moved = !sameView(view, this.drawnView);
-      const sailing = (this.latest?.boats.length ?? 0) + (this.latest?.tradeShips.length ?? 0) > 0;
+      const sailing =
+        (this.latest?.boats.length ?? 0) +
+          (this.latest?.tradeShips.length ?? 0) +
+          (this.latest?.warships.length ?? 0) >
+        0;
       const fading = now < this.fadingUntil;
       const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
       if (frontsOff) this.frontsOffAt = 0;
@@ -424,7 +431,13 @@ export class GameScreen {
     // Trade ships by negative id, apart from transports.
     const ships = [
       ...latest.boats,
-      ...latest.tradeShips.map((ship) => ({ ...ship, id: -ship.id, trade: true })),
+      ...latest.tradeShips.map((ship) => ({ ...ship, id: -ship.id, kind: "trade" as const })),
+      // Warships by ids past every transport's and trade ship's.
+      ...latest.warships.map((ship) => ({
+        ...ship,
+        id: WARSHIP_IDS + ship.id,
+        kind: "warship" as const,
+      })),
     ];
     const { width } = this.mapSize;
     const progress = Math.min(1, (now - this.updatedAt) / (1000 / this.ticksPerSecond));
@@ -443,7 +456,7 @@ export class GameScreen {
           x: fromX + dx * progress,
           y: fromY + (toY - fromY) * progress,
           color: colorOf(ship.player, this.firstNation, this.teams),
-          trade: "trade" in ship,
+          ...("kind" in ship ? { kind: ship.kind } : {}),
         };
       }),
     );
@@ -461,6 +474,7 @@ export class GameScreen {
     this.previousShips = new Map([
       ...(this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile] as const),
       ...(this.latest?.tradeShips ?? []).map((ship) => [-ship.id, ship.tile] as const),
+      ...(this.latest?.warships ?? []).map((ship) => [WARSHIP_IDS + ship.id, ship.tile] as const),
     ]);
     this.updatedAt = performance.now();
     if (update.owners) {
@@ -615,6 +629,7 @@ export class GameScreen {
       KeyC: "city",
       KeyF: "fort",
       KeyO: "port",
+      KeyV: "warship",
       KeyX: "demolish",
     };
     const mode = this.replayBar ? undefined : modes[event.code];

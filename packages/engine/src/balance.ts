@@ -75,6 +75,24 @@ export interface Balance {
   tradeBase: number;
   /** B-TRADE-PER-TILE, gold each side earns on top for each water tile of the route */
   tradePerTile: number;
+  /** B-COST-WARSHIP, gold for a player's first warship */
+  warshipCost: number;
+  /** B-WARSHIP-MAX, warships a player may own at once */
+  warshipMax: number;
+  /** B-WARSHIP-PATROL, in water tiles around the patrol tile, on a map of 2^19 tiles */
+  warshipPatrol: number;
+  /** B-WARSHIP-RANGE, in tiles */
+  warshipRange: number;
+  /** B-WARSHIP-RELOAD, in ticks between two shots */
+  warshipReloadTicks: number;
+  /** B-WARSHIP-DAMAGE, health a hit takes from a warship */
+  warshipDamage: number;
+  /** B-WARSHIP-HEALTH */
+  warshipHealth: number;
+  /** B-WAR-MEMORY, in ticks a fight is remembered after it ends */
+  warMemoryTicks: number;
+  /** B-EMBARGO-NOTICE, in ticks an embargo must hold before trade ships can be taken */
+  embargoNoticeTicks: number;
   /** B-ALLIANCE-REQUEST-TIMEOUT, in ticks */
   allianceRequestTicks: number;
   /** B-ALLIANCE-DURATION, in ticks */
@@ -130,6 +148,15 @@ export const DEFAULT_BALANCE: Balance = {
   tradeMax: 3,
   tradeBase: 2000,
   tradePerTile: 20,
+  warshipCost: 250_000,
+  warshipMax: 4,
+  warshipPatrol: 30,
+  warshipRange: 12,
+  warshipReloadTicks: 10,
+  warshipDamage: 250,
+  warshipHealth: 1000,
+  warMemoryTicks: 30 * 10,
+  embargoNoticeTicks: 30 * 10,
   allianceRequestTicks: 20 * 10,
   allianceTicks: 300 * 10,
   allianceRenewTicks: 60 * 10,

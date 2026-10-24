@@ -422,6 +422,25 @@ attack and tick instead of once per captured tile:
   finding each attack's front line (about half) and to enclosure fills (a
   quarter). v0.1 games have 8 to 16 players; 64 is the target of M7.
 
+### Ports opening
+
+A port that opens searches the sea for routes to the other open ports within
+B-TRADE-RANGE, in the tick it opens. Measured on World with 8 normal bots,
+seeds 1 to 5, each game played to its winner (4,978 to 6,701 ticks):
+
+| Seed | Ports opened | Slowest tick a port opened | Slowest tick of the game | Tick p99 |
+| ---: | -----------: | -------------------------: | -----------------------: | -------: |
+|    1 |            6 |                   26.89 ms |                 27.19 ms | 12.02 ms |
+|    2 |            7 |                   15.94 ms |                 15.94 ms |  8.44 ms |
+|    3 |            6 |                   19.89 ms |                 23.63 ms |  9.69 ms |
+|    4 |            7 |                   10.89 ms |                 27.85 ms | 10.89 ms |
+|    5 |            7 |                   19.02 ms |                 24.60 ms | 10.62 ms |
+
+A port opening can take a tick over 16 ms, up to 27 ms, but no more than the
+slowest ticks without one: those come from large attacks and enclosures. All
+stay well under the 100 ms of a tick, and the p95 budget is untouched. If
+crowded maps make it worse, the search can be spread over a few ticks.
+
 ## Server load
 
 The game server relays orders and closes one turn every 100 ms for every

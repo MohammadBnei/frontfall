@@ -13,6 +13,7 @@ import { Random } from "./random.ts";
 import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
 import type { TradeShip } from "./trade.ts";
+import type { Fight, Warship } from "./warships.ts";
 import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
 
 /** An order from a player, as relayed by the server in a turn. */
@@ -28,7 +29,11 @@ export type Order =
   | { type: "ally"; target: number }
   | { type: "betray"; target: number }
   /** `on`: 1 starts an embargo on player `target`, 0 lifts it. */
-  | { type: "embargo"; target: number; on: number };
+  | { type: "embargo"; target: number; on: number }
+  /** Buys a warship at the player's port on tile `port`. */
+  | { type: "warship"; port: number }
+  /** Sends warship `ship` to patrol around water tile `tile`. */
+  | { type: "patrol"; ship: number; tile: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -111,6 +116,11 @@ export class Game {
   /** Trade ships at sea, oldest first. Owned by the trade rules; read only elsewhere. */
   readonly tradeShips: TradeShip[] = [];
   nextTradeShipId = 1;
+  /** Warships, oldest first. Owned by the warship rules; read only elsewhere. */
+  readonly warships: Warship[] = [];
+  nextWarshipId = 1;
+  /** Fights between players, remembered for B-WAR-MEMORY, by ascending pair of ids. */
+  readonly fights: Fight[] = [];
   /** Alliances by ascending pair of ids. Owned by the diplomacy rules; read only elsewhere. */
   readonly alliances: Alliance[] = [];
   /** Alliance requests waiting for an answer, oldest first. */
@@ -271,6 +281,22 @@ export class Game {
       mix(t.path[0] ?? -1);
       mix(t.path[t.path.length - 1] ?? -1);
     }
+    mix(this.nextWarshipId);
+    for (const w of this.warships) {
+      for (const value of [
+        w.id,
+        w.player,
+        w.tile,
+        w.health,
+        w.patrol,
+        w.step,
+        w.path.length,
+        w.reloadAt,
+      ])
+        mix(value);
+    }
+    mix(this.fights.length);
+    for (const f of this.fights) for (const value of [f.a, f.b, f.until]) mix(value);
     mix(this.embargoes.length);
     for (const e of this.embargoes) for (const value of [e.from, e.to, e.since]) mix(value);
     mix(this.winner ?? 0);
@@ -353,6 +379,10 @@ function checkBalance(balance: Balance): void {
     "cityLand",
     "tradeRange",
     "tradeIntervalTicks",
+    "warshipPatrol",
+    "warshipReloadTicks",
+    "warshipDamage",
+    "warshipHealth",
     "allianceRequestTicks",
     "allianceTicks",
     "maxDurationTicks",
@@ -373,6 +403,11 @@ function checkBalance(balance: Balance): void {
     "portCost",
     "buildTicks",
     "tradeMax",
+    "warshipCost",
+    "warshipMax",
+    "warshipRange",
+    "warMemoryTicks",
+    "embargoNoticeTicks",
     "tradeBase",
     "tradePerTile",
     "allianceRenewTicks",

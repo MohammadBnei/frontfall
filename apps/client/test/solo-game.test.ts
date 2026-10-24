@@ -144,6 +144,36 @@ describe("SoloGame attacks", () => {
 });
 
 describe("SoloGame clicks", () => {
+  it("buys a warship at the player's port and sends the closest one to patrol (R-UNIT-04)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory } = solo.game;
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 10_000_000;
+    // A patch of coast of the player's own, not enough to win.
+    const coast = [...terrain.kinds.keys()].find((tile) => terrain.isCoast(tile)) ?? -1;
+    for (const tile of terrain.topology.tilesWithin(coast, 4)) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    expect(solo.orderForClick(coast, 30, "warship")).toEqual({ refused: "port" });
+    solo.step([{ type: "build", structure: 2, tile: coast }]);
+    for (let i = 0; i < solo.game.balance.buildTicks; i++) solo.step([]);
+    const buy = solo.orderForClick(coast, 30, "warship");
+    expect(buy).toEqual({ order: { type: "warship", port: coast } });
+    if (!("order" in buy)) throw new Error("refused");
+    update = solo.step([buy.order]);
+    expect(update.warships).toHaveLength(1);
+    const ship = update.warships[0];
+    const water =
+      terrain.topology.neighbors(ship?.tile ?? 0).find((t) => terrain.kind(t) === TileKind.Water) ??
+      -1;
+    expect(solo.orderForClick(water, 30, "warship")).toEqual({
+      order: { type: "patrol", ship: ship?.id, tile: water },
+    });
+  });
+
   it("puts a port only by the water, and shows embargoes both ways (R-BUILD-02, R-DIPLO-05)", () => {
     const solo = newGame({ ...options, bots: 1 });
     const { terrain, territory } = solo.game;

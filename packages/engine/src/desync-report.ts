@@ -231,6 +231,14 @@ function order(value: unknown): Order {
     case "ally":
     case "betray":
       return { type: raw.type, target: readInteger(raw.target, "order target") };
+    case "warship":
+      return { type: "warship", port: readInteger(raw.port, "warship port") };
+    case "patrol":
+      return {
+        type: "patrol",
+        ship: readInteger(raw.ship, "patrol ship"),
+        tile: readInteger(raw.tile, "patrol tile"),
+      };
     case "embargo":
       return {
         type: "embargo",

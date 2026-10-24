@@ -11,6 +11,26 @@ const SHIP_CAPACITY = 128;
 
 /** Trade ships at sea at once: B-TRADE-MAX for each port of a crowded map. */
 const TRADE_CAPACITY = 512;
+/** Warships at once: B-WARSHIP-MAX for each of up to 64 players. */
+const WARSHIP_CAPACITY = 256;
+
+/**
+ * Size of each kind of ship in tiles, and its smallest size on screen in CSS
+ * pixels: zoomed out, a trade ship stays a readable dot rather than vanishing.
+ */
+export const SHIP_SIZES = {
+  transport: { tiles: 2.5, minPixels: 6 },
+  trade: { tiles: 1.6, minPixels: 6 },
+  warship: { tiles: 3.5, minPixels: 10 },
+} as const;
+
+/** Scale of a ship of `size` for its smallest size on screen at `tilesPerPixel`. */
+export function shipScale(
+  size: { tiles: number; minPixels: number },
+  tilesPerPixel: number,
+): number {
+  return Math.max(1, (size.minPixels * tilesPerPixel) / size.tiles);
+}
 
 /** Smallest size of a structure on screen, in CSS pixels, however far the view is zoomed out. */
 const STRUCTURE_MIN_PIXELS = 9;
@@ -38,6 +58,7 @@ export class MapView implements Renderer {
   private readonly territory: TerritoryLayer;
   private readonly ships: UnitLayer;
   private readonly tradeShips: UnitLayer;
+  private readonly warships: UnitLayer;
   private readonly structures: Record<StructureMark["type"], StructureLayers>;
   private readonly startedAt = performance.now();
   /** Width of the canvas in CSS pixels, to keep structures readable when zoomed out. */
@@ -66,7 +87,7 @@ export class MapView implements Renderer {
       worldHeight: options.height,
       capacity: SHIP_CAPACITY,
       wrapsX: options.wrapsX,
-      size: 2.5,
+      size: SHIP_SIZES.transport.tiles,
     });
     this.ships.mesh.position.copy(this.territory.mesh.position);
     this.scene.add(this.ships.mesh);
@@ -75,10 +96,21 @@ export class MapView implements Renderer {
       worldHeight: options.height,
       capacity: TRADE_CAPACITY,
       wrapsX: options.wrapsX,
-      size: 1.6,
+      size: SHIP_SIZES.trade.tiles,
     });
     this.tradeShips.mesh.position.copy(this.territory.mesh.position);
     this.scene.add(this.tradeShips.mesh);
+    this.warships = new UnitLayer({
+      worldWidth: options.width,
+      worldHeight: options.height,
+      capacity: WARSHIP_CAPACITY,
+      wrapsX: options.wrapsX,
+      size: SHIP_SIZES.warship.tiles,
+      sides: 3,
+      depth: 0.15,
+    });
+    this.warships.mesh.position.copy(this.territory.mesh.position);
+    this.scene.add(this.warships.mesh);
     // Cities are diamonds, forts triangles, ports hexagons, all larger than a ship.
     const layers = (sides: number, size: number): StructureLayers => {
       const layer = (extra: number, depth: number): UnitLayer => {
@@ -135,15 +167,19 @@ export class MapView implements Renderer {
   setShips(ships: readonly UnitMark[]): void {
     let transports = 0;
     let trade = 0;
+    let warships = 0;
     for (const ship of ships) {
-      if (ship.trade) {
+      if (ship.kind === "trade") {
         if (trade < TRADE_CAPACITY) this.tradeShips.set(trade++, ship.x, ship.y, ship.color);
+      } else if (ship.kind === "warship") {
+        if (warships < WARSHIP_CAPACITY) this.warships.set(warships++, ship.x, ship.y, ship.color);
       } else if (transports < SHIP_CAPACITY) {
         this.ships.set(transports++, ship.x, ship.y, ship.color);
       }
     }
     this.ships.count = transports;
     this.tradeShips.count = trade;
+    this.warships.count = warships;
   }
 
   setStructures(structures: readonly StructureMark[]): void {
@@ -175,9 +211,13 @@ export class MapView implements Renderer {
     applyView(this.camera, view, this.options.width, this.options.height);
     this.territory.setTime(this.clock());
     this.territory.flush();
+    const tilesPerPixel = (2 * view.halfWidth) / this.cssWidth;
+    this.ships.setScale(shipScale(SHIP_SIZES.transport, tilesPerPixel));
+    this.tradeShips.setScale(shipScale(SHIP_SIZES.trade, tilesPerPixel));
+    this.warships.setScale(shipScale(SHIP_SIZES.warship, tilesPerPixel));
     this.ships.update(this.camera.position.x);
     this.tradeShips.update(this.camera.position.x);
-    const tilesPerPixel = (2 * view.halfWidth) / this.cssWidth;
+    this.warships.update(this.camera.position.x);
     for (const { outline, fill, size } of Object.values(this.structures)) {
       const scale = Math.max(1, (STRUCTURE_MIN_PIXELS * tilesPerPixel) / size);
       outline.setScale(scale);
@@ -197,6 +237,7 @@ export class MapView implements Renderer {
     this.territory.dispose();
     this.ships.dispose();
     this.tradeShips.dispose();
+    this.warships.dispose();
     for (const { outline, fill } of Object.values(this.structures)) {
       outline.dispose();
       fill.dispose();

@@ -29,6 +29,7 @@ const MODE_BANNERS = {
   city: "hud.modeCity",
   fort: "hud.modeFort",
   port: "hud.modePort",
+  warship: "hud.modeWarship",
   demolish: "hud.modeDemolish",
 } as const;
 
@@ -37,6 +38,7 @@ const BUILD_MODES = [
   { mode: "city", key: "C" },
   { mode: "fort", key: "F" },
   { mode: "port", key: "O" },
+  { mode: "warship", key: "V" },
   { mode: "demolish", key: "X" },
 ] as const satisfies readonly { mode: ClickMode; key: string }[];
 
@@ -88,6 +90,7 @@ export class Hud {
   private readonly cityCost = h("span", { class: "build-cost" });
   private readonly fortCost = h("span", { class: "build-cost" });
   private readonly portCost = h("span", { class: "build-cost" });
+  private readonly warshipCost = h("span", { class: "build-cost" });
   private readonly cityCount = h("span", { class: "build-count" });
   private mode: ClickMode = "attack";
   private rules: GameRules = {
@@ -156,7 +159,9 @@ export class Hud {
               ? [this.fortCost]
               : mode === "port"
                 ? [this.portCost]
-                : [];
+                : mode === "warship"
+                  ? [this.warshipCost]
+                  : [];
         const button = h(
           "button",
           {
@@ -284,6 +289,7 @@ export class Hud {
   private renderBuild(update: GameUpdate, human: PlayerView): void {
     const { cityCost, fortCost, portCost, cities, cityLimit } = update.build;
     this.portCost.textContent = formatCount(portCost);
+    this.warshipCost.textContent = formatCount(update.build.warshipCost);
     this.cityCost.textContent = formatCount(cityCost);
     this.fortCost.textContent = formatCount(fortCost);
     this.cityCount.textContent = plural("hud.cities", cityLimit, { built: cities });
@@ -292,6 +298,9 @@ export class Hud {
       city: playing && human.gold >= cityCost && cities < cityLimit,
       fort: playing && human.gold >= fortCost,
       port: playing && human.gold >= portCost,
+      warship:
+        playing &&
+        update.structures.some((s) => s.type === "port" && s.player === human.id && s.ready),
       demolish: playing,
     };
     // Still pressable: a click on the map then says what is missing.

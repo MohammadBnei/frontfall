@@ -29,6 +29,9 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   ally: "click.ally",
   teammate: "click.teammate",
   coast: "click.coast",
+  port: "click.port",
+  warships: "click.warships",
+  noWarship: "click.noWarship",
 };
 
 interface Mark {

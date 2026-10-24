@@ -57,6 +57,22 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 | `B-BOAT-MAX`   |     3 | ships per player | `R-UNIT-02` | Transport ships at sea at once                    |
 | `B-BOAT-RANGE` |  1000 | water tiles      | `R-UNIT-02` | Longest route; also bounds the cost of the search |
 
+## Warships
+
+| Key                |  Value | Unit        | Used by     | Notes                                                       |
+| ------------------ | -----: | ----------- | ----------- | ----------------------------------------------------------- |
+| `B-COST-WARSHIP`   | 250000 | gold        | `R-UNIT-04` | First warship; `B-COST-GROWTH` for each one owned           |
+| `B-WARSHIP-MAX`    |      4 | warships    | `R-UNIT-04` | Per player                                                  |
+| `B-WARSHIP-PATROL` |     30 | water tiles | `R-UNIT-04` | Around the patrol tile, on a map of 2^19 tiles; 60 on World |
+| `B-WARSHIP-RANGE`  |     12 | tiles       | `R-UNIT-04` | The same on every map                                       |
+| `B-WARSHIP-RELOAD` |      1 | s           | `R-UNIT-04` | Between two shots                                           |
+| `B-WARSHIP-DAMAGE` |    250 | health      | `R-UNIT-04` | A warship sinks at the fourth hit                           |
+| `B-WARSHIP-HEALTH` |   1000 | health      | `R-UNIT-04` |                                                             |
+| `B-WAR-MEMORY`     |     30 | s           | `R-UNIT-04` | A fight is remembered this long after it ends               |
+| `B-EMBARGO-NOTICE` |     30 | s           | `R-UNIT-04` | An embargo stands this long before trade ships can be taken |
+
+Warships fire only between players at war: a transport ship sailing for a coast makes its owner at war with the coast's owner from the moment it sails, so an escort draws the fire while the transport passes. Trade ships are taken only after an embargo has been announced for `B-EMBARGO-NOTICE`, so trade between players at peace is never at risk.
+
 ## Trade
 
 | Key                | Value | Unit                | Used by     | Notes                                                                |
@@ -124,6 +140,7 @@ Each value is given for easy / normal / hard (`R-BOT-04`); the others are the sa
 | `B-NATION-GRACE`     |             120 | s of play                       | `R-BOT-09` | Free land only until then, so nobody starts next to a nation that comes for them at once; an attacker is still answered                        |
 | `B-NATION-THREAT`    |              10 | % of the nation's troops        | `R-BOT-08` | Smaller attacks do not make a nation hold, so a trickle of them cannot freeze it                                                               |
 | `B-NATION-HOLD`      |              60 | % of population cap             | `R-BOT-08` | Under attack, a nation sends nothing below this, and only answers the attacker above it                                                        |
+| `B-NATION-WARSHIPS`  |               2 | warships                        | `R-BOT-11` | No more than ports, bought while an enemy transport sails for the nation's coast                                                               |
 | `B-NATION-RESERVE`   |             +10 | points of population cap        | `R-BOT-09` | Added to `B-BOT-RESERVE` for nations: 60 / 50 / 40 %                                                                                           |
 
 Nation values were set on World against a scripted casual player (an order every 5 s with 30 % of its troops, free land first, then its weakest neighbour, then by sea, and a city when its gold allows), at normal difficulty, six to eight seeds, over 20 to 30 minutes, before alliances existed. With `B-NATION-ODDS` alone, nations hardly ever attacked each other once the land was taken, and 7 games out of 8 had no winner after 20 minutes; `B-NATION-FULL` lets a full army fight on. Without `B-NATION-GRACE`, the casual player lost its early game to a neighbouring nation in 3 seeds out of 6, between 3 and 7 minutes, against 7 seeds out of 8 with 71 bots in place of the nations. With 2 minutes of grace and the 64 nations, it is never eliminated before 9 minutes, and is alive and leading after 30 minutes in 5 seeds out of 6; a nation won the sixth in 12.4 minutes (3 minutes of grace: 6 out of 6, and no nation won). Against 8 normal bots without nations, a bot wins in about 10 minutes. With nations, the menu suggests no bots: with 7 bots on top and no grace, the casual player survived 30 minutes in 1 seed out of 6.

@@ -79,6 +79,7 @@ export function derivedRandom(seed: number, tick: number, id: number, usage: num
 /** What derived draws are for: two rules drawing on the same tick for the same id still differ. */
 export const DrawUsage = {
   TradeDestination: 1,
+  WarshipPatrol: 2,
 } as const;
 
 export type RandomState = readonly [number, number, number, number];

@@ -5,6 +5,7 @@ import type { Game, Player } from "../game.ts";
 import { divFloor, isqrt } from "../integer-math.ts";
 import { StructureKind, cityLimit, structureCost, structureCount } from "../structures.ts";
 import { NEUTRAL } from "../territory/territory-map.ts";
+import { warshipError } from "../warships.ts";
 
 /**
  * Border tiles a computer player looks at per decision. Sampling keeps a
@@ -152,6 +153,33 @@ export function buildPort(game: Game, bot: Player, cooldowns: Cooldowns, retryTi
   }
   if (best >= 0) game.apply(bot.id, { type: "build", structure: kind, tile: best });
   else cooldowns.set(bot.id, game.tick + retryTicks);
+}
+
+/** Warships a nation keeps at most, one per port (R-BOT-11). */
+const NATION_WARSHIPS = 2; // B-NATION-WARSHIPS
+
+/**
+ * R-BOT-11: while a transport ship of another player sails for its coast,
+ * a nation buys a warship at one of its ready ports, one per port and at
+ * most B-NATION-WARSHIPS, when its gold allows.
+ */
+export function defendCoast(game: Game, nation: Player): void {
+  const threatened = game.boats.some(
+    (boat) =>
+      boat.player !== nation.id &&
+      game.territory.ownerOf(boat.target) === nation.id &&
+      !isAllied(game, nation.id, boat.player),
+  );
+  if (!threatened) return;
+  let ships = 0;
+  for (const ship of game.warships) if (ship.player === nation.id) ships++;
+  const ports = game.structures.filter(
+    (s) => s.player === nation.id && s.kind === StructureKind.Port,
+  );
+  if (ships >= NATION_WARSHIPS || ships >= ports.length) return;
+  // The oldest port that can deliver one now.
+  const port = ports.find((p) => warshipError(game, nation, p.tile) === undefined);
+  if (port) game.apply(nation.id, { type: "warship", port: port.tile });
 }
 
 /**

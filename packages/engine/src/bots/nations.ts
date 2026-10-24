@@ -8,6 +8,7 @@ import {
   RETRY_DECISIONS,
   buildCity,
   buildPort,
+  defendCoast,
   sail,
   scanBorder,
   type Cooldowns,
@@ -89,6 +90,7 @@ export function installNations(
     if (tiles === 0 || territory.borderCount(nation.id) === 0) return;
     buildCity(game, nation, cityCooldowns, retryTicks);
     buildPort(game, nation, portCooldowns, retryTicks);
+    defendCoast(game, nation);
     const cap = populationCap(game, nation);
     const reserve = percentOf(cap, reservePercent);
     const troops = Math.min(

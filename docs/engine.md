@@ -21,7 +21,7 @@ const game = createGame({
 });
 ```
 
-Player ids are integers from 1 upwards; `0` (`NEUTRAL`) is the owner of unclaimed land. `createGame` installs every rule in the order they depend on: spawn, diplomacy, attacks, ships, structures, trade, growth, victory.
+Player ids are integers from 1 upwards; `0` (`NEUTRAL`) is the owner of unclaimed land. `createGame` installs every rule in the order they depend on: spawn, diplomacy, attacks, warships, transport ships, structures, trade, growth, victory.
 
 ## Running it
 
@@ -49,9 +49,11 @@ Every order is validated before it runs (`orderError` gives the reason for a ref
 | `{ type: "embark", target, troops }` | `R-UNIT-02`, `R-ATTACK-09` | After the spawn phase: ship `troops` from the player's coast closest by sea to the coastal tile `target`, which they do not own. On arrival the ship takes `target` and attacks its owner from there.           |
 | `{ type: "ally", target }`           | `R-DIPLO-01`, `R-DIPLO-03` | After the spawn phase: ask player `target` for an alliance, accept their request, or ask to renew a running alliance in its last part. `allyError` gives the reason it is refused.                              |
 | `{ type: "betray", target }`         | `R-DIPLO-04`               | End the alliance with `target` at once; the player is a traitor for `B-TRAITOR-DURATION`.                                                                                                                       |
+| `{ type: "warship", port }`          | `R-UNIT-04`                | After the spawn phase: buy a warship at the player's ready port on tile `port`, for `warshipCost(game, player)` gold. `warshipError` gives the reason it is refused.                                            |
+| `{ type: "patrol", ship, tile }`     | `R-UNIT-04`                | Send the player's warship `ship` to patrol around the water tile `tile`, which it must be able to reach within `B-BOAT-RANGE`. `patrolError` gives the reason it is refused.                                    |
 | `{ type: "embargo", target, on }`    | `R-DIPLO-05`               | After the spawn phase: start (`on` 1) or lift (`on` 0) an embargo on player `target`'s trade. `embargoError` gives the reason it is refused.                                                                    |
 
-After the turn's orders, each tick runs the rules in the order `createGame` installs them: the spawn phase, alliances and embargoes running out, attacks, transport ships, structures changing hands with their tiles, trade, growth and income, then victory. Bots and nations decide after these, in their own systems.
+After the turn's orders, each tick runs the rules in the order `createGame` installs them: the spawn phase, alliances and embargoes running out, attacks, warships, transport ships, structures changing hands with their tiles, trade, growth and income, then victory. Bots and nations decide after these, in their own systems.
 
 Computer players do not go through turns: they run inside the engine and call `game.apply(player, order)` during a tick, the same path and checks as turn orders (`R-BOT-03`).
 
@@ -81,6 +83,7 @@ The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`)
 | Territory size, borders        | `game.territory.tileCount(id)`, `borderCount(id)`, `borderTile(id, i)`, `isBorder(tile)`                                                                                                                                                                   |
 | Tiles changed since last frame | `game.territory.changes()`, then `clearChanges()`; redraw everything if `changesOverflowed`                                                                                                                                                                |
 | Attacks under way              | `game.attacks`: `id`, `player`, `target` owner, aimed tile `aim`, `troops`                                                                                                                                                                                 |
+| Warships                       | `game.warships`: `id`, `player`, `tile`, `health`, `patrol`, `path`, `step`, `reloadAt`; `game.fights`: `a` < `b`, `until`; `atWar(game, a, b)`, `patrolRadius`                                                                                            |
 | Trade                          | `game.tradeShips`: `id`, `player` paid on arrival, `from` and `to` port tiles, `path`, `step`; `game.embargoes`: `from`, `to`, `since`; `embargoed(game, a, b)`                                                                                            |
 | Ships at sea                   | `game.boats`: `id`, `player`, `target` coast, `troops`, `path` of water tiles, `step`; see below                                                                                                                                                           |
 | Structures                     | `game.structures`: `id`, `player`, `kind`, `tile`, `readyAt`; `isReady`, `structureAt`, `workingCities`, `cityLimit`, `fortified`, `fortRadius`                                                                                                            |

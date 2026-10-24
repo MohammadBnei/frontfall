@@ -1,6 +1,7 @@
 import type { Game, Order, Player } from "./game.ts";
 import { DiplomacyError, allyError, betrayError, embargoError, isAllied } from "./diplomacy.ts";
 import { BuildError, isStructureKind, placementError } from "./structures.ts";
+import { patrolError, warshipError } from "./warships.ts";
 
 /**
  * Why an order cannot be carried out in the current state, or undefined when
@@ -63,6 +64,11 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       return playerError(order.target) ?? betrayError(game, player, order.target);
     case "embargo":
       return playerError(order.target) ?? embargoError(game, player, order.target, order.on);
+    case "warship":
+      return tileError(game, order.port) ?? warshipError(game, player, order.port);
+    case "patrol":
+      if (!Number.isSafeInteger(order.ship)) return "invalid ship id";
+      return patrolError(game, player, order.ship, order.tile);
   }
 }
 

@@ -91,6 +91,17 @@ export {
 } from "./structures.ts";
 export { Terrain, TileKind } from "./terrain.ts";
 export { installTrade, type TradeShip } from "./trade.ts";
+export {
+  WarshipError,
+  atWar,
+  installWarships,
+  patrolError,
+  patrolRadius,
+  warshipCost,
+  warshipError,
+  type Fight,
+  type Warship,
+} from "./warships.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.ts";
 export type { Topology } from "./topology.ts";

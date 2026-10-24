@@ -7,6 +7,9 @@ import {
   createGame,
   BuildError,
   StructureKind,
+  TileKind,
+  WarshipError,
+  warshipCost,
   allianceOf,
   alliesOf,
   sameTeam,
@@ -27,6 +30,7 @@ import {
   type Balance,
   type Order,
   type PlayerSetup,
+  type Structure,
   type Phase,
   type Turn,
 } from "@frontfall/engine";
@@ -41,7 +45,7 @@ export const HUMAN_ID = 1;
 export type Difficulty = "easy" | "normal" | "hard";
 
 /** What a click on the map does: attack by default, or build or demolish once picked in the HUD. */
-export type ClickMode = "attack" | "city" | "fort" | "port" | "demolish";
+export type ClickMode = "attack" | "city" | "fort" | "port" | "warship" | "demolish";
 
 /** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
 const DEMOLISH_REACH = 3;
@@ -123,6 +127,8 @@ export interface GameUpdate {
   boats: BoatView[];
   /** Every trade ship at sea (R-UNIT-03). */
   tradeShips: TradeShipView[];
+  /** Every warship (R-UNIT-04). */
+  warships: WarshipView[];
   /** Every structure on the map. */
   structures: StructureView[];
   /** What the player at this screen can build next. */
@@ -163,6 +169,12 @@ export type ClickRefusal =
   | "foreign"
   /** A port needs a tile by the water (R-BUILD-02). */
   | "coast"
+  /** A warship is bought at a ready port of the player's (R-UNIT-04). */
+  | "port"
+  /** The player has B-WARSHIP-MAX warships already. */
+  | "warships"
+  /** No warship of the player's can sail to that water. */
+  | "noWarship"
   /** Another structure stands closer than B-BUILD-SPACING. */
   | "crowded"
   /** The player's land supports no more cities (R-BUILD-07). */
@@ -191,6 +203,7 @@ export interface BuildView {
   cityCost: number;
   fortCost: number;
   portCost: number;
+  warshipCost: number;
   cities: number;
   /** Most cities the player's land supports now. */
   cityLimit: number;
@@ -254,6 +267,14 @@ export interface DiplomacyEvent {
   type: "allied" | "ended" | "betrayed" | "embargo" | "lifted";
   a: number;
   b: number;
+}
+
+/** A warship, where it is this tick. */
+export interface WarshipView {
+  id: number;
+  player: number;
+  tile: number;
+  health: number;
 }
 
 /** A trade ship at sea, where it is this tick. */
@@ -430,6 +451,7 @@ export class SoloGame {
       return { refused: "terrain" };
     }
     if (mode === "demolish") return this.demolishNear(tile);
+    if (mode === "warship") return this.warshipFor(tile);
     if (!terrain.isOwnable(tile)) return { refused: "terrain" };
     if (
       game.phase === "play" &&
@@ -476,18 +498,63 @@ export class SoloGame {
     return { refused: "unreachable" };
   }
 
-  /** The player's structure closest to the click, within a few tiles. */
+  /**
+   * In warship mode: a click near the player's port buys a warship there; a
+   * click on water sends the player's closest warship that can reach it to
+   * patrol around it.
+   */
+  private warshipFor(tile: number): ClickResult {
+    const { game } = this;
+    const human = game.player(this.you);
+    if (!human) return { refused: "over" };
+    if (game.phase !== "play") return { refused: "early" };
+    if (game.terrain.kind(tile) === TileKind.Water) {
+      const topology = game.terrain.topology;
+      const ships = game.warships
+        .filter((warship) => warship.player === this.you)
+        .map((warship) => ({ id: warship.id, distance: topology.distance(warship.tile, tile) }))
+        .sort((a, b) => a.distance - b.distance);
+      for (const { id } of ships) {
+        const order: Order = { type: "patrol", ship: id, tile };
+        if (orderError(game, human, order) === undefined) return { order };
+      }
+      return { refused: "noWarship" };
+    }
+    // A click near the port finds it, like a demolition.
+    const port = this.structureNear(tile, (s) => s.kind === StructureKind.Port);
+    if (!port) return { refused: "port" };
+    const order: Order = { type: "warship", port: port.tile };
+    const error = orderError(game, human, order);
+    if (error === undefined) return { order };
+    if (error === WarshipError.Max) return { refused: "warships" };
+    if (error === WarshipError.Gold) return { refused: "gold" };
+    return { refused: "port" };
+  }
+
   private demolishNear(tile: number): ClickResult {
+    const structure = this.structureNear(tile, () => true);
+    return structure
+      ? { order: { type: "demolish", tile: structure.tile } }
+      : { refused: "nothing" };
+  }
+
+  /** The player's structure closest to the click and passing `accept`, within a few tiles. */
+  private structureNear(
+    tile: number,
+    accept: (structure: Structure) => boolean,
+  ): Structure | undefined {
     const topology = this.game.terrain.topology;
-    let best: { tile: number; distance: number } | undefined;
+    let best: Structure | undefined;
+    let bestDistance = 0;
     for (const structure of this.game.structures) {
-      if (structure.player !== this.you) continue;
+      if (structure.player !== this.you || !accept(structure)) continue;
       const distance = topology.distance(structure.tile, tile);
-      if (distance <= DEMOLISH_REACH && (!best || distance < best.distance)) {
-        best = { tile: structure.tile, distance };
+      if (distance <= DEMOLISH_REACH && (!best || distance < bestDistance)) {
+        best = structure;
+        bestDistance = distance;
       }
     }
-    return best ? { order: { type: "demolish", tile: best.tile } } : { refused: "nothing" };
+    return best;
   }
 
   /**
@@ -688,6 +755,12 @@ export class SoloGame {
         player: ship.player,
         tile: ship.path[Math.max(0, Math.min(ship.step, ship.path.length) - 1)] ?? ship.from,
       })),
+      warships: game.warships.map((ship) => ({
+        id: ship.id,
+        player: ship.player,
+        tile: ship.tile,
+        health: ship.health,
+      })),
       structures: game.structures.map((structure) => ({
         id: structure.id,
         player: structure.player,
@@ -699,6 +772,7 @@ export class SoloGame {
         cityCost: structureCost(game, this.you, StructureKind.City),
         fortCost: structureCost(game, this.you, StructureKind.Fort),
         portCost: structureCost(game, this.you, StructureKind.Port),
+        warshipCost: warshipCost(game, this.you),
         cities: structureCount(game, this.you, StructureKind.City),
         cityLimit: cityLimit(game, this.you),
       },

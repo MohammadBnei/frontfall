@@ -12,8 +12,8 @@ export interface UnitMark {
   readonly x: number;
   readonly y: number;
   readonly color: string;
-  /** A trade ship, drawn smaller than a transport (R-UNIT-03). */
-  readonly trade?: boolean;
+  /** A trade ship, drawn smaller than a transport (R-UNIT-03), or a warship, drawn larger (R-UNIT-04). */
+  readonly kind?: "trade" | "warship";
 }
 
 /** A structure to draw on its tile, y counted from the north. */

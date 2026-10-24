@@ -7,10 +7,11 @@ import { installSpawn } from "./spawn.ts";
 import { installStructures } from "./structures.ts";
 import { installTrade } from "./trade.ts";
 import { installVictory } from "./victory.ts";
+import { installWarships } from "./warships.ts";
 
 /**
  * A game with every rule of the engine installed, in the order the rules
- * expect: spawns, then alliances, then attacks, then ships, then structures changing hands
+ * expect: spawns, then alliances, then attacks, then warships, then transport ships, then structures changing hands
  * with their tiles, then trade, then growth, then victory. Order handlers and
  * tick systems run in registration order, so this order is part of the game.
  */
@@ -19,6 +20,7 @@ export function createGame(setup: GameSetup): Game {
   installSpawn(game);
   installDiplomacy(game);
   installAttacks(game);
+  installWarships(game);
   installBoats(game);
   installStructures(game);
   installTrade(game);

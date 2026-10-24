@@ -470,7 +470,8 @@ input[type="range"] {
   padding: 10px 12px;
   border: 1px solid var(--ff-night-500);
   border-radius: var(--ff-radius);
-  background: rgb(10 19 28 / 85%);
+  /* Opaque: the bright structures and ships of the map do not show through. */
+  background: var(--ff-night-800);
 }
 
 .stats {
@@ -512,7 +513,7 @@ input[type="range"] {
   padding: 8px 14px;
   border: 1px solid var(--ff-night-500);
   border-radius: var(--ff-radius);
-  background: rgb(10 19 28 / 85%);
+  background: var(--ff-night-800);
   text-align: center;
   pointer-events: none;
 }
@@ -651,7 +652,7 @@ input[type="range"] {
   height: 40px;
   border: 1px solid var(--ff-night-500);
   border-radius: var(--ff-radius);
-  background: rgb(10 19 28 / 85%);
+  background: var(--ff-night-800);
   font-weight: 700;
   cursor: pointer;
 }
@@ -872,7 +873,7 @@ input[type="range"] {
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background: rgb(10 19 28 / 85%);
+  background: var(--ff-night-800);
   opacity: 0.8;
   pointer-events: none;
 }
@@ -1110,6 +1111,11 @@ input[type="range"] {
 .build-port .build-icon {
   border: 0;
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+.build-warship .build-icon {
+  border: 0;
+  clip-path: polygon(0 35%, 100% 35%, 80% 100%, 20% 100%);
 }
 
 .build-demolish .build-icon {
