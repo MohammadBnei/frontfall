@@ -46,7 +46,8 @@ export interface OnlineEvents {
   started?(game: GameStart): void;
   /** Consecutive turns, never skipping one, from the tick after the last one delivered. */
   turns?(turns: Turn[]): void;
-  desync?(tick: number): void;
+  /** This game's hash for `tick`, and the other players' when most of them agreed. */
+  desync?(tick: number, hash: number, expected: number | null): void;
   ended?(reason: Extract<ServerMessage, { type: "ended" }>["reason"]): void;
   error?(code: ErrorCode, message: string): void;
 }
@@ -237,7 +238,7 @@ export class OnlineClient {
         return;
       }
       case "desync":
-        events.desync?.(message.tick);
+        events.desync?.(message.tick, message.hash, message.expected);
         return;
       case "ended":
         this.entry = undefined;

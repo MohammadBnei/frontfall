@@ -94,7 +94,7 @@ export class Room {
   /** Hashes reported for each checked tick, by seat. */
   private readonly hashes = new Map<number, Map<Seat, number>>();
   /** Seats found out of step, with the first tick they disagreed on. */
-  private readonly desyncs = new Map<Seat, number>();
+  private readonly desyncs = new Map<Seat, Frame>();
   readonly log = new TurnLog();
 
   constructor(
@@ -202,7 +202,7 @@ export class Room {
     peer.send(this.startedMessage(seat));
     for (const frame of this.log.frames(Math.min(from, this.log.length))) peer.send(frame);
     const desync = this.desyncs.get(seat);
-    if (desync !== undefined) peer.send(encodeServerMessage({ type: "desync", tick: desync }));
+    if (desync !== undefined) peer.send(desync);
     return undefined;
   }
 
@@ -269,8 +269,14 @@ export class Room {
     let flagged: number | undefined;
     for (const [seat, hash] of reports) {
       if (hash === majority || this.desyncs.has(seat)) continue;
-      this.desyncs.set(seat, tick);
-      seat.peer?.send(encodeServerMessage({ type: "desync", tick }));
+      const message = encodeServerMessage({
+        type: "desync",
+        tick,
+        hash,
+        expected: majority ?? null,
+      });
+      this.desyncs.set(seat, message);
+      seat.peer?.send(message);
       flagged ??= hash;
     }
     if (firstDesync && flagged !== undefined) this.observer.desync?.(this, tick, flagged, majority);

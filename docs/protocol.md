@@ -1,6 +1,6 @@
 # Network protocol
 
-Version 3. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 4. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 3, name } ---------> |
+  | -- hello { version: 4, name } ---------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection gives its seat up. The client joins a
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 3, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 4, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -146,7 +146,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 3 }
+{ "type": "welcome", "version": 4 }
 ```
 
 The hello was accepted.
@@ -218,10 +218,10 @@ Live play sends one turn per frame. Within a turn, orders are listed in the orde
 ### `desync`
 
 ```json
-{ "type": "desync", "tick": 1250 }
+{ "type": "desync", "tick": 1250, "hash": 3735928559, "expected": 305419896 }
 ```
 
-This player's hash for `tick` differed from the majority's: its game no longer matches the others. Sent once per player, and again when that player rejoins.
+This player's hash for `tick` differed from the majority's: its game no longer matches the others. `hash` is the one this player sent, `expected` the majority's, or `null` when no majority exists. With the seed, the options and the turns the client already holds, they make a complete report of the desync. Sent once per player, and again when that player rejoins.
 
 ### `ended`
 
@@ -298,4 +298,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`). The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

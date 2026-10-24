@@ -117,7 +117,8 @@ function client(events: OnlineEvents = {}) {
       lobby: (lobby) => log.push(`lobby:${String(lobby.players.length)}`),
       started: (game) => log.push(`started:${String(game.you)}`),
       turns: (received) => turns.push(...received.map((turn) => turn.tick)),
-      desync: (tick) => log.push(`desync:${String(tick)}`),
+      desync: (tick, hash, expected) =>
+        log.push(`desync:${String(tick)}:${String(hash)}:${String(expected)}`),
       ended: (reason) => log.push(`ended:${reason}`),
       error: (code) => log.push(`error:${code}`),
       ...events,
@@ -198,8 +199,8 @@ describe("OnlineClient", () => {
     socket.receive(START);
     socket.receive({ type: "turns", turns: [{ tick: 0, orders: [] }] });
     socket.receive({ type: "turns", turns: [{ tick: 1, orders: [] }] });
-    socket.receive({ type: "desync", tick: 1 });
-    expect(log.slice(2)).toEqual(["lobby:2", "started:2", "desync:1"]);
+    socket.receive({ type: "desync", tick: 1, hash: 8, expected: 7 });
+    expect(log.slice(2)).toEqual(["lobby:2", "started:2", "desync:1:8:7"]);
     expect(turns).toEqual([0, 1]);
   });
 

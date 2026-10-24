@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -57,6 +57,7 @@ export type ErrorCode = z.infer<typeof ErrorCode>;
 const gameId = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
 const token = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
 const tick = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+const stateHash = z.number().int().min(0).max(0xffffffff);
 
 /** How hard the bots play. Every client runs them at the level the game was set to. */
 export const Difficulty = z.enum(["easy", "normal", "hard"]);
@@ -100,9 +101,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
   /** Leave the current game for good. */
   z.object({ type: z.literal("leave") }).strict(),
   /** Hash of the client's game state after running `tick`. */
-  z
-    .object({ type: z.literal("hash"), tick, hash: z.number().int().min(0).max(0xffffffff) })
-    .strict(),
+  z.object({ type: z.literal("hash"), tick, hash: stateHash }).strict(),
   /** Sent as a binary frame. */
   z.object({ type: z.literal("order"), order: Order }).strict(),
 ]);
@@ -153,8 +152,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
       z.object({ tick, orders: z.array(z.object({ player: PlayerNumber, order: Order })) }),
     ),
   }),
-  /** Two clients reported different state hashes for this tick. */
-  z.object({ type: z.literal("desync"), tick }),
+  /** This player's state hash for `tick` differed from the majority's, if any. */
+  z.object({ type: z.literal("desync"), tick, hash: stateHash, expected: stateHash.nullable() }),
   /** The game is over for this connection, which may join another one. */
   z.object({
     type: z.literal("ended"),

@@ -358,14 +358,14 @@ describe("desync detection", () => {
     expect(room.desynced).toBe(false);
     room.reportHash(c.seat, 100, 8);
     expect(room.desynced).toBe(true);
-    expect(c.peer.last("desync").tick).toBe(100);
+    expect(c.peer.last("desync")).toEqual({ type: "desync", tick: 100, hash: 8, expected: 7 });
     expect(a.peer.inbox.some((message) => message.type === "desync")).toBe(false);
     expect(observer.log.filter((entry) => entry.startsWith("desync"))).toEqual(["desync:100:8:7"]);
 
     room.disconnect(c.seat, 20_000);
     const back = new FakePeer();
     room.rejoin(c.seat, back, 150);
-    expect(back.last("desync").tick).toBe(100);
+    expect(back.last("desync")).toMatchObject({ tick: 100, hash: 8, expected: 7 });
   });
 
   it("cannot be used by one client to flag the others", () => {
@@ -385,7 +385,7 @@ describe("desync detection", () => {
     for (let now = 100; now <= 6_000; now += 100) room.update(now);
     room.reportHash(alice.seat, 50, 1);
     room.reportHash(bob.seat, 50, 2);
-    expect(alice.peer.last("desync").tick).toBe(50);
+    expect(alice.peer.last("desync")).toMatchObject({ tick: 50, hash: 1, expected: null });
     expect(bob.peer.last("desync").tick).toBe(50);
   });
 

@@ -66,7 +66,8 @@ const SERVER_MESSAGES: ServerMessage[] = [
       },
     ],
   },
-  { type: "desync", tick: 150 },
+  { type: "desync", tick: 150, hash: 8, expected: 7 },
+  { type: "desync", tick: 200, hash: 1, expected: null },
   { type: "ended", reason: "abandoned" },
   { type: "error", code: "game_full", message: "the game is full" },
 ];
