@@ -20,7 +20,12 @@ export const ORDER_KINDS = [
   { type: "embark", fields: ["target", "troops"] },
   { type: "build", fields: ["structure", "tile"] },
   { type: "demolish", fields: ["tile"] },
+  { type: "ally", fields: ["target"] },
+  { type: "betray", fields: ["target"] },
 ] as const;
+
+/** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
+export const PlayerNumber = z.number().int().min(1).max(0xffff);
 
 /** An order from a player. The server relays orders; every client executes them. */
 export const Order = z.discriminatedUnion("type", [
@@ -30,13 +35,12 @@ export const Order = z.discriminatedUnion("type", [
   z.object({ type: z.literal("embark"), target: tile, troops: amount }).strict(),
   z.object({ type: z.literal("build"), structure, tile }).strict(),
   z.object({ type: z.literal("demolish"), tile }).strict(),
+  z.object({ type: z.literal("ally"), target: PlayerNumber }).strict(),
+  z.object({ type: z.literal("betray"), target: PlayerNumber }).strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 
 export type OrderType = Order["type"];
-
-/** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
-export const PlayerNumber = z.number().int().min(1).max(0xffff);
 
 /** Every order accepted during one tick, in the order the server accepted them. */
 export interface Turn {

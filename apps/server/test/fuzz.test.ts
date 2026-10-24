@@ -45,7 +45,7 @@ function edgyInt(rng: Random): number {
 
 /** A message the server accepts, to start mutations from. */
 function validClientMessage(rng: Random): ClientMessage {
-  switch (int(rng, 11)) {
+  switch (int(rng, 13)) {
     case 0:
       return {
         type: "hello",
@@ -80,6 +80,10 @@ function validClientMessage(rng: Random): ClientMessage {
         type: "order",
         order: { type: "demolish", tile: Math.min(edgyInt(rng), 2 ** 31 - 1) },
       };
+    case 10:
+      return { type: "order", order: { type: "ally", target: 1 + int(rng, 0xffff) } };
+    case 11:
+      return { type: "order", order: { type: "betray", target: 1 + int(rng, 0xffff) } };
     default:
       return {
         type: "order",

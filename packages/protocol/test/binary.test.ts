@@ -101,6 +101,15 @@ describe("frames", () => {
     });
   });
 
+  it("carries alliance requests and betrayals with their target player", () => {
+    for (const type of ["ally", "betray"] as const) {
+      expect(decodeFrame(encodeOrderFrame({ type, target: 0xffff }))).toEqual({
+        kind: "order",
+        order: { type, target: 0xffff },
+      });
+    }
+  });
+
   it("numbers decoded turns from the first tick", () => {
     const frame = encodeTurnsFrame(41, [
       encodeTurnBody([]),
@@ -162,8 +171,8 @@ describe("order kinds", () => {
       version: PROTOCOL_VERSION,
       kinds: ORDER_KINDS.map((kind) => kind.type),
     }).toEqual({
-      version: 5,
-      kinds: ["spawn", "attack", "retreat", "embark", "build", "demolish"],
+      version: 6,
+      kinds: ["spawn", "attack", "retreat", "embark", "build", "demolish", "ally", "betray"],
     });
   });
 });
