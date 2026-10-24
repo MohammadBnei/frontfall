@@ -302,6 +302,9 @@ describe("seas", () => {
     const topology = loadMap(map.bytes, map.manifest).topology;
     const start = tileAt(map.grid, ...from) as number;
     const goal = tileAt(map.grid, ...to) as number;
+    // Both ends must be sea, or a land tile could pass for an open route.
+    expect(isLand(map.tiles[start] as number)).toBe(false);
+    expect(isLand(map.tiles[goal] as number)).toBe(false);
     const distance = new Int32Array(topology.size).fill(-1);
     const neighbours = new Int32Array(4);
     const queue = [start];
