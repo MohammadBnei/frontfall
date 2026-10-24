@@ -24,6 +24,8 @@ ENV NODE_ENV=production \
     FRONTFALL_VERSION=$FRONTFALL_VERSION \
     PORT=8080 \
     FRONTFALL_STATIC=/app/public
+# Keeps the heap, and so the resident memory, well inside a 1 GiB container.
+ENV NODE_OPTIONS=--max-old-space-size=512
 # Package managers are not needed at runtime.
 RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
      /opt/yarn-v* /usr/local/bin/yarn /usr/local/bin/yarnpkg

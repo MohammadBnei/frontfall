@@ -4,13 +4,16 @@
 
 ## Configuration
 
-| Variable                      | Default             | Meaning                                                                                           |
-| ----------------------------- | ------------------- | ------------------------------------------------------------------------------------------------- |
-| `PORT`                        | `8080`              | HTTP and WebSocket port                                                                           |
-| `FRONTFALL_STATIC`            | `../../client/dist` | Directory of the built client                                                                     |
-| `FRONTFALL_ORIGINE`           | unset               | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any |
-| `FRONTFALL_VERSION`           | `dev`               | Build identifier returned by `/healthz`; the image sets it to the commit                          |
-| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                | Countdown of a public game once it has two players                                                |
+| Variable                      | Default                                 | Meaning                                                                                           |
+| ----------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `PORT`                        | `8080`                                  | HTTP and WebSocket port                                                                           |
+| `FRONTFALL_STATIC`            | `../../client/dist`                     | Directory of the built client                                                                     |
+| `FRONTFALL_ORIGINE`           | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any |
+| `FRONTFALL_VERSION`           | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                          |
+| `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                     |
+| `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                |
+| `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                              |
+| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                                    | Countdown of a public game once it has two players                                                |
 
 ## Games
 

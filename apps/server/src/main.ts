@@ -25,6 +25,8 @@ const server = createGameServer({
     optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
       countdownMs: seconds * 1000,
     })) ?? {},
+  ...optionalNumber("FRONTFALL_MAX_GAMES", (maxRooms) => ({ maxRooms })),
+  ...optionalNumber("FRONTFALL_MAX_CONNECTIONS", (maxConnections) => ({ maxConnections })),
 });
 
 function shutdown(): void {
