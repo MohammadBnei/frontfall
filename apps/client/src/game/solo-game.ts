@@ -10,6 +10,7 @@ import {
   type Order,
   type Phase,
 } from "@frontfall/engine";
+import { labelAnchors, type LabelAnchor } from "./label-anchors.ts";
 import type { MapData } from "./maps.ts";
 
 export const HUMAN_ID = 1;
@@ -46,6 +47,8 @@ export interface GameUpdate {
   /** Tiles that changed owner this tick, and their new owners, pair by pair. */
   changedTiles: Int32Array;
   changedOwners: Uint16Array;
+  /** Where players' names go, every LABEL_TICKS ticks; the last ones hold in between. */
+  labels?: LabelAnchor[];
   /** Every ship at sea. */
   boats: BoatView[];
   /** Set instead of the change lists when too much changed to list. */
@@ -108,6 +111,9 @@ const BOT_NAMES = [
 
 export const MAX_BOTS = BOT_NAMES.length;
 
+/** Names follow the land twice a second at the default tick rate: a scan of the map each time. */
+const LABEL_TICKS = 5;
+
 /**
  * One solo game: the engine with every rule installed, bots for every other
  * player, and a turn clock that closes the human's orders into turns as the
@@ -117,6 +123,7 @@ export class SoloGame {
   readonly game: Game;
   readonly ownableTiles: number;
   private readonly clock: TurnClock;
+  private readonly depth: Uint16Array;
 
   constructor(
     readonly options: SoloOptions,
@@ -136,6 +143,7 @@ export class SoloGame {
       options.difficulty,
     );
     this.clock = new TurnClock(this.game);
+    this.depth = new Uint16Array(grid.size);
     let ownable = 0;
     for (let tile = 0; tile < grid.size; tile++) if (terrain.isOwnable(tile)) ownable++;
     this.ownableTiles = ownable;
@@ -244,6 +252,10 @@ export class SoloGame {
       }
     }
     territory.clearChanges();
+    if (game.tick % LABEL_TICKS === 0) {
+      const width = game.terrain.topology.width;
+      update.labels = labelAnchors(territory.owners, width, players.length, this.depth);
+    }
     if (game.winner !== undefined) update.winner = game.winner;
     return update;
   }

@@ -10,6 +10,10 @@ import { MapView } from "../render/map-view.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { Hud } from "./hud.ts";
+import { PlayerLabels } from "./labels.ts";
+
+/** Matches the fade of the territory layer, with a frame to spare. */
+const FADE_MS = 200;
 
 /** Size of a tile on screen once the view closes in on the player's start. */
 const START_TILE_PIXELS = 6;
@@ -52,6 +56,9 @@ export class GameScreen {
   private dirty = true;
   private drawnView: CameraView | undefined;
   private wrapsX = true;
+  private readonly labels = new PlayerLabels();
+  /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
+  private fadingUntil = 0;
 
   constructor(
     readonly options: SoloOptions,
@@ -81,7 +88,13 @@ export class GameScreen {
     });
     this.element = document.createElement("div");
     this.element.className = "game";
-    this.element.append(this.surface, this.marks.element, this.hud.element, this.marks.note);
+    this.element.append(
+      this.surface,
+      this.labels.element,
+      this.marks.element,
+      this.hud.element,
+      this.marks.note,
+    );
 
     this.input = new InputController(this.surface, this.camera, {
       onTileClick: (tile) => {
@@ -142,13 +155,15 @@ export class GameScreen {
       const view = this.camera.view();
       const moved = !sameView(view, this.drawnView);
       const sailing = (this.latest?.boats.length ?? 0) > 0;
-      if (this.view && (moved || this.dirty || sailing)) {
+      const fading = now < this.fadingUntil;
+      if (this.view && (moved || this.dirty || sailing || fading)) {
         this.placeShips(now);
         this.view.render(view);
         this.drawnView = view;
         // Ships still glide after their last tick: one more frame to settle them.
         this.dirty = sailing;
       }
+      this.labels.place(this.camera, this.camera.scale);
       this.marks.place(this.camera, now);
       this.frameHandle = requestAnimationFrame(frame);
     };
@@ -174,6 +189,7 @@ export class GameScreen {
         height: map.height,
         kinds: map.kinds,
         wrapsX: map.wrapsX,
+        relief: map.relief,
         owners: this.owners,
         maxOwner: this.options.bots + 1,
       });
@@ -246,6 +262,7 @@ export class GameScreen {
       }
       this.view?.markChanged(changedTiles);
       this.dirty = true;
+      this.fadingUntil = performance.now() + FADE_MS;
     }
     const human = update.players.find((player) => player.id === HUMAN_ID);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
@@ -258,6 +275,7 @@ export class GameScreen {
       if (start >= 0) this.camera.focus(start, Math.max(this.camera.zoom, zoom));
     }
     this.latest = update;
+    this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
     if (update.winner !== undefined && !this.ended) {
       this.ended = true;

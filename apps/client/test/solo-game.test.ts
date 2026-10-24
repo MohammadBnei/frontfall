@@ -133,7 +133,7 @@ describe("SoloGame clicks", () => {
     }
     const solo = new SoloGame(
       { ...options, bots: 0 },
-      { id: "islands", width, height, wrapsX: false, kinds },
+      { id: "islands", width, height, wrapsX: false, kinds, relief: new Uint8Array(kinds.length) },
     );
     // A start on the shore: ships leave from the coasts the player holds.
     let update = solo.step([{ type: "spawn", tile: at(9, 6) }]);

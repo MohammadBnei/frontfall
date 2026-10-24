@@ -1,18 +1,26 @@
 import * as THREE from "three";
-import { MAP_COLORS } from "../palette.ts";
+import { bakeTerrainColors } from "./terrain-colors.ts";
 
 export interface TerritoryLayerOptions {
   readonly width: number;
   readonly height: number;
   /** Owner of every tile, row 0 at the north pole. Shared, never copied. */
   readonly owners: Uint16Array;
-  /** TileKind of every tile, 0 for water. Uploaded once. */
+  /** TileKind of every tile, 0 for water. Turned into ground colours once. */
   readonly terrain: Uint8Array;
   /** Whether the map wraps east-west, drawn as three copies side by side. Default true. */
   readonly wrapsX?: boolean | undefined;
+  /** Elevation band on land, depth band on water, 0 to 31. Flat when left out. */
+  readonly relief?: Uint8Array | undefined;
   /** Highest owner id the palette must hold. */
   readonly maxOwner: number;
 }
+
+/** Surf along the coast: the brand's secondary text, light against the sea. */
+const SURF = "#8DA2B6";
+
+/** How long a tile that changed hands takes to fade into its new colour. */
+const FADE_SECONDS = 0.15;
 
 const PALETTE_WIDTH = 256;
 
@@ -40,45 +48,67 @@ const fragmentShader = /* glsl */ `
   layout(location = 0) out highp vec4 outColor;
 
   uniform usampler2D owners;
-  uniform highp usampler2D terrain;
+  uniform sampler2D ground;
+  uniform sampler2D takenAt;
   uniform sampler2D palette;
   uniform vec2 worldSize;
   uniform bool wrapsX;
-  uniform vec3 waterColor;
-  uniform vec3 landColor;
-  uniform vec3 highColor;
-  uniform vec3 peakColor;
+  uniform float now;
+  uniform float fadeSeconds;
+  uniform vec3 surfColor;
   uniform float fillOpacity;
 
-  uint ownerAt(ivec2 tile) {
+  ivec2 wrapTile(ivec2 tile) {
     ivec2 size = ivec2(worldSize);
-    tile.x = wrapsX ? (tile.x % size.x + size.x) % size.x : clamp(tile.x, 0, size.x - 1);
-    tile.y = clamp(tile.y, 0, size.y - 1);
-    return texelFetch(owners, tile, 0).r;
+    int x = wrapsX ? (tile.x % size.x + size.x) % size.x : clamp(tile.x, 0, size.x - 1);
+    return ivec2(x, clamp(tile.y, 0, size.y - 1));
+  }
+
+  uint ownerAt(ivec2 tile) { return texelFetch(owners, wrapTile(tile), 0).r; }
+
+  /** Distance in tiles from the point to the nearest of the sides marked: east, west, south, north. */
+  float edgeDistance(vec2 f, bvec4 sides) {
+    float d = 2.0;
+    if (sides.x) d = min(d, 1.0 - f.x);
+    if (sides.y) d = min(d, f.x);
+    if (sides.z) d = min(d, 1.0 - f.y);
+    if (sides.w) d = min(d, f.y);
+    return d;
   }
 
   void main() {
-    ivec2 tile = ivec2(floor(vTile));
-    int columns = int(worldSize.x);
-    tile.x = wrapsX ? (tile.x % columns + columns) % columns : clamp(tile.x, 0, columns - 1);
-    tile.y = clamp(tile.y, 0, int(worldSize.y) - 1);
+    ivec2 tile = wrapTile(ivec2(floor(vTile)));
+    vec2 f = fract(vTile);
+    // Tiles per screen pixel, for lines that stay sharp and visible at any zoom.
+    float pixel = max(fwidth(vTile.x), 1e-4);
 
-    // TileKind: water, plains, hills, mountains, impassable (ice caps, glaciers).
-    uint kind = texelFetch(terrain, tile, 0).r;
-    vec3 color = kind == 0u ? waterColor
-      : kind == 1u ? landColor
-      : kind == 2u ? mix(landColor, highColor, 0.6)
-      : kind == 3u ? mix(highColor, peakColor, 0.15)
-      : peakColor;
+    // Ground colour and coast sides, computed once for the whole map (terrain-colors.ts).
+    vec4 groundTexel = texelFetch(ground, tile, 0);
+    vec3 color = groundTexel.rgb;
+    uint coast = uint(groundTexel.a * 255.0 + 0.5);
+    if (coast != 0u) {
+      bvec4 land = bvec4((coast & 1u) != 0u, (coast & 2u) != 0u, (coast & 4u) != 0u, (coast & 8u) != 0u);
+      float surf = 1.0 - smoothstep(0.0, max(0.12, 1.2 * pixel), edgeDistance(f, land));
+      color = mix(color, surfColor, surf * 0.55);
+    }
 
     uint owner = ownerAt(tile);
     if (owner != 0u) {
       ivec2 entry = ivec2(int(owner % ${String(PALETTE_WIDTH)}u), int(owner / ${String(PALETTE_WIDTH)}u));
       vec3 ownerColor = texelFetch(palette, entry, 0).rgb;
       // Borders are found here rather than in the simulation: no border data to upload.
-      bool border = ownerAt(tile + ivec2(1, 0)) != owner || ownerAt(tile - ivec2(1, 0)) != owner
-        || ownerAt(tile + ivec2(0, 1)) != owner || ownerAt(tile - ivec2(0, 1)) != owner;
-      color = border ? ownerColor : mix(color, ownerColor, fillOpacity);
+      bvec4 other = bvec4(ownerAt(tile + ivec2(1, 0)) != owner, ownerAt(tile - ivec2(1, 0)) != owner,
+        ownerAt(tile + ivec2(0, 1)) != owner, ownerAt(tile - ivec2(0, 1)) != owner);
+      float width = max(0.28, 1.5 * pixel);
+      float border = 1.0 - smoothstep(width - pixel, width, edgeDistance(f, other));
+      // Zoomed out, small countries would vanish into the relief: the fill thickens.
+      float fill = mix(fillOpacity, 0.92, smoothstep(0.4, 1.5, pixel));
+      // A rim brighter than the fill, which lets the relief through: it reads
+      // on dark land and sea, and neighbours of close colours stay apart.
+      vec3 owned = mix(mix(color, ownerColor, fill), mix(ownerColor, vec3(1.0), 0.3), border);
+      // A tile taken a moment ago fades in, so fronts creep instead of jumping each tick.
+      float age = now - texelFetch(takenAt, tile, 0).r;
+      color = mix(color, owned, smoothstep(0.0, fadeSeconds, age));
     }
     outColor = linearToOutputTexel(vec4(color, 1.0));
   }
@@ -99,7 +129,11 @@ export class TerritoryLayer {
   readonly mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
   readonly ownerTexture: THREE.DataTexture;
   readonly paletteTexture: THREE.DataTexture;
-  readonly terrainTexture: THREE.DataTexture;
+  /** Colour of the ground under each tile, with its coast sides in alpha. */
+  readonly groundTexture: THREE.DataTexture;
+  /** When each tile last changed hands, in seconds on the layer's clock. */
+  readonly takenAtTexture: THREE.DataTexture;
+  private readonly takenAt: Float32Array;
   private readonly paletteData: Uint8Array;
   private readonly chunkWidth: number;
   private readonly dirtyChunks: Uint32Array;
@@ -123,21 +157,41 @@ export class TerritoryLayer {
     );
     this.ownerTexture.internalFormat = "R16UI";
 
-    this.terrainTexture = new THREE.DataTexture(
-      terrain,
+    this.groundTexture = new THREE.DataTexture(
+      bakeTerrainColors({
+        width,
+        height,
+        kinds: terrain,
+        relief: options.relief ?? new Uint8Array(width * height),
+        wrapsX,
+      }),
       width,
       height,
-      THREE.RedIntegerFormat,
-      THREE.UnsignedByteType,
     );
-    this.terrainTexture.internalFormat = "R8UI";
+    this.groundTexture.colorSpace = THREE.SRGBColorSpace;
+
+    // Long ago: nothing fades on the first frame.
+    this.takenAt = new Float32Array(width * height).fill(-1e6);
+    this.takenAtTexture = new THREE.DataTexture(
+      this.takenAt,
+      width,
+      height,
+      THREE.RedFormat,
+      THREE.FloatType,
+    );
+    this.takenAtTexture.internalFormat = "R32F";
 
     const rows = Math.ceil((maxOwner + 1) / PALETTE_WIDTH);
     this.paletteData = new Uint8Array(PALETTE_WIDTH * rows * 4);
     this.paletteTexture = new THREE.DataTexture(this.paletteData, PALETTE_WIDTH, rows);
     this.paletteTexture.colorSpace = THREE.SRGBColorSpace;
 
-    for (const texture of [this.ownerTexture, this.terrainTexture, this.paletteTexture]) {
+    for (const texture of [
+      this.ownerTexture,
+      this.groundTexture,
+      this.takenAtTexture,
+      this.paletteTexture,
+    ]) {
       texture.magFilter = THREE.NearestFilter;
       texture.minFilter = THREE.NearestFilter;
       texture.generateMipmaps = false;
@@ -152,16 +206,15 @@ export class TerritoryLayer {
       fragmentShader,
       uniforms: {
         owners: { value: this.ownerTexture },
-        terrain: { value: this.terrainTexture },
+        ground: { value: this.groundTexture },
+        takenAt: { value: this.takenAtTexture },
         palette: { value: this.paletteTexture },
         worldSize: { value: new THREE.Vector2(width, height) },
         wrapsX: { value: wrapsX },
-        waterColor: { value: new THREE.Color(MAP_COLORS.ocean) },
-        landColor: { value: new THREE.Color(MAP_COLORS.land) },
-        highColor: { value: new THREE.Color(MAP_COLORS.landHigh) },
-        // Secondary text of the brand: light enough to read as rock and ice.
-        peakColor: { value: new THREE.Color("#8DA2B6") },
-        fillOpacity: { value: 0.55 },
+        now: { value: 0 },
+        fadeSeconds: { value: FADE_SECONDS },
+        surfColor: { value: new THREE.Color(SURF) },
+        fillOpacity: { value: 0.6 },
       },
     });
     const geometry = new THREE.PlaneGeometry(wrapsX ? width * 3 : width, height);
@@ -187,12 +240,22 @@ export class TerritoryLayer {
     this.paletteTexture.needsUpdate = true;
   }
 
-  /** Marks tiles whose owner changed in the shared array. */
-  markChanged(tiles: ArrayLike<number>): void {
+  /** Seconds on the clock that fades new tiles in; set once per frame. */
+  setTime(seconds: number): void {
+    const now = this.mesh.material.uniforms.now;
+    if (now) now.value = seconds;
+  }
+
+  /**
+   * Marks tiles whose owner changed in the shared array. With a time, they
+   * fade in from that moment on; without one, they appear at once.
+   */
+  markChanged(tiles: ArrayLike<number>, seconds?: number): void {
     const { width } = this.options;
     const { chunkWidth, dirtyChunks } = this;
     for (let i = 0; i < tiles.length; i++) {
       const tile = tiles[i] as number;
+      if (seconds !== undefined) this.takenAt[tile] = seconds;
       const x = tile % width;
       const y = (tile - x) / width;
       const mask = dirtyChunks[y] as number;
@@ -212,17 +275,19 @@ export class TerritoryLayer {
    */
   flush(): number {
     const { width, height } = this.options;
-    const texture = this.ownerTexture;
+    const textures = [this.ownerTexture, this.takenAtTexture];
     let texels = 0;
     if (this.fullRefresh) {
-      texture.clearUpdateRanges();
-      texture.needsUpdate = true;
+      for (const texture of textures) {
+        texture.clearUpdateRanges();
+        texture.needsUpdate = true;
+      }
       texels = width * height;
     } else if (this.dirtyRowCount > 0) {
       for (let i = 0; i < this.dirtyRowCount; i++) {
         texels += this.queueRow(this.dirtyRows[i] as number);
       }
-      texture.needsUpdate = true;
+      for (const texture of textures) texture.needsUpdate = true;
     }
     for (let i = 0; i < this.dirtyRowCount; i++) this.dirtyChunks[this.dirtyRows[i] as number] = 0;
     this.dirtyRowCount = 0;
@@ -248,6 +313,7 @@ export class TerritoryLayer {
       // three.js measures update ranges in RGBA components whatever the
       // format, hence the factor 4 for a single-channel texture.
       this.ownerTexture.addUpdateRange((y * width + from) * 4, count * 4);
+      this.takenAtTexture.addUpdateRange((y * width + from) * 4, count * 4);
       texels += count;
     }
     return texels;
@@ -256,14 +322,16 @@ export class TerritoryLayer {
   /** Bytes the layer's textures take on the GPU, mipmaps excluded. */
   gpuBytes(): number {
     const { width, height } = this.options;
-    return width * height * 2 + width * height + this.paletteData.byteLength;
+    // Owners, ground colours, and the time each tile changed hands.
+    return width * height * (2 + 4 + 4) + this.paletteData.byteLength;
   }
 
   dispose(): void {
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.ownerTexture.dispose();
-    this.terrainTexture.dispose();
+    this.groundTexture.dispose();
+    this.takenAtTexture.dispose();
     this.paletteTexture.dispose();
   }
 }

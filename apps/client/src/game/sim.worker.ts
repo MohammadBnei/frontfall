@@ -31,7 +31,8 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
   const map = await fetchMapData(request.map);
   game = new SoloGame(request.options, map);
   const { ticksPerSecond, winSharePercent, maxDurationTicks } = game.game.balance;
-  // The page draws the terrain too: it gets its own copy.
+  // The page draws the terrain too: it gets its own copy of the kinds, and
+  // the relief, which only drawing uses.
   const view = { ...map, kinds: map.kinds.slice() };
   scope.postMessage(
     {
@@ -39,7 +40,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
       map: view,
       rules: { ownableTiles: game.ownableTiles, ticksPerSecond, winSharePercent, maxDurationTicks },
     },
-    [view.kinds.buffer],
+    [view.kinds.buffer, view.relief.buffer],
   );
   setInterval(tick, 1000 / ticksPerSecond);
 }

@@ -22,6 +22,8 @@ export interface MapViewOptions {
   readonly kinds: Uint8Array;
   /** Whether the map wraps east-west. */
   readonly wrapsX: boolean;
+  /** Elevation on land, depth at sea, 0 to 31. */
+  readonly relief?: Uint8Array;
   /** Owner of every tile, kept up to date by the caller and read in place. */
   readonly owners: Uint16Array;
   readonly maxOwner: number;
@@ -38,6 +40,7 @@ export class MapView {
   private readonly camera = new THREE.OrthographicCamera();
   private readonly territory: TerritoryLayer;
   private readonly ships: UnitLayer;
+  private readonly startedAt = performance.now();
 
   constructor(readonly options: MapViewOptions) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -50,6 +53,7 @@ export class MapView {
       owners: options.owners,
       terrain: options.kinds,
       wrapsX: options.wrapsX,
+      relief: options.relief,
       maxOwner: options.maxOwner,
     });
     // The layer spans x in [-width, 2 * width) and y in [0, height) from the
@@ -71,9 +75,9 @@ export class MapView {
     this.territory.setOwnerColor(id, color);
   }
 
-  /** Tiles whose owner changed in the shared array since the last frame. */
+  /** Tiles whose owner changed in the shared array since the last frame; they fade in. */
   markChanged(tiles: ArrayLike<number>): void {
-    this.territory.markChanged(tiles);
+    this.territory.markChanged(tiles, this.clock());
   }
 
   markAllChanged(): void {
@@ -96,9 +100,15 @@ export class MapView {
 
   render(view: CameraView): void {
     applyView(this.camera, view, this.options.width, this.options.height);
+    this.territory.setTime(this.clock());
     this.territory.flush();
     this.ships.update(this.camera.position.x);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Seconds since the view was made: small enough for exact 32-bit floats in the shader. */
+  private clock(): number {
+    return (performance.now() - this.startedAt) / 1000;
   }
 
   dispose(): void {

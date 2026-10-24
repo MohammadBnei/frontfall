@@ -10,6 +10,8 @@ export interface MapData {
   readonly wrapsX: boolean;
   /** TileKind of every tile, row 0 at the north edge. */
   readonly kinds: Uint8Array;
+  /** Elevation band on land, depth band on water, 0 to 31 (docs/map-format.md). Drawing only. */
+  readonly relief: Uint8Array;
 }
 
 export interface MapInfo {
@@ -119,13 +121,14 @@ export async function fetchMapData(info: MapInfo, fetcher: typeof fetch = fetch)
   if (!terrainResponse.ok)
     throw new Error(`map ${info.id}: HTTP ${String(terrainResponse.status)}`);
   const bytes = new Uint8Array(await terrainResponse.arrayBuffer());
-  const { topology, terrain } = loadMap(bytes, manifest);
+  const { topology, terrain, magnitude } = loadMap(bytes, manifest);
   return {
     id: info.id,
     width: topology.width,
     height: topology.height,
     wrapsX: topology.wrapsX,
     kinds: terrain.kinds,
+    relief: magnitude,
   };
 }
 
@@ -138,7 +141,40 @@ export function generateMap(id: string): MapData {
     generateLand(grid, map.seed, { seeds: map.seeds, landShare: map.landShare }),
   );
   const kinds = land.map((value) => (value === 1 ? TileKind.Plains : TileKind.Water));
-  return { id: map.id, width: map.width, height: map.height, wrapsX: map.wrapsX, kinds };
+  const relief = coastDistance(grid, land).map((distance) => Math.min(distance - 1, 12));
+  return { id: map.id, width: map.width, height: map.height, wrapsX: map.wrapsX, kinds, relief };
+}
+
+/**
+ * Steps from every tile to the nearest tile across the coast, 1 for tiles on
+ * either side of it. Generated maps have no relief: this gives their seas a
+ * shelf and their land a gentle rise inland.
+ */
+function coastDistance(grid: WorldGrid, land: Uint8Array): Uint8Array {
+  const distance = new Uint8Array(grid.size);
+  let frontier: number[] = [];
+  for (let tile = 0; tile < grid.size; tile++) {
+    for (const next of grid.neighbors(tile)) {
+      if (land[next] !== land[tile]) {
+        distance[tile] = 1;
+        frontier.push(tile);
+        break;
+      }
+    }
+  }
+  for (let step = 2; frontier.length > 0 && step < 255; step++) {
+    const following: number[] = [];
+    for (const tile of frontier) {
+      for (const next of grid.neighbors(tile)) {
+        if (distance[next] === 0 && land[next] === land[tile]) {
+          distance[next] = step;
+          following.push(next);
+        }
+      }
+    }
+    frontier = following;
+  }
+  return distance;
 }
 
 /**

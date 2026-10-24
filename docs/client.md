@@ -39,6 +39,27 @@ covers the conventions that are not obvious from the code.
   so a link starts the same game, and the last one is remembered in
   `localStorage` when storage is available.
 
+## Drawing the map
+
+The territory layer draws the whole map in one draw call (ADR 0003):
+
+- The ground colour of every tile is computed once when the map loads
+  (`render/terrain-colors.ts`): sea from the continental shelf to the deep,
+  land from lowlands to rock, shaded by the slope between neighbours, light
+  from the north-west. The alpha channel marks the sides of water tiles that
+  touch land, where the shader draws the surf line.
+- Each frame, the shader reads the owner of the tile and its four
+  neighbours: the fill lets the relief show through, a light rim of constant
+  width on screen marks borders, and the fill thickens when zoomed out so
+  small countries stay visible.
+- A tile that changes hands fades in over 150 ms, from the time it changed:
+  a front moves smoothly instead of jumping once a tick.
+- Names and troops sit on the deepest tile of each country, found by a
+  distance transform in the worker every half second
+  (`game/label-anchors.ts`), and as large as the land around that tile allows.
+- A frame is drawn only when the camera moved, tiles changed or are still
+  fading, or ships are at sea.
+
 ## Beta
 
 Until 1.0, the menu and the HUD show a beta badge with the version of the
