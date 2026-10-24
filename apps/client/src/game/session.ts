@@ -1,6 +1,6 @@
 import type { Order } from "@frontfall/engine";
 import type { MapData } from "./maps.ts";
-import type { GameRules } from "./messages.ts";
+import type { ClickOutcome, GameRules } from "./messages.ts";
 import type { GameUpdate } from "./solo-game.ts";
 
 export interface SessionEvents {
@@ -8,6 +8,8 @@ export interface SessionEvents {
   onStart(info: { map: MapData; rules: GameRules }): void;
   /** Once per tick, in order. The game is over when `update.winner` is set. */
   onUpdate(update: GameUpdate): void;
+  /** What a click sent through `click` turned into. */
+  onClick(tile: number, outcome: ClickOutcome): void;
   onError(message: string): void;
 }
 

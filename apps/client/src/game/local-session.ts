@@ -18,6 +18,7 @@ export class LocalSession implements GameSession {
       const reply = event.data;
       if (reply.type === "started") events.onStart(reply);
       else if (reply.type === "update") events.onUpdate(reply.update);
+      else if (reply.type === "click") events.onClick(reply.tile, reply.outcome);
       else events.onError(reply.message);
     };
     this.worker.onerror = (event) => {

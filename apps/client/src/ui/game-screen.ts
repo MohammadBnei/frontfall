@@ -8,6 +8,7 @@ import { playerColor } from "../palette.ts";
 import { FlatCamera } from "../render/camera.ts";
 import { MapView } from "../render/map-view.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
+import { ClickMarks } from "./click-marks.ts";
 import { Hud } from "./hud.ts";
 
 /** Size of a tile on screen once the view closes in on the player's start. */
@@ -44,6 +45,10 @@ export class GameScreen {
   private ownableTiles = 1;
   private peakTiles = 0;
   private frameHandle = 0;
+  private readonly marks = new ClickMarks();
+  private previousShips = new Map<number, number>();
+  private updatedAt = 0;
+  private wrapsX = true;
 
   constructor(
     readonly options: SoloOptions,
@@ -73,7 +78,7 @@ export class GameScreen {
     });
     this.element = document.createElement("div");
     this.element.className = "game";
-    this.element.append(this.surface, this.hud.element);
+    this.element.append(this.surface, this.marks.element, this.hud.element, this.marks.note);
 
     this.input = new InputController(this.surface, this.camera, {
       onTileClick: (tile) => {
@@ -90,6 +95,9 @@ export class GameScreen {
       },
       onUpdate: (update) => {
         this.apply(update);
+      },
+      onClick: (tile, outcome) => {
+        this.marks.show(tile, outcome, performance.now());
       },
       onError: (message) => {
         console.error(message);
@@ -126,7 +134,9 @@ export class GameScreen {
     const frame = (now: number): void => {
       this.input.update(now - last);
       last = now;
+      this.placeShips(now);
       this.view?.render(this.camera.view());
+      this.marks.place(this.camera, now);
       this.frameHandle = requestAnimationFrame(frame);
     };
     this.frameHandle = requestAnimationFrame(frame);
@@ -143,6 +153,7 @@ export class GameScreen {
 
   private showMap(map: MapData): void {
     this.owners = new Uint16Array(map.width * map.height);
+    this.wrapsX = map.wrapsX;
     let view: MapView;
     try {
       view = new MapView({
@@ -169,6 +180,36 @@ export class GameScreen {
     this.resize();
   }
 
+  /**
+   * Ships glide from where they were on the previous tick to where they are
+   * now, over one tick, instead of jumping B-BOAT-SPEED tiles at a time.
+   */
+  private placeShips(now: number): void {
+    const view = this.view;
+    const ships = this.latest?.boats;
+    if (!view || !ships) return;
+    const { width } = this.camera.options;
+    const progress = Math.min(1, (now - this.updatedAt) / (1000 / this.ticksPerSecond));
+    view.setShips(
+      ships.map((ship) => {
+        const to = ship.tile;
+        const from = this.previousShips.get(ship.id) ?? to;
+        const fromX = from % width;
+        const toX = to % width;
+        // The short way across the seam of a wrapping map.
+        let dx = toX - fromX;
+        if (this.wrapsX && Math.abs(dx) > width / 2) dx -= Math.sign(dx) * width;
+        const fromY = Math.floor(from / width);
+        const toY = Math.floor(to / width);
+        return {
+          x: fromX + dx * progress,
+          y: fromY + (toY - fromY) * progress,
+          color: playerColor(ship.player - 1).hex,
+        };
+      }),
+    );
+  }
+
   private resize(): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -177,6 +218,8 @@ export class GameScreen {
   }
 
   private apply(update: GameUpdate): void {
+    this.previousShips = new Map((this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile]));
+    this.updatedAt = performance.now();
     if (update.owners) {
       this.owners.set(update.owners);
       this.view?.markAllChanged();

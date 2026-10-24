@@ -5,6 +5,7 @@ import {
   createGame,
   installBots,
   populationCap,
+  seaRoute,
   type Game,
   type Order,
   type Phase,
@@ -45,9 +46,35 @@ export interface GameUpdate {
   /** Tiles that changed owner this tick, and their new owners, pair by pair. */
   changedTiles: Int32Array;
   changedOwners: Uint16Array;
+  /** Every ship at sea. */
+  boats: BoatView[];
   /** Set instead of the change lists when too much changed to list. */
   owners?: Uint16Array;
   winner?: number;
+}
+
+/** Why a click on the map leads to no order. */
+export type ClickRefusal =
+  /** Water, ice or off the map. */
+  | "terrain"
+  | "own"
+  /** The attack ratio leaves less than one troop. */
+  | "troops"
+  /** No shared border and no sea route to a coast. */
+  | "unreachable"
+  /** B-BOAT-MAX ships are already at sea. */
+  | "ships"
+  /** The game is decided, or the player is out. */
+  | "over";
+
+export type ClickResult = { order: Order } | { refused: ClickRefusal };
+
+/** A transport ship at sea, where it is this tick. */
+export interface BoatView {
+  id: number;
+  player: number;
+  tile: number;
+  troops: number;
 }
 
 /** Names for computer players. Invented, so they never collide with real countries. */
@@ -120,19 +147,47 @@ export class SoloGame {
 
   /**
    * What a click on `tile` means for the human now: pick a start during the
-   * spawn phase, then expand or attack with `ratio` percent of their troops.
-   * Undefined when the click asks for nothing the rules allow.
+   * spawn phase, then expand or attack with `ratio` percent of their troops,
+   * by land when the target touches their land, by sea when it is a coast
+   * on another land mass. Otherwise, why nothing happens.
    */
-  orderForClick(tile: number, ratio: number): Order | undefined {
+  orderForClick(tile: number, ratio: number): ClickResult {
     const { game } = this;
+    const { terrain, territory } = game;
     const human = game.player(HUMAN_ID);
-    if (!human?.alive || game.winner !== undefined) return undefined;
-    if (!Number.isInteger(tile) || tile < 0 || tile >= game.terrain.topology.size) return undefined;
-    if (!game.terrain.isOwnable(tile)) return undefined;
-    if (game.phase === "spawn") return { type: "spawn", tile };
-    if (game.territory.ownerOf(tile) === HUMAN_ID) return undefined;
+    if (!human?.alive || game.winner !== undefined) return { refused: "over" };
+    if (!Number.isInteger(tile) || tile < 0 || tile >= terrain.topology.size) {
+      return { refused: "terrain" };
+    }
+    if (!terrain.isOwnable(tile)) return { refused: "terrain" };
+    if (game.phase === "spawn") return { order: { type: "spawn", tile } };
+    if (territory.ownerOf(tile) === HUMAN_ID) return { refused: "own" };
     const troops = Math.floor((human.troops * Math.min(100, Math.max(0, ratio))) / 100);
-    return troops >= 1 ? { type: "attack", target: tile, troops } : undefined;
+    if (troops < 1) return { refused: "troops" };
+
+    // Land masses the player holds, and whether the target's owner borders them.
+    const owner = territory.ownerOf(tile);
+    const around = new Int32Array(4);
+    const masses = new Set<number>();
+    let touches = false;
+    for (let i = 0; i < territory.borderCount(HUMAN_ID); i++) {
+      const border = territory.borderTile(HUMAN_ID, i);
+      masses.add(terrain.landmassOf(border));
+      const count = terrain.topology.neighborsInto(border, around);
+      for (let j = 0; j < count; j++) {
+        const next = around[j] as number;
+        if (territory.ownerOf(next) === owner && terrain.isOwnable(next)) touches = true;
+      }
+    }
+    if (touches && masses.has(terrain.landmassOf(tile))) {
+      return { order: { type: "attack", target: tile, troops } };
+    }
+    if (terrain.isCoast(tile) && seaRoute(game, HUMAN_ID, tile)) {
+      const atSea = game.boats.filter((boat) => boat.player === HUMAN_ID).length;
+      if (atSea >= game.balance.boatMax) return { refused: "ships" };
+      return { order: { type: "embark", target: tile, troops } };
+    }
+    return { refused: "unreachable" };
   }
 
   /**
@@ -170,6 +225,13 @@ export class SoloGame {
         .map((attack) => ({ target: attack.target, troops: attack.troops })),
       changedTiles: new Int32Array(0),
       changedOwners: new Uint16Array(0),
+      boats: game.boats.map((boat) => ({
+        id: boat.id,
+        player: boat.player,
+        // The water tile the ship has reached, its first one before it sails.
+        tile: boat.path[Math.max(0, Math.min(boat.step, boat.path.length) - 1)] ?? boat.target,
+        troops: boat.troops,
+      })),
     };
     if (territory.changesOverflowed) {
       update.owners = territory.owners.slice();

@@ -1,0 +1,65 @@
+import type { ClickOutcome } from "../game/messages.ts";
+import type { MessageKey } from "../i18n/index.ts";
+import { t } from "../i18n/index.ts";
+import type { Camera } from "../render/camera.ts";
+import { h } from "./dom.ts";
+
+/** How long a mark stays on the map, in milliseconds; the CSS animation matches it. */
+const MARK_MS = 700;
+/** How long the reason for a refused click stays up. */
+const NOTE_MS = 2500;
+
+const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
+  terrain: "click.terrain",
+  own: "click.own",
+  troops: "click.troops",
+  unreachable: "click.unreachable",
+  ships: "click.ships",
+};
+
+interface Mark {
+  readonly tile: number;
+  readonly element: HTMLElement;
+  readonly until: number;
+}
+
+/**
+ * The answer to a click, where it happened: a ring that opens out on the
+ * target of an order, a red one and a short reason when nothing was sent.
+ */
+export class ClickMarks {
+  readonly element = h("div", { class: "click-marks", "aria-hidden": "true" });
+  /** Reasons are read out by screen readers, unlike the rings. */
+  readonly note = h("p", { class: "click-note", role: "status", hidden: true });
+  private marks: Mark[] = [];
+  private noteUntil = 0;
+
+  show(tile: number, outcome: ClickOutcome, now: number): void {
+    const refusal = REFUSALS[outcome];
+    if (outcome === "over") return;
+    const element = h("span", {
+      class: refusal ? "click-mark refused" : `click-mark ${outcome}`,
+    });
+    this.element.append(element);
+    this.marks.push({ tile, element, until: now + MARK_MS });
+    if (refusal) {
+      this.note.textContent = t(refusal);
+      this.note.hidden = false;
+      this.noteUntil = now + NOTE_MS;
+    }
+  }
+
+  /** Keeps the rings on their tiles as the camera moves; call every frame. */
+  place(camera: Camera, now: number): void {
+    this.marks = this.marks.filter((mark) => {
+      if (now < mark.until) return true;
+      mark.element.remove();
+      return false;
+    });
+    for (const mark of this.marks) {
+      const { x, y } = camera.tileToScreen(mark.tile);
+      mark.element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }
+    if (!this.note.hidden && now > this.noteUntil) this.note.hidden = true;
+  }
+}

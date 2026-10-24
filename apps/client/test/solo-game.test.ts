@@ -103,9 +103,9 @@ describe("SoloGame clicks", () => {
   it("turns a click into the order the phase allows", () => {
     const solo = newGame(options);
     const land = firstLand(options.map);
-    expect(solo.orderForClick(land, 30)).toEqual({ type: "spawn", tile: land });
-    expect(solo.orderForClick(0, 30)).toBeUndefined();
-    expect(solo.orderForClick(-1, 30)).toBeUndefined();
+    expect(solo.orderForClick(land, 30)).toEqual({ order: { type: "spawn", tile: land } });
+    expect(solo.orderForClick(0, 30)).toEqual({ refused: "terrain" });
+    expect(solo.orderForClick(-1, 30)).toEqual({ refused: "terrain" });
 
     let update = solo.step([{ type: "spawn", tile: land }]);
     while (update.phase === "spawn") update = solo.step([]);
@@ -115,10 +115,42 @@ describe("SoloGame clicks", () => {
       (owner, tile) => owner === 0 && terrain.isOwnable(tile),
     );
     expect(solo.orderForClick(free, 30)).toEqual({
-      type: "attack",
-      target: free,
-      troops: Math.floor((troops * 30) / 100),
+      order: { type: "attack", target: free, troops: Math.floor((troops * 30) / 100) },
     });
-    expect(solo.orderForClick(land, 30)).toBeUndefined();
+    expect(solo.orderForClick(land, 30)).toEqual({ refused: "own" });
+    expect(solo.orderForClick(free, 0)).toEqual({ refused: "troops" });
+  });
+
+  it("sends ships to a coast across the sea, never inland (R-ATTACK-09)", () => {
+    // Two islands, 10 x 10 tiles each, with 14 tiles of sea between them.
+    const width = 40;
+    const height = 14;
+    const kinds = new Uint8Array(width * height).fill(TileKind.Water);
+    const at = (x: number, y: number): number => y * width + x;
+    for (let y = 2; y < 12; y++) {
+      for (let x = 2; x < 12; x++) kinds[at(x, y)] = TileKind.Plains;
+      for (let x = 26; x < 36; x++) kinds[at(x, y)] = TileKind.Plains;
+    }
+    const solo = new SoloGame(
+      { ...options, bots: 0 },
+      { id: "islands", width, height, wrapsX: false, kinds },
+    );
+    // A start on the shore: ships leave from the coasts the player holds.
+    let update = solo.step([{ type: "spawn", tile: at(9, 6) }]);
+    while (update.phase === "spawn") update = solo.step([]);
+
+    const coast = at(26, 6);
+    const result = solo.orderForClick(coast, 50);
+    expect(result).toMatchObject({ order: { type: "embark", target: coast } });
+    expect(solo.orderForClick(at(30, 6), 50)).toEqual({ refused: "unreachable" });
+
+    update = solo.step(["order" in result ? result.order : []].flat());
+    expect(update.boats).toHaveLength(1);
+    expect(update.boats[0]).toMatchObject({ player: HUMAN_ID });
+    for (let i = 0; i < 30 && solo.game.territory.ownerOf(coast) !== HUMAN_ID; i++) {
+      update = solo.step([]);
+    }
+    expect(solo.game.territory.ownerOf(coast)).toBe(HUMAN_ID);
+    expect(update.boats).toHaveLength(0);
   });
 });

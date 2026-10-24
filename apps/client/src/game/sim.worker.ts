@@ -56,8 +56,11 @@ scope.onmessage = (event) => {
       pending.push(request.order);
       break;
     case "click": {
-      const order = game?.orderForClick(request.tile, request.ratio);
-      if (order) pending.push(order);
+      if (!game) break;
+      const result = game.orderForClick(request.tile, request.ratio);
+      if ("order" in result) pending.push(result.order);
+      const outcome = "order" in result ? result.order.type : result.refused;
+      scope.postMessage({ type: "click", tile: request.tile, outcome });
       break;
     }
     case "pause":

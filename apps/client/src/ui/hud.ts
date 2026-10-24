@@ -187,7 +187,8 @@ export class Hud {
     const { ownableTiles, ticksPerSecond, winSharePercent, maxDurationTicks } = this.rules;
     const win = winSharePercent / 100;
     this.goal.textContent = t("hud.goal", { share: formatPercent(win) });
-    const leader = Math.max(0, ...update.players.map((player) => player.tiles));
+    // R-WIN-02: among the players still in the game.
+    const leader = Math.max(0, ...update.players.filter((p) => p.alive).map((p) => p.tiles));
     const width = (tiles: number): string =>
       `${String(Math.min(100, (tiles / ownableTiles / win) * 100))}%`;
     this.goalLeader.style.width = width(leader);

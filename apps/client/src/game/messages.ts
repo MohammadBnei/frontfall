@@ -1,6 +1,9 @@
 import type { Order } from "@frontfall/engine";
 import type { MapData, MapInfo } from "./maps.ts";
-import type { GameUpdate, SoloOptions } from "./solo-game.ts";
+import type { ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
+
+/** What became of a click: the order it sent, or why it sent none. */
+export type ClickOutcome = Order["type"] | ClickRefusal;
 
 /** What the interface shows of the rules of a game, from the engine's balance. */
 export interface GameRules {
@@ -24,6 +27,7 @@ export type WorkerRequest =
 export type WorkerReply =
   | { type: "started"; map: MapData; rules: GameRules }
   | { type: "update"; update: GameUpdate }
+  | { type: "click"; tile: number; outcome: ClickOutcome }
   | { type: "error"; message: string };
 
 /** Buffers of an update, handed over to the page instead of copied. */

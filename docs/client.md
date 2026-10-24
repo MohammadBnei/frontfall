@@ -52,6 +52,7 @@ visuals will still change. Vite passes the version to the page
 | Input                     | Action                                              |
 | ------------------------- | --------------------------------------------------- |
 | Click or tap              | Pick a start, then expand or attack                 |
+| Click a coast over water  | Send a ship with the attack ratio of the troops     |
 | Drag, one finger          | Move the map                                        |
 | Wheel, pinch, `+` and `-` | Zoom, towards the cursor or between the fingers     |
 | Arrows or `WASD`          | Move the map, at the same speed at any frame rate   |
@@ -59,7 +60,12 @@ visuals will still change. Vite passes the version to the page
 | `P` or `Esc`              | Pause and resume                                    |
 | `H` or `?`                | Show the controls                                   |
 
-A press that moves more than 6 pixels is a drag, never a click. WASD is read by
+A click on land the player cannot reach by land sends a transport ship when
+it is a coast within sailing range, from the player's nearest coast. A click
+that sends nothing (water, own land, too few troops, out of reach, every ship
+at sea) gets a red ring and one line saying why; one that sends an order gets
+a ring of its own. A press that moves more than 6 pixels is a drag, never a
+click. WASD is read by
 physical key, so it stays under the same fingers on AZERTY keyboards. The page
 itself never zooms or scrolls during a game (`user-scalable=no`, `touch-action:
 none`): a pinch must reach the map, not the browser.

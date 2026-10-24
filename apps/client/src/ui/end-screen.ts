@@ -80,6 +80,7 @@ export function endScreen(summary: GameSummary, actions: EndScreenActions): HTML
 
 const HELP_KEYS = [
   "help.click",
+  "help.ships",
   "help.drag",
   "help.zoom",
   "help.keys",

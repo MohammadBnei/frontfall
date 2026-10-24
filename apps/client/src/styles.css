@@ -646,6 +646,7 @@ input[type="range"] {
   left: 12px;
   background: rgb(10 19 28 / 85%);
   opacity: 0.8;
+  pointer-events: none;
 }
 
 @media (width < 720px) {
@@ -699,4 +700,71 @@ input[type="range"] {
 
 .goal-you {
   background: var(--ff-ember);
+}
+
+/* The answer to a click on the map (ui/click-marks.ts). */
+
+.click-marks {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.click-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.click-mark::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid var(--ff-ember);
+  border-radius: 50%;
+  animation: click-ring 700ms ease-out forwards;
+}
+
+.click-mark.embark::before {
+  border-color: var(--ff-info);
+  border-style: dashed;
+}
+
+.click-mark.refused::before {
+  border-color: var(--ff-danger);
+}
+
+@keyframes click-ring {
+  from {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+
+  to {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+.click-note {
+  position: fixed;
+  bottom: 68px;
+  left: 50%;
+  max-width: min(420px, calc(100vw - 24px));
+  margin: 0;
+  padding: 6px 12px;
+  transform: translateX(-50%);
+  border: 1px solid var(--ff-danger);
+  border-radius: var(--ff-radius);
+  background: rgb(10 19 28 / 90%);
+  font-size: 13px;
+  text-align: center;
+  pointer-events: none;
 }

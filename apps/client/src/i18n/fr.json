@@ -68,6 +68,12 @@
   "hud.menu": "Menu principal",
   "hud.leaveConfirm": "Quitter cette partie et revenir au menu ?",
   "hud.under": "< {value}",
-  "hud.goal": "Victoire : {share} des terres, ou être le dernier en lice",
-  "hud.clock": "{elapsed} sur {limit}"
+  "hud.goal": "Victoire : {share} des terres, ou le plus de terres à la fin du temps",
+  "hud.clock": "{elapsed} sur {limit}",
+  "click.terrain": "Seules les terres peuvent être prises.",
+  "click.own": "Cette terre est déjà à vous.",
+  "click.troops": "Pas assez de troupes : augmentez la part d’attaque ou patientez.",
+  "click.unreachable": "Hors d’atteinte : pas de frontière commune, et aucun navire ne peut y accoster.",
+  "click.ships": "Tous vos navires sont en mer : attendez qu’un d’eux accoste.",
+  "help.ships": "Cliquez sur une côte de l’autre côté de la mer pour envoyer un navire"
 }
