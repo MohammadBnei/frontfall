@@ -78,9 +78,17 @@ export interface OnlineOptions {
   setTimer?: (callback: () => void, ms: number) => unknown;
 }
 
-/** How a player enters an online game: the next public one, a new private one, or one by id. */
-export type OnlineEntry = { type: "play" } | { type: "join"; game: string } | { type: "create" };
-type Entry = OnlineEntry;
+/**
+ * How a player enters an online game: the next public one, a new private
+ * one, one by id, or back into a running game with the seat's token after
+ * the page reloaded.
+ */
+export type OnlineEntry =
+  | { type: "play" }
+  | { type: "join"; game: string }
+  | { type: "create" }
+  | { type: "resume"; game: string; token: string };
+type Entry = Exclude<OnlineEntry, { type: "resume" }> | { type: "resume"; token: string };
 
 /**
  * One player's link to the game server. It keeps the connection open,
@@ -123,12 +131,17 @@ export class OnlineClient {
     this.enter({ type: "join", game });
   }
 
-  /** Host of a private game: start now. */
+  /** Takes back a seat in a running game, every turn from the first one resent. */
+  resume(token: string): void {
+    this.enter({ type: "resume", token });
+  }
+
   /** Host of a private game: map, bots and difficulty, until the start. */
   configure(options: GameOptions): void {
     this.send({ type: "configure", options });
   }
 
+  /** Host of a private game: start now. */
   start(): void {
     this.send({ type: "start" });
   }
@@ -156,7 +169,17 @@ export class OnlineClient {
   private enter(entry: Entry): void {
     this.entry = entry;
     this.game = undefined;
-    this.send(entry);
+    this.sendEntry(entry);
+  }
+
+  private sendEntry(entry: Entry): void {
+    if (entry.type === "resume") this.send({ type: "rejoin", token: entry.token, from: 0 });
+    else this.send(entry);
+  }
+
+  /** The token of the seat being taken back, in a game or after a reload. */
+  private get token(): string | undefined {
+    return this.game?.token ?? (this.entry?.type === "resume" ? this.entry.token : undefined);
   }
 
   private send(message: ClientMessage): void {
@@ -225,7 +248,7 @@ export class OnlineClient {
         if (this.game) {
           this.send({ type: "rejoin", token: this.game.token, from: this.nextTick });
         } else if (this.entry) {
-          this.send(this.entry);
+          this.sendEntry(this.entry);
         }
         return;
       case "lobby":
@@ -269,16 +292,17 @@ export class OnlineClient {
           events.ended?.("abandoned");
           return;
         }
-        if (message.code === "token_in_use" && this.game) {
+        if (message.code === "token_in_use" && this.token) {
           // The server is checking the previous connection; ask again shortly.
-          const game = this.game;
+          const token = this.token;
           this.setTimer(() => {
-            if (this.game === game) {
-              this.send({ type: "rejoin", token: game.token, from: this.nextTick });
+            if (this.token === token) {
+              this.send({ type: "rejoin", token, from: this.nextTick });
             }
           }, 1_000);
           return;
         }
+        if (message.code === "token_invalid") this.entry = undefined;
         events.error?.(message.code, message.message);
         return;
     }

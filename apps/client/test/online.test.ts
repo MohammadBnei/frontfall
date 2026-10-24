@@ -356,4 +356,35 @@ describe("OnlineClient", () => {
     expect(log.at(-1)).toBe("error:not_found");
     expect(socket.sent).toHaveLength(1);
   });
+
+  it("takes its seat back after a reload, asking for every turn", () => {
+    const online = client();
+    let socket = welcomed();
+    online.resume(START.token);
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 0 });
+    socket.receive({ type: "error", code: "token_in_use", message: "" });
+    timers.at(-1)?.callback();
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 0 });
+
+    socket.receive(START);
+    socket.receive({ type: "turns", turns: [0, 1, 2].map((tick) => ({ tick, orders: [] })) });
+    expect(log.filter((entry) => entry.startsWith("started"))).toEqual(["started:2"]);
+    expect(turns).toEqual([0, 1, 2]);
+
+    socket.drop();
+    timers.at(-1)?.callback();
+    socket = welcomed();
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 3 });
+  });
+
+  it("says when the seat it came back for is gone", () => {
+    const online = client();
+    const socket = welcomed();
+    online.resume(START.token);
+    socket.receive({ type: "error", code: "token_invalid", message: "" });
+    expect(log.at(-1)).toBe("error:token_invalid");
+    socket.drop();
+    timers.at(-1)?.callback();
+    expect(welcomed().sent).toHaveLength(1);
+  });
 });

@@ -87,7 +87,9 @@ every turn with orders and every hash it sent; on a desync the notice offers
 "Download a report", a `DesyncReport` (docs/engine.md) that
 `pnpm sim -- --replay` plays again to find the first tick that differs. Games
 on generated maps have no report. Until its turn comes back, an online
-order's ring pulses on its target. An online game never pauses, and its HUD
+order's ring pulses on its target. Once a game starts, the tab keeps its seat token in session storage and the
+URL becomes `?game=<id>`: a reload sends `rejoin` from tick 0, replays every
+turn at once and plays on; leaving from the menu gives the seat up. An online game never pauses, and its HUD
 has no pause button.
 
 ## Drawing the map

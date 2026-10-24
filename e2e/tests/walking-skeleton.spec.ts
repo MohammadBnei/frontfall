@@ -176,6 +176,48 @@ test("four players see the same game, without a desync", async ({ browser, baseU
   await Promise.all(pages.map((page) => page.close()));
 });
 
+test("a player who reloads mid-game takes their seat back", async ({ browser, baseURL }) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
+  test.skip(test.info().project.name !== "root", "one browser is enough");
+  test.setTimeout(GAME_START_TIMEOUT + 60_000);
+  if (!baseURL) throw new Error("baseURL is not configured");
+  const host = await browser.newPage();
+  const guest = await browser.newPage();
+  const pageErrors: Error[] = [];
+  for (const page of [host, guest]) page.on("pageerror", (error) => pageErrors.push(error));
+
+  await host.goto(baseURL);
+  await host.locator("#online-create").click();
+  const invite = host.locator("#invite-link");
+  await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
+  await host.locator("#lobby-bots").fill("2");
+  await guest.goto(await invite.inputValue());
+  await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
+  await host.locator("#lobby-start").click();
+  for (const page of [host, guest]) {
+    await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  }
+  await guest.locator("#map").click({ position: { x: 300, y: 300 } });
+  const land = guest.locator(".stats .stat-value").nth(2);
+  await expect(land).not.toHaveText("0%", { timeout: 10_000 });
+  await expect.poll(() => clockOf(host), { timeout: 20_000 }).toBeGreaterThan(6);
+
+  // The tab reloads: the game comes back as it was, at the others' pace.
+  await guest.reload();
+  await expect(guest.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  await expect(land).not.toHaveText("0%", { timeout: 10_000 });
+  await expect(guest.locator(".leaderboard-list li")).toHaveCount(4);
+  await expect.poll(async () => (await clockOf(host)) - (await clockOf(guest))).toBeLessThan(3);
+  // Two more rounds of state hashes, compared with the guest's replayed game.
+  const now = await clockOf(host);
+  await expect.poll(() => clockOf(guest), { timeout: 20_000 }).toBeGreaterThan(now + 10);
+  const metrics = await (await fetch(new URL("metrics", baseURL))).text();
+  expect(metrics).toMatch(/^frontfall_desyncs_total 0$/m);
+  await expect(guest.locator(".notice")).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+  await Promise.all([host.close(), guest.close()]);
+});
+
 test("two players join a public game from the menu", async ({ browser, baseURL }) => {
   // Never against the public server: real players could join the test's game.
   test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");

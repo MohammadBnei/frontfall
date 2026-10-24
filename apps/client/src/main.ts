@@ -2,6 +2,7 @@ import type { GameOptions } from "@frontfall/protocol";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { BUILD } from "./net/build.ts";
+import { forgetSeat, saveSeat, seatIn } from "./net/seat.ts";
 import { OnlineClient, socketUrl, type GameStart, type OnlineEntry } from "./net/online.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
@@ -148,6 +149,8 @@ function inviteLink(game: string): string {
 
 /** Leaves the online game, if any, and closes the connection. */
 function goOffline(): void {
+  // Leaving on purpose gives up the seat; closing the tab keeps it for a reload.
+  if (online) forgetSeat();
   online?.leave();
   online?.close();
   online = undefined;
@@ -236,6 +239,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         showDesync(tick);
       },
       ended(reason) {
+        forgetSeat();
         if (game) {
           if (reason !== "left") showNotice(`online.ended.${reason}`);
           return;
@@ -243,6 +247,8 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         room.ended(reason);
       },
       error(code, message) {
+        // A seat taken back after a reload, from a game that went on or ended.
+        if (code === "token_invalid") forgetSeat();
         room.refused(code, message);
       },
     },
@@ -250,6 +256,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   online = client;
   if (entry.type === "play") client.play();
   else if (entry.type === "create") client.create();
+  else if (entry.type === "resume") client.resume(entry.token);
   else client.join(entry.game);
 }
 
@@ -279,6 +286,9 @@ function startOnline(start: GameStart, client: OnlineClient): void {
   }
   lobby?.dispose();
   lobby = undefined;
+  // A reload of this tab takes the seat back, public game or private.
+  saveSeat(start.game, start.token);
+  history.replaceState(null, "", `?${new URLSearchParams({ game: start.game }).toString()}`);
   const leave = (): void => {
     goOffline();
     history.replaceState(null, "", setupQuery(setup));
@@ -326,7 +336,9 @@ const ready = fetchMaps(location.href).then((list) => {
 });
 void ready.then(() => {
   // An invitation link joins its game; ?online, the next public one.
-  if (invited) goOnline({ type: "join", game: invited });
-  else if (query.has("online")) goOnline({ type: "play" });
+  if (invited) {
+    const token = seatIn(invited);
+    goOnline(token ? { type: "resume", game: invited, token } : { type: "join", game: invited });
+  } else if (query.has("online")) goOnline({ type: "play" });
   else showMenu();
 });
