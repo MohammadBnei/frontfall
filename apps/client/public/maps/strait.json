@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "id": "strait",
+  "name": {
+    "en": "Strait",
+    "fr": "Détroit"
+  },
+  "version": 1,
+  "width": 320,
+  "height": 192,
+  "topology": "flat",
+  "projection": {
+    "type": "equirectangular",
+    "west": -40,
+    "east": 40,
+    "south": -24,
+    "north": 24
+  },
+  "terrain": {
+    "file": "strait.bin",
+    "bytes": 61456,
+    "sha256": "4938e75ff010c97a7f63ba32cf4864ebfd0a58623583b561250aa97a1c093d62"
+  },
+  "thumbnail": "strait.png",
+  "players": {
+    "min": 2,
+    "recommended": 4,
+    "max": 8
+  },
+  "nations": [
+    {
+      "name": "Westmarch",
+      "capital": "Ashford",
+      "tile": 15424
+    },
+    {
+      "name": "Eastmarch",
+      "capital": "Brightwater",
+      "tile": 15616
+    },
+    {
+      "name": "Low Coast",
+      "capital": "Saltmarsh",
+      "tile": 46168
+    },
+    {
+      "name": "Far Coast",
+      "capital": "Duneholm",
+      "tile": 46328
+    },
+    {
+      "name": "Straitwatch",
+      "capital": "Gatehouse",
+      "tile": 30856
+    },
+    {
+      "name": "Harbour Reach",
+      "capital": "Tidewall",
+      "tile": 30912
+    }
+  ],
+  "credits": [
+    {
+      "title": "Drawn for Frontfall",
+      "url": "https://github.com/nic0lasm/frontfall",
+      "license": "MIT"
+    }
+  ]
+}

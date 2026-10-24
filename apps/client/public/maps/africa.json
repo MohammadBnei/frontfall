@@ -1,0 +1,199 @@
+{
+  "format": 1,
+  "id": "africa",
+  "name": {
+    "en": "Africa",
+    "fr": "Afrique"
+  },
+  "version": 1,
+  "width": 1024,
+  "height": 1024,
+  "topology": "flat",
+  "projection": {
+    "type": "equirectangular",
+    "west": -20,
+    "east": 56,
+    "south": -36,
+    "north": 38
+  },
+  "terrain": {
+    "file": "africa.bin",
+    "bytes": 1048592,
+    "sha256": "0da4f213c1dcba35b25874788c2bc7fb9667815f700f62890949c230a9fd3c9a"
+  },
+  "thumbnail": "africa.png",
+  "players": {
+    "min": 2,
+    "recommended": 12,
+    "max": 32
+  },
+  "nations": [
+    {
+      "name": "Congo (Kinshasa)",
+      "capital": "Kinshasa",
+      "tile": 599515
+    },
+    {
+      "name": "Nigeria",
+      "capital": "Abuja",
+      "tile": 409970
+    },
+    {
+      "name": "Ethiopia",
+      "capital": "Addis Ababa",
+      "tile": 410390
+    },
+    {
+      "name": "Algeria",
+      "capital": "Algiers",
+      "tile": 17718
+    },
+    {
+      "name": "Egypt",
+      "capital": "Cairo",
+      "tile": 112306
+    },
+    {
+      "name": "Iran",
+      "capital": "Tehran",
+      "tile": 33730
+    },
+    {
+      "name": "Sudan",
+      "capital": "Khartoum",
+      "tile": 318147
+    },
+    {
+      "name": "South Africa",
+      "capital": "Cape Town",
+      "tile": 1019397
+    },
+    {
+      "name": "Saudi Arabia",
+      "capital": "Riyadh",
+      "tile": 189314
+    },
+    {
+      "name": "Tanzania",
+      "capital": "Dar es Salaam",
+      "tile": 634654
+    },
+    {
+      "name": "Angola",
+      "capital": "Luanda",
+      "tile": 663999
+    },
+    {
+      "name": "Kenya",
+      "capital": "Nairobi",
+      "tile": 556797
+    },
+    {
+      "name": "Niger",
+      "capital": "Niamey",
+      "tile": 346409
+    },
+    {
+      "name": "Mali",
+      "capital": "Bamako",
+      "tile": 358561
+    },
+    {
+      "name": "Mozambique",
+      "capital": "Maputo",
+      "tile": 905924
+    },
+    {
+      "name": "Morocco",
+      "capital": "Rabat",
+      "tile": 56497
+    },
+    {
+      "name": "Chad",
+      "capital": "N'Djamena",
+      "tile": 367064
+    },
+    {
+      "name": "Iraq",
+      "capital": "Baghdad",
+      "tile": 66403
+    },
+    {
+      "name": "Madagascar",
+      "capital": "Antananarivo",
+      "tile": 806797
+    },
+    {
+      "name": "Zambia",
+      "capital": "Lusaka",
+      "tile": 757386
+    },
+    {
+      "name": "Yemen",
+      "capital": "Sanaa",
+      "tile": 321377
+    },
+    {
+      "name": "Libya",
+      "capital": "Tripoli",
+      "tile": 72127
+    },
+    {
+      "name": "Cameroon",
+      "capital": "Yaoundé",
+      "tile": 483752
+    },
+    {
+      "name": "Uganda",
+      "capital": "Kampala",
+      "tile": 534212
+    },
+    {
+      "name": "Ivory Coast",
+      "capital": "Abidjan",
+      "tile": 463063
+    },
+    {
+      "name": "Mauritania",
+      "capital": "Nouakchott",
+      "tile": 281654
+    },
+    {
+      "name": "Somalia",
+      "capital": "Mogadishu",
+      "tile": 509808
+    },
+    {
+      "name": "Syria",
+      "capital": "Damascus",
+      "tile": 64246
+    },
+    {
+      "name": "Zimbabwe",
+      "capital": "Harare",
+      "tile": 791215
+    },
+    {
+      "name": "Guinea",
+      "capital": "Conakry",
+      "tile": 402517
+    },
+    {
+      "name": "Central African Republic",
+      "capital": "Bangui",
+      "tile": 476679
+    },
+    {
+      "name": "Burkina Faso",
+      "capital": "Ouagadougou",
+      "tile": 362744
+    }
+  ],
+  "credits": [
+    {
+      "title": "Natural Earth 5.1.2",
+      "url": "https://www.naturalearthdata.com/",
+      "license": "Public domain"
+    }
+  ]
+}

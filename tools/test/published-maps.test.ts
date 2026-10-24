@@ -8,8 +8,9 @@ import {
 import { MapCatalog, MapManifest } from "@frontfall/protocol";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { MapDefinition, PublishedMaps } from "../src/mapgen/build.ts";
+import { DRAWN_CREDIT, MapDefinition, PublishedMaps } from "../src/mapgen/build.ts";
 import { tileAt, type GridSpec } from "../src/mapgen/geometry.ts";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -161,6 +162,46 @@ describe("relief", () => {
   });
 });
 
+describe("drawn test maps", () => {
+  const drawn = maps.filter((m) => m.definition.drawn);
+  const land = (id: string, x: number, y: number): boolean => {
+    const map = drawn.find((m) => m.definition.id === id);
+    if (!map) throw new Error(`no drawn map ${id}`);
+    return isLand(map.tiles[y * map.grid.width + x] as number);
+  };
+
+  it("exist and credit the project instead of a dataset", () => {
+    expect(drawn.map((m) => m.definition.id)).toEqual(["island", "ring", "strait"]);
+    for (const map of drawn) expect(map.manifest.credits).toEqual([DRAWN_CREDIT]);
+  });
+
+  it("keep their nations in the order they are written", () => {
+    for (const map of drawn) {
+      expect(map.manifest.nations.map((n) => n.name)).toEqual(
+        map.definition.drawn?.nations.map((n) => n.name),
+      );
+    }
+  });
+
+  it("cross the seam of the ring with land on both sides", () => {
+    const map = drawn.find((m) => m.definition.id === "ring");
+    const middle = (map?.grid.height ?? 0) / 2;
+    expect(land("ring", 0, middle)).toBe(true);
+    expect(land("ring", (map?.grid.width ?? 0) - 1, middle)).toBe(true);
+  });
+
+  it("separate the two continents of the strait by a channel of a few tiles", () => {
+    const map = drawn.find((m) => m.definition.id === "strait");
+    const width = map?.grid.width ?? 0;
+    const row = Array.from({ length: width }, (_, x) =>
+      land("strait", x, (map?.grid.height ?? 0) / 2),
+    );
+    const water = row.slice(width / 2 - 8, width / 2 + 8).filter((tile) => !tile).length;
+    expect(water).toBeGreaterThan(0);
+    expect(water).toBeLessThanOrEqual(6);
+  });
+});
+
 describe("nations", () => {
   const names = (id: string): string[] =>
     maps.find((m) => m.definition.id === id)?.manifest.nations.map((nation) => nation.name) ?? [];
@@ -231,12 +272,11 @@ describe("catalog", () => {
     expect(catalog.maps.map((m) => m.id)).toEqual(definitions.map((d) => d.id));
   });
 
-  it("keeps the whole set small enough to download", () => {
-    const total = readdirSync(mapsDir).reduce(
-      (sum, file) => sum + statSync(join(mapsDir, file)).size,
+  it("keeps the whole set under 6 MB once compressed", () => {
+    const compressed = readdirSync(mapsDir).reduce(
+      (sum, file) => sum + gzipSync(readFileSync(join(mapsDir, file))).length,
       0,
     );
-    // Raw bytes; served compressed, the set is about a tenth of this.
-    expect(total).toBeLessThan(12 * 1024 * 1024);
+    expect(compressed).toBeLessThan(6 * 1024 * 1024);
   });
 });

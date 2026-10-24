@@ -1,0 +1,154 @@
+{
+  "format": 1,
+  "id": "americas",
+  "name": {
+    "en": "Americas",
+    "fr": "Amériques"
+  },
+  "version": 1,
+  "width": 960,
+  "height": 1024,
+  "topology": "flat",
+  "projection": {
+    "type": "equirectangular",
+    "west": -170,
+    "east": -30,
+    "south": -57,
+    "north": 75
+  },
+  "terrain": {
+    "file": "americas.bin",
+    "bytes": 983056,
+    "sha256": "69969845d21f358c58f86fde97c10694b237cc9cb0e669a65b3917f542a678a1"
+  },
+  "thumbnail": "americas.png",
+  "players": {
+    "min": 2,
+    "recommended": 10,
+    "max": 24
+  },
+  "nations": [
+    {
+      "name": "United States of America",
+      "capital": "Washington,  D.C.",
+      "tile": 269437
+    },
+    {
+      "name": "Brazil",
+      "capital": "Brasília",
+      "tile": 676677
+    },
+    {
+      "name": "Mexico",
+      "capital": "Mexico City",
+      "tile": 413285
+    },
+    {
+      "name": "Argentina",
+      "capital": "Buenos Aires",
+      "tile": 816765
+    },
+    {
+      "name": "Canada",
+      "capital": "Ottawa",
+      "tile": 220486
+    },
+    {
+      "name": "Colombia",
+      "capital": "Bogota",
+      "tile": 524817
+    },
+    {
+      "name": "Peru",
+      "capital": "Lima",
+      "tile": 648637
+    },
+    {
+      "name": "Venezuela",
+      "capital": "Caracas",
+      "tile": 480706
+    },
+    {
+      "name": "Chile",
+      "capital": "Santiago",
+      "tile": 808041
+    },
+    {
+      "name": "Bolivia",
+      "capital": "La Paz",
+      "tile": 681338
+    },
+    {
+      "name": "Guatemala",
+      "capital": "Guatemala City",
+      "tile": 449824
+    },
+    {
+      "name": "Paraguay",
+      "capital": "Asunción",
+      "tile": 747650
+    },
+    {
+      "name": "Ecuador",
+      "capital": "Quito",
+      "tile": 560307
+    },
+    {
+      "name": "Cuba",
+      "capital": "Havana",
+      "tile": 386520
+    },
+    {
+      "name": "Dominican Republic",
+      "capital": "Santo Domingo",
+      "tile": 421166
+    },
+    {
+      "name": "Costa Rica",
+      "capital": "San José",
+      "tile": 484429
+    },
+    {
+      "name": "Guyana",
+      "capital": "Georgetown",
+      "tile": 508606
+    },
+    {
+      "name": "Nicaragua",
+      "capital": "Managua",
+      "tile": 468094
+    },
+    {
+      "name": "Panama",
+      "capital": "Panama City",
+      "tile": 491180
+    },
+    {
+      "name": "Jamaica",
+      "capital": "Kingston",
+      "tile": 423999
+    },
+    {
+      "name": "Trinidad and Tobago",
+      "capital": "Port-of-Spain",
+      "tile": 478823
+    },
+    {
+      "name": "Belize",
+      "capital": "Belmopan",
+      "tile": 429677
+    },
+    {
+      "name": "The Bahamas",
+      "capital": "Nassau",
+      "tile": 372150
+    }
+  ],
+  "credits": [
+    {
+      "title": "Natural Earth 5.1.2",
+      "url": "https://www.naturalearthdata.com/",
+      "license": "Public domain"
+    }
+  ]
+}

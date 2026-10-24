@@ -1,0 +1,14 @@
+{
+  "id": "americas",
+  "name": { "en": "Americas", "fr": "Amériques" },
+  "version": 1,
+  "width": 960,
+  "height": 1024,
+  "topology": "flat",
+  "bounds": { "west": -170, "east": -30, "south": -57, "north": 75 },
+  "ice": { "north": 80, "south": -60 },
+  "minIslandTiles": 6,
+  "minLakeTiles": 6,
+  "players": { "min": 2, "recommended": 10, "max": 24 },
+  "nations": { "count": 24, "minDistance": 30 }
+}

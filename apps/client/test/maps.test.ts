@@ -43,8 +43,12 @@ describe("published maps", () => {
 
   it("offers the published maps online, with as many bots as the server takes", async () => {
     const maps = onlineMaps(await fetchMaps(PAGE, fromDisk));
-    expect(maps.map((map) => map.id)).toEqual(["world", "europe"]);
-    const [world, europe] = maps as [MapInfo, MapInfo];
+    const ids = maps.map((map) => map.id);
+    // The preferred map first, then the catalogue in its own order.
+    expect(ids[0]).toBe("world");
+    expect(ids).toEqual(expect.arrayContaining(["europe", "africa", "americas", "asia"]));
+    const world = maps[0] as MapInfo;
+    const europe = maps.find((map) => map.id === "europe") as MapInfo;
     // 25 bot names; Europe takes 32 players, 16 of them human seats.
     expect(botLimit(world, 16)).toBe(25);
     expect(botLimit(europe, 16)).toBe(16);

@@ -9,6 +9,7 @@ These changes will ship as **v0.1.0, the first playable beta**: a solo game in t
 ### Added
 
 - **Online games, protocol version 2** ([docs/protocol.md](docs/protocol.md)): a version handshake, binary frames for orders and turns, public games that start after a countdown or when full, private games joined by invitation link (`?game=<id>`), a list of public games at `/api/games`, reconnection with every missed turn, desync detection from client state hashes, and player name rules.
+- **Five more maps**: Americas, Africa and Asia from Natural Earth, and three small drawn maps, Island, Strait and Ring, for quick games and as test cases for a single landmass, a narrow strait and the east-west seam. The eight maps weigh under 400 kB compressed.
 - Pages from an older build are asked to reload instead of joining a game they could desynchronise. Online games are played on the World map.
 - Server protection and monitoring ([docs/server.md](docs/server.md)): a message rate limit per connection, idle connections closed, JSON logs that never record client addresses, and Prometheus metrics at `/metrics`, answered only to requests from the host.
 - Protocol version 3: the host of a private game picks the map, the number of bots and their difficulty (`configure`); the server accepts only published maps and as many bots as the map holds. The `desync` message and log carry both hashes (protocol version 4).

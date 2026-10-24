@@ -100,7 +100,11 @@ export function pickNations(
 }
 
 /** Nearest ownable tile by grid distance, lowest index first on a tie. */
-function nearestOwnable(topology: Topology, tiles: Uint8Array, center: number): number | undefined {
+export function nearestOwnable(
+  topology: Topology,
+  tiles: Uint8Array,
+  center: number,
+): number | undefined {
   if (isOwnable(tiles[center] as number)) return center;
   for (let radius = 1; radius <= SNAP_RADIUS; radius++) {
     const ring = topology

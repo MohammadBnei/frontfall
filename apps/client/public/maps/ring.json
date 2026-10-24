@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "id": "ring",
+  "name": {
+    "en": "Ring",
+    "fr": "Anneau"
+  },
+  "version": 1,
+  "width": 512,
+  "height": 256,
+  "topology": "cylinder",
+  "projection": {
+    "type": "equirectangular",
+    "west": -180,
+    "east": 180,
+    "south": -90,
+    "north": 90
+  },
+  "terrain": {
+    "file": "ring.bin",
+    "bytes": 131088,
+    "sha256": "0fd35bcbcad1b1e033472abf1a432be56301d7597cf609ba1705accc4132eea1"
+  },
+  "thumbnail": "ring.png",
+  "players": {
+    "min": 2,
+    "recommended": 6,
+    "max": 12
+  },
+  "nations": [
+    {
+      "name": "Dateline",
+      "capital": "Midnight",
+      "tile": 52730
+    },
+    {
+      "name": "Morrow",
+      "capital": "Dawnport",
+      "tile": 78341
+    },
+    {
+      "name": "Meridia",
+      "capital": "Noonhall",
+      "tile": 50944
+    },
+    {
+      "name": "Austral",
+      "capital": "Coldwater",
+      "tile": 76536
+    },
+    {
+      "name": "Leeward",
+      "capital": "Galeholm",
+      "tile": 80341
+    },
+    {
+      "name": "Windward",
+      "capital": "Stormgate",
+      "tile": 50730
+    }
+  ],
+  "credits": [
+    {
+      "title": "Drawn for Frontfall",
+      "url": "https://github.com/nic0lasm/frontfall",
+      "license": "MIT"
+    }
+  ]
+}

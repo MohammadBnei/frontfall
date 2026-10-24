@@ -1,0 +1,69 @@
+{
+  "format": 1,
+  "id": "island",
+  "name": {
+    "en": "Island",
+    "fr": "Île"
+  },
+  "version": 1,
+  "width": 256,
+  "height": 192,
+  "topology": "flat",
+  "projection": {
+    "type": "equirectangular",
+    "west": -32,
+    "east": 32,
+    "south": -24,
+    "north": 24
+  },
+  "terrain": {
+    "file": "island.bin",
+    "bytes": 49168,
+    "sha256": "8319e2fd15a602111ab554f5b25c42ee3eb10d884c05b6aa796641a8483a9eca"
+  },
+  "thumbnail": "island.png",
+  "players": {
+    "min": 2,
+    "recommended": 4,
+    "max": 8
+  },
+  "nations": [
+    {
+      "name": "Northmark",
+      "capital": "Highgate",
+      "tile": 14448
+    },
+    {
+      "name": "Eastreach",
+      "capital": "Saltport",
+      "tile": 21696
+    },
+    {
+      "name": "Southvale",
+      "capital": "Lowmere",
+      "tile": 35980
+    },
+    {
+      "name": "Westfold",
+      "capital": "Greyhaven",
+      "tile": 26684
+    },
+    {
+      "name": "Cape Ardent",
+      "capital": "Lantern",
+      "tile": 32948
+    },
+    {
+      "name": "Hollow Pines",
+      "capital": "Ferncross",
+      "tile": 16464
+    }
+  ],
+  "credits": [
+    {
+      "title": "Drawn for Frontfall",
+      "url": "https://github.com/nic0lasm/frontfall",
+      "license": "MIT"
+    }
+  ]
+}

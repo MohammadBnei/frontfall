@@ -1,0 +1,239 @@
+{
+  "format": 1,
+  "id": "asia",
+  "name": {
+    "en": "Asia",
+    "fr": "Asie"
+  },
+  "version": 1,
+  "width": 1280,
+  "height": 1088,
+  "topology": "flat",
+  "projection": {
+    "type": "equirectangular",
+    "west": 25,
+    "east": 150,
+    "south": -12,
+    "north": 78
+  },
+  "terrain": {
+    "file": "asia.bin",
+    "bytes": 1392656,
+    "sha256": "27f13ac1556a807c28ccb561ace6896afa60236c8d6042976bdd3b655b25fb75"
+  },
+  "thumbnail": "asia.png",
+  "players": {
+    "min": 2,
+    "recommended": 14,
+    "max": 40
+  },
+  "nations": [
+    {
+      "name": "China",
+      "capital": "Beijing",
+      "tile": 589735
+    },
+    {
+      "name": "India",
+      "capital": "New Delhi",
+      "tile": 764694
+    },
+    {
+      "name": "Russia",
+      "capital": "Moscow",
+      "tile": 343169
+    },
+    {
+      "name": "Indonesia",
+      "capital": "Jakarta",
+      "tile": 1302597
+    },
+    {
+      "name": "Pakistan",
+      "capital": "Islamabad",
+      "tile": 685292
+    },
+    {
+      "name": "Iran",
+      "capital": "Tehran",
+      "tile": 654350
+    },
+    {
+      "name": "Ethiopia",
+      "capital": "Addis Ababa",
+      "tile": 1066380
+    },
+    {
+      "name": "Egypt",
+      "capital": "Cairo",
+      "tile": 741183
+    },
+    {
+      "name": "Turkey",
+      "capital": "Ankara",
+      "tile": 588880
+    },
+    {
+      "name": "Kazakhstan",
+      "capital": "Nur-Sultan",
+      "tile": 415195
+    },
+    {
+      "name": "Sudan",
+      "capital": "Khartoum",
+      "tile": 965197
+    },
+    {
+      "name": "Saudi Arabia",
+      "capital": "Riyadh",
+      "tile": 825822
+    },
+    {
+      "name": "Japan",
+      "capital": "Tokyo",
+      "tile": 655255
+    },
+    {
+      "name": "Tanzania",
+      "capital": "Dar es Salaam",
+      "tile": 1312146
+    },
+    {
+      "name": "Myanmar",
+      "capital": "Naypyidaw",
+      "tile": 900568
+    },
+    {
+      "name": "Thailand",
+      "capital": "Bangkok",
+      "tile": 994053
+    },
+    {
+      "name": "Ukraine",
+      "capital": "Kyiv",
+      "tile": 426296
+    },
+    {
+      "name": "Vietnam",
+      "capital": "Hanoi",
+      "tile": 881467
+    },
+    {
+      "name": "Kenya",
+      "capital": "Nairobi",
+      "tile": 1226360
+    },
+    {
+      "name": "Philippines",
+      "capital": "Manila",
+      "tile": 980182
+    },
+    {
+      "name": "Bangladesh",
+      "capital": "Dhaka",
+      "tile": 840349
+    },
+    {
+      "name": "Uzbekistan",
+      "capital": "Tashkent",
+      "tile": 567493
+    },
+    {
+      "name": "Iraq",
+      "capital": "Baghdad",
+      "tile": 690118
+    },
+    {
+      "name": "Yemen",
+      "capital": "Sanaa",
+      "tile": 969156
+    },
+    {
+      "name": "Malaysia",
+      "capital": "Kuala Lumpur",
+      "tile": 1157905
+    },
+    {
+      "name": "Mongolia",
+      "capital": "Ulaanbaatar",
+      "tile": 465478
+    },
+    {
+      "name": "South Korea",
+      "capital": "Seoul",
+      "tile": 625684
+    },
+    {
+      "name": "Somalia",
+      "capital": "Mogadishu",
+      "tile": 1173968
+    },
+    {
+      "name": "Nepal",
+      "capital": "Kathmandu",
+      "tile": 777577
+    },
+    {
+      "name": "Turkmenistan",
+      "capital": "Ashgabat",
+      "tile": 619861
+    },
+    {
+      "name": "Papua New Guinea",
+      "capital": "Port Moresby",
+      "tile": 1354211
+    },
+    {
+      "name": "Romania",
+      "capital": "Bucharest",
+      "tile": 518411
+    },
+    {
+      "name": "Syria",
+      "capital": "Damascus",
+      "tile": 687475
+    },
+    {
+      "name": "Afghanistan",
+      "capital": "Kabul",
+      "tile": 672452
+    },
+    {
+      "name": "Uganda",
+      "capital": "Kampala",
+      "tile": 1201997
+    },
+    {
+      "name": "Oman",
+      "capital": "Muscat",
+      "tile": 841301
+    },
+    {
+      "name": "Sri Lanka",
+      "capital": "Colombo",
+      "tile": 1100082
+    },
+    {
+      "name": "Cambodia",
+      "capital": "Phnom Penh",
+      "tile": 1028658
+    },
+    {
+      "name": "Belarus",
+      "capital": "Minsk",
+      "tile": 372506
+    },
+    {
+      "name": "Taiwan",
+      "capital": "Taipei",
+      "tile": 820188
+    }
+  ],
+  "credits": [
+    {
+      "title": "Natural Earth 5.1.2",
+      "url": "https://www.naturalearthdata.com/",
+      "license": "Public domain"
+    }
+  ]
+}

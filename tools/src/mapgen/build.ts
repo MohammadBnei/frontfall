@@ -6,14 +6,24 @@ import {
   TILE_MAGNITUDE,
   encodeMapFile,
   sha256Hex,
+  type Topology,
 } from "@frontfall/engine";
 import { MapManifest, MapName, MapPlayers, type MapCatalog } from "@frontfall/protocol";
 import { z } from "zod";
-import { pickNations, type Country } from "./nations.ts";
+import { nearestOwnable, pickNations, type Country, type Nation } from "./nations.ts";
 import { encodeIndexedPng } from "./png.ts";
 import type { SourceList } from "./sources.ts";
 import { buildTerrain, topologyOf, type TerrainSources } from "./terrain.ts";
-import { fillShape, type GridSpec, type Place, type Shape } from "./geometry.ts";
+import { fillShape, tileAt, type GridSpec, type Place, type Shape } from "./geometry.ts";
+
+const LonLat = z.tuple([z.number().min(-180).max(180), z.number().min(-90).max(90)]);
+
+/** Credit line of the maps drawn for Frontfall rather than built from a dataset. */
+export const DRAWN_CREDIT = {
+  title: "Drawn for Frontfall",
+  url: "https://github.com/nic0lasm/frontfall",
+  license: "MIT",
+};
 
 /** A map to generate, as written in tools/mapgen/definitions/<id>.json. */
 export const MapDefinition = z.object({
@@ -34,6 +44,17 @@ export const MapDefinition = z.object({
   minLakeTiles: z.number().int().nonnegative(),
   players: MapPlayers,
   nations: z.object({ count: z.number().int().nonnegative(), minDistance: z.number().int() }),
+  /**
+   * A test map drawn by hand instead of taken from Natural Earth: land and
+   * mountain polygons as [lon, lat] rings, and nations at given points.
+   */
+  drawn: z
+    .object({
+      land: z.array(z.array(z.array(LonLat).min(4))),
+      mountains: z.array(z.array(z.array(LonLat).min(4))).default([]),
+      nations: z.array(z.object({ name: z.string(), capital: z.string(), at: LonLat })),
+    })
+    .optional(),
 });
 export type MapDefinition = z.infer<typeof MapDefinition>;
 
@@ -72,21 +93,25 @@ export function buildMap(
     ...definition.bounds,
   };
   const topology = topologyOf(grid, definition.topology === "cylinder");
-  const tiles = buildTerrain(grid, topology, sources, definition);
+  const drawn = definition.drawn;
+  const terrainSources = drawn ? drawnSources(drawn) : sources;
+  const tiles = buildTerrain(grid, topology, terrainSources, definition);
   const terrain = encodeMapFile({
     width: grid.width,
     height: grid.height,
     wrapsX: topology.wrapsX,
     tiles,
   });
-  const nations = pickNations(
-    grid,
-    topology,
-    tiles,
-    sources.places,
-    countryScores(grid, tiles, sources.countries),
-    definition.nations,
-  );
+  const nations = drawn
+    ? placeNations(grid, topology, tiles, drawn.nations)
+    : pickNations(
+        grid,
+        topology,
+        tiles,
+        sources.places,
+        countryScores(grid, tiles, sources.countries),
+        definition.nations,
+      );
 
   const manifest = MapManifest.parse({
     format: 1,
@@ -101,9 +126,41 @@ export function buildMap(
     thumbnail: `${definition.id}.png`,
     players: definition.players,
     nations,
-    credits: [dataset],
+    credits: [drawn ? DRAWN_CREDIT : dataset],
   });
   return { manifest, terrain, thumbnail: thumbnail(grid, tiles) };
+}
+
+type Drawn = NonNullable<MapDefinition["drawn"]>;
+
+function drawnSources(drawn: Drawn): TerrainSources {
+  return {
+    land: drawn.land.map((rings) => ({ rings, properties: {} })),
+    lakes: [],
+    glaciers: [],
+    regions: drawn.mountains.map((rings) => ({
+      rings,
+      properties: { FEATURECLA: "Range/mtn", SCALERANK: 1 },
+    })),
+    peaks: [],
+    depths: [[], [], []],
+    straits: [],
+  };
+}
+
+/** Nations of a drawn map, in the order written, each on the nearest ownable tile. */
+function placeNations(
+  grid: GridSpec,
+  topology: Topology,
+  tiles: Uint8Array,
+  nations: Drawn["nations"],
+): Nation[] {
+  return nations.map(({ name, capital, at }) => {
+    const tile = tileAt(grid, at[0], at[1]);
+    const start = tile === undefined ? undefined : nearestOwnable(topology, tiles, tile);
+    if (start === undefined) throw new Error(`nation ${name} has no land near ${at.join(", ")}`);
+    return { name, capital, tile: start };
+  });
 }
 
 /** Population and ownable land on this map of every country, by ADM0_A3 code. */

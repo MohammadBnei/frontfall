@@ -2,6 +2,57 @@
   "format": 1,
   "maps": [
     {
+      "id": "africa",
+      "name": {
+        "en": "Africa",
+        "fr": "Afrique"
+      },
+      "width": 1024,
+      "height": 1024,
+      "topology": "flat",
+      "players": {
+        "min": 2,
+        "recommended": 12,
+        "max": 32
+      },
+      "manifest": "africa.json",
+      "thumbnail": "africa.png"
+    },
+    {
+      "id": "americas",
+      "name": {
+        "en": "Americas",
+        "fr": "Amériques"
+      },
+      "width": 960,
+      "height": 1024,
+      "topology": "flat",
+      "players": {
+        "min": 2,
+        "recommended": 10,
+        "max": 24
+      },
+      "manifest": "americas.json",
+      "thumbnail": "americas.png"
+    },
+    {
+      "id": "asia",
+      "name": {
+        "en": "Asia",
+        "fr": "Asie"
+      },
+      "width": 1280,
+      "height": 1088,
+      "topology": "flat",
+      "players": {
+        "min": 2,
+        "recommended": 14,
+        "max": 40
+      },
+      "manifest": "asia.json",
+      "thumbnail": "asia.png"
+    },
+    {
       "id": "europe",
       "name": {
         "en": "Europe",
@@ -17,6 +68,57 @@
       },
       "manifest": "europe.json",
       "thumbnail": "europe.png"
+    },
+    {
+      "id": "island",
+      "name": {
+        "en": "Island",
+        "fr": "Île"
+      },
+      "width": 256,
+      "height": 192,
+      "topology": "flat",
+      "players": {
+        "min": 2,
+        "recommended": 4,
+        "max": 8
+      },
+      "manifest": "island.json",
+      "thumbnail": "island.png"
+    },
+    {
+      "id": "ring",
+      "name": {
+        "en": "Ring",
+        "fr": "Anneau"
+      },
+      "width": 512,
+      "height": 256,
+      "topology": "cylinder",
+      "players": {
+        "min": 2,
+        "recommended": 6,
+        "max": 12
+      },
+      "manifest": "ring.json",
+      "thumbnail": "ring.png"
+    },
+    {
+      "id": "strait",
+      "name": {
+        "en": "Strait",
+        "fr": "Détroit"
+      },
+      "width": 320,
+      "height": 192,
+      "topology": "flat",
+      "players": {
+        "min": 2,
+        "recommended": 4,
+        "max": 8
+      },
+      "manifest": "strait.json",
+      "thumbnail": "strait.png"
     },
     {
       "id": "world",
