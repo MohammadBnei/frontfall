@@ -1,6 +1,6 @@
 # Game rules
 
-Status: v1 draft · Owner: maintainers · Balance values: [balance.md](balance.md)
+Status: v1, every rule implemented · Owner: maintainers · Balance values: [balance.md](balance.md)
 
 This document is the single source of truth for how Frontfall plays. It describes what a player sees and can do, not how the code does it. Code, tests and pull requests refer to rules by identifier, for example `R-ATTACK-03`. A change to the game starts with a change to this file.
 

@@ -25,7 +25,7 @@
 
 La version en cours tourne sur **[nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/)**, sans compte ni installation. Chaque push sur `main` y est déployé en quelques minutes.
 
-Jouez en solo contre des bots, ou en ligne entre amis par un lien d'invitation ou dans une partie publique. Huit cartes : Monde, Europe, Amériques, Afrique et Asie, tirées de Natural Earth, et trois cartes rapides, Île, Détroit et Anneau. Les navires portent les troupes par la mer, par les canaux de Panama et de Suez. L'interface est en français et en anglais.
+Jouez en solo contre des bots, ou en ligne entre amis par un lien d'invitation ou dans une partie publique. Huit cartes : Monde, Europe, Amériques, Afrique et Asie, tirées de Natural Earth, et trois cartes rapides, Île, Détroit et Anneau. Les navires portent les troupes par la mer, par les canaux de Panama et de Suez. Construisez villes, forts, ports et silos à missiles, commercez par la mer, alliez-vous, trahissez ou jouez en équipes, et enregistrez une partie pour la revoir. L'interface est en français et en anglais.
 
 <p align="center">
   <img src="docs/assets/screenshot-world.png" alt="Une partie sur la carte du Monde : une douzaine d'empires sur les continents, avec leurs noms et leurs troupes, le classement et le curseur d'attaque" width="100%">
@@ -35,31 +35,31 @@ Frontfall est en bêta jusqu'à la v1.0 : règles, équilibrage et visuels chang
 
 ## En un coup d'œil
 
-|                   |                                                                                                             |
-| ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Le jeu**        | Partir d'une case, dépasser ses voisins, tenir la carte. Parties courtes, sans installation.                |
-| **La différence** | La carte du Monde boucle d'est en ouest, et la v1.0 la pose sur un globe 3D. Aucun bord où se cacher.       |
-| **État**          | Bêta. La v0.1 (solo contre des bots) et la v0.2 (en ligne entre amis) sont en ligne ; la v0.3 est en cours. |
-| **Jouer**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), ou votre propre serveur avec une image Docker.     |
-| **Prérequis**     | Un navigateur compatible WebGL 2. Un ordinateur reste le plus confortable.                                  |
-| **Licence**       | MIT : libre d'y jouer, de le forker et de l'héberger.                                                       |
+|                   |                                                                                                           |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| **Le jeu**        | Partir d'une case, dépasser ses voisins, tenir la carte. Parties courtes, sans installation.              |
+| **La différence** | La carte du Monde boucle d'est en ouest, et la v1.0 la pose sur un globe 3D. Aucun bord où se cacher.     |
+| **État**          | Bêta. La v0.1 et la v0.2 sont publiées ; la v0.3 et la v0.4 sont jouables et vérifiées avant publication. |
+| **Jouer**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), ou votre propre serveur avec une image Docker.   |
+| **Prérequis**     | Un navigateur compatible WebGL 2. Un ordinateur reste le plus confortable.                                |
+| **Licence**       | MIT : libre d'y jouer, de le forker et de l'héberger.                                                     |
 
 ## Feuille de route
 
 Le développement avance par versions jouables. Chacune se termine par quelque chose de jouable sur le serveur public. Toutes les versions avant la v1.0 sont des bêtas ; la v1.0 est le jeu complet sur le globe 3D.
 
-| Version | Objectif                                                                             | État     |
-| ------- | ------------------------------------------------------------------------------------ | -------- |
-| M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement | Terminé  |
-| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre            | Terminé  |
-| v0.2    | En ligne entre amis : liens d'invitation, parties publiques, huit cartes, désyncs    | Terminé  |
-| v0.3    | Jeu plus riche : villes et forts, alliances, nations, bots, surveillance             | Terminé  |
-| v0.4    | Mer et missiles : replays, équipes, ports et commerce, navires de guerre, missiles   | En cours |
-| v0.5    | Équilibré : passe d'équilibrage vérifiée sur mille parties simulées                  | Prévu    |
-| v0.6    | Globe 3D                                                                             | Prévu    |
-| v0.7    | Performance, et bascule entre carte et globe en cours de partie                      | Prévu    |
-| v1.0    | Le jeu complet sur le globe 3D, fin de la bêta                                       | Prévu    |
-| M8      | Communauté et lancement                                                              | Prévu    |
+| Version | Objectif                                                                             | État    |
+| ------- | ------------------------------------------------------------------------------------ | ------- |
+| M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement | Terminé |
+| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre            | Terminé |
+| v0.2    | En ligne entre amis : liens d'invitation, parties publiques, huit cartes, désyncs    | Terminé |
+| v0.3    | Jeu plus riche : villes et forts, alliances, nations, bots, surveillance             | Jouable |
+| v0.4    | Mer et missiles : replays, équipes, ports et commerce, navires de guerre, missiles   | Jouable |
+| v0.5    | Équilibré : passe d'équilibrage vérifiée sur mille parties simulées                  | Prévu   |
+| v0.6    | Globe 3D                                                                             | Prévu   |
+| v0.7    | Performance, et bascule entre carte et globe en cours de partie                      | Prévu   |
+| v1.0    | Le jeu complet sur le globe 3D, fin de la bêta                                       | Prévu   |
+| M8      | Communauté et lancement                                                              | Prévu   |
 
 Le périmètre et les critères « jouable » de chaque version sont dans [docs/roadmap.md](docs/roadmap.md) (en anglais). Le travail ouvert est suivi dans les [milestones](https://github.com/nic0lasm/frontfall/milestones).
 

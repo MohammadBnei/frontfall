@@ -10,17 +10,17 @@ The game ships as a series of playable versions instead of one release at the en
 
 ## Overview
 
-| Version                                                                 | You can                                                                                          | Status  | Issues | Estimate |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------- | -----: | -------: |
-| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.         | Shipped |     23 |  71 days |
-| [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.            | Shipped |      8 |  24 days |
-| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities, ports and defence posts, ally and betray, face named nations, on a watched server. | Current |     12 |  24 days |
-| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.                 | Planned |      6 |  19 days |
-| [v0.5 · Balanced](#v05--balanced)                                       | Play a flat-map game where no strategy or start position runs away with it.                      | Planned |      1 |   3 days |
-| [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                        | Planned |      7 |  21 days |
-| [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.               | Planned |      6 |  16 days |
-| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)    | The complete game on the 3D globe, online, balanced and monitored. The beta label comes off.     | Planned |      1 |    1 day |
-| [M8 · Community and launch](#m8--community-and-launch)                  | Players and contributors find the game, add maps and translations, and follow each release.      | Planned |      7 |  13 days |
+| Version                                                                 | You can                                                                                      | Status  | Issues | Estimate |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- | -----: | -------: |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.     | Shipped |     23 |  71 days |
+| [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.        | Shipped |      8 |  24 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities and forts, ally and betray, face named nations, on a watched server.            | Current |     12 |  24 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.             | Current |      6 |  19 days |
+| [v0.5 · Balanced](#v05--balanced)                                       | Play a flat-map game where no strategy or start position runs away with it.                  | Planned |      1 |   3 days |
+| [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                    | Planned |      7 |  21 days |
+| [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.           | Planned |      6 |  16 days |
+| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)    | The complete game on the 3D globe, online, balanced and monitored. The beta label comes off. | Planned |      1 |    1 day |
+| [M8 · Community and launch](#m8--community-and-launch)                  | Players and contributors find the game, add maps and translations, and follow each release.  | Planned |      7 |  13 days |
 
 M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
 
@@ -188,7 +188,7 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 | M5-04 | [#46](https://github.com/nic0lasm/frontfall/issues/46) Missiles and air defence          | L    | #43        |
 | M5-06 | [#48](https://github.com/nic0lasm/frontfall/issues/48) Team games                        | M    | #35, #47   |
 | M5-08 | [#50](https://github.com/nic0lasm/frontfall/issues/50) Replays                           | M    | #38        |
-| M5-09 | Gifts, private-game options and quick messages (`R-DIPLO-06`, `R-MODE-03`, `R-DIPLO-07`) | S    | #47        |
+| M5-11 | Gifts, private-game options and quick messages (`R-DIPLO-06`, `R-MODE-03`, `R-DIPLO-07`) | S    | #47        |
 
 6 items, about 19 days. Transport by sea already exists since v0.1 (#81) and keeps leaving from any coast; #44 brings ports, the trade ships between them with a route cache per port pair, and embargoes. The last rules of v1, gifts, private-game options and quick messages, close the version, so that criterion 1 holds.
 

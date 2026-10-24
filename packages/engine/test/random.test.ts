@@ -5,7 +5,7 @@ function take(random: Random, count: number): number[] {
   return Array.from({ length: count }, () => random.nextUint32());
 }
 
-describe("Random", () => {
+describe("Random, drawn from the game's seed (R-FAIR-02)", () => {
   it("produces the same sequence for the same seed", () => {
     expect(take(new Random(42), 100)).toEqual(take(new Random(42), 100));
   });

@@ -20,7 +20,8 @@ async function errors(code: string, filePath: string): Promise<string[]> {
   return (result?.messages ?? []).map((message) => message.message);
 }
 
-describe("determinism rules for the engine", () => {
+// R-FAIR-02: the engine draws nothing from the device, so every random choice comes from the seed.
+describe("determinism rules for the engine (R-FAIR-02)", () => {
   it.each([
     ["Math.random()", "seeded Random"],
     ["Math.sin(1)", "differ between browsers"],

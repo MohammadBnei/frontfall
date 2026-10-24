@@ -114,3 +114,20 @@ describe("teams (R-MODE-02)", () => {
     expect(isAllied(game, 1, 2)).toBe(false);
   });
 });
+
+describe("free-for-all (R-MODE-01)", () => {
+  it("puts nobody on a team or in an alliance, and the winner wins alone", () => {
+    const { game, give } = newGame(4, 0);
+    for (const a of game.players())
+      for (const b of game.players()) {
+        if (a.id === b.id) continue;
+        expect(sameTeam(game, a.id, b.id)).toBe(false);
+        expect(isAllied(game, a.id, b.id)).toBe(false);
+      }
+    give(1, 0, 75);
+    give(2, 75, 100);
+    game.step({ tick: 0, orders: [] });
+    expect(game.winningTeam).toBeUndefined();
+    expect(game.winner).toBe(1);
+  });
+});
