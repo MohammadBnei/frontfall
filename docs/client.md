@@ -131,7 +131,11 @@ The territory layer draws the whole map in one draw call (ADR 0003):
   distance transform in the worker every half second
   (`game/label-anchors.ts`), and as large as the land around that tile allows.
 - A frame is drawn only when the camera moved, the hovered land changed,
-  tiles changed or still light a front, or ships are at sea.
+  tiles changed or still light a front, or ships are at sea. While any attack goes
+  on somewhere, tiles change every tick, so the map is redrawn all the time,
+  as it already was for the fade; the fronts only add the second and a half
+  after the last change. Skipping frames whose fronts are all off screen is
+  left for later, if phones show it.
 
 ## Beta
 
