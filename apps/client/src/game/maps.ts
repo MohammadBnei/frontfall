@@ -25,6 +25,8 @@ export interface MapInfo {
   readonly name?: { readonly en: string; readonly fr: string };
   readonly manifest?: string;
   readonly thumbnail?: string;
+  /** Published maps only: most players, humans and bots, a game on it takes. */
+  readonly maxPlayers?: number;
 }
 
 interface GeneratedMap extends MapInfo {
@@ -100,6 +102,7 @@ export async function fetchMaps(base: string, fetcher: typeof fetch = fetch): Pr
         name: map.name,
         manifest: new URL(map.manifest, url).href,
         thumbnail: new URL(map.thumbnail, url).href,
+        maxPlayers: map.players.max,
       });
     }
   } catch (error) {

@@ -1,12 +1,28 @@
-import type { ErrorCode } from "@frontfall/protocol";
-import { applyTranslations, t, type MessageKey, type Params } from "../i18n/index.ts";
+import type { Difficulty, ErrorCode, GameOptions } from "@frontfall/protocol";
+import type { MapInfo } from "../game/maps.ts";
+import { MAX_BOTS } from "../game/solo-game.ts";
+import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
 import { playerColor } from "../palette.ts";
 import { h } from "./dom.ts";
 
+const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
+
+/** Maps an online game can be played on: those the server knows, from the published catalogue. */
+export function onlineMaps(maps: readonly MapInfo[]): MapInfo[] {
+  return maps.filter((map) => map.maxPlayers !== undefined);
+}
+
+/** Most bots the server accepts on `map` beside `capacity` human seats. */
+export function botLimit(map: MapInfo, capacity: number): number {
+  return Math.max(0, Math.min(MAX_BOTS, (map.maxPlayers ?? 0) - capacity));
+}
+
 export interface LobbyActions {
   /** Host of a private game: start with the players present. */
   onStart(): void;
+  /** Host of a private game: new map, bots or difficulty. */
+  onConfigure(options: GameOptions): void;
   onLeave(): void;
 }
 
@@ -60,13 +76,36 @@ export class LobbyScreen {
     hidden: true,
     "data-i18n": "online.reload",
   });
+  private readonly mapSelect = h("select", { id: "lobby-map" });
+  private readonly bots = h("input", {
+    id: "lobby-bots",
+    type: "range",
+    min: "0",
+    step: "1",
+  });
+  private readonly botsValue = h("output", { for: "lobby-bots", class: "range-value" });
+  private readonly difficulty = h("select", { id: "lobby-difficulty" });
+  private readonly settings = h(
+    "div",
+    { class: "lobby-settings", hidden: true },
+    h("label", { for: "lobby-map", "data-i18n": "menu.map" }),
+    this.mapSelect,
+    h("label", { for: "lobby-bots", "data-i18n": "menu.bots" }),
+    h("div", { class: "range" }, this.bots, this.botsValue),
+    h("label", { for: "lobby-difficulty", "data-i18n": "menu.difficulty" }),
+    this.difficulty,
+  );
+  private readonly summary = h("p", { class: "lobby-summary", id: "lobby-summary" });
   private shown: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
   /** Countdown of a public game: when it starts, by this page's clock. */
   private startsAt: number | undefined;
   private lastLobby: LobbyState | undefined;
   private readonly timer: ReturnType<typeof setInterval>;
 
-  constructor(actions: LobbyActions) {
+  constructor(
+    actions: LobbyActions,
+    private readonly maps: readonly MapInfo[],
+  ) {
     const leave = h("button", {
       type: "button",
       class: "secondary",
@@ -82,6 +121,22 @@ export class LobbyScreen {
     this.reload.addEventListener("click", () => {
       location.reload();
     });
+    const configure = (): void => {
+      const map = this.maps.find((candidate) => candidate.id === this.mapSelect.value);
+      if (!map || !this.lastLobby) return;
+      actions.onConfigure({
+        map: map.id,
+        bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.capacity)),
+        difficulty: this.difficulty.value as Difficulty,
+      });
+    };
+    this.mapSelect.addEventListener("change", configure);
+    this.difficulty.addEventListener("change", configure);
+    this.bots.addEventListener("input", () => {
+      this.botsValue.textContent = this.bots.value;
+    });
+    // Sent on release, not on every step of a drag.
+    this.bots.addEventListener("change", configure);
     this.copy.addEventListener("click", () => {
       // Selected, the link can still be copied by hand where the clipboard is
       // out of reach, as on a page served over plain HTTP.
@@ -110,6 +165,8 @@ export class LobbyScreen {
         { class: "lobby-panel", "aria-labelledby": "lobby-title" },
         this.title,
         this.status,
+        this.summary,
+        this.settings,
         this.players,
         this.invitation,
         h("div", { class: "lobby-actions" }, this.start, this.reload, leave),
@@ -134,6 +191,7 @@ export class LobbyScreen {
     this.startsAt = undefined;
     this.show("status.outdated");
     this.start.hidden = true;
+    this.settings.hidden = true;
     this.reload.hidden = false;
   }
 
@@ -172,6 +230,7 @@ export class LobbyScreen {
     this.invitation.hidden = !privateGame;
     if (privateGame) this.invite.value = inviteLink;
     this.start.hidden = !privateGame || lobby.host !== lobby.you;
+    this.showSettings(lobby);
     this.showLobbyStatus(lobby);
   }
 
@@ -204,7 +263,36 @@ export class LobbyScreen {
     this.lastLobby = undefined;
     this.startsAt = undefined;
     this.start.hidden = true;
+    this.settings.hidden = true;
     this.show(key);
+  }
+
+  /** The host of a private game changes the settings; everyone else reads them. */
+  private showSettings(lobby: LobbyState): void {
+    const map = this.maps.find((candidate) => candidate.id === lobby.map);
+    const mapName = map?.name?.[getLanguage()] ?? lobby.map;
+    this.summary.textContent = t("online.summary", {
+      map: mapName,
+      bots: lobby.bots,
+      difficulty: t(`difficulty.${lobby.difficulty}`),
+    });
+    const editable = lobby.visibility === "private" && lobby.host === lobby.you && map;
+    this.settings.hidden = !editable;
+    this.summary.hidden = Boolean(editable);
+    if (!editable) return;
+    this.mapSelect.replaceChildren(
+      ...this.maps.map((candidate) =>
+        h("option", { value: candidate.id }, candidate.name?.[getLanguage()] ?? candidate.id),
+      ),
+    );
+    this.mapSelect.value = lobby.map;
+    this.difficulty.replaceChildren(
+      ...DIFFICULTIES.map((level) => h("option", { value: level }, t(`difficulty.${level}`))),
+    );
+    this.difficulty.value = lobby.difficulty;
+    this.bots.max = String(botLimit(map, lobby.capacity));
+    this.bots.value = String(lobby.bots);
+    this.botsValue.textContent = String(lobby.bots);
   }
 
   private showLobbyStatus(lobby: LobbyState): void {

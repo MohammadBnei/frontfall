@@ -257,9 +257,31 @@ input[type="range"] {
   font-size: 12px;
 }
 
+.lobby-settings {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 14px;
+  align-items: center;
+}
+
+.lobby-summary,
 .lobby-status {
   margin: 0;
   color: var(--ff-slate-300);
+}
+
+.lobby-settings select {
+  padding: 6px 8px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+  font: inherit;
+  color: inherit;
+}
+
+.lobby-settings[hidden],
+.lobby-summary[hidden] {
+  display: none;
 }
 
 .lobby-invite {

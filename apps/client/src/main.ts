@@ -1,10 +1,11 @@
+import type { GameOptions } from "@frontfall/protocol";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { BUILD } from "./net/build.ts";
 import { OnlineClient, socketUrl, type GameStart, type OnlineEntry } from "./net/online.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
-import { LobbyScreen } from "./ui/lobby.ts";
+import { LobbyScreen, botLimit, onlineMaps } from "./ui/lobby.ts";
 import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 
@@ -123,7 +124,7 @@ function goOffline(): void {
 /**
  * An online game, from the lobby to the end: the connection reports the
  * lobby until the start, then the game screen plays the turns it relays.
- * Online games are played on the World map, with the bots the server asks for.
+ * The map, bots and difficulty are the host's, or the server's for a public game.
  */
 function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   if (!hasWebGL2()) {
@@ -136,16 +137,25 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   game = undefined;
   goOffline();
   document.querySelector(".notice")?.remove();
-  const room = new LobbyScreen({
-    onStart: () => {
-      online?.start();
+  const playable = onlineMaps(maps);
+  // A new private game starts with the map, bots and difficulty of the menu, when it can.
+  let fromMenu = entry.type === "create";
+  const room = new LobbyScreen(
+    {
+      onStart: () => {
+        online?.start();
+      },
+      onConfigure: (options) => {
+        online?.configure(options);
+      },
+      onLeave: () => {
+        goOffline();
+        history.replaceState(null, "", setupQuery(setup));
+        showMenu();
+      },
     },
-    onLeave: () => {
-      goOffline();
-      history.replaceState(null, "", setupQuery(setup));
-      showMenu();
-    },
-  });
+    playable,
+  );
   lobby = room;
   document.body.prepend(room.element);
   const client = new OnlineClient({
@@ -174,6 +184,11 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
             `?${new URLSearchParams({ game: state.game }).toString()}`,
           );
         }
+        if (fromMenu && state.host === state.you) {
+          fromMenu = false;
+          const options = initialOptions(chosen, playable, state.capacity);
+          if (options) client.configure(options);
+        }
         room.lobby(state, inviteLink(state.game));
       },
       started(start) {
@@ -201,6 +216,21 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   if (entry.type === "play") client.play();
   else if (entry.type === "create") client.create();
   else client.join(entry.game);
+}
+
+/** The menu's choices as settings of a private game, kept within what the server accepts. */
+function initialOptions(
+  chosen: GameSetup,
+  playable: readonly MapInfo[],
+  capacity: number,
+): GameOptions | undefined {
+  const map = playable.find((candidate) => candidate.id === chosen.map);
+  if (!map) return undefined;
+  return {
+    map: map.id,
+    bots: Math.min(chosen.bots, botLimit(map, capacity)),
+    difficulty: chosen.difficulty,
+  };
 }
 
 /** The game starts: the lobby gives way to the map, and the turns go to the worker. */

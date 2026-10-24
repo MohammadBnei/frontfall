@@ -108,5 +108,6 @@
   "online.error.already_in_game": "You are already in a game. Leave it first.",
   "online.error.not_in_game": "You are not in a game any more.",
   "online.error.not_host": "Only the host can do this.",
-  "online.error.invalid_settings": "The server refused these settings."
+  "online.error.invalid_settings": "The server refused these settings.",
+  "online.summary": "{map} · {bots} bots · {difficulty}"
 }

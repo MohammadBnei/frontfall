@@ -63,15 +63,25 @@ test("two players meet in a private game without leaving the base path", async (
   // A private game: the smoke test after a deployment never sits in the public queue.
   await host.goto(baseURL);
   await host.locator("#player-name").fill("Host");
+  const menuBots = await host.locator("#bot-count").inputValue();
   await host.locator("#online-create").click();
   const invite = host.locator("#invite-link");
   await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
   const link = await invite.inputValue();
   expect(link.startsWith(baseURL)).toBe(true);
 
+  // The game takes the menu's choices; the host changes them in the lobby.
+  await expect(host.locator("#lobby-bots")).toHaveValue(menuBots);
+  await host.locator("#lobby-map").selectOption("world");
+  await host.locator("#lobby-bots").fill("0");
+  await host.locator("#lobby-difficulty").selectOption("hard");
+  await expect(host.locator("#lobby-bots")).toHaveValue("0");
+
   await guest.goto(link);
   await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
   await expect(guest.locator("#lobby-start")).toBeHidden();
+  await expect(guest.locator("#lobby-map")).toBeHidden();
+  await expect(guest.locator("#lobby-summary")).toHaveText("World · 0 bots · Hard");
   await host.locator("#lobby-start").click();
 
   for (const page of [host, guest]) {
@@ -122,12 +132,16 @@ test("four players see the same game, without a desync", async ({ browser, baseU
   const invite = host.locator("#invite-link");
   await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
   const link = await invite.inputValue();
+  // Humans only: the game takes the menu's bots otherwise.
+  await host.locator("#lobby-bots").fill("0");
   for (const [index, guest] of guests.entries()) {
     const invited = new URL(link);
     invited.searchParams.set("name", names[index + 1] ?? "");
     await guest.goto(invited.href);
   }
   await expect(host.locator("#lobby-players li")).toHaveCount(4, { timeout: 15_000 });
+  // The guests read the host's settings.
+  await expect((guests[0] ?? host).locator("#lobby-summary")).toContainText(" 0 bots ");
   await host.locator("#lobby-start").click();
 
   // Every page lists the same four players with the same colours.

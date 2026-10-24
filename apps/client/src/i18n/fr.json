@@ -108,5 +108,6 @@
   "online.error.already_in_game": "Vous êtes déjà dans une partie. Quittez-la d'abord.",
   "online.error.not_in_game": "Vous n'êtes plus dans une partie.",
   "online.error.not_host": "Seul l'hôte peut faire cela.",
-  "online.error.invalid_settings": "Le serveur a refusé ces réglages."
+  "online.error.invalid_settings": "Le serveur a refusé ces réglages.",
+  "online.summary": "{map} · {bots} bots · {difficulty}"
 }
