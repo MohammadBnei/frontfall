@@ -125,6 +125,27 @@ describe("transport ships (R-UNIT-02, R-ATTACK-09)", () => {
     expect(bea.troops).toBeLessThan(1000);
   });
 
+  it("keeps its beachhead while the attack from it goes on (R-ATTACK-08)", () => {
+    const { grid, game, bea, run, embark } = newGame([
+      "XXXXXXXXXXXXXXXXXXXX",
+      "#11..........2##....",
+      "#11..........22#....",
+      "XXXXXXXXXXXXXXXXXXXX",
+    ]);
+    bea.troops = 30;
+    const beach = grid.index(13, 1);
+    run([embark(1, beach, 300)]);
+    while (game.boats.length > 0) run();
+    expect(game.territory.ownerOf(beach)).toBe(1);
+    expect(game.attacks).toEqual([expect.objectContaining({ player: 1, target: 2 })]);
+    // Bea takes the free land beside the beach, closing water and her own land around it.
+    expect(
+      run([{ player: 2, order: { type: "attack", target: grid.index(14, 1), troops: 20 } }]),
+    ).toBe(1);
+    expect(game.territory.ownerOf(grid.index(14, 1))).toBe(2);
+    expect(game.territory.ownerOf(beach)).toBe(1);
+  });
+
   it("attacks unowned land the same way", () => {
     const { grid, game, run, embark } = newGame(islands);
     run([embark(2, grid.index(0, 1), 200)]);

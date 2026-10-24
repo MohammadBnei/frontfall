@@ -35,8 +35,9 @@ export function seaRoute(game: Game, player: number, target: number): SeaRoute |
 /**
  * Coastal tiles not owned by `player` that a ship of theirs can reach, the
  * closest by sea first, at most `limit` of them, skipping those `accept`
- * turns down; it is given each coast and its distance by sea, in water tiles. Meant for computer players looking beyond their own land mass;
- * one call walks up to B-BOAT-RANGE of sea.
+ * turns down; it is given each coast and its distance by sea, in water
+ * tiles. Meant for computer players looking beyond their own land mass; one
+ * call walks up to B-BOAT-RANGE of sea.
  */
 export function reachableCoasts(
   game: Game,

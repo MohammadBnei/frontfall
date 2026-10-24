@@ -79,7 +79,7 @@ Base costs, in gold: city 120 000, port 100 000, fort 50 000, missile silo 800 0
 
 ## Bots
 
-Each value is given for easy / normal / hard (`R-BOT-04`).
+Each value is given for easy / normal / hard (`R-BOT-04`); the last four are the same at every difficulty.
 
 | Key                  |           Value | Unit                         | Used by    | Notes                                                                                                                                          |
 | -------------------- | --------------: | ---------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -87,6 +87,10 @@ Each value is given for easy / normal / hard (`R-BOT-04`).
 | `B-BOT-ATTACK-RATIO` |    15 / 25 / 35 | % of troops at home          | `R-BOT-01` | Sent by one expansion or attack order                                                                                                          |
 | `B-BOT-RESERVE`      |    50 / 40 / 30 | % of population cap          | `R-BOT-01` | Never sent; kept at home to defend                                                                                                             |
 | `B-BOT-BOLDNESS`     | 100 / 110 / 125 | % of the bot's troop density | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
+| `B-BOT-SAMPLES`      |              16 | border tiles per decision    | `R-BOT-05` | At least this many, or the square root of the border when longer, so a narrow land front is found                                              |
+| `B-BOT-SEA-TARGETS`  |               8 | coasts per sea search        | `R-BOT-05` | Weighed closest first                                                                                                                          |
+| `B-BOT-SEA-MIN`      |              16 | water tiles                  | `R-BOT-05` | Coasts closer to the bot's shore count as the same front                                                                                       |
+| `B-BOT-SEA-RETRY`    |               4 | decisions                    | `R-BOT-05` | Skipped after a sea search that found nothing, since one search can walk `B-BOAT-RANGE` of sea                                                 |
 
 Bot values were tuned on World against a scripted stand-in for a casual player (an order every 5 s with 30 % of its troops, unowned land first, then its weakest neighbour), three seeds, seven bots. With the first values, hard bots wiped it out in under 3 minutes in two games out of three; with these, it survives every game at every difficulty, and the leading hard bot holds about half the land after 4 minutes, against a quarter for easy bots.
 

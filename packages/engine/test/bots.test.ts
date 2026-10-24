@@ -169,39 +169,49 @@ describe("bots", () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
-  it("sail to a coast away from their shore once their land is full (R-BOT-05)", () => {
-    // The bot holds the whole west island. The rock at (8, 1) is free but along its shore;
-    // the east island is far enough to open another front.
-    const grid = new WorldGrid(44, 4);
-    const cells = [
-      "X".repeat(44),
-      "#11.....#.............#####.................",
-      "#11...................#####.................",
-      "X".repeat(44),
-    ].join("");
-    const kinds = new Uint8Array(grid.size);
-    for (let tile = 0; tile < grid.size; tile++) {
-      const cell = cells[tile] as string;
-      kinds[tile] =
-        cell === "." ? TileKind.Water : cell === "X" ? TileKind.Impassable : TileKind.Plains;
+  /** A bot alone on the west island of a strip; free islands start at the given columns. */
+  function islandGame(width: number, islands: number[], overrides: Partial<Balance> = {}) {
+    const grid = new WorldGrid(width, 4);
+    const kinds = new Uint8Array(grid.size).fill(TileKind.Water);
+    for (let x = 0; x < width; x++) {
+      kinds[grid.index(x, 0)] = TileKind.Impassable;
+      kinds[grid.index(x, 3)] = TileKind.Impassable;
+    }
+    for (const start of [0, ...islands]) {
+      for (let x = start; x < start + 3; x++) {
+        for (const y of [1, 2]) kinds[grid.index(x, y)] = TileKind.Plains;
+      }
     }
     const game = new Game({
       terrain: new Terrain(grid, kinds),
       seed: 5,
-      players: [{ id: 1, name: "Bot" }],
-      balance: { ...balance, spawnPhaseTicks: 0, attackSpeedDivisor: 1000 },
+      players: [
+        { id: 1, name: "Bot" },
+        { id: 2, name: "Ada" },
+      ],
+      balance: { ...balance, spawnPhaseTicks: 0, attackSpeedDivisor: 1000, ...overrides },
     });
     installAttacks(game);
     installBoats(game);
     installBots(game, [1], "hard");
-    for (const x of [0, 1, 2]) {
+    for (let x = 0; x < 3; x++) {
       for (const y of [1, 2]) game.territory.setOwner(grid.index(x, y), 1);
     }
     const apply = vi.spyOn(game, "apply");
-    (game.player(1) as Player).troops = 2000;
-    for (let i = 0; i < BOT_DIFFICULTIES.hard.intervalSeconds * balance.ticksPerSecond; i++) {
-      game.step({ tick: game.tick, orders: [] });
-    }
+    const bot = game.player(1) as Player;
+    bot.troops = 2000;
+    const run = (ticks: number) => {
+      for (let i = 0; i < ticks; i++) game.step({ tick: game.tick, orders: [] });
+    };
+    return { grid, game, apply, bot, ada: game.player(2) as Player, run };
+  }
+
+  const hardInterval = BOT_DIFFICULTIES.hard.intervalSeconds * balance.ticksPerSecond;
+
+  it("sail to a coast away from their shore once their land is full (R-BOT-05)", () => {
+    // The rock at x = 8 is free but along the bot's shore; the island at x = 22 opens another front.
+    const { grid, game, apply, run } = islandGame(44, [8, 22]);
+    run(hardInterval);
     expect(apply).toHaveBeenCalledOnce();
     const order = apply.mock.calls[0]?.[1] as Order;
     expect(order.type).toBe("embark");
@@ -209,6 +219,53 @@ describe("bots", () => {
       game.terrain.landmassOf(grid.index(22, 1)),
     );
     expect(game.boats).toHaveLength(1);
+  });
+
+  it("keep up to B-BOAT-MAX ships at sea", () => {
+    // Slow ships to a far island: three decisions go by before the first one lands.
+    const { game, apply, run } = islandGame(100, [50], { boatMax: 2, boatSpeed: 1 });
+    run(3 * hardInterval);
+    expect(game.boats).toHaveLength(2);
+    expect(apply).toHaveBeenCalledTimes(2);
+  });
+
+  it("wait a few decisions before searching the sea again when it offers nothing", () => {
+    // The only island across the sea is Ada's, too strong to attack until she is suddenly weak.
+    const { grid, game, apply, ada, run } = islandGame(44, [22]);
+    for (let x = 22; x < 25; x++) {
+      for (const y of [1, 2]) game.territory.setOwner(grid.index(x, y), 2);
+    }
+    ada.troops = 1_000_000;
+    run(hardInterval);
+    ada.troops = 0;
+    // Decisions at the next three intervals skip the sea; the fifth searches it again.
+    run(3 * hardInterval);
+    expect(apply).not.toHaveBeenCalled();
+    run(hardInterval);
+    expect(apply).toHaveBeenCalledOnce();
+    expect((apply.mock.calls[0]?.[1] as Order).type).toBe("embark");
+  });
+
+  it("look at more of a long border (R-BOT-05)", () => {
+    // A bot on most of a 64 x 64 plain, with free land in one column only.
+    const grid = new WorldGrid(64, 64);
+    const game = new Game({
+      terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+      seed: 5,
+      players: [{ id: 1, name: "Bot" }],
+      balance: { ...balance, spawnPhaseTicks: 0 },
+    });
+    installAttacks(game);
+    installBots(game, [1], "hard");
+    for (let tile = 0; tile < grid.size; tile++) {
+      if (grid.x(tile) % 2 === 0 || grid.y(tile) % 2 === 0) game.territory.setOwner(tile, 1);
+    }
+    (game.player(1) as Player).troops = 100_000;
+    const draws = vi.spyOn(game.random, "nextInt");
+    for (let i = 0; i < hardInterval; i++) game.step({ tick: game.tick, orders: [] });
+    const borders = game.territory.borderCount(1);
+    expect(borders).toBeGreaterThan(256);
+    expect(draws.mock.calls.length).toBe(Math.floor(Math.sqrt(borders)));
   });
 
   it("stop once eliminated", () => {

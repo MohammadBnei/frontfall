@@ -79,6 +79,11 @@ export class BoundedFloodFill {
     return this.queue.subarray(0, this.found);
   }
 
+  /** Whether `tile` is among the tiles of the last fill, which did not give up. */
+  contains(tile: number): boolean {
+    return this.found > 0 && this.stamps[tile] === this.stamp;
+  }
+
   /** Bytes held by the stamp array and the queue. */
   memoryBytes(): number {
     return this.stamps.byteLength + this.queue.byteLength;

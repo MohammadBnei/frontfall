@@ -36,6 +36,8 @@ export function installAttacks(game: Game): void {
   const examined = new Uint32Array(topology.size);
   let examination = 0;
   const captured: number[] = [];
+  const heldBy: number[] = [];
+  const aroundAim = new Int32Array(4);
 
   // Each attack's front for the current tick: tiles to take, closest to its aim first.
   const fronts: number[][] = [];
@@ -221,14 +223,17 @@ export function installAttacks(game: Game): void {
    */
   function captureEnclosedPockets(attacker: number): void {
     examination++;
+    // Attacks against the attacker, by player then aim: their troops hold the land next to their aim.
+    heldBy.length = 0;
+    for (const attack of attacks) {
+      if (attack.target === attacker && attack.troops > 0) heldBy.push(attack.player, attack.aim);
+    }
     for (const tile of captured) {
       const count = topology.neighborsInto(tile, nextToCapture);
       for (let i = 0; i < count; i++) {
         const start = nextToCapture[i] as number;
         const defender = territory.ownerOf(start);
         if (defender === attacker || defender === NEUTRAL) continue;
-        // Troops still attacking from it hold the ground, a beachhead above all.
-        if (isAttacking(defender, attacker)) continue;
         if (examined[start] === examination) continue;
         const size = pocketFill.fill(
           start,
@@ -245,7 +250,7 @@ export function installAttacks(game: Game): void {
           },
           balance.encircleMaxTiles,
         );
-        if (size > 0) {
+        if (size > 0 && !holds(defender)) {
           for (const pocket of pocketFill.tiles()) territory.setOwner(pocket, attacker);
         } else {
           for (const open of pocketFill.reached()) examined[open] = examination;
@@ -254,9 +259,18 @@ export function installAttacks(game: Game): void {
     }
   }
 
-  function isAttacking(player: number, target: number): boolean {
-    for (const attack of attacks) {
-      if (attack.player === player && attack.target === target && attack.troops > 0) return true;
+  /**
+   * Whether the pocket just filled lies next to the aim of one of the
+   * defender's attacks on the attacker: troops fighting from there hold it,
+   * a beachhead above all.
+   */
+  function holds(defender: number): boolean {
+    for (let h = 0; h < heldBy.length; h += 2) {
+      if (heldBy[h] !== defender) continue;
+      const aim = heldBy[h + 1] as number;
+      if (pocketFill.contains(aim)) return true;
+      const count = topology.neighborsInto(aim, aroundAim);
+      for (let k = 0; k < count; k++) if (pocketFill.contains(aroundAim[k] as number)) return true;
     }
     return false;
   }

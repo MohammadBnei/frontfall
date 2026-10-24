@@ -11,13 +11,19 @@ import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
  * a territory with thousands of border tiles, at the price of sometimes
  * missing a better target; the next decision draws other tiles.
  */
-const BORDER_SAMPLES = 16;
+const BORDER_SAMPLES = 16; // B-BOT-SAMPLES
 
 /** Coasts, closest by sea first, a bot weighs when nothing is left to take by land. */
-const SEA_TARGETS = 8;
+const SEA_TARGETS = 8; // B-BOT-SEA-TARGETS
 
 /** Water tiles from the bot's shore under which a coast does not count as another front. */
-const SEA_MIN_DISTANCE = 16;
+const SEA_MIN_DISTANCE = 16; // B-BOT-SEA-MIN
+
+/**
+ * Decisions a bot lets pass before searching the sea again after a search
+ * found nothing: one search can walk B-BOAT-RANGE of sea.
+ */
+const SEA_RETRY_DECISIONS = 4; // B-BOT-SEA-RETRY
 
 /**
  * Bots (R-BOT-01, R-BOT-03, R-BOT-04): the given players expand into unowned
@@ -43,6 +49,8 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     if (!game.player(id)) throw new RangeError(`unknown player ${String(id)}`);
   }
   const around = new Int32Array(4);
+  // Tick before which a bot whose last sea search found nothing does not search again.
+  const nextSeaSearch = new Map<number, number>();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -99,6 +107,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
   }
 
   function sail(bot: Player, troops: number, ownDensity: number): void {
+    if (game.tick < (nextSeaSearch.get(bot.id) ?? 0)) return;
     let atSea = 0;
     for (const boat of game.boats) if (boat.player === bot.id) atSea++;
     if (atSea >= balance.boatMax) return;
@@ -109,6 +118,8 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     for (const coast of reachableCoasts(game, bot.id, SEA_TARGETS, elsewhere)) {
       const owner = territory.ownerOf(coast);
       if (owner === NEUTRAL) {
+        // Unless the beach is too steep for what the ship carries (R-ATTACK-09).
+        if (troops <= captureCost(game, coast, undefined)) continue;
         target = coast;
         break;
       }
@@ -116,7 +127,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
       if (!enemy?.alive) continue;
       const density = divFloor(enemy.troops, territory.tileCount(owner));
       if (density * 100 > ownDensity * params.boldnessPercent) continue;
-      // The ship must at least pay for the beach (R-ATTACK-09).
+      // The ship must at least pay for the beach.
       if (troops <= captureCost(game, coast, enemy)) continue;
       if (target < 0 || density < targetDensity) {
         target = coast;
@@ -124,5 +135,6 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
       }
     }
     if (target >= 0) game.apply(bot.id, { type: "embark", target, troops });
+    else nextSeaSearch.set(bot.id, game.tick + SEA_RETRY_DECISIONS * interval);
   }
 }

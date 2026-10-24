@@ -238,6 +238,18 @@ describe("encirclement", () => {
     expect(game.territory.ownerOf(grid.index(3, 1))).toBe(2);
   });
 
+  it("still captures a pocket far from where its owner's attack is aimed", () => {
+    const { grid, game, ada, bea, run, attack } = pocketGame(2);
+    game.territory.setOwner(grid.index(4, 1), NEUTRAL);
+    game.territory.setOwner(grid.index(7, 1), 2);
+    ada.troops = 1000;
+    bea.troops = 10;
+    // A token attack aimed at the other end of Ada's land does not shelter the pocket.
+    run([attack(1, grid.index(4, 1), 100), attack(2, grid.index(0, 0), 1)]);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(3, 1))).toBe(1);
+  });
+
   it("captures a pocket across the east-west seam", () => {
     const { grid, game, ada, bea, run, attack } = newGame({ 1: [7, 8, 9, 0, 1] });
     for (const x of [9, 0, 1, 2]) game.territory.setOwner(grid.index(x, 1), 2);

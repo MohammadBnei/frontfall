@@ -11,7 +11,25 @@ const REFERENCE_SIDE = 724;
  * and spacing grow with the square root of the area, never shrink, and the
  * starting troops grow with the start area.
  */
-export function spawnSettings(game: Game): { radius: number; distance: number; troops: number } {
+export function spawnSettings(game: Game): SpawnSettings {
+  let settings = settingsByGame.get(game);
+  if (!settings) {
+    settings = scaledSettings(game);
+    settingsByGame.set(game, settings);
+  }
+  return settings;
+}
+
+export interface SpawnSettings {
+  readonly radius: number;
+  readonly distance: number;
+  readonly troops: number;
+}
+
+// The map and the balance of a game never change, nor do its settings: the population cap asks for them every tick.
+const settingsByGame = new WeakMap<Game, SpawnSettings>();
+
+function scaledSettings(game: Game): SpawnSettings {
   const { balance } = game;
   const side = isqrt(game.terrain.topology.size);
   const radius = Math.max(balance.spawnRadius, mulDiv(balance.spawnRadius, side, REFERENCE_SIDE));
