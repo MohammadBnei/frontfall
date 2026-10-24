@@ -18,6 +18,8 @@ export interface GameRules {
   readonly retreatPenaltyPercent: number;
   /** Lowest id of the map's nations, which take the colours of their own (`colorOf`); above every id without them. */
   readonly firstNation: number;
+  /** B-ALLIANCE-REQUEST-TIMEOUT, in ticks. */
+  readonly allianceRequestTicks: number;
 }
 
 /** From the page to the simulation worker. */

@@ -83,6 +83,10 @@ export class GlobeView implements Renderer {
     this.territory.setHighlight(id);
   }
 
+  setAllies(ids: readonly number[]): void {
+    this.territory.setAllies(ids);
+  }
+
   markChanged(tiles: ArrayLike<number>): void {
     this.territory.markChanged(tiles, this.clock());
   }
