@@ -6,19 +6,21 @@ The game is in beta until v1.0, and its page says so. v1.0 is the first version 
 
 The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
+**Where it stands.** v0.1 and v0.2 are complete and live: a solo game against bots and online games with friends, on eight maps. v0.3 is under way. The review of 24 October 2026, after the owner's playtest, moved a few issues; it is summarised under [Changes after v0.2](#changes-after-v02).
+
 ## Overview
 
-| Version                                                                 | You can                                                                                      | Issues | Estimate |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -----: | -------: |
-| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.     |     24 |  72 days |
-| [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.        |      8 |  24 days |
-| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities and forts, ally and betray, face named nations on relief, rejoin after a drop.  |     11 |  31 days |
-| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.             |      5 |  19 days |
-| [v0.5 · Balanced and monitored](#v05--balanced-and-monitored)           | Play a balanced flat-map game on a server that is watched around the clock.                  |      2 |   4 days |
-| [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                    |      7 |  21 days |
-| [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.           |      8 |  20 days |
-| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)    | The complete game on the 3D globe, online, balanced and monitored. The beta label comes off. |      1 |    1 day |
-| [M8 · Community and launch](#m8--community-and-launch)                  | Players and contributors find the game, add maps and translations, and follow each release.  |      7 |  13 days |
+| Version                                                                 | You can                                                                                          | Status  | Issues | Estimate |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------- | -----: | -------: |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.         | Shipped |     23 |  71 days |
+| [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.            | Shipped |      8 |  24 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities, ports and defence posts, ally and betray, face named nations, on a watched server. | Current |     12 |  24 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.                 | Planned |      5 |  17 days |
+| [v0.5 · Balanced](#v05--balanced)                                       | Play a flat-map game where no strategy or start position runs away with it.                      | Planned |      1 |   3 days |
+| [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                        | Planned |      7 |  21 days |
+| [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.               | Planned |      6 |  16 days |
+| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)    | The complete game on the 3D globe, online, balanced and monitored. The beta label comes off.     | Planned |      1 |    1 day |
+| [M8 · Community and launch](#m8--community-and-launch)                  | Players and contributors find the game, add maps and translations, and follow each release.      | Planned |      7 |  13 days |
 
 M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
 
@@ -29,7 +31,7 @@ flowchart LR
     V02["v0.2 · Online with friends"]
     V03["v0.3 · Deeper game"]
     V04["v0.4 · Sea and missiles"]
-    V05["v0.5 · Balanced and monitored"]
+    V05["v0.5 · Balanced"]
   end
   subgraph P2["Phase 2: globe and community"]
     V06["v0.6 · 3D globe"]
@@ -41,7 +43,7 @@ flowchart LR
   V01 -. "rendering contracts" .-> V06
 ```
 
-A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 need nothing from the client and are built alongside v0.1, and the globe renderer of v0.6 (M6-01) can start as soon as the rendering contracts of v0.1 (M3-01) exist.
+A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 need nothing from the client and are built alongside v0.1, and the globe renderer and picking of v0.6 (#53, #56) start during v0.3 as a time-boxed spike, to test the Renderer contract against a second implementation before more of the 2D view is built on it.
 
 ## How to read this page
 
@@ -65,6 +67,8 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 
 **Playable when**
 
+Shipped as `v0.1.0`. Check 6 moved to v0.3: the owner played it, but the round with three outside players is still to run.
+
 1. From the public server, a player starts a solo game on the World map with 8 or more bots in two clicks, picks a start tile, expands, attacks and reaches the end screen, by winning (`R-WIN-01`) or by being eliminated.
 2. On the World map, a player sends troops by sea from their coast to another continent and takes land there; bots do the same.
 3. The same run passes as a Playwright test in Chromium and Firefox with no console error, in CI and against the public server after deployment.
@@ -72,9 +76,9 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 5. The engine runs in a Web Worker behind the game session interface, and the page stays responsive during the game.
 6. Three people outside the project each finish a game without help; what blocked them is filed as issues.
 
-**Rules in scope.** `R-MAP-01` to `R-MAP-04` (land, water and impassable ice; relief is drawn but costs nothing extra yet), `R-SPAWN`, `R-ECO-01` to `R-ECO-05` (cities aside), `R-ATTACK-01` to `R-ATTACK-09`, `R-UNIT-01` and a minimal `R-UNIT-02` (troops leave from any owned coast, without a port, and nothing can stop them at sea), `R-BOT-01`, `R-BOT-03`, `R-BOT-04`, `R-WIN-01` to `R-WIN-03`, `R-MODE-01`, `R-FAIR-02`.
+**Rules in scope.** `R-MAP-01` to `R-MAP-04` (land, water and impassable ice), `R-SPAWN`, `R-ECO-01` to `R-ECO-05` (cities aside), `R-ATTACK-01` to `R-ATTACK-09`, `R-UNIT-01` and a minimal `R-UNIT-02` (troops leave from any owned coast, without a port, and nothing can stop them at sea), `R-BOT-01`, `R-BOT-03`, `R-BOT-04`, `R-WIN-01` to `R-WIN-03`, `R-MODE-01`, `R-FAIR-02`.
 
-**Left for later on purpose.** The full map set, French, relief costs, nations, structures, ports and fighting at sea.
+**Left for later on purpose.** Nations, structures, ports and fighting at sea. The full map set came with v0.2; French and relief costs were done early.
 
 Without transport by sea, players on two continents never meet, so a minimal version of it is part of v0.1. Ports, warships and interception stay in v0.4.
 
@@ -101,22 +105,23 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 | M3-05 | [#27](https://github.com/nic0lasm/frontfall/issues/27) Main menu and game setup                         | M    | #16        |
 | M3-06 | [#28](https://github.com/nic0lasm/frontfall/issues/28) Bots                                             | L    | #11, #8    |
 | M3-08 | [#30](https://github.com/nic0lasm/frontfall/issues/30) Victory, defeat and end screen                   | S    | #11        |
-| M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) First playtest round                             | S    | #30        |
 | M1-12 | [#81](https://github.com/nic0lasm/frontfall/issues/81) Minimal sea transport                            | M    | #11        |
 | M3-12 | [#82](https://github.com/nic0lasm/frontfall/issues/82) Smooth territory and front updates               | M    | #24        |
 
-24 issues, about 72 days of work in four parallel streams: engine (30), maps (12), client (25) and bots (5). The worker is in v0.1 because the engine and the renderer share the page otherwise: a tick takes up to 9 ms on the World map, and moving the session later would mean writing it twice.
+23 issues, about 71 days of work in four parallel streams: engine (30), maps (12), client (24) and bots (5). The first playtest round (#33) moved to v0.3. The worker is in v0.1 because the engine and the renderer share the page otherwise: a tick took up to 9 ms on the World map at the time, and moving the session later would mean writing it twice.
 
 ## v0.2 · Online with friends
 
 **Outcome.** Share a link, two to eight friends join, and the same game plays out on every screen.
+
+Shipped as `v0.2.0`.
 
 **Playable when**
 
 1. A player creates a private game from the menu, picks one of at least three maps and a number of bots, and shares the link; the others join from it.
 2. Four players on two networks and two browsers finish a game on `nclsmgr.com/frontfall` with zero desyncs.
 3. A deliberate desync in a test is detected within 10 seconds and reported to the server with the tick and both hashes.
-4. A scripted 4-player game ends with the same state hash in Node.js, Chromium, Firefox and WebKit, checked in CI.
+4. A scripted 4-player game ends with the same state hash in Node.js, Chromium and Firefox, checked in CI. WebKit was dropped from the suite: Playwright's WebKit on Linux is not the Safari that players run.
 5. Every map rebuilds byte for byte from its pinned sources, checked in CI.
 
 | ID    | Issue                                                                                                      | Size | Depends on |
@@ -134,30 +139,37 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 
 ## v0.3 · Deeper game
 
-**Outcome.** Build cities and forts, ally and betray, face named nations on hills and mountains, and rejoin a game after a dropped connection.
+**Outcome.** Build cities, ports and defence posts, ally and betray, face named nations, and play on a server that is watched and measured.
 
 **Playable when**
 
 1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-05` and `R-BOT-02` is implemented and covered by a test that names it.
-2. A player who loses the connection for 30 seconds rejoins and catches up in under 10 seconds.
-3. Load test: 20 games of 16 simulated players hold for 30 minutes under 50 % of one vCPU and 512 MB on the server; fuzzed and oversized messages never crash it or affect other games.
-4. Every interface string exists in English and French.
+2. A player who reloads the page 20 minutes into a game is back in sync in under 10 seconds.
+3. An external check alerts the owner within 5 minutes when the public server stops answering.
+4. A World game with 64 players, nations and structures keeps the tick p95 under 8 ms, and CI fails on a regression of more than 20 %.
+5. A casual scripted player survives 10 minutes against normal bots in most seeds, and loses most games against hard bots.
+6. Three people outside the project each finish a solo game and an online game without help; what blocked them is filed as issues.
+
+Already met before v0.3 started, and kept as regression checks: every interface string exists in English and French; the load test of 20 games of 16 players holds for 30 minutes at 6 % of one core and 137 MiB, and fuzzed messages never crash the server ([docs/performance.md](performance.md)).
 
 | ID    | Issue                                                                                              | Size | Depends on |
 | ----- | -------------------------------------------------------------------------------------------------- | ---- | ---------- |
-| M2-04 | [#18](https://github.com/nic0lasm/frontfall/issues/18) Relief and impassable terrain               | M    | #17        |
-| M2-06 | [#20](https://github.com/nic0lasm/frontfall/issues/20) Manifests, thumbnails and nation positions  | M    | #19        |
-| M3-07 | [#29](https://github.com/nic0lasm/frontfall/issues/29) Nations                                     | M    | #28, #20   |
-| M3-09 | [#31](https://github.com/nic0lasm/frontfall/issues/31) English and French interface                | S    | None       |
-| M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility                  | S    | #26        |
-| M4-06 | [#39](https://github.com/nic0lasm/frontfall/issues/39) Reconnection and catch-up                   | L    | #37        |
-| M4-07 | [#40](https://github.com/nic0lasm/frontfall/issues/40) Abuse protection on the game server         | M    | #35        |
-| M4-08 | [#41](https://github.com/nic0lasm/frontfall/issues/41) Server metrics and structured logs          | S    | #35        |
-| M4-09 | [#42](https://github.com/nic0lasm/frontfall/issues/42) Load test and message fuzzing               | M    | #37, #40   |
 | M5-01 | [#43](https://github.com/nic0lasm/frontfall/issues/43) Structures: cities, ports and defence posts | L    | #26        |
 | M5-05 | [#47](https://github.com/nic0lasm/frontfall/issues/47) Alliances, betrayal and embargoes           | M    | #26        |
+| M3-07 | [#29](https://github.com/nic0lasm/frontfall/issues/29) Nations                                     | M    | #28, #20   |
+| M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility                  | S    | #26        |
+| M2-04 | [#18](https://github.com/nic0lasm/frontfall/issues/18) Relief and impassable terrain (remainder)   | S    | #17        |
+| M4-06 | [#39](https://github.com/nic0lasm/frontfall/issues/39) Reconnection and catch-up (remainder)       | M    | #37        |
+| M3-13 | Stronger bots: spread the difficulties                                                             | S    | #28        |
+| M3-14 | Hover highlight and animated attack fronts                                                         | S    | #82        |
+| M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) Playtest with outside players               | S    | #30        |
+| M5-09 | [#51](https://github.com/nic0lasm/frontfall/issues/51) Uptime monitoring and alerts                | S    | None       |
+| M7-01 | [#60](https://github.com/nic0lasm/frontfall/issues/60) Performance budget and reference hardware   | S    | None       |
+| M7-02 | [#61](https://github.com/nic0lasm/frontfall/issues/61) Benchmark regression gate in CI             | M    | #60, #14   |
 
-11 issues, about 31 days.
+12 issues, about 24 days. Buildings come first: #43, then the protocol orders, then the client. #18 keeps only the snapshot test of the high ranges, since relief costs already apply (R-MAP-06). #39 keeps only the catch-up time: a reload replays the game from its first tick, which takes tens of seconds late in a game, so the client needs a faster way back in.
+
+**Started early, not gating v0.3.** [#53](https://github.com/nic0lasm/frontfall/issues/53) and [#56](https://github.com/nic0lasm/frontfall/issues/56), the globe renderer and picking of v0.6, as a spike of three days at most: the World territory texture on a sphere with tile picking, to find out early whether the Renderer contract or the texture layout needs to change.
 
 ## v0.4 · Sea and missiles
 
@@ -169,31 +181,30 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 2. A team game of 4 against 4 is played to the end on the public server.
 3. A finished game can be replayed from its link and ends with the same hash.
 
-| ID    | Issue                                                                                        | Size | Depends on |
-| ----- | -------------------------------------------------------------------------------------------- | ---- | ---------- |
-| M5-02 | [#44](https://github.com/nic0lasm/frontfall/issues/44) Transport boats and water pathfinding | L    | #43, #81   |
-| M5-03 | [#45](https://github.com/nic0lasm/frontfall/issues/45) Warships and naval combat             | M    | #44        |
-| M5-04 | [#46](https://github.com/nic0lasm/frontfall/issues/46) Missiles and air defence              | L    | #43        |
-| M5-06 | [#48](https://github.com/nic0lasm/frontfall/issues/48) Team games                            | M    | #35, #47   |
-| M5-08 | [#50](https://github.com/nic0lasm/frontfall/issues/50) Replays                               | M    | #38        |
+| ID    | Issue                                                                                     | Size | Depends on |
+| ----- | ----------------------------------------------------------------------------------------- | ---- | ---------- |
+| M5-02 | [#44](https://github.com/nic0lasm/frontfall/issues/44) Ships leave from ports, path cache | M    | #43, #81   |
+| M5-03 | [#45](https://github.com/nic0lasm/frontfall/issues/45) Warships and naval combat          | M    | #44        |
+| M5-04 | [#46](https://github.com/nic0lasm/frontfall/issues/46) Missiles and air defence           | L    | #43        |
+| M5-06 | [#48](https://github.com/nic0lasm/frontfall/issues/48) Team games                         | M    | #35, #47   |
+| M5-08 | [#50](https://github.com/nic0lasm/frontfall/issues/50) Replays                            | M    | #38        |
 
-5 issues, about 19 days.
+5 issues, about 17 days. Transport by sea already exists since v0.1 (#81): #44 keeps departures from ports, a path cache per port pair and the cost budget for 50 ships.
 
-## v0.5 · Balanced and monitored
+## v0.5 · Balanced
 
-**Outcome.** Play a balanced flat-map game on a server that is watched around the clock.
+**Outcome.** Play a flat-map game where no strategy or start position runs away with it.
 
 **Playable when**
 
 1. Every rule of `docs/rules.md` v1 holds up in 1,000 headless games: no strategy or start position wins more than twice its fair share.
-2. The public server stays above 99 % uptime over 14 days, measured by an external check that alerts on failure.
+2. The public server has stayed above 99 % uptime over the last 14 days, as measured by the check added in v0.3.
 
 | ID    | Issue                                                                                   | Size | Depends on    |
 | ----- | --------------------------------------------------------------------------------------- | ---- | ------------- |
 | M5-07 | [#49](https://github.com/nic0lasm/frontfall/issues/49) Balance pass with headless games | M    | #45, #46, #47 |
-| M5-09 | [#51](https://github.com/nic0lasm/frontfall/issues/51) Uptime monitoring and alerts     | S    | None          |
 
-2 issues, about 4 days.
+1 issue, about 3 days. Uptime monitoring (#51) moved to v0.3, since the game is already public.
 
 ## v0.6 · 3D globe
 
@@ -225,14 +236,12 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 **Playable when**
 
 1. Budgets from `docs/performance.md` met on the reference laptop: 60 fps in 2D, 45 fps on the globe, 1080p, World map, 64 players.
-2. Tick p95 under 8 ms for 64 players on the 4,096 x 2,048 map.
+2. Tick p95 under 8 ms for 64 players on the 4,096 x 2,048 budget workload of `docs/performance.md`, twice the size of the World map.
 3. Client memory under 500 MB; first load under 5 MB compressed before the map.
 4. Switching view keeps the game running and takes under 500 ms.
 
 | ID    | Issue                                           | Size | Depends on   |
 | ----- | ----------------------------------------------- | ---- | ------------ |
-| M7-01 | Performance budget and reference hardware       | S    | None         |
-| M7-02 | Benchmark regression gate in CI                 | M    | M7-01, M1-11 |
 | M7-03 | Engine hot paths                                | L    | M7-02        |
 | M7-04 | Cheaper updates from the worker to the renderer | M    | M7-02        |
 | M7-05 | Rendering levels of detail                      | M    | M6-05        |
@@ -240,7 +249,7 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 | M7-07 | Switch between map and globe during a game      | M    | M6-04, M7-04 |
 | M7-08 | Download size and load time                     | S    | M6-01        |
 
-8 issues, about 20 days.
+6 issues, about 16 days. The budget and the CI gate (M7-01, M7-02) moved to v0.3, so nations and structures are measured as they land rather than after the globe.
 
 ## v1.0 · Globe release, out of beta
 
@@ -281,6 +290,23 @@ Without transport by sea, players on two continents never meet, so a minimal ver
 | M8-07 | Launch announcement            | S    | M7-07, M8-06 |
 
 7 issues, about 13 days.
+
+## Changes after v0.2
+
+Reviewed on 24 October 2026, once v0.1 and v0.2 were live and played. The order of the versions stays; what moved, and why:
+
+| Change                                           | Why                                                                                                                                                                           |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #20, #31, #40, #41 and #42 closed as done        | Map manifests and thumbnails, the French interface, server abuse limits, metrics and logs, the load test and the fuzzing shipped with v0.1 and v0.2.                          |
+| #18 and #39 cut to what is left                  | Relief costs and polar ice already apply; a seat is already taken back after a drop or a reload, but catching up late in a game is too slow.                                  |
+| #24 and #82 closed, the rest in a new v0.3 issue | The data texture and smooth fronts are done; the hover highlight and the animated attack edge gate nothing. The 16 ms frame measurement goes to the performance budget (#60). |
+| #51 uptime monitoring from v0.5 to v0.3          | The game is public. An outage should page the owner, not wait for a player to say so.                                                                                         |
+| #60 and #61 from v0.7 to v0.3                    | Nations and structures add work to every tick. Measuring 64 players now is cheaper than finding a slow hot path after the globe is built.                                     |
+| Stronger bots, new in v0.3                       | A scripted player that sails beats seven normal bots in seven seeds out of eight. Nations are tuned on top of bots, so bots come first.                                       |
+| Globe spike during v0.3                          | The 3D globe is the main risk for v1.0 and the Renderer contract has one implementation. Three days now can save a rework of the 2D view later.                               |
+| Outside playtest (#33) from v0.1 to v0.3         | v0.1 and v0.2 are tagged after the owner's playtest; three outside players are a check of v0.3.                                                                               |
+| #44 from L to M                                  | Ships, sea routes across the seam and bots that sail came with v0.1 (#81).                                                                                                    |
+| v0.5 renamed "Balanced"                          | Monitoring moved out; the balance pass is what is left.                                                                                                                       |
 
 ## Good first issues
 
