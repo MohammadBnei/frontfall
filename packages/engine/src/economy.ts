@@ -1,10 +1,16 @@
 import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
+import { spawnSettings } from "./spawn.ts";
 
-/** R-ECO-01: the most troops a player's territory and cities can hold. */
+/**
+ * R-ECO-01: the most troops a player's territory and cities can hold. A base
+ * equal to the starting troops of the map comes on top, so a player who has
+ * just spawned, or is down to a few tiles, still grows.
+ */
 export function populationCap(game: Game, player: Player, cities = 0): number {
   const { popPerTile, popPerCity } = game.balance;
-  return game.territory.tileCount(player.id) * popPerTile + cities * popPerCity;
+  const base = spawnSettings(game).troops;
+  return base + game.territory.tileCount(player.id) * popPerTile + cities * popPerCity;
 }
 
 /**

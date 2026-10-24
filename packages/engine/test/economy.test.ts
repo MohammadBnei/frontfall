@@ -12,6 +12,8 @@ const balance: Balance = {
   popPerCity: 1000,
   growthBasisPoints: 1000,
   goldPerThousandTroops: 5,
+  // No base population, so caps below are tiles and cities only.
+  startTroops: 0,
 };
 
 function newGame(overrides: Partial<Balance> = {}) {
@@ -40,6 +42,11 @@ describe("economy", () => {
     const { game, ada } = newGame();
     expect(populationCap(game, ada)).toBe(1000);
     expect(populationCap(game, ada, 2)).toBe(3000);
+  });
+
+  it("adds the map's starting troops as a base, so a fresh start grows (R-ECO-01)", () => {
+    const { game, ada } = newGame({ startTroops: 400 });
+    expect(populationCap(game, ada)).toBe(1400);
   });
 
   it("grows troops fastest far from the cap and stops at it (R-ECO-02)", () => {

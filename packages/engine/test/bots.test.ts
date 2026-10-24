@@ -81,7 +81,7 @@ describe("bots", () => {
     run(balance.spawnPhaseTicks);
     const start = game.players().map((p) => game.territory.tileCount(p.id));
     const neutral = game.territory.tileCount(NEUTRAL);
-    run(400);
+    run(800);
     for (const [i, player] of game.players().entries()) {
       expect(game.territory.tileCount(player.id)).toBeGreaterThan((start[i] as number) * 4);
     }
@@ -151,9 +151,10 @@ describe("bots", () => {
 
   it("prefer free land to a neighbour that is only somewhat weaker", () => {
     const { game, apply, run, bot, ada } = duel({ 1: [0, 1, 2], 2: [3, 4, 5] });
-    bot.troops = 600;
-    ada.troops = 500;
-    run(10);
+    // Enough above the reserve, which counts the base population too.
+    bot.troops = 2000;
+    ada.troops = 1700;
+    run(BOT_DIFFICULTIES.hard.intervalSeconds * balance.ticksPerSecond);
     expect(apply).toHaveBeenCalledOnce();
     const order = apply.mock.calls[0]?.[1] as Order;
     expect(order.type === "attack" && game.territory.ownerOf(order.target)).not.toBe(2);

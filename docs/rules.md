@@ -38,7 +38,7 @@ Words used throughout:
 
 ## 3. Economy
 
-- **R-ECO-01** Each player has a population cap that grows with territory and cities (`B-POP-PER-TILE`, `B-POP-PER-CITY`).
+- **R-ECO-01** Each player has a population cap that grows with territory and cities (`B-POP-PER-TILE`, `B-POP-PER-CITY`), on top of a base equal to the map's starting troops (`B-POP-BASE`), so a player who has just spawned, or is down to a few tiles, still grows.
 - **R-ECO-02** Troops grow every tick. Growth is fastest when the player is far below the cap and falls to zero at the cap (`B-GROWTH-RATE`); below the cap, a player always gains at least one troop per tick, so the cap is reached.
 - **R-ECO-03** A player earns gold every tick in proportion to the troops they hold back from attacks (`B-GOLD-RATE`). Trade adds to this income (`R-UNIT-03`).
 - **R-ECO-04** Troops and gold are whole numbers. When a computation produces a fraction, it is rounded down.

@@ -28,6 +28,7 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 | Key              | Value | Unit                        | Used by     | Notes                                    |
 | ---------------- | ----: | --------------------------- | ----------- | ---------------------------------------- |
+| `B-POP-BASE`     | start | troops                      | `R-ECO-01`  | The map's starting troops (`R-SPAWN-06`) |
 | `B-POP-PER-TILE` |    40 | troops                      | `R-ECO-01`  | Cap contribution of each owned land tile |
 | `B-POP-PER-CITY` | 25000 | troops                      | `R-ECO-01`  |                                          |
 | `B-GROWTH-RATE`  |   3.2 | % of the gap to cap/second  | `R-ECO-02`  | Applied per tick as an integer ratio     |
@@ -80,10 +81,12 @@ Each value is given for easy / normal / hard (`R-BOT-04`).
 
 | Key                  |           Value | Unit                         | Used by    | Notes                                                                                                                                          |
 | -------------------- | --------------: | ---------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `B-BOT-INTERVAL`     |       4 / 2 / 1 | s between decisions          | `R-BOT-01` | Bots spread their decisions over the interval                                                                                                  |
-| `B-BOT-ATTACK-RATIO` |    20 / 30 / 40 | % of troops at home          | `R-BOT-01` | Sent by one expansion or attack order                                                                                                          |
-| `B-BOT-RESERVE`      |    50 / 35 / 20 | % of population cap          | `R-BOT-01` | Never sent; kept at home to defend                                                                                                             |
-| `B-BOT-BOLDNESS`     | 100 / 125 / 150 | % of the bot's troop density | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
+| `B-BOT-INTERVAL`     |       5 / 3 / 2 | s between decisions          | `R-BOT-01` | Bots spread their decisions over the interval                                                                                                  |
+| `B-BOT-ATTACK-RATIO` |    15 / 25 / 35 | % of troops at home          | `R-BOT-01` | Sent by one expansion or attack order                                                                                                          |
+| `B-BOT-RESERVE`      |    50 / 40 / 30 | % of population cap          | `R-BOT-01` | Never sent; kept at home to defend                                                                                                             |
+| `B-BOT-BOLDNESS`     | 100 / 110 / 125 | % of the bot's troop density | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
+
+Bot values were tuned on World against a scripted stand-in for a casual player (an order every 5 s with 30 % of its troops, unowned land first, then its weakest neighbour), three seeds, seven bots. With the first values, hard bots wiped it out in under 3 minutes in two games out of three; with these, it survives every game at every difficulty, and the leading hard bot holds about half the land after 4 minutes, against a quarter for easy bots.
 
 ## Victory
 

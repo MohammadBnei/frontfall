@@ -174,7 +174,8 @@ describe("transport ships (R-UNIT-02, R-ATTACK-09)", () => {
     // Ada's own island: no water route reaches it from her coast.
     const stranded = newGame(["XXXXXX", "#11.#2", "XXXXXX"]);
     expect(stranded.run([stranded.embark(2, stranded.grid.index(0, 1), 10)])).toBe(0);
-    expect(stranded.bea.troops).toBe(1000);
+    expect(stranded.game.boats).toHaveLength(0);
+    expect(stranded.bea.troops).toBeGreaterThanOrEqual(1000);
   });
 
   it("waits for the spawn phase to end", () => {
