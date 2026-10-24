@@ -1,11 +1,15 @@
 import { MAP_COLORS } from "../palette.ts";
 
-/** Secondary text of the brand: light enough to read as rock and ice. */
-const SLATE = "#8DA2B6";
+/**
+ * Bare rock, a darkened slate: light enough to read as rock, dark enough
+ * that the pale player colours (sand, snow, mint) keep a contrast of about
+ * 2:1 against it at its most lit.
+ */
+const ROCK = "#6A7C8E";
 /** Shallow sea over the continental shelf, a step lighter than the brand's ocean. */
 const SHELF = "#163A52";
-/** Uplands, between the brand's high land and its slate. */
-const HIGHLAND = "#6E7A62";
+/** Uplands, between the brand's high land and the rock. */
+const HIGHLAND = "#5F6B58";
 
 /** Bits of the alpha channel: which sides of a water tile touch land, for the surf line. */
 export const SURF_EAST = 1;
@@ -37,7 +41,7 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
   const deep = linear(MAP_COLORS.oceanDeep);
   const land = linear(MAP_COLORS.land);
   const high = linear(HIGHLAND);
-  const peak = linear(SLATE);
+  const peak = linear(ROCK);
   const column = (x: number): number =>
     wrapsX ? (x + width) % width : Math.min(width - 1, Math.max(0, x));
   const row = (y: number): number => Math.min(height - 1, Math.max(0, y));
@@ -73,7 +77,9 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
         const slope = level(x - 1, y) - level(x + 1, y) + level(x, y - 1) - level(x, y + 1);
         let shade = Math.min(1.2, Math.max(0.8, 1 + slope * 0.04));
         // The shore is a tone lighter, so coasts read at any zoom.
-        if (water(x + 1, y) || water(x - 1, y) || water(x, y + 1) || water(x, y - 1)) shade *= 1.18;
+        if (water(x + 1, y) || water(x - 1, y) || water(x, y + 1) || water(x, y - 1)) {
+          shade = Math.min(1.2, shade * 1.18);
+        }
         color[0] *= shade;
         color[1] *= shade;
         color[2] *= shade;

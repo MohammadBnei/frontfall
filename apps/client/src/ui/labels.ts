@@ -10,7 +10,7 @@ import { formatCount } from "./format.ts";
  */
 const FONT_SIZES = [10, 12, 15, 19, 24, 30] as const;
 /** Width of an average character of the label font, in ems. */
-const CHAR_EM = 0.6;
+const CHAR_EM = 0.62;
 /** Labels stay this far from the edges of the screen. */
 const MARGIN = 4;
 /** A name may run this much wider than the land around its tile before it shrinks. */
@@ -81,26 +81,39 @@ export class PlayerLabels {
       // The size follows the depth of the land alone, so it does not jump with the name.
       const across = 2 * anchor.depth * scale;
       const room = across * OVERFLOW;
-      const length = label.name.length * CHAR_EM;
-      const size = FONT_SIZES.findLast(
-        (step) => step * LINES_EM <= across && step * length <= room,
-      );
-      if (size === undefined) continue;
+      // Widest line in ems: the name, or the troops below it at three quarters of its size.
+      const length = Math.max(label.name.length, 0.75 * label.troops.textContent.length) * CHAR_EM;
       const { x, y } = camera.tileToScreen(anchor.tile);
-      const halfWidth = (length * size) / 2;
-      if (x < -halfWidth || x > viewportWidth + halfWidth || y < 0 || y > viewportHeight) continue;
-      // Half off the screen, a name slides in rather than being cut.
-      const left = Math.min(viewportWidth - halfWidth - MARGIN, Math.max(halfWidth + MARGIN, x));
-      const halfHeight = (size * LINES_EM) / 2;
-      const box = {
-        left: left - halfWidth,
-        right: left + halfWidth,
-        top: y - halfHeight,
-        bottom: y + halfHeight,
-      };
-      if (taken.some((other) => overlaps(box, other))) continue;
-      taken.push(box);
-      label.root.style.transform = `translate(${left.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%)`;
+      // From the largest size that fits the land down: where a name would overlap
+      // another or the HUD, it shrinks a step, and is hidden only at the smallest.
+      let placed: { size: number; left: number; top: number } | undefined;
+      for (let step = FONT_SIZES.length - 1; step >= 0 && !placed; step--) {
+        const size = FONT_SIZES[step] as number;
+        if (size * LINES_EM > across || size * length > room) continue;
+        const halfWidth = (length * size) / 2;
+        const halfHeight = (size * LINES_EM) / 2;
+        if (x < -halfWidth || x > viewportWidth + halfWidth) break;
+        if (y < -halfHeight || y > viewportHeight + halfHeight) break;
+        // Half off the screen, a name slides in whole rather than being cut.
+        const left = Math.min(viewportWidth - halfWidth - MARGIN, Math.max(halfWidth + MARGIN, x));
+        const top = Math.min(
+          viewportHeight - halfHeight - MARGIN,
+          Math.max(halfHeight + MARGIN, y),
+        );
+        if (halfWidth * 2 + 2 * MARGIN > viewportWidth) continue;
+        const box = {
+          left: left - halfWidth,
+          right: left + halfWidth,
+          top: top - halfHeight,
+          bottom: top + halfHeight,
+        };
+        if (taken.some((other) => overlaps(box, other))) continue;
+        taken.push(box);
+        placed = { size, left, top };
+      }
+      if (!placed) continue;
+      const { size, left, top } = placed;
+      label.root.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px) translate(-50%, -50%)`;
       label.root.style.fontSize = `${String(size)}px`;
       shown.add(anchor.player);
     }
