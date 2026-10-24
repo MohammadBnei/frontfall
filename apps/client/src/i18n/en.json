@@ -183,5 +183,6 @@
   "diplo.traitorBadge": "Traitor",
   "diplo.playerMenu": "Diplomacy with {name}",
   "click.ally": "This land is an ally's: betray them first to attack.",
+  "click.teammate": "This land is a teammate's: you fight on the same side.",
   "help.diplomacy": "Right click, long press or a leaderboard row: diplomacy"
 }

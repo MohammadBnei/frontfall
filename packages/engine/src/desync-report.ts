@@ -1,7 +1,7 @@
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import { BOT_DIFFICULTIES, installBots, installNations, type BotDifficulty } from "./bots/index.ts";
 import { createGame } from "./create-game.ts";
-import type { Game, Order, PlayerSetup, Turn } from "./game.ts";
+import { MAX_TEAMS, type Game, type Order, type PlayerSetup, type Turn } from "./game.ts";
 import type { Terrain } from "./terrain.ts";
 
 /** Version of the report format below; a reader refuses any other. */
@@ -162,7 +162,7 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
     ...(report.nations === undefined
       ? {}
       : { nations: readList(report.nations, "nations").map((id) => readInteger(id, "nation id")) }),
-    ...(report.teams === undefined ? {} : { teams: readInteger(report.teams, "teams") }),
+    ...(report.teams === undefined ? {} : { teams: readTeams(report.teams) }),
     you: readInteger(report.you, "you"),
     ticks: readInteger(report.ticks, "ticks"),
     turns: readList(report.turns, "turns").map((entry, i) => {
@@ -195,6 +195,12 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
 
 /** A day of play at ten ticks per second: more than any recorded game, far less than a crafted one. */
 const MAX_RECORDED_TICKS = 24 * 3600 * 10;
+
+function readTeams(value: unknown): number {
+  const teams = readInteger(value, "teams");
+  if (teams !== 0 && (teams < 2 || teams > MAX_TEAMS)) throw new DesyncReportError("invalid teams");
+  return teams;
+}
 
 export class DesyncReportError extends Error {
   override name = "DesyncReportError";

@@ -4,7 +4,7 @@ import { MAX_BOTS } from "../game/solo-game.ts";
 import { TEAM_CHOICES } from "./setup.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
-import { playerColor } from "../palette.ts";
+import { playerColor, teamColor } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
@@ -231,11 +231,16 @@ export class LobbyScreen {
     this.title.dataset.i18n = privateGame ? "online.private" : "online.public";
     this.title.textContent = t(this.title.dataset.i18n as MessageKey);
     this.players.replaceChildren(
-      ...lobby.players.map((player) =>
+      ...lobby.players.map((player, i) =>
         h(
           "li",
           { class: player.id === lobby.you ? "lobby-player you" : "lobby-player" },
-          swatch(playerColor(player.id - 1).hex),
+          // In a team game, the shade of the team the seat is dealt into (R-MODE-02).
+          swatch(
+            lobby.teams === 0
+              ? playerColor(player.id - 1).hex
+              : teamColor((i % lobby.teams) + 1, Math.floor(i / lobby.teams)),
+          ),
           h("span", {}, player.name),
           ...(player.id === lobby.host
             ? [h("span", { class: "lobby-host", "data-i18n": "online.host" }, t("online.host"))]

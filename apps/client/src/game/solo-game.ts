@@ -145,6 +145,8 @@ export type ClickRefusal =
   /** Water, ice or off the map. */
   | "terrain"
   | "own"
+  /** Land of a teammate, who is never attacked (R-MODE-02). */
+  | "teammate"
   /** The attack ratio leaves less than one troop. */
   | "troops"
   /** No shared border and no sea route to a coast. */
@@ -410,7 +412,7 @@ export class SoloGame {
       isAllied(game, this.you, territory.ownerOf(tile)) &&
       mode === "attack"
     ) {
-      return { refused: "ally" };
+      return { refused: sameTeam(game, this.you, territory.ownerOf(tile)) ? "teammate" : "ally" };
     }
     if (mode === "city" || mode === "fort") {
       const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };

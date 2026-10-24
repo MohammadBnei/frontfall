@@ -27,6 +27,7 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   gold: "click.gold",
   nothing: "click.nothing",
   ally: "click.ally",
+  teammate: "click.teammate",
 };
 
 interface Mark {
