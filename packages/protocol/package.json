@@ -5,6 +5,7 @@
   "description": "Messages exchanged between the client and the server.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
   },

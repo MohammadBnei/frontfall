@@ -1,4 +1,5 @@
 import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
+import type { MapManifest } from "@frontfall/protocol";
 import type { MapInfo } from "./maps.ts";
 import type { StartInfo } from "./session.ts";
 import type { ClickMode, ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
@@ -27,7 +28,14 @@ export interface GameRules {
 /** From the page to the simulation worker. */
 export type WorkerRequest =
   /** `online`: no clock of its own; the game advances with the turns the page relays. */
-  | { type: "start"; options: SoloOptions; map: MapInfo; online?: boolean }
+  /** `manifest`: checked by the page (`fetchManifest`); none for a generated map. */
+  | {
+      type: "start";
+      options: SoloOptions;
+      map: MapInfo;
+      manifest: MapManifest | undefined;
+      online?: boolean;
+    }
   /** Online: consecutive turns from the server, from the next tick on. */
   | { type: "turns"; turns: Turn[] }
   | { type: "order"; order: Order }

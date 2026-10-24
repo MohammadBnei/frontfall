@@ -53,7 +53,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
   if (started) throw new Error("the game has already started");
   started = true;
   online = request.online === true;
-  const map = await fetchMapData(request.map);
+  const map = await fetchMapData(request.map, request.manifest);
   const record = request.options.record;
   // The map of a replay must be the one its game was played on, terrain and all.
   if (record && record.map.sha256 !== map.source?.sha256) throw new Error(REPLAY_MAP_CHANGED);

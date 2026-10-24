@@ -134,15 +134,33 @@ export async function fetchMaps(base: string, fetcher: typeof fetch = fetch): Pr
   return [...published, ...GENERATED];
 }
 
-/** Terrain of a map: downloaded and checked for a published one, generated otherwise. */
-export async function fetchMapData(info: MapInfo, fetcher: typeof fetch = fetch): Promise<MapData> {
+/**
+ * The checked manifest of a published map; undefined for a generated one.
+ * The page checks it, so that the simulation worker, which only reads it,
+ * leaves the schema library out of its download.
+ */
+export async function fetchManifest(
+  info: MapInfo,
+  fetcher: typeof fetch = fetch,
+): Promise<MapManifest | undefined> {
+  if (!info.manifest) return undefined;
+  const response = await fetcher(new URL(info.manifest));
+  if (!response.ok) throw new Error(`map ${info.id}: HTTP ${String(response.status)}`);
+  return MapManifest.parse(await response.json());
+}
+
+/**
+ * Terrain of a map: downloaded and checked against its manifest (`fetchManifest`)
+ * for a published one, generated otherwise.
+ */
+export async function fetchMapData(
+  info: MapInfo,
+  manifest: MapManifest | undefined,
+  fetcher: typeof fetch = fetch,
+): Promise<MapData> {
   if (!info.manifest) return generateMap(info.id);
-  const manifestUrl = new URL(info.manifest);
-  const manifestResponse = await fetcher(manifestUrl);
-  if (!manifestResponse.ok)
-    throw new Error(`map ${info.id}: HTTP ${String(manifestResponse.status)}`);
-  const manifest = MapManifest.parse(await manifestResponse.json());
-  const terrainResponse = await fetcher(new URL(manifest.terrain.file, manifestUrl));
+  if (!manifest) throw new Error(`map ${info.id}: no manifest`);
+  const terrainResponse = await fetcher(new URL(manifest.terrain.file, new URL(info.manifest)));
   if (!terrainResponse.ok)
     throw new Error(`map ${info.id}: HTTP ${String(terrainResponse.status)}`);
   const bytes = new Uint8Array(await terrainResponse.arrayBuffer());

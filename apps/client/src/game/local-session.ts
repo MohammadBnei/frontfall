@@ -1,7 +1,7 @@
 import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
-import type { MapInfo } from "./maps.ts";
+import { fetchManifest, type MapInfo } from "./maps.ts";
 import type { ClickMode, SoloOptions } from "./solo-game.ts";
 
 /** Where an online game's orders and state hashes go: the connection to the server. */
@@ -22,6 +22,7 @@ export class LocalSession implements GameSession {
   private readonly reports: ((report: DesyncReport | undefined) => void)[] = [];
   /** Callers waiting for a record of the game, answered in order. */
   private readonly records: ((record: GameRecord | undefined) => void)[] = [];
+  private readonly started: Promise<void>;
 
   constructor(
     options: SoloOptions,
@@ -51,7 +52,21 @@ export class LocalSession implements GameSession {
     this.worker.onerror = (event) => {
       events.onError(event.message);
     };
-    this.post({ type: "start", options, map, online: link !== undefined });
+    // Every request waits for the start, which waits for the map's manifest.
+    this.started = fetchManifest(map).then(
+      (manifest) => {
+        this.worker.postMessage({
+          type: "start",
+          options,
+          map,
+          manifest,
+          online: link !== undefined,
+        } satisfies WorkerRequest);
+      },
+      (error: unknown) => {
+        events.onError(error instanceof Error ? error.message : String(error));
+      },
+    );
   }
 
   sendOrder(order: Order): void {
@@ -105,6 +120,8 @@ export class LocalSession implements GameSession {
   }
 
   private post(request: WorkerRequest): void {
-    this.worker.postMessage(request);
+    void this.started.then(() => {
+      this.worker.postMessage(request);
+    });
   }
 }

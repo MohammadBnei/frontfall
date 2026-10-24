@@ -46,8 +46,9 @@ covers the conventions that are not obvious from the code.
   page, not the renderer, holds the game state.
 - The menu lists the maps of `maps/index.json`, the World first, then small
   generated test maps (`game/maps.ts`), reduced to their largest landmass. The
-  worker downloads a published map and checks it against its manifest
-  (`loadMap` of the engine) before the game starts, then hands the page a copy
+  page downloads and checks a published map's manifest, so the worker does
+  without the schema library; the worker downloads the terrain and checks it
+  against the manifest (`loadMap` of the engine) before the game starts, then hands the page a copy
   of the terrain to draw. Without a catalogue, only the generated maps remain.
 - The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard&nations=1`),
   so a link starts the same game, and the last one is remembered in

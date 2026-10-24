@@ -325,15 +325,16 @@ and 71 forts.
 
 | Files                                       | Raw       | Sent (gzip) | Brotli   | Budget   |
 | ------------------------------------------- | --------- | ----------- | -------- | -------- |
-| First visit: page, code, styles, Latin font | 822.7 kB  | 254.3 kB    | 234.8 kB | 275.0 kB |
-| Simulation worker                           | 171.0 kB  | 50.0 kB     | 46.9 kB  | 60.0 kB  |
+| First visit: page, code, styles, Latin font | 823.0 kB  | 254.3 kB    | 234.9 kB | 275.0 kB |
+| Simulation worker                           | 73.8 kB   | 23.5 kB     | 22.5 kB  | 50.0 kB  |
 | World map                                   | 2103.5 kB | 150.0 kB    | 137.1 kB | 175.0 kB |
 | Every map                                   | 7194.7 kB | 442.2 kB    | 390.4 kB | 520.0 kB |
-| Whole build but maps                        | 1453.1 kB | 756.4 kB    | 733.6 kB | 850.0 kB |
+| Whole build but maps                        | 1356.2 kB | 730.0 kB    | 709.3 kB | 850.0 kB |
 
-The worker grew from 40.5 kB to 50.0 kB with v0.4: ports and trade, warships,
-missiles and the bots that use them all run in it. Its budget went from 50 kB
-to 60 kB with them.
+The worker had reached 50.0 kB, more than half of it the schema library
+(zod), which came in with the map manifest it checked. The page now checks
+the manifest and hands it to the worker, and the protocol package is marked
+free of side effects, so the worker keeps only the constants it reads from it.
 
 In headless Chromium on SwiftShader, the menu showed 1.3 s after the page was
 requested and the World game 2.2 s after Play. Panning ran at 22 frames per

@@ -8,7 +8,13 @@ import {
   replayDesyncReport,
 } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
-import { GENERATED_MAPS, fetchMapData, fetchMaps, type MapInfo } from "../src/game/maps.ts";
+import {
+  GENERATED_MAPS,
+  fetchManifest,
+  fetchMapData,
+  fetchMaps,
+  type MapInfo,
+} from "../src/game/maps.ts";
 import { SoloGame } from "../src/game/solo-game.ts";
 import { botLimit, onlineMaps } from "../src/ui/lobby.ts";
 
@@ -73,7 +79,7 @@ describe("published maps", () => {
     const maps = await fetchMaps(PAGE, fromDisk);
     const europe = maps.find((map) => map.id === "europe");
     if (!europe) throw new Error("no Europe map");
-    const data = await fetchMapData(europe, fromDisk);
+    const data = await fetchMapData(europe, await fetchManifest(europe, fromDisk), fromDisk);
     expect(data.kinds).toHaveLength(europe.width * europe.height);
     expect(data.kinds.some((kind) => kind === TileKind.Water)).toBe(true);
     expect(data.kinds.some((kind) => kind === TileKind.Plains)).toBe(true);
@@ -85,7 +91,7 @@ describe("desync report", () => {
   it("replays an online game to the hashes this client saw", { timeout: 60_000 }, async () => {
     const maps = await fetchMaps(PAGE, fromDisk);
     const info = maps.find((map) => map.id === "europe") as MapInfo;
-    const map = await fetchMapData(info, fromDisk);
+    const map = await fetchMapData(info, await fetchManifest(info, fromDisk), fromDisk);
     const game = new SoloGame(
       {
         map: "europe",
@@ -133,7 +139,7 @@ describe("desync report", () => {
   it("has nothing to report on a generated map, or solo", async () => {
     const solo = new SoloGame(
       { map: "continents", seed: 1, bots: 1, difficulty: "easy", playerName: "Me" },
-      await fetchMapData(GENERATED_MAPS[0] as MapInfo),
+      await fetchMapData(GENERATED_MAPS[0] as MapInfo, undefined),
     );
     expect(solo.report()).toBeUndefined();
   });
