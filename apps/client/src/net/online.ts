@@ -71,7 +71,9 @@ export interface OnlineOptions {
   setTimer?: (callback: () => void, ms: number) => unknown;
 }
 
-type Entry = { type: "play" } | { type: "join"; game: string } | { type: "create" };
+/** How a player enters an online game: the next public one, a new private one, or one by id. */
+export type OnlineEntry = { type: "play" } | { type: "join"; game: string } | { type: "create" };
+type Entry = OnlineEntry;
 
 /**
  * One player's link to the game server. It keeps the connection open,

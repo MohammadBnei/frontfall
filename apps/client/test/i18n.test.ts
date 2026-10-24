@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readdirSync, readFileSync } from "node:fs";
 import indexHtml from "../index.html?raw";
 import en from "../src/i18n/en.json" with { type: "json" };
 import fr from "../src/i18n/fr.json" with { type: "json" };
@@ -48,15 +49,21 @@ describe("catalogues", () => {
     }
   });
 
-  it("covers every key used by the page", () => {
-    const keys = [
-      ...[...indexHtml.matchAll(/data-i18n="([^"]+)"/g)].map((match) => match[1]),
-      ...[...indexHtml.matchAll(/data-i18n-attr="([^"]+)"/g)].flatMap((match) =>
+  it("covers every key used by the page and the screens it builds", () => {
+    const source = new URL("../src/", import.meta.url);
+    const screens = readdirSync(source, { recursive: true, encoding: "utf8" })
+      .filter((file) => file.endsWith(".ts"))
+      .map((file) => readFileSync(new URL(file, source), "utf8"));
+    const keys = [indexHtml, ...screens].flatMap((text) => [
+      ...[...text.matchAll(/data-i18n"?[=:] ?"([^"]+)"/g)].map((match) => match[1]),
+      ...[...text.matchAll(/data-i18n-attr"?[=:] ?"([^"]+)"/g)].flatMap((match) =>
         (match[1] ?? "").split(";").map((pair) => pair.split(":")[1]?.trim()),
       ),
-    ];
-    expect(keys.length).toBeGreaterThan(0);
-    for (const key of keys) expect(Object.keys(en)).toContain(key);
+    ]);
+    expect(keys.length).toBeGreaterThan(30);
+    // Every message key has a section: "menu.play", not a word from a comment.
+    for (const key of keys.filter((candidate) => candidate?.includes(".")))
+      expect(Object.keys(en)).toContain(key);
   });
 });
 
@@ -116,7 +123,7 @@ describe("language", () => {
     const { getLanguage, setLanguage, t } = await load();
     expect(getLanguage()).toBe("en");
     setLanguage("fr");
-    expect(t("status.joining")).toBe("Entrée dans la partie…");
+    expect(t("online.join")).toBe("Rejoindre");
 
     vi.stubGlobal("localStorage", undefined);
     expect((await load()).getLanguage()).toBe("en");
@@ -135,14 +142,13 @@ describe("t", () => {
   it("produces the texts the end-to-end tests expect", async () => {
     const { t } = await load();
     expect(t("status.connecting")).toBe("Connecting…");
-    expect(t("status.connected", { player: "p3" })).toBe("Connected as p3");
-    expect(t("status.turn", { tick: 120 })).toBe("Turn 120");
+    expect(t("status.waiting", { players: 1, capacity: 16 })).toBe("Waiting for players 1/16");
     expect(t("status.disconnected", { seconds: 2 })).toBe("Disconnected, retrying in 2 s");
   });
 
   it("leaves a placeholder without a value untouched", async () => {
     const { t } = await load();
-    expect(t("status.connected")).toBe("Connected as {player}");
+    expect(t("status.waiting", { players: 1 })).toBe("Waiting for players 1/{capacity}");
   });
 
   it("picks plural forms by language", async () => {
@@ -175,9 +181,9 @@ describe("applyTranslations", () => {
     vi.stubGlobal("localStorage", memoryStorage());
     vi.stubGlobal("navigator", { languages: ["en"] });
     const { applyTranslations, setLanguage } = await load();
-    const text = new FakeElement({ i18n: "status.joining" });
+    const text = new FakeElement({ i18n: "online.leave" });
     const attrs = new FakeElement({
-      i18nAttr: "aria-label:status.connecting; title :status.joining;",
+      i18nAttr: "aria-label:status.connecting; title :online.leave;",
     });
     const documentElement = { lang: "" };
     const root = {
@@ -187,14 +193,14 @@ describe("applyTranslations", () => {
     } as unknown as ParentNode;
 
     applyTranslations(root);
-    expect(text.textContent).toBe("Joining…");
+    expect(text.textContent).toBe("Leave");
     expect(attrs.attributes.get("aria-label")).toBe("Connecting…");
-    expect(attrs.attributes.get("title")).toBe("Joining…");
+    expect(attrs.attributes.get("title")).toBe("Leave");
     expect(documentElement.lang).toBe("en");
 
     setLanguage("fr");
     applyTranslations(root);
-    expect(text.textContent).toBe("Entrée dans la partie…");
+    expect(text.textContent).toBe("Quitter");
     expect(attrs.attributes.get("aria-label")).toBe("Connexion…");
     expect(documentElement.lang).toBe("fr");
   });
@@ -203,13 +209,13 @@ describe("applyTranslations", () => {
     vi.stubGlobal("localStorage", memoryStorage());
     vi.stubGlobal("navigator", { languages: ["en"] });
     const { applyTranslations } = await load();
-    const turn = new FakeElement({ i18n: "status.turn", i18nParams: '{"tick":40}' });
+    const turn = new FakeElement({ i18n: "hud.cap", i18nParams: '{"cap":40}' });
     const label = new FakeElement({
-      i18nAttr: "aria-label:status.connected",
-      i18nParams: '{"player":"p2"}',
+      i18nAttr: "aria-label:end.winner",
+      i18nParams: '{"name":"p2"}',
     });
-    const broken = new FakeElement({ i18n: "status.turn", i18nParams: "{tick:" });
-    const list = new FakeElement({ i18n: "status.turn", i18nParams: "[1]" });
+    const broken = new FakeElement({ i18n: "hud.cap", i18nParams: "{cap:" });
+    const list = new FakeElement({ i18n: "hud.cap", i18nParams: "[1]" });
     const root = {
       ownerDocument: null,
       querySelectorAll: (selector: string) =>
@@ -218,10 +224,10 @@ describe("applyTranslations", () => {
 
     applyTranslations(root);
     applyTranslations(root);
-    expect(turn.textContent).toBe("Turn 40");
-    expect(label.attributes.get("aria-label")).toBe("Connected as p2");
-    expect(broken.textContent).toBe("Turn {tick}");
-    expect(list.textContent).toBe("Turn {tick}");
+    expect(turn.textContent).toBe("/ 40");
+    expect(label.attributes.get("aria-label")).toBe("p2 wins the game.");
+    expect(broken.textContent).toBe("/ {cap}");
+    expect(list.textContent).toBe("/ {cap}");
   });
 
   it("lists every catalogue under its own name", async () => {

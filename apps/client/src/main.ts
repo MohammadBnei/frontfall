@@ -1,15 +1,10 @@
-import {
-  applyTranslations,
-  onLanguageChange,
-  t,
-  type MessageKey,
-  type Params,
-} from "./i18n/index.ts";
+import { applyTranslations, onLanguageChange, t, type MessageKey } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { BUILD } from "./net/build.ts";
-import { OnlineClient, socketUrl } from "./net/online.ts";
+import { OnlineClient, socketUrl, type GameStart, type OnlineEntry } from "./net/online.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
+import { LobbyScreen } from "./ui/lobby.ts";
 import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 
@@ -18,13 +13,20 @@ let maps: readonly MapInfo[] = [];
 let menu: Menu | undefined;
 let game: GameScreen | undefined;
 let setup: GameSetup;
+let lobby: LobbyScreen | undefined;
+let online: OnlineClient | undefined;
 
 function showMenu(): void {
+  goOffline();
   game?.dispose();
   game = undefined;
   menu?.dispose();
   document.body.classList.remove("playing");
-  menu = new Menu(setup, maps, play);
+  menu = new Menu(setup, maps, play, (entry, chosen) => {
+    setup = chosen;
+    saveSetup(setup, storage);
+    goOnline(entry, chosen);
+  });
   document.body.prepend(menu.element);
   // Ready for Enter, without scrolling a phone's menu down to the button.
   menu.element.querySelector<HTMLButtonElement>("#play")?.focus({ preventScroll: true });
@@ -95,69 +97,165 @@ document.addEventListener("gesturestart", (event) => {
 });
 
 applyTranslations(document);
-void fetchMaps(location.href).then((list) => {
-  maps = list;
-  setup = initialSetup(location.search, storage, maps);
-  showMenu();
-});
 
-const status = document.querySelector<HTMLElement>("#status");
-let shownStatus: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
-const showStatus = (key: MessageKey, params: Params = {}): void => {
-  shownStatus = { key, params };
-  if (status) status.textContent = t(key, params);
-};
 onLanguageChange(() => {
   applyTranslations(document);
-  showStatus(shownStatus.key, shownStatus.params);
+  lobby?.refresh();
 });
 
-const seconds = (ms: number): number => Math.ceil(ms / 1000);
+/** The address of a private game, to share: this page with `?game=<id>`. */
+function inviteLink(game: string): string {
+  const url = new URL(location.href);
+  url.search = new URLSearchParams({ game }).toString();
+  url.hash = "";
+  return url.href;
+}
+
+/** Leaves the online game, if any, and closes the connection. */
+function goOffline(): void {
+  online?.leave();
+  online?.close();
+  online = undefined;
+  lobby?.dispose();
+  lobby = undefined;
+}
 
 /**
- * The online client until the lobby screens arrive: it connects only when the
- * address asks for it, with ?game=<id> from an invitation link or ?online for
- * the next public game, so a solo player never sits in the public queue.
+ * An online game, from the lobby to the end: the connection reports the
+ * lobby until the start, then the game screen plays the turns it relays.
+ * Online games are played on the World map, with the bots the server asks for.
  */
-function goOnline(entry: { game: string } | "public"): void {
-  if (status) status.hidden = false;
-  const online = new OnlineClient({
+function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
+  if (!hasWebGL2()) {
+    showNotice("webgl.missing");
+    return;
+  }
+  menu?.dispose();
+  menu = undefined;
+  game?.dispose();
+  game = undefined;
+  goOffline();
+  document.querySelector(".notice")?.remove();
+  const room = new LobbyScreen({
+    onStart: () => {
+      online?.start();
+    },
+    onLeave: () => {
+      goOffline();
+      history.replaceState(null, "", setupQuery(setup));
+      showMenu();
+    },
+  });
+  lobby = room;
+  document.body.prepend(room.element);
+  const client = new OnlineClient({
     url: socketUrl(location.href),
-    name: "Guest",
+    name: chosen.playerName || t("menu.namePlaceholder"),
     build: BUILD,
     events: {
       status(state, retryInMs) {
-        if (state === "connecting") showStatus("status.connecting");
-        if (state === "offline")
-          showStatus("status.disconnected", { seconds: seconds(retryInMs ?? 0) });
-        if (state === "outdated") showStatus("status.outdated");
+        if (state === "connecting") room.connecting();
+        if (state === "offline") room.connecting(retryInMs ?? 0);
+        if (state === "outdated") {
+          room.outdated();
+          if (game) showNotice("status.outdated");
+        }
       },
-      lobby(lobby) {
-        const count = { players: lobby.players.length, capacity: lobby.capacity };
-        if (lobby.startsIn === null) showStatus("status.waiting", count);
-        else showStatus("status.starting", { ...count, seconds: seconds(lobby.startsIn) });
+      lobby(state) {
+        // A private game is joined again from its link, after a reload too.
+        if (state.visibility === "private") {
+          history.replaceState(
+            null,
+            "",
+            `?${new URLSearchParams({ game: state.game }).toString()}`,
+          );
+        }
+        room.lobby(state, inviteLink(state.game));
       },
-      started(game) {
-        showStatus("status.playing", { player: game.you });
+      started(start) {
+        startOnline(start, client);
       },
       turns(turns) {
-        const last = turns.at(-1)?.tick ?? 0;
-        if (last % 10 === 0) showStatus("status.turn", { tick: last });
+        game?.pushTurns(turns);
       },
-      ended() {
-        showStatus("status.ended");
+      desync() {
+        showNotice("online.desync");
       },
-      error(_code, message) {
-        showStatus("status.refused", { message });
+      ended(reason) {
+        if (game) {
+          if (reason !== "left") showNotice(`online.ended.${reason}`);
+          return;
+        }
+        room.ended(reason);
+      },
+      error(code, message) {
+        room.refused(code, message);
       },
     },
   });
+  online = client;
+  if (entry.type === "play") client.play();
+  else if (entry.type === "create") client.create();
+  else client.join(entry.game);
+}
 
-  if (entry === "public") online.play();
-  else online.join(entry.game);
+/** The game starts: the lobby gives way to the map, and the turns go to the worker. */
+function startOnline(start: GameStart, client: OnlineClient): void {
+  const map = maps.find((candidate) => candidate.id === start.map);
+  if (!map) {
+    lobby?.refused("not_found", start.map);
+    return;
+  }
+  lobby?.dispose();
+  lobby = undefined;
+  const leave = (): void => {
+    goOffline();
+    history.replaceState(null, "", setupQuery(setup));
+    showMenu();
+  };
+  game = new GameScreen(
+    {
+      map: start.map,
+      seed: start.seed,
+      bots: start.bots,
+      // The same for every client of the game, which all run the same bots.
+      difficulty: "normal",
+      playerName: "",
+      players: start.players,
+      you: start.you,
+    },
+    map,
+    {
+      onNewGame: leave,
+      onMenu: leave,
+      onFailure: (key) => {
+        leave();
+        showNotice(key);
+      },
+    },
+    {
+      order: (order) => {
+        client.order(order);
+      },
+      hash: (tick, hash) => {
+        client.hash(tick, hash);
+      },
+    },
+  );
+  document.body.classList.add("playing");
+  document.body.prepend(game.element);
+  game.start();
 }
 
 const query = new URLSearchParams(location.search);
 const invited = query.get("game");
-if (invited) goOnline({ game: invited });
-else if (query.has("online")) goOnline("public");
+const ready = fetchMaps(location.href).then((list) => {
+  maps = list;
+  setup = initialSetup(location.search, storage, maps);
+});
+void ready.then(() => {
+  // An invitation link joins its game; ?online, the next public one.
+  if (invited) goOnline({ type: "join", game: invited });
+  else if (query.has("online")) goOnline({ type: "play" });
+  else showMenu();
+});

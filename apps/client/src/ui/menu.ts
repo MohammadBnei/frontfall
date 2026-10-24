@@ -6,14 +6,26 @@ import {
   getLanguage,
   onLanguageChange,
   setLanguage,
+  t,
   type Language,
 } from "../i18n/index.ts";
+import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
 import { h, present } from "./dom.ts";
 import { MAX_NAME_LENGTH, cleanName, type GameSetup } from "./setup.ts";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
+/** How often the list of public games is fetched again while the menu shows. */
+const GAMES_REFRESH_MS = 3_000;
+
+/** A public game waiting for players, as `/api/games` lists it. */
+interface PublicGame {
+  id: string;
+  map: string;
+  players: number;
+  capacity: number;
+}
 
 /**
  * The main menu: name, map, bots and difficulty, and one button to play.
@@ -24,7 +36,12 @@ export class Menu {
   private setup: GameSetup;
   private readonly cleanups: (() => void)[] = [];
 
-  constructor(initial: GameSetup, mapList: readonly MapInfo[], onPlay: (setup: GameSetup) => void) {
+  constructor(
+    initial: GameSetup,
+    mapList: readonly MapInfo[],
+    onPlay: (setup: GameSetup) => void,
+    onOnline: (entry: OnlineEntry, setup: GameSetup) => void,
+  ) {
     this.setup = { ...initial };
 
     const name = h("input", {
@@ -149,8 +166,10 @@ export class Menu {
         ),
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),
-      h("p", { class: "hint", "data-i18n": "menu.onlineSoon" }),
     );
+    const online = this.onlineSection(mapList, (entry) => {
+      onOnline(entry, { ...this.setup });
+    });
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       onPlay({ ...this.setup });
@@ -168,6 +187,7 @@ export class Menu {
         ...present(betaNotice()),
       ),
       form,
+      online,
       h("footer", { class: "menu-footer" }, language),
     );
     applyTranslations(this.element);
@@ -176,6 +196,94 @@ export class Menu {
   dispose(): void {
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.element.remove();
+  }
+
+  /**
+   * Online play: the next public game, a new private one, or a public game
+   * from the list, which is fetched again every few seconds.
+   */
+  private onlineSection(
+    mapList: readonly MapInfo[],
+    enter: (entry: OnlineEntry) => void,
+  ): HTMLElement {
+    const button = (id: string, key: string, entry: OnlineEntry): HTMLElement => {
+      const element = h("button", { type: "button", class: "secondary", id, "data-i18n": key });
+      element.addEventListener("click", () => {
+        enter(entry);
+      });
+      return element;
+    };
+    const list = h("ul", { class: "public-games", id: "public-games" });
+    const empty = h("p", { class: "hint", "data-i18n": "online.noGames" });
+    const games = h(
+      "div",
+      { class: "field", hidden: true },
+      h("span", { class: "field-label", "data-i18n": "online.games" }),
+      list,
+      empty,
+    );
+    const mapLabel = (id: string): string => {
+      const info = mapList.find((candidate) => candidate.id === id);
+      return info?.name?.[getLanguage()] ?? id;
+    };
+    const show = (found: readonly PublicGame[]): void => {
+      games.hidden = false;
+      empty.hidden = found.length > 0;
+      list.replaceChildren(
+        ...found.map((game) => {
+          const join = h("button", { type: "button", class: "secondary" }, t("online.join"));
+          join.addEventListener("click", () => {
+            enter({ type: "join", game: game.id });
+          });
+          return h(
+            "li",
+            { class: "public-game" },
+            h(
+              "span",
+              {},
+              t("online.gameRow", {
+                map: mapLabel(game.map),
+                players: game.players,
+                capacity: game.capacity,
+              }),
+            ),
+            join,
+          );
+        }),
+      );
+    };
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async (): Promise<void> => {
+      try {
+        const response = await fetch(new URL("api/games", location.href));
+        if (response.ok) show(((await response.json()) as { games: PublicGame[] }).games);
+      } catch {
+        // No server next to the page, as in a static preview: the buttons stay.
+      }
+      if (!stopped) {
+        timer = setTimeout(() => {
+          void refresh();
+        }, GAMES_REFRESH_MS);
+      }
+    };
+    void refresh();
+    this.cleanups.push(() => {
+      stopped = true;
+      clearTimeout(timer);
+    });
+    return h(
+      "section",
+      { class: "menu-online", "aria-labelledby": "online-heading" },
+      h("h2", { id: "online-heading", "data-i18n": "online.heading" }),
+      h(
+        "div",
+        { class: "online-actions" },
+        button("online-play", "online.quick", { type: "play" }),
+        button("online-create", "online.create", { type: "create" }),
+      ),
+      games,
+    );
   }
 
   /** Published maps bring their names in every language; generated ones use the catalogues. */

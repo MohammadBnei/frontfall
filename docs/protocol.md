@@ -118,7 +118,7 @@ Leaves the current game for good. Before the start, the seat is freed; after it,
 { "type": "hash", "tick": 1250, "hash": 3735928559 }
 ```
 
-The client's 32-bit hash of its game state after running `tick`, sent for every tick that is a multiple of `HASH_INTERVAL` (50); other ticks are ignored, and so is a second hash from the same player for the same tick. Once every connected player has reported a tick, or a minute of play later, the server compares the hashes. Players whose hash differs from the majority's receive `desync`; when no majority exists, as with two players who disagree, every player who reported does. A client sending wrong hashes can only single itself out. The client of this repository does not send hashes yet: it needs the engine's state hash (#38).
+The client's 32-bit hash of its game state after running `tick`, sent for every tick that is a multiple of `HASH_INTERVAL` (50); other ticks are ignored, and so is a second hash from the same player for the same tick. Once every connected player has reported a tick, or a minute of play later, the server compares the hashes. Players whose hash differs from the majority's receive `desync`; when no majority exists, as with two players who disagree, every player who reported does. A client sending wrong hashes can only single itself out. The client of this repository computes them in its worker with the engine's `game.hash()` as it runs the turns, and sends them.
 
 ### `order`
 

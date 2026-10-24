@@ -1,6 +1,6 @@
-import { LocalSession } from "../game/local-session.ts";
+import type { Turn } from "@frontfall/engine";
+import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import type { MapData, MapInfo } from "../game/maps.ts";
-import type { GameSession } from "../game/session.ts";
 import type { GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
@@ -38,7 +38,7 @@ export class GameScreen {
   private view: Renderer | undefined;
   private readonly input: InputController;
   private readonly hud: Hud;
-  private readonly session: GameSession;
+  private readonly session: LocalSession;
   private readonly cleanups: (() => void)[] = [];
   private latest: GameUpdate | undefined;
   private overlay: HTMLElement | undefined;
@@ -64,6 +64,8 @@ export class GameScreen {
     readonly options: SoloOptions,
     map: MapInfo,
     private readonly actions: GameScreenActions,
+    /** Online: the connection the game's orders go to; the game then never pauses. */
+    private readonly link?: ServerLink,
   ) {
     this.camera = new FlatCamera({ width: map.width, height: map.height, wrapsX: map.wrapsX });
     // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
@@ -75,20 +77,23 @@ export class GameScreen {
     this.surface.setAttribute("aria-label", t("game.map"));
     this.surface.setAttribute("aria-busy", "true");
 
-    this.hud = new Hud({
-      onPause: () => {
-        this.togglePause();
+    this.hud = new Hud(
+      {
+        onPause: () => {
+          this.togglePause();
+        },
+        onHelp: () => {
+          this.showHelp();
+        },
+        onMenu: () => {
+          this.leave();
+        },
+        onRetreat: (attack) => {
+          this.retreat(attack);
+        },
       },
-      onHelp: () => {
-        this.showHelp();
-      },
-      onMenu: () => {
-        this.leave();
-      },
-      onRetreat: (attack) => {
-        this.retreat(attack);
-      },
-    });
+      { pausable: link === undefined },
+    );
     this.element = document.createElement("div");
     this.element.className = "game";
     this.element.append(
@@ -105,24 +110,29 @@ export class GameScreen {
       },
     });
 
-    this.session = new LocalSession(options, map, {
-      onStart: (info) => {
-        this.showMap(info.map, info.you);
-        this.ticksPerSecond = info.rules.ticksPerSecond;
-        this.ownableTiles = info.rules.ownableTiles;
-        this.hud.setRules(info.rules);
+    this.session = new LocalSession(
+      options,
+      map,
+      {
+        onStart: (info) => {
+          this.showMap(info.map, info.you);
+          this.ticksPerSecond = info.rules.ticksPerSecond;
+          this.ownableTiles = info.rules.ownableTiles;
+          this.hud.setRules(info.rules);
+        },
+        onUpdate: (update) => {
+          this.apply(update);
+        },
+        onClick: (tile, outcome) => {
+          this.marks.show(tile, outcome, performance.now());
+        },
+        onError: (message) => {
+          console.error(message);
+          this.actions.onFailure("game.failed");
+        },
       },
-      onUpdate: (update) => {
-        this.apply(update);
-      },
-      onClick: (tile, outcome) => {
-        this.marks.show(tile, outcome, performance.now());
-      },
-      onError: (message) => {
-        console.error(message);
-        this.actions.onFailure("game.failed");
-      },
-    });
+      link,
+    );
 
     const keydown = (event: KeyboardEvent): void => {
       this.key(event);
@@ -336,7 +346,17 @@ export class GameScreen {
     this.actions.onMenu();
   }
 
+  /** Online: turns relayed by the server, in order. */
+  pushTurns(turns: Turn[]): void {
+    this.session.pushTurns(turns);
+  }
+
   private togglePause(): void {
+    if (this.link) {
+      // An online game runs for everyone: Esc only closes what is open.
+      if (this.overlay) this.closeOverlay();
+      return;
+    }
     if (this.paused) {
       this.closeOverlay();
       return;
@@ -356,8 +376,10 @@ export class GameScreen {
   }
 
   private showHelp(): void {
-    this.paused = true;
-    this.session.setPaused(true);
+    if (!this.link) {
+      this.paused = true;
+      this.session.setPaused(true);
+    }
     this.showOverlay(
       helpPanel(() => {
         this.closeOverlay();

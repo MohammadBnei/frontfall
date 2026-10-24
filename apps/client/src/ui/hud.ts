@@ -68,7 +68,8 @@ export class Hud {
     retreatPenaltyPercent: 0,
   };
 
-  constructor(actions: HudActions) {
+  /** `pausable`: false online, where the game runs for everyone. */
+  constructor(actions: HudActions, { pausable = true }: { pausable?: boolean } = {}) {
     this.onRetreat = (attack) => {
       actions.onRetreat(attack);
     };
@@ -141,7 +142,7 @@ export class Hud {
         this.ratioValue,
       ),
       this.attackPanel,
-      h("div", { class: "toolbar" }, help, pause, menu),
+      h("div", { class: "toolbar" }, help, ...(pausable ? [pause] : []), menu),
       ...present(betaBadge("beta-hud")),
     );
     applyTranslations(this.element);

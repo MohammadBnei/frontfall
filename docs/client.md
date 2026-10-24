@@ -23,11 +23,11 @@ covers the conventions that are not obvious from the code.
   shared: the page needs no cross-origin isolation headers.
 - The page sends clicks, not orders. The worker holds the game and decides
   what a click means: a start during the spawn phase, then an expansion or an
-  attack with the attack ratio. The same `GameSession` interface will carry
-  an online game, where the orders go to the server instead.
+  attack with the attack ratio. The same `GameSession` carries an online
+  game, where the orders go to the server instead (below).
 - Bots are installed in the engine (`installBots`) and decide during the tick,
-  from the game state and its seed, so every client of an online game will
-  compute the same moves.
+  from the game state and its seed, so every client of an online game
+  computes the same moves.
 - Only `apps/client/src/render` imports Three.js, which a test checks. The
   interface talks to the two contracts of ADR 0003, never to Three.js:
   `Renderer` (`render/renderer.ts`: player colours, changed tiles, ships, a
@@ -46,6 +46,35 @@ covers the conventions that are not obvious from the code.
 - The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard`),
   so a link starts the same game, and the last one is remembered in
   `localStorage` when storage is available.
+
+## Playing online
+
+The menu offers the next public game, a new private game, and the public
+games waiting for players (`/api/games`, fetched every 3 seconds while the
+menu shows). The lobby (`ui/lobby.ts`) shows who is in, the countdown of a
+public game, and for a private one its invitation link, `?game=<id>`, with a
+Copy button; only the host sees "Start the game". The address bar holds the
+link while the player waits, so a reload joins again. The lobby also says
+when the page is outdated (with a Reload button), when a game expired before
+it started or ended for another reason, and why a request was refused.
+
+```text
+ page                                          worker
+ ----                                          ------
+ OnlineClient (net/online.ts) ── turns ──> GameScreen.pushTurns ─> SoloGame.playTurns
+      ^                                         │                       │
+      └─── orders, hashes ── ServerLink <───────┴── click → order ──────┘
+```
+
+Once the server sends `started`, the page builds the same game as every
+other client: the World map, the seed, the humans in the server's numbering,
+and `bots` bots of normal difficulty numbered after them. The worker has no
+clock of its own: it runs each turn the server relays, every player's orders
+in it, and a batch of turns at once after a rejoin. A click becomes an order
+the page sends to the server; it takes effect when its turn comes back.
+After every 50th tick the worker hashes the game state and the page reports
+it, so the server can tell a client out of step (`desync`). An online game
+never pauses, and its HUD has no pause button.
 
 ## Drawing the map
 
