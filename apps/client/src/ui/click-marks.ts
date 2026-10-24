@@ -6,6 +6,8 @@ import { h } from "./dom.ts";
 
 /** How long a mark stays on the map, in milliseconds; the CSS animation matches it. */
 const MARK_MS = 700;
+/** An online order whose turn never came back (refused by the server) stops waiting after this. */
+const PENDING_MS = 3000;
 /** How long the reason for a refused click stays up. */
 const NOTE_MS = 2500;
 
@@ -20,32 +22,48 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
 interface Mark {
   readonly tile: number;
   readonly element: HTMLElement;
-  readonly until: number;
+  until: number;
 }
 
 /**
  * The answer to a click, where it happened: a ring that opens out on the
  * target of an order, a red one and a short reason when nothing was sent.
+ * Online, the ring of an order holds, pulsing, until the turn that carries
+ * it comes back from the server.
  */
 export class ClickMarks {
   readonly element = h("div", { class: "click-marks", "aria-hidden": "true" });
   /** Reasons are read out by screen readers, unlike the rings. */
   readonly note = h("p", { class: "click-note", role: "status", hidden: true });
   private marks: Mark[] = [];
+  /** Online orders sent and not yet back, oldest first. */
+  private pending: Mark[] = [];
   private noteUntil = 0;
 
-  show(tile: number, outcome: ClickOutcome, now: number): void {
+  /** `waiting`: an online order, shown until `arrived` says its turn is back. */
+  show(tile: number, outcome: ClickOutcome, now: number, waiting = false): void {
     const refusal = REFUSALS[outcome];
     if (outcome === "over") return;
+    const held = waiting && !refusal;
     const element = h("span", {
-      class: refusal ? "click-mark refused" : `click-mark ${outcome}`,
+      class: refusal ? "click-mark refused" : `click-mark ${outcome}${held ? " pending" : ""}`,
     });
     this.element.append(element);
-    this.marks.push({ tile, element, until: now + MARK_MS });
+    const mark = { tile, element, until: now + (held ? PENDING_MS : MARK_MS) };
+    this.marks.push(mark);
+    if (held) this.pending.push(mark);
     if (refusal) {
       this.note.textContent = t(refusal);
       this.note.hidden = false;
       this.noteUntil = now + NOTE_MS;
+    }
+  }
+
+  /** `count` of this player's orders came back in a turn: their rings open out. */
+  arrived(count: number, now: number): void {
+    for (const mark of this.pending.splice(0, count)) {
+      mark.element.classList.remove("pending");
+      mark.until = now + MARK_MS;
     }
   }
 
@@ -56,6 +74,7 @@ export class ClickMarks {
       mark.element.remove();
       return false;
     });
+    this.pending = this.pending.filter((mark) => now < mark.until);
     for (const mark of this.marks) {
       const { x, y } = camera.tileToScreen(mark.tile);
       mark.element.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;

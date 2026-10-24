@@ -940,8 +940,26 @@ input[type="range"] {
   border-style: dashed;
 }
 
+/* An online order on its way to the server and back. */
+.click-mark.pending::before {
+  opacity: 0.6;
+  animation: click-wait 600ms ease-in-out infinite alternate;
+}
+
 .click-mark.refused::before {
   border-color: var(--ff-danger);
+}
+
+@keyframes click-wait {
+  from {
+    transform: scale(0.5);
+    opacity: 0.5;
+  }
+
+  to {
+    transform: scale(0.7);
+    opacity: 1;
+  }
 }
 
 @keyframes click-ring {

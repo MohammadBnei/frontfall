@@ -91,6 +91,8 @@ test("two players meet in a private game without leaving the base path", async (
   // The guest picks a start, and their map closes in on it, drawn in their
   // colour: amber, the second of the palette, as for any player after the first.
   await guest.locator("#map").click({ position: { x: 300, y: 300 } });
+  // The ring of the order waits for its turn, then lets go well before it gives up.
+  await expect(guest.locator(".click-mark.pending")).toHaveCount(0, { timeout: 2_000 });
   await expect(guest.locator(".stats .stat-value").nth(2)).not.toHaveText("0%", {
     timeout: 10_000,
   });

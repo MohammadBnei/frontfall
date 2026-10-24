@@ -131,7 +131,7 @@ export class GameScreen {
           this.apply(update);
         },
         onClick: (tile, outcome) => {
-          this.marks.show(tile, outcome, performance.now());
+          this.marks.show(tile, outcome, performance.now(), link !== undefined);
         },
         onError: (message) => {
           console.error(message);
@@ -151,6 +151,11 @@ export class GameScreen {
     window.addEventListener("resize", resize);
     this.pacer = new TurnPacer((turns) => {
       this.session.pushTurns(turns);
+      const mine = turns.reduce(
+        (count, turn) => count + turn.orders.filter((entry) => entry.player === options.you).length,
+        0,
+      );
+      if (mine > 0) this.marks.arrived(mine, performance.now());
     }, 1000 / TICK_RATE);
     if (link) {
       // A timer rather than frames: a hidden tab draws nothing but must keep playing.
