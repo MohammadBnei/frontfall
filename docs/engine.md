@@ -17,10 +17,11 @@ const game = createGame({
     { id: 2, name: "Bea" },
   ],
   balance, // optional, defaults to DEFAULT_BALANCE
+  teams, // optional: 2, 3 or 4 teams dealt in turn by id (R-MODE-02); a free-for-all without
 });
 ```
 
-Player ids are integers from 1 upwards; `0` (`NEUTRAL`) is the owner of unclaimed land. `createGame` installs every rule in the order they depend on: spawn, diplomacy, attacks, ships, structures, growth, victory.
+Player ids are integers from 1 upwards; `0` (`NEUTRAL`) is the owner of unclaimed land. `createGame` installs every rule in the order they depend on: spawn, diplomacy, attacks, ships, structures, trade, growth, victory.
 
 ## Running it
 
@@ -86,7 +87,7 @@ The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`)
 | Diplomacy                      | `game.alliances`: `a` < `b`, `until`, `renewA`, `renewB`; `game.allianceRequests`: `from`, `to`, `expiresAt`; `game.player(id).traitorUntil`; `isAllied`, `alliesOf`, `isTraitor`, `canRenew`                                                              |
 | Diplomatic events              | `game.diplomacyEvents`: `tick`, `type` (`allied`, `ended`, `betrayed`, `embargo`, `lifted`), `a`, `b`, oldest first; an interface empties it as it reads (`splice(0)`); unread, it keeps the latest `DIPLOMACY_LOG_SIZE` (256). Not part of the state hash |
 | Start tiles                    | `game.player(id).start`                                                                                                                                                                                                                                    |
-| Result                         | `game.winner`, `game.decidedAt`                                                                                                                                                                                                                            |
+| Result                         | `game.winner`, `game.decidedAt`; in a team game `game.winningTeam`, and each player's `team`, from 1                                                                                                                                                       |
 | Geometry                       | `game.terrain.topology`: `neighbors`, `distance`, `tilesWithin`, `toLatLon` ([ADR 0002](adr/0002-topology.md))                                                                                                                                             |
 | Terrain                        | `game.terrain.kind(tile)`, `isOwnable(tile)`, `isCoast(tile)`, `landmassOf(tile)`                                                                                                                                                                          |
 

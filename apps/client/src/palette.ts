@@ -84,9 +84,10 @@ export const TEAM_HUES: readonly number[] = [205, 15, 160, 48];
  */
 export function teamColor(team: number, rank: number): string {
   const hue = TEAM_HUES[(((team - 1) % TEAM_HUES.length) + TEAM_HUES.length) % TEAM_HUES.length];
-  const lightness = 0.42 + (rank % 5) * 0.08;
+  // Teammates differ in lightness and a little in hue, so neighbours of one team stay apart.
+  const lightness = 0.36 + (rank % 5) * 0.1;
   const saturation = 0.8 - (Math.floor(rank / 5) % 3) * 0.2;
-  return hslToHex(hue ?? 0, saturation, lightness);
+  return hslToHex((hue ?? 0) + ((rank % 5) - 2) * 6, saturation, lightness);
 }
 
 /**

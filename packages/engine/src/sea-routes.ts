@@ -11,6 +11,8 @@ import { TileKind } from "./terrain.ts";
  * arrays and never write to them.
  */
 export class SeaRoutes {
+  private readonly game: Game;
+  private readonly range: number;
   private readonly size: number;
   /** Routes by `from * size + to`, both ways. */
   private readonly routes = new Map<number, Int32Array>();
@@ -19,6 +21,8 @@ export class SeaRoutes {
   private readonly search: SeaSearch;
 
   constructor(game: Game, range: number) {
+    this.game = game;
+    this.range = range;
     this.size = game.terrain.topology.size;
     this.search = new SeaSearch(game, range);
   }
@@ -45,7 +49,11 @@ export class SeaRoutes {
   /** Opens a port: one search over the sea around it gives its routes to every open port in reach. */
   open(port: number): void {
     if (this.partners.has(port)) return;
-    const others = [...this.partners.keys()];
+    // No sea route is shorter than the distance between two ports: skip the search when none is in range.
+    const { topology } = this.game.terrain;
+    const others = [...this.partners.keys()].filter(
+      (other) => topology.distance(port, other) <= this.range + 1,
+    );
     const mine: number[] = [];
     this.partners.set(port, mine);
     if (others.length === 0) return;
@@ -82,7 +90,8 @@ export class SeaRoutes {
 class SeaSearch {
   private readonly game: Game;
   private readonly range: number;
-  private readonly marks: Uint32Array;
+  /** Allocated on the first search: most games never open two ports. */
+  private marks = new Uint32Array(0);
   private generation = 0;
   private queue = new Int32Array(1024);
   private readonly around = new Int32Array(4);
@@ -91,12 +100,12 @@ class SeaSearch {
   constructor(game: Game, range: number) {
     this.game = game;
     this.range = Math.min(range, 0xffff);
-    this.marks = new Uint32Array(game.terrain.topology.size);
   }
 
   /** Marks the sea around `port` with each tile's distance from the port's shore. */
   from(port: number): void {
     const { topology } = this.game.terrain;
+    if (this.marks.length === 0) this.marks = new Uint32Array(topology.size);
     if (this.generation === 0xffff) {
       this.marks.fill(0);
       this.generation = 0;

@@ -48,18 +48,18 @@ Frontfall is in beta until v1.0: rules, balance and visuals still change. [The r
 
 Development runs in playable versions. Each one ends with something you can play on the public server. Every version before v1.0 is a beta; v1.0 is the complete game on the 3D globe.
 
-| Version | Goal                                                                                        | Status      |
-| ------- | ------------------------------------------------------------------------------------------- | ----------- |
-| M0      | Foundations and specification: engine skeleton, turn relay, CI, deployment, rules           | Done        |
-| v0.1    | Solo game in the browser against bots, on a map of the Earth                                | Done        |
-| v0.2    | Online with friends: invite links, public games, eight maps, desync reports                 | Done        |
-| v0.3    | Deeper game: cities, ports and defence posts, alliances, nations, stronger bots, monitoring | In progress |
-| v0.4    | Sea and missiles: ports, warships, naval combat, missiles, team games, replays              | Planned     |
-| v0.5    | Balanced: a balance pass checked with a thousand headless games                             | Planned     |
-| v0.6    | 3D globe                                                                                    | Planned     |
-| v0.7    | Performance, and switching between map and globe during a game                              | Planned     |
-| v1.0    | The complete game on the 3D globe, out of beta                                              | Planned     |
-| M8      | Community and launch                                                                        | Planned     |
+| Version | Goal                                                                              | Status      |
+| ------- | --------------------------------------------------------------------------------- | ----------- |
+| M0      | Foundations and specification: engine skeleton, turn relay, CI, deployment, rules | Done        |
+| v0.1    | Solo game in the browser against bots, on a map of the Earth                      | Done        |
+| v0.2    | Online with friends: invite links, public games, eight maps, desync reports       | Done        |
+| v0.3    | Deeper game: cities and forts, alliances, nations, stronger bots, monitoring      | Done        |
+| v0.4    | Sea and missiles: replays, team games, ports and trade, warships, missiles        | In progress |
+| v0.5    | Balanced: a balance pass checked with a thousand headless games                   | Planned     |
+| v0.6    | 3D globe                                                                          | Planned     |
+| v0.7    | Performance, and switching between map and globe during a game                    | Planned     |
+| v1.0    | The complete game on the 3D globe, out of beta                                    | Planned     |
+| M8      | Community and launch                                                              | Planned     |
 
 The scope and "playable when" checks of each version are in [docs/roadmap.md](docs/roadmap.md). Open work is tracked in [milestones](https://github.com/nic0lasm/frontfall/milestones).
 

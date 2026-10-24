@@ -53,8 +53,8 @@ Le développement avance par versions jouables. Chacune se termine par quelque c
 | M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement | Terminé  |
 | v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre            | Terminé  |
 | v0.2    | En ligne entre amis : liens d'invitation, parties publiques, huit cartes, désyncs    | Terminé  |
-| v0.3    | Jeu plus riche : villes, ports, défenses, alliances, nations, bots, surveillance     | En cours |
-| v0.4    | Mer et missiles : ports, navires, combat naval, missiles, équipes, replays           | Prévu    |
+| v0.3    | Jeu plus riche : villes et forts, alliances, nations, bots, surveillance             | Terminé  |
+| v0.4    | Mer et missiles : replays, équipes, ports et commerce, navires de guerre, missiles   | En cours |
 | v0.5    | Équilibré : passe d'équilibrage vérifiée sur mille parties simulées                  | Prévu    |
 | v0.6    | Globe 3D                                                                             | Prévu    |
 | v0.7    | Performance, et bascule entre carte et globe en cours de partie                      | Prévu    |

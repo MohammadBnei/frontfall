@@ -34,6 +34,8 @@ interface Golden {
   readonly difficulty: BotDifficulty;
   /** Whether the map's nations play, after the bots (R-BOT-07). */
   readonly nations?: boolean;
+  /** Teams the players are dealt into (R-MODE-02); a free-for-all without. */
+  readonly teams?: number;
   readonly ticks: number;
 }
 
@@ -47,6 +49,15 @@ export const GOLDEN_REPLAYS: readonly Golden[] = [
     bots: 3,
     difficulty: "normal",
     nations: true,
+    ticks: 2000,
+  },
+  {
+    name: "europe-teams",
+    map: "europe",
+    seed: 5,
+    bots: 7,
+    difficulty: "normal",
+    teams: 2,
     ticks: 2000,
   },
 ];
@@ -78,7 +89,13 @@ function record(golden: Golden): DesyncReport {
     nations.push(players.length + 1);
     players.push({ id: players.length + 1, name, start: tile });
   }
-  const game = createGame({ terrain, seed: golden.seed, players, balance: DEFAULT_BALANCE });
+  const game = createGame({
+    terrain,
+    seed: golden.seed,
+    players,
+    balance: DEFAULT_BALANCE,
+    ...(golden.teams === undefined ? {} : { teams: golden.teams }),
+  });
   installBots(game, bots, golden.difficulty);
   installNations(game, nations, golden.difficulty);
 
@@ -160,6 +177,7 @@ function record(golden: Golden): DesyncReport {
     players,
     bots: { ids: bots, difficulty: golden.difficulty },
     ...(nations.length > 0 ? { nations } : {}),
+    ...(golden.teams === undefined ? {} : { teams: golden.teams }),
     you: 1,
     ticks: game.tick,
     turns,

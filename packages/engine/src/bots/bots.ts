@@ -1,5 +1,5 @@
 import { populationCap } from "../economy.ts";
-import { allianceOf, alliesOf, canRenew, isTraitor } from "../diplomacy.ts";
+import { allianceOf, alliesOf, canRenew, isTraitor, sameTeam } from "../diplomacy.ts";
 import type { Game, Player } from "../game.ts";
 import { divFloor, mulDiv, percentOf } from "../integer-math.ts";
 import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
@@ -92,13 +92,27 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
           ((a.player === bot.id && a.target === other) ||
             (a.player === other && a.target === bot.id)),
       ) || game.boats.some((b) => b.player === other && territory.ownerOf(b.target) === bot.id);
-    // Two allies who hold the winning share between them could only wait for the time limit.
+    // Two allies who hold the winning share between them could only wait for the
+    // time limit. In a team game, each side's land is its team's (R-MODE-02).
     const room = mulDiv(terrain.ownableCount, balance.winSharePercent, 100);
-    const worth = (other: number) => {
-      const theirs = territory.tileCount(other);
-      const traitor = isTraitor(game, game.player(other) as Player);
-      return theirs < tiles && tiles + theirs < room && !fighting(other) && !traitor;
+    const sideLand = (id: number) => {
+      let land = territory.tileCount(id);
+      for (const player of game.players()) {
+        if (player.alive && sameTeam(game, id, player.id)) land += territory.tileCount(player.id);
+      }
+      return land;
     };
+    const ours = game.teams > 0 ? sideLand(bot.id) : tiles;
+    const worth = (other: number) => {
+      const theirs = game.teams > 0 ? sideLand(other) : territory.tileCount(other);
+      const traitor = isTraitor(game, game.player(other) as Player);
+      return theirs < ours && ours + theirs < room && !fighting(other) && !traitor;
+    };
+    // Teammates count among the bot's allies.
+    let teammates = 0;
+    for (const player of game.players()) {
+      if (player.alive && sameTeam(game, bot.id, player.id)) teammates++;
+    }
     for (const ally of alliesOf(game, bot.id)) {
       const alliance = allianceOf(game, bot.id, ally);
       if (!alliance || !canRenew(game, alliance) || !worth(ally)) continue;
@@ -108,7 +122,9 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     }
     // Oldest request first, the same on every client.
     for (const request of [...game.allianceRequests]) {
-      if (request.to !== bot.id || alliesOf(game, bot.id).length >= ALLIANCE_MAX) continue;
+      if (request.to !== bot.id || alliesOf(game, bot.id).length + teammates >= ALLIANCE_MAX) {
+        continue;
+      }
       if (worth(request.from)) game.apply(bot.id, { type: "ally", target: request.from });
     }
   }

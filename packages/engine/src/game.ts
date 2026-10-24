@@ -264,8 +264,12 @@ export class Game {
     mix(this.requestCooldowns.length);
     for (const c of this.requestCooldowns) for (const value of [c.from, c.to, c.until]) mix(value);
     mix(this.nextTradeShipId);
+    mix(this.tradeShips.length);
     for (const t of this.tradeShips) {
-      for (const value of [t.id, t.player, t.from, t.to, t.step, t.path.length]) mix(value);
+      for (const value of [t.id, t.player, t.port, t.from, t.to, t.step, t.path.length]) mix(value);
+      // The ends of its route, which the route cache outside the state chose.
+      mix(t.path[0] ?? -1);
+      mix(t.path[t.path.length - 1] ?? -1);
     }
     mix(this.embargoes.length);
     for (const e of this.embargoes) for (const value of [e.from, e.to, e.since]) mix(value);

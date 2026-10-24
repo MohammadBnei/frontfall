@@ -9,6 +9,8 @@ export interface TradeShip {
   readonly id: number;
   /** Owner of the port it left, when it left; paid on arrival. */
   readonly player: number;
+  /** Id of the port structure it left, which counts its ships at sea. */
+  readonly port: number;
   /** Port tiles it sails from and to. */
   readonly from: number;
   readonly to: number;
@@ -60,7 +62,7 @@ export function installTrade(game: Game): void {
       const open = game.tick - port.readyAt;
       if (open === 0 || open % balance.tradeIntervalTicks !== 0) continue;
       let atSea = 0;
-      for (const ship of ships) if (ship.from === port.tile) atSea++;
+      for (const ship of ships) if (ship.port === port.id) atSea++;
       if (atSea >= balance.tradeMax) continue;
       const partners = routes.partnersOf(port.tile).filter((tile) => trades(port.player, tile));
       if (partners.length === 0) continue;
@@ -69,6 +71,7 @@ export function installTrade(game: Game): void {
       ships.push({
         id: game.nextTradeShipId++,
         player: port.player,
+        port: port.id,
         from: port.tile,
         to,
         path: routes.route(port.tile, to) as Int32Array,

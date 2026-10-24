@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
+import { installBots } from "../src/bots/index.ts";
 import { createGame } from "../src/create-game.ts";
 import { DiplomacyError, isAllied, sameTeam } from "../src/diplomacy.ts";
 import type { Player } from "../src/game.ts";
@@ -97,5 +98,19 @@ describe("teams (R-MODE-02)", () => {
     timed.game.step({ tick: 0, orders: [] });
     expect(timed.game.winningTeam).toBe(2);
     expect(timed.game.winner).toBe(2);
+  });
+
+  it("count teammates among a bot's allies, so a bot with a teammate takes no other ally (R-BOT-10)", () => {
+    const { game, give } = newGame(4, 2);
+    // Player 2 is a bot on team 2 with player 4; player 1 asks it for an alliance.
+    installBots(game, [2], "easy");
+    give(1, 0, 10);
+    give(2, 10, 60);
+    give(3, 60, 80);
+    give(4, 80, 100);
+    for (const player of game.players()) player.troops = 1000;
+    game.step({ tick: 0, orders: [{ player: 1, order: { type: "ally", target: 2 } }] });
+    for (let i = 0; i < 100; i++) game.step({ tick: game.tick, orders: [] });
+    expect(isAllied(game, 1, 2)).toBe(false);
   });
 });
