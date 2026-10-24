@@ -50,7 +50,10 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
     },
     [view.kinds.buffer, view.relief.buffer],
   );
-  timer = setInterval(tick, 1000 / ticksPerSecond);
+  const speed = Math.max(1, Math.floor(request.options.speed ?? 1));
+  timer = setInterval(() => {
+    for (let i = 0; i < speed; i++) tick();
+  }, 1000 / ticksPerSecond);
 }
 
 scope.onmessage = (event) => {

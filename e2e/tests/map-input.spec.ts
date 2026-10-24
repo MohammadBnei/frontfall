@@ -4,7 +4,9 @@ import { devices, expect, test } from "@playwright/test";
 const { viewport, userAgent, deviceScaleFactor, isMobile, hasTouch } = devices["iPad Pro 11"];
 test.use({ viewport, userAgent, deviceScaleFactor, isMobile, hasTouch });
 
-test("pinch zooms the map, not the page", async ({ page }) => {
+test("pinch zooms the map, not the page", async ({ page, browserName }) => {
+  // Playwright emulates mobile touch screens in Chromium only.
+  test.skip(browserName === "firefox", "no touch emulation in Firefox");
   test.setTimeout(60_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));

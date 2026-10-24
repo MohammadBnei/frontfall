@@ -66,7 +66,10 @@ test("plays a solo game from the menu: spawn, then expand", async ({ page }) => 
   const retreat = page.locator(".attack-retreat");
   await clickAround(page, center, async () => (await retreat.count()) > 0);
   while ((await retreat.count()) > 0) {
-    await retreat.first().click({ timeout: 2_000 }).catch(() => undefined);
+    await retreat
+      .first()
+      .click({ timeout: 2_000 })
+      .catch(() => undefined);
     await page.waitForTimeout(300);
   }
   await expect(page.locator(".attacks")).toBeHidden();
@@ -110,5 +113,31 @@ test("offers the World first and starts a game on it", async ({ page }) => {
     timeout: 30_000,
   });
   await expect(page.locator("#map canvas")).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+test("plays a World game against 8 bots to its end screen", async ({ page }, testInfo) => {
+  // The page under a prefix adds nothing here, and the game takes a while.
+  test.skip(testInfo.project.name === "prefix", "played once, at the root");
+  test.setTimeout(240_000);
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+
+  // Thirty ticks per beat and a 3-minute limit: the 1,800 ticks of a whole
+  // game run in well under a minute, every one of them simulated and drawn.
+  await page.goto("./?map=world&bots=8&difficulty=hard&speed=30&minutes=3");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  await expect(page.locator(".goal-clock")).toContainText("of 3:00", { timeout: 30_000 });
+
+  const end = page.locator(".end-screen");
+  await expect(end).toBeVisible({ timeout: 200_000 });
+  await expect(end.locator(".end-winner")).toContainText("wins the game");
+  // The player, placed by the game and never moving, cannot be the winner.
+  await expect(end).toContainText("Defeat");
+  await end.getByRole("button", { name: "Keep watching" }).click();
+  await expect(end).toHaveCount(0);
+  await expect(page.locator(".leaderboard")).toBeVisible();
+
   expect(pageErrors).toEqual([]);
 });

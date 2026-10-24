@@ -30,6 +30,19 @@ function showMenu(): void {
   menu.element.querySelector<HTMLButtonElement>("#play")?.focus({ preventScroll: true });
 }
 
+/**
+ * `?speed=` and `?minutes=` let end-to-end tests play a whole game in
+ * seconds; nothing in the interface sets them.
+ */
+const testing = (() => {
+  const params = new URLSearchParams(location.search);
+  const number = (name: string, max: number): number | undefined => {
+    const value = Number(params.get(name));
+    return params.has(name) && value > 0 && value <= max ? value : undefined;
+  };
+  return { speed: number("speed", 100), maxMinutes: number("minutes", 60) };
+})();
+
 function play(chosen: GameSetup): void {
   setup = chosen;
   saveSetup(setup, storage);
@@ -44,7 +57,7 @@ function play(chosen: GameSetup): void {
   game?.dispose();
   const seed = Math.floor(Math.random() * 0x7fffffff);
   game = new GameScreen(
-    { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed },
+    { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed, ...testing },
     map,
     {
       onNewGame: () => {

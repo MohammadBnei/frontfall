@@ -19,6 +19,17 @@ const local = {
         baseURL: `http://127.0.0.1:${String(PROXY_PORT)}/frontfall/`,
       },
     },
+    {
+      name: "firefox",
+      use: {
+        ...devices["Desktop Firefox"],
+        baseURL: `http://127.0.0.1:${String(SERVER_PORT)}/`,
+        // Headless Firefox on Linux has no WebGL: it runs headed, under xvfb in CI,
+        // with WebGL forced on over software rendering.
+        headless: false,
+        launchOptions: { firefoxUserPrefs: { "webgl.force-enabled": true } },
+      },
+    },
   ],
   webServer: [
     {

@@ -1,4 +1,5 @@
 import {
+  DEFAULT_BALANCE,
   Terrain,
   TurnClock,
   WorldGrid,
@@ -23,6 +24,12 @@ export interface SoloOptions {
   bots: number;
   difficulty: Difficulty;
   playerName: string;
+  /**
+   * For tests that play a game to its end: ticks run per beat of the clock
+   * (1 by default), and a time limit in minutes instead of B-MAX-DURATION.
+   */
+  speed?: number | undefined;
+  maxMinutes?: number | undefined;
 }
 
 export interface PlayerView {
@@ -144,7 +151,14 @@ export class SoloGame {
     for (let i = 0; i < bots; i++) {
       players.push({ id: HUMAN_ID + 1 + i, name: BOT_NAMES[i] as string });
     }
-    this.game = createGame({ terrain, seed: options.seed, players });
+    const balance =
+      options.maxMinutes === undefined
+        ? DEFAULT_BALANCE
+        : {
+            ...DEFAULT_BALANCE,
+            maxDurationTicks: Math.round(options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond),
+          };
+    this.game = createGame({ terrain, seed: options.seed, players, balance });
     installBots(
       this.game,
       players.slice(1).map((player) => player.id),

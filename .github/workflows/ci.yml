@@ -51,10 +51,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox
       - run: pnpm build
-      # The built game at / and behind a proxy that serves it under /frontfall/.
-      - run: pnpm test:e2e
+      # The built game at / and behind a proxy that serves it under /frontfall/,
+      # and at / in Firefox, which needs a display for WebGL.
+      - run: xvfb-run --auto-servernum pnpm test:e2e
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
