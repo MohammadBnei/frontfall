@@ -20,3 +20,13 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   element.append(...children);
   return element;
 }
+
+/**
+ * A square of a player's colour. The colour is set through the style
+ * property, not a style attribute, which a `style-src 'self'` policy blocks.
+ */
+export function swatch(color: string): HTMLSpanElement {
+  const element = h("span", { class: "swatch" });
+  element.style.background = color;
+  return element;
+}

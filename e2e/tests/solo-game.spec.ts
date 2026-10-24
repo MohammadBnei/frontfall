@@ -51,6 +51,11 @@ test("plays a solo game from the menu: spawn, then expand", async ({ page }) => 
   await clickAround(page, center, async () => (await landShare(page)) > 0);
   expect(await landShare(page)).toBeGreaterThan(0);
   await expect(page.locator(".leaderboard")).toContainText("Tester");
+  // Player colours show even where the server forbids inline styles, as in production.
+  await expect(page.locator(".leaderboard-list .swatch").first()).not.toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
 
   // Attacks open when the spawn phase ends.
   await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });

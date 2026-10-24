@@ -3,7 +3,7 @@ import type { GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, t } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
-import { h, present } from "./dom.ts";
+import { h, present, swatch } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
 
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
@@ -279,10 +279,7 @@ export class Hud {
         return h(
           "li",
           { class: player.id === you ? "leader you" : "leader", value: rank },
-          h("span", {
-            class: "swatch",
-            style: `background:${playerColor(player.id - 1).hex}`,
-          }),
+          swatch(playerColor(player.id - 1).hex),
           h("span", { class: "leader-name" }, player.name),
           h("span", { class: "leader-land" }, this.share(player.tiles)),
         );

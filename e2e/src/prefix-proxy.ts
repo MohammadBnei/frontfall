@@ -4,7 +4,8 @@ import { connect } from "node:net";
 /**
  * Stands in for the production reverse proxy: the game is reachable under
  * PREFIX, which is stripped before the request reaches the game server, and
- * the player's address is passed in X-Client-IP.
+ * the player's address is passed in X-Client-IP. Like the production proxy, it
+ * forbids inline styles, so a style attribute that the page relies on fails here.
  */
 const PREFIX = "/frontfall";
 const port = Number(process.env.PROXY_PORT ?? 8091);
@@ -29,7 +30,10 @@ const proxy = createServer((incoming, outgoing) => {
       headers: { ...incoming.headers, "x-client-ip": incoming.socket.remoteAddress },
     },
     (response) => {
-      outgoing.writeHead(response.statusCode ?? 502, response.headers);
+      outgoing.writeHead(response.statusCode ?? 502, {
+        ...response.headers,
+        "content-security-policy": "style-src 'self'",
+      });
       response.pipe(outgoing);
     },
   );

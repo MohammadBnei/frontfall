@@ -4,7 +4,7 @@ import { MAX_BOTS } from "../game/solo-game.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
 import { playerColor } from "../palette.ts";
-import { h } from "./dom.ts";
+import { h, swatch } from "./dom.ts";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 
@@ -219,10 +219,7 @@ export class LobbyScreen {
         h(
           "li",
           { class: player.id === lobby.you ? "lobby-player you" : "lobby-player" },
-          h("span", {
-            class: "swatch",
-            style: `background:${playerColor(player.id - 1).hex}`,
-          }),
+          swatch(playerColor(player.id - 1).hex),
           h("span", {}, player.name),
           ...(player.id === lobby.host
             ? [h("span", { class: "lobby-host", "data-i18n": "online.host" }, t("online.host"))]
