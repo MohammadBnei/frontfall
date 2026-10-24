@@ -1,6 +1,7 @@
 import type { Game, Order, Player } from "./game.ts";
 import { DiplomacyError, allyError, betrayError, embargoError, isAllied } from "./diplomacy.ts";
 import { BuildError, isStructureKind, placementError } from "./structures.ts";
+import { missileError } from "./missiles.ts";
 import { patrolError, warshipError } from "./warships.ts";
 
 /**
@@ -69,6 +70,9 @@ export function orderError(game: Game, player: Player, order: Order): string | u
     case "patrol":
       if (!Number.isSafeInteger(order.ship)) return "invalid ship id";
       return patrolError(game, player, order.ship, order.tile);
+    case "missile":
+      if (!Number.isSafeInteger(order.size)) return "unknown missile size";
+      return tileError(game, order.target) ?? missileError(game, player, order.target, order.size);
   }
 }
 

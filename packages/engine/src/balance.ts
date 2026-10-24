@@ -93,6 +93,32 @@ export interface Balance {
   warMemoryTicks: number;
   /** B-EMBARGO-NOTICE, in ticks an embargo must hold before trade ships can be taken */
   embargoNoticeTicks: number;
+  /** B-COST-SILO, gold for a player's first missile silo */
+  siloCost: number;
+  /** B-COST-AIR-DEFENSE, gold for a player's first air defense */
+  airDefenseCost: number;
+  /** B-BUILD-TIME-LONG, in ticks from the order to the first tick a silo or an air defense works */
+  longBuildTicks: number;
+  /** B-SILO-RELOAD, in ticks from a launch to the next one from the same silo */
+  siloReloadTicks: number;
+  /** B-COST-MISSILE, gold for a missile */
+  missileCost: number;
+  /** B-COST-HEAVY-MISSILE, gold for a heavy missile */
+  heavyMissileCost: number;
+  /** B-MISSILE-RADIUS, blast radius of a missile, in tiles on a map of 2^19 tiles */
+  missileRadius: number;
+  /** B-HEAVY-MISSILE-RADIUS, blast radius of a heavy missile, in tiles on a map of 2^19 tiles */
+  heavyMissileRadius: number;
+  /** B-MISSILE-SPEED, tiles a missile flies per tick */
+  missileSpeed: number;
+  /** B-FALLOUT-TIME, in ticks the land under a heavy missile stays unusable */
+  falloutTicks: number;
+  /** B-AIR-DEFENSE-RADIUS, in tiles on a map of 2^19 tiles */
+  airDefenseRadius: number;
+  /** B-AIR-DEFENSE-CHANCE, percent chance to stop a missile */
+  airDefenseChancePercent: number;
+  /** B-AIR-DEFENSE-RELOAD, in ticks from one missile stopped to the next one tried */
+  airDefenseReloadTicks: number;
   /** B-ALLIANCE-REQUEST-TIMEOUT, in ticks */
   allianceRequestTicks: number;
   /** B-ALLIANCE-DURATION, in ticks */
@@ -157,6 +183,19 @@ export const DEFAULT_BALANCE: Balance = {
   warshipHealth: 1000,
   warMemoryTicks: 30 * 10,
   embargoNoticeTicks: 30 * 10,
+  siloCost: 800_000,
+  airDefenseCost: 1_000_000,
+  longBuildTicks: 10 * 10,
+  siloReloadTicks: 30 * 10,
+  missileCost: 300_000,
+  heavyMissileCost: 1_500_000,
+  missileRadius: 12,
+  heavyMissileRadius: 30,
+  missileSpeed: 8,
+  falloutTicks: 60 * 10,
+  airDefenseRadius: 60,
+  airDefenseChancePercent: 75,
+  airDefenseReloadTicks: 10 * 10,
   allianceRequestTicks: 20 * 10,
   allianceTicks: 300 * 10,
   allianceRenewTicks: 60 * 10,

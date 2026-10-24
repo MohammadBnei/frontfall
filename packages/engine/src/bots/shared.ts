@@ -62,7 +62,7 @@ export function scanBorder(game: Game, bot: Player, accept: OwnerFilter = anyone
     for (let j = 0; j < count; j++) {
       const tile = around[j] as number;
       const owner = territory.ownerOf(tile);
-      if (owner === bot.id || !terrain.isOwnable(tile)) continue;
+      if (owner === bot.id || !game.usable(tile)) continue;
       if (isAllied(game, bot.id, owner)) continue;
       if (owner === NEUTRAL) {
         if (scan.neutral < 0) scan.neutral = tile;
@@ -88,8 +88,7 @@ export type Cooldowns = Map<number, number>;
 
 /** R-BOT-06: a city on the closest free inland tile to the player's start, or to a border tile once the start is lost. */
 export function buildCity(game: Game, bot: Player, cooldowns: Cooldowns, retryTicks: number): void {
-  const { territory, terrain, balance, random } = game;
-  const topology = terrain.topology;
+  const { territory, random } = game;
   const kind = StructureKind.City;
   if (bot.gold < structureCost(game, bot.id, kind)) return;
   if (structureCount(game, bot.id, kind) >= cityLimit(game, bot.id)) return;
@@ -99,6 +98,18 @@ export function buildCity(game: Game, bot: Player, cooldowns: Cooldowns, retryTi
     start !== undefined && territory.ownerOf(start) === bot.id
       ? start
       : territory.borderTile(bot.id, random.nextInt(0, territory.borderCount(bot.id)));
+  const best = inlandSite(game, bot, center);
+  if (best >= 0) game.apply(bot.id, { type: "build", structure: kind, tile: best });
+  else cooldowns.set(bot.id, game.tick + retryTicks);
+}
+
+/**
+ * The free inland tile of the player's closest to `center`, within
+ * B-BOT-CITY-SEARCH and far enough from every structure; -1 if none.
+ */
+export function inlandSite(game: Game, bot: Player, center: number): number {
+  const { territory, terrain, balance } = game;
+  const topology = terrain.topology;
   const spacing = balance.buildSpacing;
   // Structures close enough to rule out a tile in the search area.
   const radius = CITY_SEARCH_RADIUS + spacing;
@@ -115,8 +126,7 @@ export function buildCity(game: Game, bot: Player, cooldowns: Cooldowns, retryTi
       bestDistance = distance;
     }
   }
-  if (best >= 0) game.apply(bot.id, { type: "build", structure: kind, tile: best });
-  else cooldowns.set(bot.id, game.tick + retryTicks);
+  return best;
 }
 
 /**

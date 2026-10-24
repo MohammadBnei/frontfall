@@ -8,6 +8,7 @@ import type {
   Embargo,
   RequestCooldown,
 } from "./diplomacy.ts";
+import type { Fallout, Missile } from "./missiles.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
 import type { Structure } from "./structures.ts";
@@ -33,7 +34,9 @@ export type Order =
   /** Buys a warship at the player's port on tile `port`. */
   | { type: "warship"; port: number }
   /** Sends warship `ship` to patrol around water tile `tile`. */
-  | { type: "patrol"; ship: number; tile: number };
+  | { type: "patrol"; ship: number; tile: number }
+  /** Launches a missile of `size` (a MissileSize code) at tile `target`. */
+  | { type: "missile"; target: number; size: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -119,6 +122,16 @@ export class Game {
   /** Warships, oldest first. Owned by the warship rules; read only elsewhere. */
   readonly warships: Warship[] = [];
   nextWarshipId = 1;
+  /** Missiles in flight, oldest first. Owned by the missile rules; read only elsewhere. */
+  readonly missiles: Missile[] = [];
+  nextMissileId = 1;
+  /** Fallout of heavy missiles still on the land, oldest first (R-UNIT-06). */
+  readonly fallout: Fallout[] = [];
+  /**
+   * First tick each tile is free of fallout again; 0 if it never had any.
+   * It follows from `fallout`, which the state hash covers.
+   */
+  readonly falloutUntil: Uint32Array;
   /** Fights between players, remembered for B-WAR-MEMORY, by ascending pair of ids. */
   readonly fights: Fight[] = [];
   /** Alliances by ascending pair of ids. Owned by the diplomacy rules; read only elsewhere. */
@@ -196,6 +209,7 @@ export class Game {
       .map((player, i) => (teams === 0 ? player : { ...player, team: (i % teams) + 1 }));
     for (const player of this.sortedPlayers) this.playersById.set(player.id, player);
     this.territory = new TerritoryMap(setup.terrain.topology, highest);
+    this.falloutUntil = new Uint32Array(setup.terrain.topology.size);
   }
 
   /** Number of the next tick to run; also the number of ticks run so far. */
@@ -205,6 +219,11 @@ export class Game {
 
   get phase(): Phase {
     return this.currentTick < this.balance.spawnPhaseTicks ? "spawn" : "play";
+  }
+
+  /** Whether a tile can be taken now: ownable land with no fallout on it (R-UNIT-06). */
+  usable(tile: number): boolean {
+    return this.terrain.isOwnable(tile) && (this.falloutUntil[tile] as number) <= this.currentTick;
   }
 
   player(id: number): Player | undefined {
@@ -264,7 +283,7 @@ export class Game {
     }
     mix(this.nextStructureId);
     for (const s of this.structures)
-      for (const value of [s.id, s.player, s.kind, s.tile, s.readyAt]) mix(value);
+      for (const value of [s.id, s.player, s.kind, s.tile, s.readyAt, s.reloadAt]) mix(value);
     mix(this.alliances.length);
     for (const a of this.alliances)
       for (const value of [a.a, a.b, a.until, a.renewA ? 1 : 0, a.renewB ? 1 : 0]) mix(value);
@@ -295,6 +314,17 @@ export class Game {
       ])
         mix(value);
     }
+    mix(this.nextMissileId);
+    mix(this.missiles.length);
+    for (const m of this.missiles) {
+      for (const value of [m.id, m.player, m.size, m.from, m.to, m.launchedAt, m.arrivesAt]) {
+        mix(value);
+      }
+      mix(m.tried.length);
+      for (const id of m.tried) mix(id);
+    }
+    mix(this.fallout.length);
+    for (const f of this.fallout) for (const value of [f.tile, f.radius, f.until]) mix(value);
     mix(this.fights.length);
     for (const f of this.fights) for (const value of [f.a, f.b, f.until]) mix(value);
     mix(this.embargoes.length);
@@ -383,6 +413,7 @@ function checkBalance(balance: Balance): void {
     "warshipReloadTicks",
     "warshipDamage",
     "warshipHealth",
+    "missileSpeed",
     "allianceRequestTicks",
     "allianceTicks",
     "maxDurationTicks",
@@ -408,6 +439,17 @@ function checkBalance(balance: Balance): void {
     "warshipRange",
     "warMemoryTicks",
     "embargoNoticeTicks",
+    "siloCost",
+    "airDefenseCost",
+    "longBuildTicks",
+    "siloReloadTicks",
+    "missileCost",
+    "heavyMissileCost",
+    "missileRadius",
+    "heavyMissileRadius",
+    "falloutTicks",
+    "airDefenseRadius",
+    "airDefenseReloadTicks",
     "tradeBase",
     "tradePerTile",
     "allianceRenewTicks",
@@ -418,6 +460,10 @@ function checkBalance(balance: Balance): void {
     if (!Number.isSafeInteger(balance[key]) || balance[key] < 0) {
       throw new RangeError(`balance ${key} must be a non-negative integer`);
     }
+  }
+  const chance = balance.airDefenseChancePercent;
+  if (!Number.isSafeInteger(chance) || chance < 0 || chance > 100) {
+    throw new RangeError("balance airDefenseChancePercent must be from 0 to 100");
   }
   if (!Number.isSafeInteger(balance.costGrowthPercent) || balance.costGrowthPercent < 100) {
     throw new RangeError("balance costGrowthPercent must be 100 or more");

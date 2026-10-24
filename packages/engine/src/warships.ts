@@ -1,4 +1,4 @@
-import { embargoed, isAllied } from "./diplomacy.ts";
+import { embargoed, isAllied, logEvent } from "./diplomacy.ts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
 import { DrawUsage, derivedRandom } from "./random.ts";
@@ -34,6 +34,7 @@ export interface Fight {
 export const WarshipError = {
   Early: "warships come after the spawn phase",
   Port: "no ready port of yours on the tile",
+  Shore: "the port has no water next to it",
   Max: "too many warships",
   Gold: "not enough gold",
   Ship: "no warship of yours with this id",
@@ -83,6 +84,7 @@ export function warshipError(game: Game, player: Player, port: number): string |
   ) {
     return WarshipError.Port;
   }
+  if (shoreOf(game, port) < 0) return WarshipError.Shore;
   let owned = 0;
   for (const ship of game.warships) if (ship.player === player.id) owned++;
   if (owned >= game.balance.warshipMax) return WarshipError.Max;
@@ -130,7 +132,7 @@ export function installWarships(game: Game): void {
 
   game.onOrder((_, player, order) => {
     if (order.type !== "warship") return false;
-    const start = shoreOf(order.port);
+    const start = shoreOf(game, order.port);
     if (start < 0) return false;
     player.gold -= warshipCost(game, player.id);
     ships.push({
@@ -169,8 +171,10 @@ export function installWarships(game: Game): void {
     for (const ship of ships) {
       if (ship.health <= 0) continue;
       sail(ship);
-      capture(ship);
-      if (tick >= ship.reloadAt && fire(ship)) ship.reloadAt = tick + balance.warshipReloadTicks;
+      // A capture takes the turn of a shot.
+      if (tick >= ship.reloadAt && (capture(ship) || fire(ship))) {
+        ship.reloadAt = tick + balance.warshipReloadTicks;
+      }
     }
     kept = 0;
     for (const ship of ships) if (ship.health > 0) ships[kept++] = ship;
@@ -190,6 +194,7 @@ export function installWarships(game: Game): void {
     };
     for (const attack of game.attacks) if (attack.troops > 0) mark(attack.player, attack.target);
     for (const boat of game.boats) mark(boat.player, game.territory.ownerOf(boat.target));
+    for (const missile of game.missiles) mark(missile.player, game.territory.ownerOf(missile.to));
     let kept = 0;
     for (const fight of game.fights) if (game.tick < fight.until) game.fights[kept++] = fight;
     game.fights.length = kept;
@@ -209,23 +214,30 @@ export function installWarships(game: Game): void {
     ship.tile = ship.path[ship.step - 1] as number;
   }
 
-  /** Trade ships in range, under an embargo held long enough, change hands with their gold. */
-  function capture(ship: Warship): void {
+  /**
+   * The oldest trade ship in range of a player under an embargo held long
+   * enough changes hands with its gold. Whether one did.
+   */
+  function capture(ship: Warship): boolean {
     const owner = game.player(ship.player);
-    if (!owner) return;
+    if (!owner) return false;
     const trade = game.tradeShips;
-    let kept = 0;
-    for (const prize of trade) {
+    const index = trade.findIndex((prize) => {
       const at = prize.path[Math.max(0, prize.step - 1)] ?? -1;
-      const taken =
+      return (
         at >= 0 &&
+        prize.player !== ship.player &&
         topology.distance(at, ship.tile) <= balance.warshipRange &&
         !isAllied(game, ship.player, prize.player) &&
-        embargoedSince(ship.player, prize.player) <= game.tick - balance.embargoNoticeTicks;
-      if (taken) owner.gold += balance.tradeBase + balance.tradePerTile * prize.path.length;
-      else trade[kept++] = prize;
-    }
-    trade.length = kept;
+        embargoedSince(ship.player, prize.player) <= game.tick - balance.embargoNoticeTicks
+      );
+    });
+    const prize = trade[index];
+    if (!prize) return false;
+    trade.splice(index, 1);
+    owner.gold += balance.tradeBase + balance.tradePerTile * prize.path.length;
+    logEvent(game, { tick: game.tick, type: "captured", a: ship.player, b: prize.player });
+    return true;
   }
 
   /** First tick of the oldest embargo between two players, or Infinity. */
@@ -273,14 +285,14 @@ export function installWarships(game: Game): void {
     game.boats.splice(boat, 1);
     return true;
   }
+}
 
-  /** The first water tile next to a port, in neighbour order, or -1. */
-  function shoreOf(port: number): number {
-    for (const tile of topology.neighbors(port)) {
-      if (terrain.kinds[tile] === TileKind.Water) return tile;
-    }
-    return -1;
+/** The first water tile next to a port, in neighbour order, or -1. */
+function shoreOf(game: Game, port: number): number {
+  for (const tile of game.terrain.topology.neighbors(port)) {
+    if (game.terrain.kinds[tile] === TileKind.Water) return tile;
   }
+  return -1;
 }
 
 const EMPTY = new Int32Array(0);

@@ -49,6 +49,10 @@ export interface GameScreenActions {
 
 /** Offset of warship ids among the ships the screen moves, past any transport's. */
 const WARSHIP_IDS = 2 ** 40;
+/** Offset of missile ids, past any warship's. */
+const MISSILE_IDS = 2 ** 41;
+/** Missiles in flight: the brand's bright ember. */
+const MISSILE_COLOR = "#FF7A47";
 
 /**
  * One game on screen: the map, the input that drives the camera and sends
@@ -290,7 +294,8 @@ export class GameScreen {
       const sailing =
         (this.latest?.boats.length ?? 0) +
           (this.latest?.tradeShips.length ?? 0) +
-          (this.latest?.warships.length ?? 0) >
+          (this.latest?.warships.length ?? 0) +
+          (this.latest?.missiles.length ?? 0) >
         0;
       const fading = now < this.fadingUntil;
       const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
@@ -438,6 +443,12 @@ export class GameScreen {
         id: WARSHIP_IDS + ship.id,
         kind: "warship" as const,
       })),
+      // Missiles after them.
+      ...latest.missiles.map((missile) => ({
+        ...missile,
+        id: MISSILE_IDS + missile.id,
+        kind: missile.heavy ? ("heavyMissile" as const) : ("missile" as const),
+      })),
     ];
     const { width } = this.mapSize;
     const progress = Math.min(1, (now - this.updatedAt) / (1000 / this.ticksPerSecond));
@@ -455,7 +466,11 @@ export class GameScreen {
         return {
           x: fromX + dx * progress,
           y: fromY + (toY - fromY) * progress,
-          color: colorOf(ship.player, this.firstNation, this.teams),
+          // Missiles in one bright colour, readable over any land.
+          color:
+            "kind" in ship && (ship.kind === "missile" || ship.kind === "heavyMissile")
+              ? MISSILE_COLOR
+              : colorOf(ship.player, this.firstNation, this.teams),
           ...("kind" in ship ? { kind: ship.kind } : {}),
         };
       }),
@@ -475,6 +490,7 @@ export class GameScreen {
       ...(this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile] as const),
       ...(this.latest?.tradeShips ?? []).map((ship) => [-ship.id, ship.tile] as const),
       ...(this.latest?.warships ?? []).map((ship) => [WARSHIP_IDS + ship.id, ship.tile] as const),
+      ...(this.latest?.missiles ?? []).map((m) => [MISSILE_IDS + m.id, m.tile] as const),
     ]);
     this.updatedAt = performance.now();
     if (update.owners) {
@@ -503,6 +519,7 @@ export class GameScreen {
       if (start >= 0) this.camera.focus(start, Math.max(this.camera.zoom, zoom));
     }
     this.placeStructures(update);
+    this.placeFallout(update);
     this.placeAllies(update);
     this.latest = update;
     this.labels.update(update.players, update.labels);
@@ -539,7 +556,7 @@ export class GameScreen {
   private afterBuildClick(outcome: ClickOutcome): void {
     const sent = this.modeSent;
     this.modeSent = undefined;
-    if (!sent || outcome === "build" || outcome === "demolish") return;
+    if (!sent || outcome === "build" || outcome === "demolish" || outcome === "missile") return;
     if (this.mode === "attack") this.setMode(sent);
   }
 
@@ -568,6 +585,19 @@ export class GameScreen {
       })),
     );
     this.dirty = true;
+  }
+
+  private placeFallout(update: GameUpdate): void {
+    if (!this.view) return;
+    const { width } = this.mapSize;
+    const changed = this.view.setFallout(
+      update.fallout.map(({ tile, radius }) => ({
+        x: tile % width,
+        y: Math.floor(tile / width),
+        radius,
+      })),
+    );
+    this.dirty ||= changed;
   }
 
   private placeAllies(update: GameUpdate): void {
@@ -629,7 +659,11 @@ export class GameScreen {
       KeyC: "city",
       KeyF: "fort",
       KeyO: "port",
+      KeyL: "silo",
+      KeyK: "airDefense",
       KeyV: "warship",
+      KeyM: "missile",
+      KeyN: "heavyMissile",
       KeyX: "demolish",
     };
     const mode = this.replayBar ? undefined : modes[event.code];

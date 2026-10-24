@@ -40,7 +40,13 @@ export interface Embargo {
  */
 export interface DiplomacyEvent {
   readonly tick: number;
-  readonly type: "allied" | "ended" | "betrayed" | "embargo" | "lifted";
+  /**
+   * Besides alliances and embargoes: `a` took a trade ship of `b`
+   * ("captured"), launched a missile at `b`'s land ("missile"), or stopped a
+   * missile of `b` with an air defense ("stopped").
+   */
+  readonly type:
+    "allied" | "ended" | "betrayed" | "embargo" | "lifted" | "captured" | "missile" | "stopped";
   readonly a: number;
   readonly b: number;
 }
@@ -300,7 +306,7 @@ function removeWhere<T>(list: T[], drop: (item: T) => boolean): void {
 /** Events kept when nobody reads the log, in a server, a bench or a replay. */
 export const DIPLOMACY_LOG_SIZE = 256;
 
-function logEvent(game: Game, event: DiplomacyEvent): void {
+export function logEvent(game: Game, event: DiplomacyEvent): void {
   const log = game.diplomacyEvents;
   log.push(event);
   if (log.length > DIPLOMACY_LOG_SIZE) log.splice(0, log.length - DIPLOMACY_LOG_SIZE);

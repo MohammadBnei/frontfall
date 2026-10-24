@@ -325,11 +325,15 @@ and 71 forts.
 
 | Files                                       | Raw       | Sent (gzip) | Brotli   | Budget   |
 | ------------------------------------------- | --------- | ----------- | -------- | -------- |
-| First visit: page, code, styles, Latin font | 771.5 kB  | 239.2 kB    | 220.8 kB | 275.0 kB |
-| Simulation worker                           | 136.9 kB  | 40.5 kB     | 38.0 kB  | 50.0 kB  |
+| First visit: page, code, styles, Latin font | 822.7 kB  | 254.3 kB    | 234.8 kB | 275.0 kB |
+| Simulation worker                           | 171.0 kB  | 50.0 kB     | 46.9 kB  | 60.0 kB  |
 | World map                                   | 2103.5 kB | 150.0 kB    | 137.1 kB | 175.0 kB |
 | Every map                                   | 7194.7 kB | 442.2 kB    | 390.4 kB | 520.0 kB |
-| Whole build but maps                        | 1357.7 kB | 728.0 kB    | 707.1 kB | 850.0 kB |
+| Whole build but maps                        | 1453.1 kB | 756.4 kB    | 733.6 kB | 850.0 kB |
+
+The worker grew from 40.5 kB to 50.0 kB with v0.4: ports and trade, warships,
+missiles and the bots that use them all run in it. Its budget went from 50 kB
+to 60 kB with them.
 
 In headless Chromium on SwiftShader, the menu showed 1.3 s after the page was
 requested and the World game 2.2 s after Play. Panning ran at 22 frames per
@@ -440,6 +444,23 @@ A port opening can take a tick over 16 ms, up to 27 ms, but no more than the
 slowest ticks without one: those come from large attacks and enclosures. All
 stay well under the 100 ms of a tick, and the p95 budget is untouched. If
 crowded maps make it worse, the search can be spread over a few ticks.
+
+### Warships and missiles
+
+The warship rules (sailing, captures, fire) and the missile rules (flight,
+air defenses, strikes) were timed on their own, tick by tick, on World with
+8 normal bots and the 64 nations, seeds 1 to 3, each game played to its
+winner (8,318 to 13,783 ticks). Nations owned up to 10 warships at once and
+launched 13 to 78 missiles a game.
+
+| Rules    | Mean per tick | Tick p99 | Slowest tick |
+| -------- | ------------: | -------: | -----------: |
+| Warships |       0.05 ms |  0.58 ms |      7.07 ms |
+| Missiles |      0.004 ms |  0.02 ms |      1.10 ms |
+
+A warship's slowest ticks are those where it searches a new path to its
+next patrol point, up to `B-BOAT-RANGE` tiles of sea; a missile's are the
+tiles of its blast changing hands as it strikes.
 
 ## Server load
 

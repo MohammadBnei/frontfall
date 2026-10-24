@@ -10,6 +10,11 @@ import {
   TileKind,
   WarshipError,
   warshipCost,
+  MissileError,
+  MissileSize,
+  launchSilo,
+  missileCost,
+  missileTile,
   allianceOf,
   alliesOf,
   sameTeam,
@@ -45,7 +50,17 @@ export const HUMAN_ID = 1;
 export type Difficulty = "easy" | "normal" | "hard";
 
 /** What a click on the map does: attack by default, or build or demolish once picked in the HUD. */
-export type ClickMode = "attack" | "city" | "fort" | "port" | "warship" | "demolish";
+export type ClickMode =
+  | "attack"
+  | "city"
+  | "fort"
+  | "port"
+  | "silo"
+  | "airDefense"
+  | "warship"
+  | "missile"
+  | "heavyMissile"
+  | "demolish";
 
 /** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
 const DEMOLISH_REACH = 3;
@@ -129,6 +144,10 @@ export interface GameUpdate {
   tradeShips: TradeShipView[];
   /** Every warship (R-UNIT-04). */
   warships: WarshipView[];
+  /** Every missile in flight (R-UNIT-05). */
+  missiles: MissileView[];
+  /** Land under fallout (R-UNIT-06), as discs. */
+  fallout: FalloutView[];
   /** Every structure on the map. */
   structures: StructureView[];
   /** What the player at this screen can build next. */
@@ -171,10 +190,14 @@ export type ClickRefusal =
   | "coast"
   /** A warship is bought at a ready port of the player's (R-UNIT-04). */
   | "port"
+  /** The port has no water next to it for a warship to start on. */
+  | "shore"
   /** The player has B-WARSHIP-MAX warships already. */
   | "warships"
   /** No warship of the player's can sail to that water. */
   | "noWarship"
+  /** No silo of the player's is built and loaded (R-BUILD-04). */
+  | "silo"
   /** Another structure stands closer than B-BUILD-SPACING. */
   | "crowded"
   /** The player's land supports no more cities (R-BUILD-07). */
@@ -187,7 +210,7 @@ export type ClickRefusal =
 
 export type ClickResult = { order: Order } | { refused: ClickRefusal };
 
-export type StructureType = "city" | "fort" | "port";
+export type StructureType = "city" | "fort" | "port" | "silo" | "airDefense";
 
 export interface StructureView {
   id: number;
@@ -204,6 +227,12 @@ export interface BuildView {
   fortCost: number;
   portCost: number;
   warshipCost: number;
+  siloCost: number;
+  airDefenseCost: number;
+  missileCost: number;
+  heavyMissileCost: number;
+  /** Whether a silo of the player's has a missile ready. */
+  loaded: boolean;
   cities: number;
   /** Most cities the player's land supports now. */
   cityLimit: number;
@@ -213,12 +242,16 @@ const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   city: StructureKind.City,
   fort: StructureKind.Fort,
   port: StructureKind.Port,
+  silo: StructureKind.Silo,
+  airDefense: StructureKind.AirDefense,
 };
 
 const STRUCTURE_TYPES: Readonly<Record<StructureKind, StructureType>> = {
   [StructureKind.City]: "city",
   [StructureKind.Fort]: "fort",
   [StructureKind.Port]: "port",
+  [StructureKind.Silo]: "silo",
+  [StructureKind.AirDefense]: "airDefense",
 };
 
 /** Engine refusals of a build order, as the interface explains them: one for each BuildError. */
@@ -264,7 +297,7 @@ export interface AllyView {
 
 /** An alliance formed, run out, or broken by `a`, or an embargo of `a` on `b` started or lifted. `a` and `b` are player ids. */
 export interface DiplomacyEvent {
-  type: "allied" | "ended" | "betrayed" | "embargo" | "lifted";
+  type: "allied" | "ended" | "betrayed" | "embargo" | "lifted" | "captured" | "missile" | "stopped";
   a: number;
   b: number;
 }
@@ -275,6 +308,23 @@ export interface WarshipView {
   player: number;
   tile: number;
   health: number;
+}
+
+/** A missile in flight, where it is this tick (R-UNIT-05). */
+export interface MissileView {
+  id: number;
+  player: number;
+  heavy: boolean;
+  tile: number;
+  /** Its target, and the owner of the target when it was last seen. */
+  to: number;
+  target: number;
+}
+
+/** A disc of land under fallout (R-UNIT-06). */
+export interface FalloutView {
+  tile: number;
+  radius: number;
 }
 
 /** A trade ship at sea, where it is this tick. */
@@ -452,6 +502,9 @@ export class SoloGame {
     }
     if (mode === "demolish") return this.demolishNear(tile);
     if (mode === "warship") return this.warshipFor(tile);
+    if (mode === "missile" || mode === "heavyMissile") {
+      return this.missileAt(tile, mode === "heavyMissile");
+    }
     if (!terrain.isOwnable(tile)) return { refused: "terrain" };
     if (
       game.phase === "play" &&
@@ -460,7 +513,13 @@ export class SoloGame {
     ) {
       return { refused: sameTeam(game, this.you, territory.ownerOf(tile)) ? "teammate" : "ally" };
     }
-    if (mode === "city" || mode === "fort" || mode === "port") {
+    if (
+      mode === "city" ||
+      mode === "fort" ||
+      mode === "port" ||
+      mode === "silo" ||
+      mode === "airDefense"
+    ) {
       const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };
       const error = orderError(game, human, order);
       if (error === undefined) return { order };
@@ -498,6 +557,29 @@ export class SoloGame {
     return { refused: "unreachable" };
   }
 
+  /** In a missile mode: a launch at the tile clicked, land or not, from the closest loaded silo. */
+  private missileAt(tile: number, heavy: boolean): ClickResult {
+    const { game } = this;
+    const human = game.player(this.you);
+    if (!human) return { refused: "over" };
+    if (!game.terrain.isOwnable(tile)) return { refused: "terrain" };
+    const order: Order = {
+      type: "missile",
+      target: tile,
+      size: heavy ? MissileSize.Heavy : MissileSize.Light,
+    };
+    const error = orderError(game, human, order);
+    if (error === undefined) return { order };
+    if (error === MissileError.Early) return { refused: "early" };
+    if (error === MissileError.Ally) {
+      return {
+        refused: sameTeam(game, this.you, game.territory.ownerOf(tile)) ? "teammate" : "ally",
+      };
+    }
+    if (error === MissileError.Gold) return { refused: "gold" };
+    return { refused: "silo" };
+  }
+
   /**
    * In warship mode: a click near the player's port buys a warship there; a
    * click on water sends the player's closest warship that can reach it to
@@ -528,6 +610,7 @@ export class SoloGame {
     if (error === undefined) return { order };
     if (error === WarshipError.Max) return { refused: "warships" };
     if (error === WarshipError.Gold) return { refused: "gold" };
+    if (error === WarshipError.Shore) return { refused: "shore" };
     return { refused: "port" };
   }
 
@@ -761,6 +844,15 @@ export class SoloGame {
         tile: ship.tile,
         health: ship.health,
       })),
+      missiles: game.missiles.map((missile) => ({
+        id: missile.id,
+        player: missile.player,
+        heavy: missile.size === MissileSize.Heavy,
+        tile: missileTile(game, missile, game.tick),
+        to: missile.to,
+        target: territory.ownerOf(missile.to),
+      })),
+      fallout: game.fallout.map(({ tile, radius }) => ({ tile, radius })),
       structures: game.structures.map((structure) => ({
         id: structure.id,
         player: structure.player,
@@ -773,6 +865,12 @@ export class SoloGame {
         fortCost: structureCost(game, this.you, StructureKind.Fort),
         portCost: structureCost(game, this.you, StructureKind.Port),
         warshipCost: warshipCost(game, this.you),
+        siloCost: structureCost(game, this.you, StructureKind.Silo),
+        airDefenseCost: structureCost(game, this.you, StructureKind.AirDefense),
+        missileCost: missileCost(game, MissileSize.Light),
+        heavyMissileCost: missileCost(game, MissileSize.Heavy),
+        // Any tile will do: whether one is loaded does not depend on the target.
+        loaded: launchSilo(game, this.you, 0) !== undefined,
         cities: structureCount(game, this.you, StructureKind.City),
         cityLimit: cityLimit(game, this.you),
       },

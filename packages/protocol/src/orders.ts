@@ -25,6 +25,7 @@ export const ORDER_KINDS = [
   { type: "embargo", fields: ["target", "on"] },
   { type: "warship", fields: ["port"] },
   { type: "patrol", fields: ["ship", "tile"] },
+  { type: "missile", fields: ["target", "size"] },
 ] as const;
 
 /** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
@@ -50,6 +51,10 @@ export const Order = z.discriminatedUnion("type", [
     .strict(),
   z.object({ type: z.literal("warship"), port: tile }).strict(),
   z.object({ type: z.literal("patrol"), ship: amount, tile }).strict(),
+  /** `size`: the engine's MissileSize code, which it checks. */
+  z
+    .object({ type: z.literal("missile"), target: tile, size: z.number().int().min(0).max(255) })
+    .strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 

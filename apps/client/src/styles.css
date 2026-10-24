@@ -771,11 +771,11 @@ input[type="range"] {
 
   .click-note {
     bottom: auto;
-    top: 196px;
+    top: 242px;
   }
 
   .banner {
-    top: 152px;
+    top: 198px;
   }
 
   /* Play stays in reach without scrolling past the maps. */
@@ -1051,13 +1051,14 @@ input[type="range"] {
   opacity: 0.85;
 }
 
-/* Build buttons (ui/hud.ts): city, fort and demolish, with the cost of the next one. */
+/* Build buttons (ui/hud.ts): structures, units and demolish, with the cost of the next one. */
 
-/* Above the toolbar, clear of the leaderboard on short screens. */
+/* Above the toolbar, clear of the leaderboard on short screens: two columns. */
 .build {
   right: 12px;
   bottom: 64px;
   display: grid;
+  grid-template-columns: repeat(2, auto);
   gap: 6px;
   padding: 6px;
 }
@@ -1118,6 +1119,26 @@ input[type="range"] {
   clip-path: polygon(0 35%, 100% 35%, 80% 100%, 20% 100%);
 }
 
+.build-silo .build-icon {
+  border: 0;
+  clip-path: polygon(50% 0, 100% 35%, 100% 100%, 0 100%, 0 35%);
+}
+
+.build-airDefense .build-icon {
+  border-radius: 50%;
+}
+
+.build-missile .build-icon,
+.build-heavyMissile .build-icon {
+  border: 0;
+  background: var(--ff-ember-bright);
+  transform: rotate(45deg) scale(0.6);
+}
+
+.build-heavyMissile .build-icon {
+  transform: rotate(45deg) scale(0.9);
+}
+
 .build-demolish .build-icon {
   border-color: var(--ff-danger);
   background: transparent;
@@ -1140,6 +1161,10 @@ input[type="range"] {
 
 .map-surface[data-mode="city"],
 .map-surface[data-mode="fort"],
+.map-surface[data-mode="silo"],
+.map-surface[data-mode="airDefense"],
+.map-surface[data-mode="missile"],
+.map-surface[data-mode="heavyMissile"],
 .map-surface[data-mode="demolish"] {
   cursor: crosshair;
 }
@@ -1154,8 +1179,8 @@ input[type="range"] {
   border-style: dashed;
 }
 
-/* Phones and short windows: the build panel turns into a row of icons and
-   costs under the stats, clear of the leaderboard. After the rules above, so
+/* Phones and short windows: the build panel turns into two rows of icons
+   and costs under the stats, clear of the leaderboard. After the rules above, so
    it wins over them. */
 @media (width < 720px), (height < 560px) {
   .build {
@@ -1163,7 +1188,7 @@ input[type="range"] {
     right: auto;
     bottom: auto;
     left: 12px;
-    grid-auto-flow: column;
+    grid-template-columns: repeat(5, auto);
   }
 
   .build-button {
@@ -1184,7 +1209,7 @@ input[type="range"] {
    the build row, on the left, short of it. */
 @media (height < 560px) and (width >= 720px) {
   .banner {
-    top: 152px;
+    top: 198px;
     left: 12px;
     max-width: calc(100vw - 300px);
     transform: none;
@@ -1407,11 +1432,11 @@ input[type="range"] {
 /* Phones: the requests go under the banner. */
 @media (width < 720px) {
   .requests {
-    top: 196px;
+    top: 242px;
   }
 
   .event-feed {
-    top: 290px;
+    top: 336px;
   }
 }
 

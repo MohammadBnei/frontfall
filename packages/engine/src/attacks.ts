@@ -81,7 +81,7 @@ export function installAttacks(game: Game): void {
           const tile = around[j] as number;
           if (seen[tile] === scan) continue;
           const owner = territory.ownerOf(tile);
-          if (owner === player || !terrain.isOwnable(tile)) continue;
+          if (owner === player || !game.usable(tile)) continue;
           const a = own.find((index) => (attacks[index] as Attack).target === owner);
           if (a === undefined) continue;
           seen[tile] = scan;
@@ -134,7 +134,7 @@ export function installAttacks(game: Game): void {
       const count = topology.neighborsInto(territory.borderTile(player, i), around);
       for (let j = 0; j < count; j++) {
         const tile = around[j] as number;
-        if (territory.ownerOf(tile) === target && terrain.isOwnable(tile)) return true;
+        if (territory.ownerOf(tile) === target && game.usable(tile)) return true;
       }
     }
     return false;

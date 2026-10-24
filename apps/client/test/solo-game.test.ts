@@ -174,6 +174,42 @@ describe("SoloGame clicks", () => {
     });
   });
 
+  it("launches a missile from a loaded silo, shows it in flight, then the fallout (R-UNIT-05, R-UNIT-06)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory } = solo.game;
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 10_000_000;
+    // A patch of land of the player's own, not enough to win.
+    const home = [...terrain.kinds.keys()].find((tile) => terrain.isOwnable(tile)) ?? -1;
+    for (const tile of terrain.topology.tilesWithin(home, 4)) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    const bot = solo.game.player(2);
+    const target = [...terrain.kinds.keys()].find((tile) => territory.ownerOf(tile) === bot?.id);
+    if (target === undefined) throw new Error("the bot holds no land");
+    expect(solo.orderForClick(target, 30, "missile")).toEqual({ refused: "silo" });
+    expect(solo.orderForClick(home, 30, "silo")).toEqual({
+      order: { type: "build", structure: 3, tile: home },
+    });
+    update = solo.step([{ type: "build", structure: 3, tile: home }]);
+    expect(update.build.loaded).toBe(false);
+    for (let i = 0; i < solo.game.balance.longBuildTicks; i++) update = solo.step([]);
+    expect(update.build.loaded).toBe(true);
+    const launch = solo.orderForClick(target, 30, "heavyMissile");
+    expect(launch).toEqual({ order: { type: "missile", target, size: 1 } });
+    if (!("order" in launch)) throw new Error("refused");
+    update = solo.step([launch.order]);
+    expect(update.missiles).toMatchObject([{ player: HUMAN_ID, heavy: true, to: target }]);
+    expect(update.build.loaded).toBe(false);
+    while (update.missiles.length > 0) update = solo.step([]);
+    expect(update.fallout).toHaveLength(1);
+    expect(update.fallout[0]?.tile).toBe(target);
+    expect(territory.ownerOf(target)).toBe(0);
+  });
+
   it("puts a port only by the water, and shows embargoes both ways (R-BUILD-02, R-DIPLO-05)", () => {
     const solo = newGame({ ...options, bots: 1 });
     const { terrain, territory } = solo.game;

@@ -8,10 +8,12 @@ export const StructureKind = {
   City: 0,
   Fort: 1,
   Port: 2,
+  Silo: 3,
+  AirDefense: 4,
 } as const;
 export type StructureKind = (typeof StructureKind)[keyof typeof StructureKind];
 
-const HIGHEST_KIND: number = StructureKind.Port;
+const HIGHEST_KIND: number = StructureKind.AirDefense;
 
 /** A structure on one land tile. It works from `readyAt` on, and changes hands with its tile. */
 export interface Structure {
@@ -21,6 +23,8 @@ export interface Structure {
   readonly tile: number;
   /** First tick the structure works (B-BUILD-TIME after the order). */
   readonly readyAt: number;
+  /** A silo or an air defense: first tick it can launch or stop a missile again; 0 for the others. */
+  reloadAt: number;
 }
 
 /** Why a build order is refused once its tile is known to be on the map and ownable. */
@@ -60,14 +64,36 @@ export function structureCount(game: Game, player: number, kind: StructureKind):
  * B-COST-GROWTH for each one of that kind they already own (R-BUILD).
  */
 export function structureCost(game: Game, player: number, kind: StructureKind): number {
-  const { cityCost, fortCost, portCost, costGrowthPercent } = game.balance;
-  let cost =
-    kind === StructureKind.City ? cityCost : kind === StructureKind.Fort ? fortCost : portCost;
+  const { costGrowthPercent } = game.balance;
+  let cost = baseCost(game, kind);
   const owned = structureCount(game, player, kind);
   for (let i = 0; i < owned && cost < Number.MAX_SAFE_INTEGER; i++) {
     cost = Math.min(Number.MAX_SAFE_INTEGER, mulDiv(cost, costGrowthPercent, 100));
   }
   return cost;
+}
+
+function baseCost(game: Game, kind: StructureKind): number {
+  const balance = game.balance;
+  switch (kind) {
+    case StructureKind.City:
+      return balance.cityCost;
+    case StructureKind.Fort:
+      return balance.fortCost;
+    case StructureKind.Port:
+      return balance.portCost;
+    case StructureKind.Silo:
+      return balance.siloCost;
+    case StructureKind.AirDefense:
+      return balance.airDefenseCost;
+  }
+}
+
+/** B-BUILD-TIME, or B-BUILD-TIME-LONG for a silo or an air defense. */
+export function buildTime(game: Game, kind: StructureKind): number {
+  return kind === StructureKind.Silo || kind === StructureKind.AirDefense
+    ? game.balance.longBuildTicks
+    : game.balance.buildTicks;
 }
 
 /** R-BUILD-07: most cities a player's land supports, one for every B-CITY-LAND tiles, the first one free. */
@@ -171,7 +197,8 @@ export function installStructures(game: Game): void {
       player: player.id,
       kind: order.structure,
       tile: order.tile,
-      readyAt: game.tick + game.balance.buildTicks,
+      readyAt: game.tick + buildTime(game, order.structure),
+      reloadAt: 0,
     });
     return true;
   });

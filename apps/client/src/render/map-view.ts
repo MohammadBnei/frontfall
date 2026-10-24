@@ -22,6 +22,8 @@ export const SHIP_SIZES = {
   transport: { tiles: 2.5, minPixels: 6 },
   trade: { tiles: 1.6, minPixels: 6 },
   warship: { tiles: 3.5, minPixels: 10 },
+  missile: { tiles: 2.5, minPixels: 9 },
+  heavyMissile: { tiles: 4, minPixels: 13 },
 } as const;
 
 /** Scale of a ship of `size` for its smallest size on screen at `tilesPerPixel`. */
@@ -31,6 +33,9 @@ export function shipScale(
 ): number {
   return Math.max(1, (size.minPixels * tilesPerPixel) / size.tiles);
 }
+
+/** Missiles in flight at once: one per silo, with room to spare. */
+const MISSILE_CAPACITY = 256;
 
 /** Smallest size of a structure on screen, in CSS pixels, however far the view is zoomed out. */
 const STRUCTURE_MIN_PIXELS = 9;
@@ -59,6 +64,8 @@ export class MapView implements Renderer {
   private readonly ships: UnitLayer;
   private readonly tradeShips: UnitLayer;
   private readonly warships: UnitLayer;
+  private readonly missiles: UnitLayer;
+  private readonly heavyMissiles: UnitLayer;
   private readonly structures: Record<StructureMark["type"], StructureLayers>;
   private readonly startedAt = performance.now();
   /** Width of the canvas in CSS pixels, to keep structures readable when zoomed out. */
@@ -111,7 +118,25 @@ export class MapView implements Renderer {
     });
     this.warships.mesh.position.copy(this.territory.mesh.position);
     this.scene.add(this.warships.mesh);
-    // Cities are diamonds, forts triangles, ports hexagons, all larger than a ship.
+    // Missiles are diamonds above everything else.
+    const missiles = (size: number): UnitLayer => {
+      const layer = new UnitLayer({
+        worldWidth: options.width,
+        worldHeight: options.height,
+        capacity: MISSILE_CAPACITY,
+        wrapsX: options.wrapsX,
+        size,
+        sides: 4,
+        depth: 0.4,
+      });
+      layer.mesh.position.copy(this.territory.mesh.position);
+      this.scene.add(layer.mesh);
+      return layer;
+    };
+    this.missiles = missiles(SHIP_SIZES.missile.tiles);
+    this.heavyMissiles = missiles(SHIP_SIZES.heavyMissile.tiles);
+    // Cities are diamonds, forts triangles, ports hexagons, silos pentagons and
+    // air defenses discs, all larger than a ship.
     const layers = (sides: number, size: number): StructureLayers => {
       const layer = (extra: number, depth: number): UnitLayer => {
         const unit = new UnitLayer({
@@ -129,7 +154,13 @@ export class MapView implements Renderer {
       };
       return { outline: layer(1.5, 0.2), fill: layer(0, 0.3), size };
     };
-    this.structures = { city: layers(4, 4), fort: layers(3, 4.5), port: layers(6, 4) };
+    this.structures = {
+      city: layers(4, 4),
+      fort: layers(3, 4.5),
+      port: layers(6, 4),
+      silo: layers(5, 4.5),
+      airDefense: layers(12, 4),
+    };
     this.camera.position.z = 10;
   }
 
@@ -168,8 +199,14 @@ export class MapView implements Renderer {
     let transports = 0;
     let trade = 0;
     let warships = 0;
+    let missiles = 0;
+    let heavy = 0;
     for (const ship of ships) {
-      if (ship.kind === "trade") {
+      if (ship.kind === "missile") {
+        if (missiles < MISSILE_CAPACITY) this.missiles.set(missiles++, ship.x, ship.y, ship.color);
+      } else if (ship.kind === "heavyMissile") {
+        if (heavy < MISSILE_CAPACITY) this.heavyMissiles.set(heavy++, ship.x, ship.y, ship.color);
+      } else if (ship.kind === "trade") {
         if (trade < TRADE_CAPACITY) this.tradeShips.set(trade++, ship.x, ship.y, ship.color);
       } else if (ship.kind === "warship") {
         if (warships < WARSHIP_CAPACITY) this.warships.set(warships++, ship.x, ship.y, ship.color);
@@ -180,10 +217,16 @@ export class MapView implements Renderer {
     this.ships.count = transports;
     this.tradeShips.count = trade;
     this.warships.count = warships;
+    this.missiles.count = missiles;
+    this.heavyMissiles.count = heavy;
+  }
+
+  setFallout(zones: readonly { x: number; y: number; radius: number }[]): boolean {
+    return this.territory.setFallout(zones);
   }
 
   setStructures(structures: readonly StructureMark[]): void {
-    for (const type of ["city", "fort", "port"] as const) {
+    for (const type of ["city", "fort", "port", "silo", "airDefense"] as const) {
       const { outline, fill } = this.structures[type];
       let count = 0;
       for (const structure of structures) {
@@ -215,6 +258,10 @@ export class MapView implements Renderer {
     this.ships.setScale(shipScale(SHIP_SIZES.transport, tilesPerPixel));
     this.tradeShips.setScale(shipScale(SHIP_SIZES.trade, tilesPerPixel));
     this.warships.setScale(shipScale(SHIP_SIZES.warship, tilesPerPixel));
+    this.missiles.setScale(shipScale(SHIP_SIZES.missile, tilesPerPixel));
+    this.heavyMissiles.setScale(shipScale(SHIP_SIZES.heavyMissile, tilesPerPixel));
+    this.missiles.update(this.camera.position.x);
+    this.heavyMissiles.update(this.camera.position.x);
     this.ships.update(this.camera.position.x);
     this.tradeShips.update(this.camera.position.x);
     this.warships.update(this.camera.position.x);
@@ -238,6 +285,8 @@ export class MapView implements Renderer {
     this.ships.dispose();
     this.tradeShips.dispose();
     this.warships.dispose();
+    this.missiles.dispose();
+    this.heavyMissiles.dispose();
     for (const { outline, fill } of Object.values(this.structures)) {
       outline.dispose();
       fill.dispose();

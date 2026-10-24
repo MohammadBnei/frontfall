@@ -25,6 +25,9 @@ const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
   betrayed: "diplo.eventBetrayed",
   embargo: "diplo.eventEmbargo",
   lifted: "diplo.eventLifted",
+  captured: "diplo.eventCaptured",
+  missile: "diplo.eventMissile",
+  stopped: "diplo.eventStopped",
 };
 
 /**

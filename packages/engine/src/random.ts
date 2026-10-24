@@ -80,6 +80,7 @@ export function derivedRandom(seed: number, tick: number, id: number, usage: num
 export const DrawUsage = {
   TradeDestination: 1,
   WarshipPatrol: 2,
+  Interception: 3,
 } as const;
 
 export type RandomState = readonly [number, number, number, number];

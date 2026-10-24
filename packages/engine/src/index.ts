@@ -84,11 +84,26 @@ export {
   isReady,
   placementError,
   structureAt,
+  buildTime,
   structureCost,
   structureCount,
   workingCities,
   type Structure,
 } from "./structures.ts";
+export {
+  MissileError,
+  MissileSize,
+  airDefenseRadius,
+  blastRadius,
+  installMissiles,
+  isMissileSize,
+  launchSilo,
+  missileCost,
+  missileError,
+  missileTile,
+  type Fallout,
+  type Missile,
+} from "./missiles.ts";
 export { Terrain, TileKind } from "./terrain.ts";
 export { installTrade, type TradeShip } from "./trade.ts";
 export {

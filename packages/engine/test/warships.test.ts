@@ -147,7 +147,7 @@ describe("warships (R-UNIT-04)", () => {
     expect(game.warships.map((ship) => [ship.player, ship.health])).toEqual([[1, 250]]);
   });
 
-  it("take a trade ship under an embargo held for B-EMBARGO-NOTICE, with its gold", () => {
+  it("take a trade ship under an embargo held for B-EMBARGO-NOTICE, with its gold, one a B-WARSHIP-RELOAD", () => {
     const { game, ada, step, run, adaPort } = newGame({
       warshipRange: 60,
       tradeIntervalTicks: 5,
@@ -161,10 +161,18 @@ describe("warships (R-UNIT-04)", () => {
     const gold = ada.gold;
     step([{ player: 1, order: { type: "embargo", target: 2, on: 1 } }]);
     run(2);
-    expect(game.tradeShips.some((ship) => ship.player === 2)).toBe(true);
+    expect(game.diplomacyEvents.some((e) => e.type === "captured")).toBe(false);
     run(2);
-    expect(game.tradeShips.some((ship) => ship.player === 2)).toBe(false);
     expect(ada.gold).toBeGreaterThan(gold);
+    run(3 * game.balance.warshipReloadTicks);
+    // One ship a shot: B-WARSHIP-RELOAD apart.
+    const ticks = game.diplomacyEvents.filter((e) => e.type === "captured").map((e) => e.tick);
+    expect(ticks.length).toBeGreaterThan(1);
+    for (let i = 1; i < ticks.length; i++) {
+      expect((ticks[i] as number) - (ticks[i - 1] as number)).toBeGreaterThanOrEqual(
+        game.balance.warshipReloadTicks,
+      );
+    }
   });
 
   it("leave an ally's trade ships alone, even under an embargo", () => {

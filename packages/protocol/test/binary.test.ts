@@ -171,7 +171,7 @@ describe("order kinds", () => {
       version: PROTOCOL_VERSION,
       kinds: ORDER_KINDS.map((kind) => kind.type),
     }).toEqual({
-      version: 10,
+      version: 11,
       kinds: [
         "spawn",
         "attack",
@@ -184,6 +184,7 @@ describe("order kinds", () => {
         "embargo",
         "warship",
         "patrol",
+        "missile",
       ],
     });
   });

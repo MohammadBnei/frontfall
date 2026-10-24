@@ -12,15 +12,18 @@ export interface UnitMark {
   readonly x: number;
   readonly y: number;
   readonly color: string;
-  /** A trade ship, drawn smaller than a transport (R-UNIT-03), or a warship, drawn larger (R-UNIT-04). */
-  readonly kind?: "trade" | "warship";
+  /**
+   * A trade ship, drawn smaller than a transport (R-UNIT-03), a warship,
+   * drawn larger (R-UNIT-04), or a missile in flight (R-UNIT-05).
+   */
+  readonly kind?: "trade" | "warship" | "missile" | "heavyMissile";
 }
 
 /** A structure to draw on its tile, y counted from the north. */
 export interface StructureMark {
   readonly x: number;
   readonly y: number;
-  readonly type: "city" | "fort" | "port";
+  readonly type: "city" | "fort" | "port" | "silo" | "airDefense";
   /** Drawn faded while it is being built. */
   readonly ready: boolean;
 }
@@ -63,6 +66,8 @@ export interface Renderer {
   markAllChanged(): void;
   /** Transport and trade ships at sea, replacing the previous ones. */
   setShips(ships: readonly UnitMark[]): void;
+  /** Discs of land under fallout (R-UNIT-06), in tiles, replacing the previous ones; whether they changed. */
+  setFallout(zones: readonly { x: number; y: number; radius: number }[]): boolean;
   /** Every structure on the map, replacing the previous ones. */
   setStructures(structures: readonly StructureMark[]): void;
   resize(width: number, height: number): void;

@@ -239,6 +239,12 @@ function order(value: unknown): Order {
         ship: readInteger(raw.ship, "patrol ship"),
         tile: readInteger(raw.tile, "patrol tile"),
       };
+    case "missile":
+      return {
+        type: "missile",
+        target: readInteger(raw.target, "missile target"),
+        size: readInteger(raw.size, "missile size"),
+      };
     case "embargo":
       return {
         type: "embargo",

@@ -13,6 +13,7 @@ const TRADE_CAPACITY = 512;
 /** Warships at once: B-WARSHIP-MAX for each of up to 64 players. */
 const WARSHIP_CAPACITY = 256;
 const STRUCTURE_CAPACITY = 1024;
+const MISSILE_CAPACITY = 256;
 const STRUCTURE_MIN_PIXELS = 9;
 
 /** Space around the planet: the brand's ink, darker than the deep sea. */
@@ -39,6 +40,8 @@ export class GlobeView implements Renderer {
   private readonly ships: GlobeMarkers;
   private readonly tradeShips: GlobeMarkers;
   private readonly warships: GlobeMarkers;
+  private readonly missiles: GlobeMarkers;
+  private readonly heavyMissiles: GlobeMarkers;
   private readonly structures: Record<StructureMark["type"], StructureMarkers>;
   private readonly startedAt = performance.now();
   private cssWidth = 1;
@@ -82,10 +85,14 @@ export class GlobeView implements Renderer {
     this.ships = markers(SHIP_SIZES.transport.tiles, 8, 1);
     this.tradeShips = markers(SHIP_SIZES.trade.tiles, 8, 1, TRADE_CAPACITY);
     this.warships = markers(SHIP_SIZES.warship.tiles, 3, 1, WARSHIP_CAPACITY);
+    this.missiles = markers(SHIP_SIZES.missile.tiles, 4, 4, MISSILE_CAPACITY);
+    this.heavyMissiles = markers(SHIP_SIZES.heavyMissile.tiles, 4, 4, MISSILE_CAPACITY);
     this.structures = {
       city: { outline: markers(5.5, 4, 2), fill: markers(4, 4, 3), size: 4 },
       fort: { outline: markers(6, 3, 2), fill: markers(4.5, 3, 3), size: 4.5 },
       port: { outline: markers(5.5, 6, 2), fill: markers(4, 6, 3), size: 4 },
+      silo: { outline: markers(6, 5, 2), fill: markers(4.5, 5, 3), size: 4.5 },
+      airDefense: { outline: markers(5.5, 12, 2), fill: markers(4, 12, 3), size: 4 },
     };
   }
 
@@ -121,8 +128,14 @@ export class GlobeView implements Renderer {
     let transports = 0;
     let trade = 0;
     let warships = 0;
+    let missiles = 0;
+    let heavy = 0;
     for (const ship of ships) {
-      if (ship.kind === "trade") {
+      if (ship.kind === "missile") {
+        if (missiles < MISSILE_CAPACITY) this.missiles.set(missiles++, ship.x, ship.y, ship.color);
+      } else if (ship.kind === "heavyMissile") {
+        if (heavy < MISSILE_CAPACITY) this.heavyMissiles.set(heavy++, ship.x, ship.y, ship.color);
+      } else if (ship.kind === "trade") {
         if (trade < TRADE_CAPACITY) this.tradeShips.set(trade++, ship.x, ship.y, ship.color);
       } else if (ship.kind === "warship") {
         if (warships < WARSHIP_CAPACITY) this.warships.set(warships++, ship.x, ship.y, ship.color);
@@ -133,10 +146,16 @@ export class GlobeView implements Renderer {
     this.ships.count = transports;
     this.tradeShips.count = trade;
     this.warships.count = warships;
+    this.missiles.count = missiles;
+    this.heavyMissiles.count = heavy;
+  }
+
+  setFallout(zones: readonly { x: number; y: number; radius: number }[]): boolean {
+    return this.territory.setFallout(zones);
   }
 
   setStructures(structures: readonly StructureMark[]): void {
-    for (const type of ["city", "fort", "port"] as const) {
+    for (const type of ["city", "fort", "port", "silo", "airDefense"] as const) {
       const { outline, fill } = this.structures[type];
       let count = 0;
       for (const structure of structures) {
@@ -180,6 +199,8 @@ export class GlobeView implements Renderer {
     this.ships.setScale(shipScale(SHIP_SIZES.transport, tilesPerPixel));
     this.tradeShips.setScale(shipScale(SHIP_SIZES.trade, tilesPerPixel));
     this.warships.setScale(shipScale(SHIP_SIZES.warship, tilesPerPixel));
+    this.missiles.setScale(shipScale(SHIP_SIZES.missile, tilesPerPixel));
+    this.heavyMissiles.setScale(shipScale(SHIP_SIZES.heavyMissile, tilesPerPixel));
     for (const { outline, fill, size } of Object.values(this.structures)) {
       const scale = Math.max(1, (STRUCTURE_MIN_PIXELS * tilesPerPixel) / size);
       outline.setScale(scale);
@@ -197,6 +218,8 @@ export class GlobeView implements Renderer {
     this.ships.dispose();
     this.tradeShips.dispose();
     this.warships.dispose();
+    this.missiles.dispose();
+    this.heavyMissiles.dispose();
     for (const { outline, fill } of Object.values(this.structures)) {
       outline.dispose();
       fill.dispose();

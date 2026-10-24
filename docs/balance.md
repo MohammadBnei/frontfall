@@ -98,50 +98,69 @@ A route of 100 tiles pays 4,000 gold to each side, one of 500 tiles 12,000. With
 
 ## Structures
 
-| Key                    |  Value | Unit       | Used by      | Notes                                                  |
-| ---------------------- | -----: | ---------- | ------------ | ------------------------------------------------------ |
-| `B-BUILD-TIME`         |      5 | s          | `R-BUILD-*`  | Missile silo and air defense: 10 s                     |
-| `B-COST-CITY`          |  60000 | gold       | `R-BUILD-01` | First city                                             |
-| `B-COST-FORT`          |  30000 | gold       | `R-BUILD-03` | First fort                                             |
-| `B-COST-PORT`          | 100000 | gold       | `R-BUILD-02` | First port                                             |
-| `B-COST-GROWTH`        |    1.5 | multiplier | `R-BUILD-*`  | Cost of the n-th structure of a kind: base × 1.5^(n−1) |
-| `B-BUILD-SPACING`      |     10 | tiles      | `R-BUILD-07` | Between any two structures                             |
-| `B-CITY-LAND`          |  10000 | tiles      | `R-BUILD-07` | Land each city beyond the first needs                  |
-| `B-FORT-RADIUS`        |     25 | tiles      | `R-BUILD-03` |                                                        |
-| `B-FORT-STRENGTH`      |    200 | % of price | `R-BUILD-03` | Paid by attackers inside the radius                    |
-| `B-FORT-LOSSES`        |     50 | % of loss  | `R-BUILD-03` | Lost by the defender inside the radius                 |
-| `B-AIR-DEFENSE-RADIUS` |     60 | tiles      | `R-BUILD-05` | 75 % chance to stop each missile                       |
+| Key                  |   Value | Unit       | Used by      | Notes                                                  |
+| -------------------- | ------: | ---------- | ------------ | ------------------------------------------------------ |
+| `B-BUILD-TIME`       |       5 | s          | `R-BUILD-*`  | For every structure but the two below                  |
+| `B-BUILD-TIME-LONG`  |      10 | s          | `R-BUILD-*`  | Missile silo and air defense                           |
+| `B-COST-CITY`        |   60000 | gold       | `R-BUILD-01` | First city                                             |
+| `B-COST-FORT`        |   30000 | gold       | `R-BUILD-03` | First fort                                             |
+| `B-COST-PORT`        |  100000 | gold       | `R-BUILD-02` | First port                                             |
+| `B-COST-SILO`        |  800000 | gold       | `R-BUILD-04` | First missile silo                                     |
+| `B-COST-AIR-DEFENSE` | 1000000 | gold       | `R-BUILD-05` | First air defense                                      |
+| `B-COST-GROWTH`      |     1.5 | multiplier | `R-BUILD-*`  | Cost of the n-th structure of a kind: base × 1.5^(n−1) |
+| `B-BUILD-SPACING`    |      10 | tiles      | `R-BUILD-07` | Between any two structures                             |
+| `B-CITY-LAND`        |   10000 | tiles      | `R-BUILD-07` | Land each city beyond the first needs                  |
+| `B-FORT-RADIUS`      |      25 | tiles      | `R-BUILD-03` |                                                        |
+| `B-FORT-STRENGTH`    |     200 | % of price | `R-BUILD-03` | Paid by attackers inside the radius                    |
+| `B-FORT-LOSSES`      |      50 | % of loss  | `R-BUILD-03` | Lost by the defender inside the radius                 |
 
 Structure values were set on World with eight normal bots, five seeds. Before structures, a bot reached `B-WIN-SHARE` after 8.8 to 13.0 minutes (median 10.1). With cities worth 10 % and one per 20,000 tiles of World, the snowball brought that down to 7.5 to 9.8 minutes; at 5 % and one per 40,000 tiles it is 7.9 to 10.6 (median 10.1), and a scripted casual player that also builds cities wins against seven normal bots as often as before (2 seeds out of 5).
 
-Base costs still to come, in gold: missile silo 800 000, air defense 1 000 000.
-
 Distances and land are given for a map of 2^19 tiles, like the spawn values: on a larger map `B-FORT-RADIUS` grows with the spawn radius and `B-CITY-LAND` with the spawn area, so on World a fort covers 50 tiles around it and each city beyond the first needs 40,000 tiles.
+
+## Missiles
+
+| Key                      |   Value | Unit           | Used by      | Notes                                                                 |
+| ------------------------ | ------: | -------------- | ------------ | --------------------------------------------------------------------- |
+| `B-SILO-RELOAD`          |      30 | s              | `R-BUILD-04` | From a launch to the next one from the same silo                      |
+| `B-COST-MISSILE`         |  300000 | gold           | `R-UNIT-05`  | Every missile; it does not grow                                       |
+| `B-COST-HEAVY-MISSILE`   | 1500000 | gold           | `R-UNIT-05`  | Every heavy missile                                                   |
+| `B-MISSILE-SPEED`        |       8 | tiles per tick | `R-UNIT-05`  | 80 tiles a second: across World in under 13 s                         |
+| `B-MISSILE-RADIUS`       |      12 | tiles          | `R-UNIT-05`  | On a map of 2^19 tiles; 24 on World                                   |
+| `B-HEAVY-MISSILE-RADIUS` |      30 | tiles          | `R-UNIT-05`  | On a map of 2^19 tiles; 60 on World                                   |
+| `B-FALLOUT-TIME`         |      60 | s              | `R-UNIT-06`  | Under a heavy missile                                                 |
+| `B-AIR-DEFENSE-RADIUS`   |      60 | tiles          | `R-BUILD-05` | On a map of 2^19 tiles; 120 on World                                  |
+| `B-AIR-DEFENSE-CHANCE`   |      75 | %              | `R-BUILD-05` | Per missile flying into the radius                                    |
+| `B-AIR-DEFENSE-RELOAD`   |      10 | s              | `R-BUILD-05` | From a missile stopped to the next one the same air defense tries for |
+
+A missile is a late tool to break a front that holds: a silo and its first missile cost 1.1 million gold, and a silo fires twice a minute at most. A light missile on World burns about 1,800 tiles, a heavy one about 11,000, the size of a medium country. An air defense covers some 45,000 tiles around it; one stops three missiles out of four that fly over it, two in a row fifteen out of sixteen, until they reload.
 
 ## Bots
 
 Each value is given for easy / normal / hard (`R-BOT-04`); the others are the same at every difficulty.
 
-| Key                  |           Value | Unit                            | Used by    | Notes                                                                                                                                          |
-| -------------------- | --------------: | ------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `B-BOT-INTERVAL`     |       5 / 3 / 2 | s between decisions             | `R-BOT-01` | Bots spread their decisions over the interval                                                                                                  |
-| `B-BOT-ATTACK-RATIO` |    15 / 25 / 40 | % of troops at home             | `R-BOT-01` | Sent by one expansion or attack order                                                                                                          |
-| `B-BOT-RESERVE`      |    50 / 40 / 20 | % of population cap             | `R-BOT-01` | Never sent; kept at home to defend                                                                                                             |
-| `B-BOT-BOLDNESS`     | 100 / 110 / 150 | % of the bot's troop density    | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
-| `B-BOT-SAMPLES`      |              16 | border tiles per decision       | `R-BOT-05` | At least this many, or the square root of the border when longer, so a narrow land front is found                                              |
-| `B-BOT-SEA-TARGETS`  |               8 | coasts per sea search           | `R-BOT-05` | Weighed closest first                                                                                                                          |
-| `B-BOT-SEA-MIN`      |              16 | water tiles                     | `R-BOT-05` | Coasts closer to the bot's shore count as the same front                                                                                       |
-| `B-BOT-SEA-RETRY`    |               4 | decisions                       | `R-BOT-05` | Skipped after a sea search that found nothing, since one search can walk `B-BOAT-RANGE` of sea                                                 |
-| `B-BOT-CITY-SEARCH`  |              40 | tiles                           | `R-BOT-06` | Radius around its start in which a bot looks for room for a city                                                                               |
-| `B-BOT-PORT-SEARCH`  |              60 | tiles                           | `R-BOT-06` | Radius around its start in which a bot looks for a coast for its port                                                                          |
-| `B-BOT-ALLIANCE-MAX` |               1 | allies                          | `R-BOT-10` | So that a bot always has someone left to fight                                                                                                 |
-| `B-NATION-ODDS`      |              80 | % of the nation's troop density | `R-BOT-09` | Attacks a player at most this dense, half while land is free; by sea as well                                                                   |
-| `B-NATION-FULL`      |              90 | % of population cap             | `R-BOT-09` | From here a nation takes the odds of `B-BOT-BOLDNESS` instead: troops past the cap would be wasted                                             |
-| `B-NATION-GRACE`     |             120 | s of play                       | `R-BOT-09` | Free land only until then, so nobody starts next to a nation that comes for them at once; an attacker is still answered                        |
-| `B-NATION-THREAT`    |              10 | % of the nation's troops        | `R-BOT-08` | Smaller attacks do not make a nation hold, so a trickle of them cannot freeze it                                                               |
-| `B-NATION-HOLD`      |              60 | % of population cap             | `R-BOT-08` | Under attack, a nation sends nothing below this, and only answers the attacker above it                                                        |
-| `B-NATION-WARSHIPS`  |               2 | warships                        | `R-BOT-11` | No more than ports, bought while an enemy transport sails for the nation's coast                                                               |
-| `B-NATION-RESERVE`   |             +10 | points of population cap        | `R-BOT-09` | Added to `B-BOT-RESERVE` for nations: 60 / 50 / 40 %                                                                                           |
+| Key                       |           Value | Unit                            | Used by    | Notes                                                                                                                                          |
+| ------------------------- | --------------: | ------------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `B-BOT-INTERVAL`          |       5 / 3 / 2 | s between decisions             | `R-BOT-01` | Bots spread their decisions over the interval                                                                                                  |
+| `B-BOT-ATTACK-RATIO`      |    15 / 25 / 40 | % of troops at home             | `R-BOT-01` | Sent by one expansion or attack order                                                                                                          |
+| `B-BOT-RESERVE`           |    50 / 40 / 20 | % of population cap             | `R-BOT-01` | Never sent; kept at home to defend                                                                                                             |
+| `B-BOT-BOLDNESS`          | 100 / 110 / 150 | % of the bot's troop density    | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
+| `B-BOT-SAMPLES`           |              16 | border tiles per decision       | `R-BOT-05` | At least this many, or the square root of the border when longer, so a narrow land front is found                                              |
+| `B-BOT-SEA-TARGETS`       |               8 | coasts per sea search           | `R-BOT-05` | Weighed closest first                                                                                                                          |
+| `B-BOT-SEA-MIN`           |              16 | water tiles                     | `R-BOT-05` | Coasts closer to the bot's shore count as the same front                                                                                       |
+| `B-BOT-SEA-RETRY`         |               4 | decisions                       | `R-BOT-05` | Skipped after a sea search that found nothing, since one search can walk `B-BOAT-RANGE` of sea                                                 |
+| `B-BOT-CITY-SEARCH`       |              40 | tiles                           | `R-BOT-06` | Radius around its start in which a bot looks for room for a city                                                                               |
+| `B-BOT-PORT-SEARCH`       |              60 | tiles                           | `R-BOT-06` | Radius around its start in which a bot looks for a coast for its port                                                                          |
+| `B-BOT-ALLIANCE-MAX`      |               1 | allies                          | `R-BOT-10` | So that a bot always has someone left to fight                                                                                                 |
+| `B-NATION-ODDS`           |              80 | % of the nation's troop density | `R-BOT-09` | Attacks a player at most this dense, half while land is free; by sea as well                                                                   |
+| `B-NATION-FULL`           |              90 | % of population cap             | `R-BOT-09` | From here a nation takes the odds of `B-BOT-BOLDNESS` instead: troops past the cap would be wasted                                             |
+| `B-NATION-GRACE`          |             120 | s of play                       | `R-BOT-09` | Free land only until then, so nobody starts next to a nation that comes for them at once; an attacker is still answered                        |
+| `B-NATION-THREAT`         |              10 | % of the nation's troops        | `R-BOT-08` | Smaller attacks do not make a nation hold, so a trickle of them cannot freeze it                                                               |
+| `B-NATION-HOLD`           |              60 | % of population cap             | `R-BOT-08` | Under attack, a nation sends nothing below this, and only answers the attacker above it                                                        |
+| `B-NATION-WARSHIPS`       |               2 | warships                        | `R-BOT-11` | No more than ports, bought while an enemy transport sails for the nation's coast                                                               |
+| `B-NATION-SILO-CITIES`    |               2 | cities                          | `R-BOT-12` | Before a nation builds a silo                                                                                                                  |
+| `B-NATION-MISSILE-LEADER` |              30 | % of all ownable land           | `R-BOT-12` | From here the leading player becomes a nation's target when nobody attacks it                                                                  |
+| `B-NATION-RESERVE`        |             +10 | points of population cap        | `R-BOT-09` | Added to `B-BOT-RESERVE` for nations: 60 / 50 / 40 %                                                                                           |
 
 Nation values were set on World against a scripted casual player (an order every 5 s with 30 % of its troops, free land first, then its weakest neighbour, then by sea, and a city when its gold allows), at normal difficulty, six to eight seeds, over 20 to 30 minutes, before alliances existed. With `B-NATION-ODDS` alone, nations hardly ever attacked each other once the land was taken, and 7 games out of 8 had no winner after 20 minutes; `B-NATION-FULL` lets a full army fight on. Without `B-NATION-GRACE`, the casual player lost its early game to a neighbouring nation in 3 seeds out of 6, between 3 and 7 minutes, against 7 seeds out of 8 with 71 bots in place of the nations. With 2 minutes of grace and the 64 nations, it is never eliminated before 9 minutes, and is alive and leading after 30 minutes in 5 seeds out of 6; a nation won the sixth in 12.4 minutes (3 minutes of grace: 6 out of 6, and no nation won). Against 8 normal bots without nations, a bot wins in about 10 minutes. With nations, the menu suggests no bots: with 7 bots on top and no grace, the casual player survived 30 minutes in 1 seed out of 6.
 

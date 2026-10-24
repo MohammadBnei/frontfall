@@ -32,6 +32,8 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   port: "click.port",
   warships: "click.warships",
   noWarship: "click.noWarship",
+  silo: "click.silo",
+  shore: "click.shore",
 };
 
 interface Mark {

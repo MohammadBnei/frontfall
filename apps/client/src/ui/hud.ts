@@ -29,7 +29,11 @@ const MODE_BANNERS = {
   city: "hud.modeCity",
   fort: "hud.modeFort",
   port: "hud.modePort",
+  silo: "hud.modeSilo",
+  airDefense: "hud.modeAirDefense",
   warship: "hud.modeWarship",
+  missile: "hud.modeMissile",
+  heavyMissile: "hud.modeHeavyMissile",
   demolish: "hud.modeDemolish",
 } as const;
 
@@ -38,7 +42,11 @@ const BUILD_MODES = [
   { mode: "city", key: "C" },
   { mode: "fort", key: "F" },
   { mode: "port", key: "O" },
+  { mode: "silo", key: "L" },
+  { mode: "airDefense", key: "K" },
   { mode: "warship", key: "V" },
+  { mode: "missile", key: "M" },
+  { mode: "heavyMissile", key: "N" },
   { mode: "demolish", key: "X" },
 ] as const satisfies readonly { mode: ClickMode; key: string }[];
 
@@ -91,6 +99,10 @@ export class Hud {
   private readonly fortCost = h("span", { class: "build-cost" });
   private readonly portCost = h("span", { class: "build-cost" });
   private readonly warshipCost = h("span", { class: "build-cost" });
+  private readonly siloCost = h("span", { class: "build-cost" });
+  private readonly airDefenseCost = h("span", { class: "build-cost" });
+  private readonly missileCost = h("span", { class: "build-cost" });
+  private readonly heavyMissileCost = h("span", { class: "build-cost" });
   private readonly cityCount = h("span", { class: "build-count" });
   private mode: ClickMode = "attack";
   private rules: GameRules = {
@@ -152,16 +164,18 @@ export class Hud {
       "section",
       { class: "panel build", "data-i18n-attr": "aria-label:hud.build" },
       ...BUILD_MODES.map(({ mode, key }) => {
+        const costs: Partial<Record<ClickMode, HTMLElement>> = {
+          fort: this.fortCost,
+          port: this.portCost,
+          silo: this.siloCost,
+          airDefense: this.airDefenseCost,
+          warship: this.warshipCost,
+          missile: this.missileCost,
+          heavyMissile: this.heavyMissileCost,
+        };
+        const cost = costs[mode];
         const extra =
-          mode === "city"
-            ? [this.cityCost, this.cityCount]
-            : mode === "fort"
-              ? [this.fortCost]
-              : mode === "port"
-                ? [this.portCost]
-                : mode === "warship"
-                  ? [this.warshipCost]
-                  : [];
+          mode === "city" ? [this.cityCost, this.cityCount] : cost === undefined ? [] : [cost];
         const button = h(
           "button",
           {
@@ -292,14 +306,24 @@ export class Hud {
     this.warshipCost.textContent = formatCount(update.build.warshipCost);
     this.cityCost.textContent = formatCount(cityCost);
     this.fortCost.textContent = formatCount(fortCost);
+    const { siloCost, airDefenseCost, missileCost, heavyMissileCost, loaded } = update.build;
+    this.siloCost.textContent = formatCount(siloCost);
+    this.airDefenseCost.textContent = formatCount(airDefenseCost);
+    this.missileCost.textContent = formatCount(missileCost);
+    this.heavyMissileCost.textContent = formatCount(heavyMissileCost);
     this.cityCount.textContent = plural("hud.cities", cityLimit, { built: cities });
     const playing = update.phase === "play" && human.alive;
     const can: Partial<Record<ClickMode, boolean>> = {
       city: playing && human.gold >= cityCost && cities < cityLimit,
       fort: playing && human.gold >= fortCost,
       port: playing && human.gold >= portCost,
+      silo: playing && human.gold >= siloCost,
+      airDefense: playing && human.gold >= airDefenseCost,
+      missile: playing && loaded && human.gold >= missileCost,
+      heavyMissile: playing && loaded && human.gold >= heavyMissileCost,
       warship:
         playing &&
+        human.gold >= update.build.warshipCost &&
         update.structures.some((s) => s.type === "port" && s.player === human.id && s.ready),
       demolish: playing,
     };

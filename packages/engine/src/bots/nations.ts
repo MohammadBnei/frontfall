@@ -1,7 +1,15 @@
+import { isAllied } from "../diplomacy.ts";
 import { populationCap } from "../economy.ts";
 import type { Game, Player } from "../game.ts";
 import { divFloor, percentOf } from "../integer-math.ts";
-import { StructureKind, fortRadius, placementError, structureCost } from "../structures.ts";
+import { MissileSize, missileCost, missileError } from "../missiles.ts";
+import {
+  StructureKind,
+  fortRadius,
+  placementError,
+  structureCost,
+  structureCount,
+} from "../structures.ts";
 import { NEUTRAL } from "../territory/territory-map.ts";
 import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
 import {
@@ -9,6 +17,7 @@ import {
   buildCity,
   buildPort,
   defendCoast,
+  inlandSite,
   sail,
   scanBorder,
   type Cooldowns,
@@ -32,6 +41,12 @@ export const NATION_HOLD_PERCENT = 60; // B-NATION-HOLD
 
 /** Points of population cap a nation keeps at home on top of the reserve of a bot of the same difficulty. */
 export const NATION_EXTRA_RESERVE = 10; // B-NATION-RESERVE
+
+/** Cities a nation owns before it builds a missile silo (R-BOT-12). */
+export const NATION_SILO_CITIES = 2; // B-NATION-SILO-CITIES
+
+/** Share of all ownable land, in %, from which the leading player becomes a nation's missile target (R-BOT-12). */
+export const NATION_MISSILE_LEADER_PERCENT = 30; // B-NATION-MISSILE-LEADER
 
 /** Tiles from the attacker's land within which a nation puts a fort, as far back as it can. */
 const FORT_SETBACK = 8;
@@ -74,6 +89,7 @@ export function installNations(
   const seaCooldowns: Cooldowns = new Map();
   const cityCooldowns: Cooldowns = new Map();
   const portCooldowns: Cooldowns = new Map();
+  const armCooldowns: Cooldowns = new Map();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -91,6 +107,7 @@ export function installNations(
     buildCity(game, nation, cityCooldowns, retryTicks);
     buildPort(game, nation, portCooldowns, retryTicks);
     defendCoast(game, nation);
+    arm(nation);
     const cap = populationCap(game, nation);
     const reserve = percentOf(cap, reservePercent);
     const troops = Math.min(
@@ -136,6 +153,83 @@ export function installNations(
     const target = neutral >= 0 && !muchWeaker ? neutral : weak ? enemy : -1;
     if (target >= 0) game.apply(nation.id, { type: "attack", target, troops });
     else sail(game, nation, troops, odds, seaCooldowns, retryTicks, accept);
+  }
+
+  /**
+   * R-BOT-12: a silo near its start once it has B-NATION-SILO-CITIES cities
+   * and the gold for a missile too; an air defense once a player not its
+   * ally owns a silo; and, whenever a silo is loaded and its gold allows, a
+   * missile at the city closest to it of its main attacker, or else of the
+   * leading player once they hold B-NATION-MISSILE-LEADER of the land.
+   */
+  function arm(nation: Player): void {
+    const start = nation.start;
+    if (start === undefined) return;
+    // Built around a start it still holds, with a pause after a search that found no room.
+    const build = (kind: StructureKind): void => {
+      if (territory.ownerOf(start) !== nation.id) return;
+      if (game.tick < (armCooldowns.get(nation.id) ?? 0)) return;
+      const tile = inlandSite(game, nation, start);
+      if (tile >= 0) game.apply(nation.id, { type: "build", structure: kind, tile });
+      else armCooldowns.set(nation.id, game.tick + retryTicks);
+    };
+    const light = missileCost(game, MissileSize.Light);
+    if (
+      structureCount(game, nation.id, StructureKind.Silo) === 0 &&
+      structureCount(game, nation.id, StructureKind.City) >= NATION_SILO_CITIES &&
+      nation.gold >= structureCost(game, nation.id, StructureKind.Silo) + light
+    ) {
+      build(StructureKind.Silo);
+    }
+    const threat = game.structures.some(
+      (s) =>
+        s.kind === StructureKind.Silo &&
+        s.player !== nation.id &&
+        !isAllied(game, nation.id, s.player),
+    );
+    if (
+      threat &&
+      structureCount(game, nation.id, StructureKind.AirDefense) === 0 &&
+      nation.gold >= structureCost(game, nation.id, StructureKind.AirDefense)
+    ) {
+      build(StructureKind.AirDefense);
+    }
+    if (nation.gold < light) return;
+    const target = missileTarget(nation);
+    if (target === NEUTRAL) return;
+    const topology = game.terrain.topology;
+    let city = -1;
+    let closest = 0;
+    for (const s of game.structures) {
+      if (s.player !== target || s.kind !== StructureKind.City) continue;
+      const distance = topology.squaredDistance(s.tile, start);
+      if (city < 0 || distance < closest) {
+        city = s.tile;
+        closest = distance;
+      }
+    }
+    if (city < 0) return;
+    const order = { type: "missile", target: city, size: MissileSize.Light } as const;
+    if (missileError(game, nation, city, order.size) === undefined) game.apply(nation.id, order);
+  }
+
+  /** The main attacker of the nation, or else the leading player if they hold enough land; NEUTRAL if neither. */
+  function missileTarget(nation: Player): number {
+    const attacker = mainAttacker(nation.id);
+    if (attacker !== NEUTRAL) return attacker;
+    let leader = NEUTRAL;
+    let most = 0;
+    for (const player of game.players()) {
+      if (player.id === nation.id || !player.alive || isAllied(game, nation.id, player.id))
+        continue;
+      const tiles = territory.tileCount(player.id);
+      if (tiles > most) {
+        leader = player.id;
+        most = tiles;
+      }
+    }
+    const share = most * 100;
+    return share >= game.terrain.ownableCount * NATION_MISSILE_LEADER_PERCENT ? leader : NEUTRAL;
   }
 
   /**

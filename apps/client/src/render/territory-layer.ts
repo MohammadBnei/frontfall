@@ -46,6 +46,9 @@ const FADE_SECONDS = 0.15;
  */
 export const FRONT_SECONDS = 1.5;
 
+/** Ground under fallout (R-UNIT-06): a scorched olive, mixed into the land's own colour. */
+const FALLOUT = [96, 102, 34] as const;
+
 /** Luminance of lowland ground: the relief lightens owned land above it and darkens it below. */
 const GROUND_LEVEL = luminance(MAP_COLORS.land);
 
@@ -259,6 +262,12 @@ export class TerritoryLayer {
   private readonly dirtyChunks: Uint32Array;
   private readonly dirtyRows: Int32Array;
   private dirtyRowCount = 0;
+  private readonly wrapsX: boolean;
+  /** Ground colours as baked, to put back where fallout clears; made on first use. */
+  private pristineGround: Uint8Array | undefined;
+  /** Tiles drawn under fallout now, and the zones they come from. */
+  private scorched: number[] = [];
+  private falloutKey = "";
   private fullRefresh = false;
 
   constructor(readonly options: TerritoryLayerOptions) {
@@ -289,6 +298,7 @@ export class TerritoryLayer {
       height,
     );
     this.groundTexture.colorSpace = THREE.SRGBColorSpace;
+    this.wrapsX = wrapsX;
 
     // Long ago: nothing fades on the first frame.
     this.takenAt = new Float32Array(width * height).fill(-1e6);
@@ -384,6 +394,47 @@ export class TerritoryLayer {
       this.paletteData[owner * 4 + 3] = flagged.has(owner) ? 128 : 255;
     }
     this.paletteTexture.needsUpdate = true;
+  }
+
+  /**
+   * Discs of land under fallout (R-UNIT-06), drawn as scorched ground:
+   * unowned, and a sickly olive rather than its own colour. Zones change
+   * only when a heavy missile strikes or its fallout clears, so the ground
+   * texture is sent again only then. Returns whether anything changed.
+   */
+  setFallout(zones: readonly { x: number; y: number; radius: number }[]): boolean {
+    const key = zones.map((z) => `${String(z.x)},${String(z.y)},${String(z.radius)}`).join(";");
+    if (key === this.falloutKey) return false;
+    this.falloutKey = key;
+    const { width, height, terrain } = this.options;
+    const data = this.groundTexture.image.data as Uint8Array;
+    this.pristineGround ??= data.slice();
+    const pristine = this.pristineGround;
+    for (const tile of this.scorched) {
+      for (let c = 0; c < 3; c++) data[tile * 4 + c] = pristine[tile * 4 + c] as number;
+    }
+    this.scorched = [];
+    for (const { x, y, radius } of zones) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        const row = y + dy;
+        if (row < 0 || row >= height) continue;
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (dx * dx + dy * dy > radius * radius) continue;
+          let column = x + dx;
+          if (this.wrapsX) column = ((column % width) + width) % width;
+          else if (column < 0 || column >= width) continue;
+          const tile = row * width + column;
+          if (terrain[tile] === 0) continue;
+          this.scorched.push(tile);
+          for (let c = 0; c < 3; c++) {
+            const base = pristine[tile * 4 + c] as number;
+            data[tile * 4 + c] = Math.round(base * 0.35 + (FALLOUT[c] as number) * 0.65);
+          }
+        }
+      }
+    }
+    this.groundTexture.needsUpdate = true;
+    return true;
   }
 
   /** The owner whose land gets the wide rim, usually the player at this screen; 0 for none. */

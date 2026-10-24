@@ -47,7 +47,14 @@ describe("economy", () => {
       [1, 2],
       [2, 7],
     ] as const) {
-      game.structures.push({ id, player: 1, kind: StructureKind.City, tile, readyAt: 0 });
+      game.structures.push({
+        id,
+        player: 1,
+        kind: StructureKind.City,
+        tile,
+        readyAt: 0,
+        reloadAt: 0,
+      });
     }
     expect(populationCap(game, ada)).toBe(1200);
   });
