@@ -169,8 +169,9 @@ test("four players see the same game, without a desync", async ({ browser, baseU
   // Clients hash their state every 5 seconds; let two rounds be compared.
   await expect.poll(() => clockOf(host), { timeout: 30_000 }).toBeGreaterThan(12);
   for (const page of pages) await expect.poll(() => clockOf(page)).toBeGreaterThan(11);
-  const metrics = await (await fetch(new URL("metrics", baseURL))).text();
-  expect(metrics).toMatch(/^frontfall_desyncs_total 0$/m);
+  // The server would flag a desync on every page it concerns; the counter
+  // in /metrics is shared with tests that force one.
+  for (const page of pages) await expect(page.locator(".notice")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
   // The server takes eight connections per address, and every test runs from this one.
   await Promise.all(pages.map((page) => page.close()));
@@ -211,9 +212,7 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   // Two more rounds of state hashes, compared with the guest's replayed game.
   const now = await clockOf(host);
   await expect.poll(() => clockOf(guest), { timeout: 20_000 }).toBeGreaterThan(now + 10);
-  const metrics = await (await fetch(new URL("metrics", baseURL))).text();
-  expect(metrics).toMatch(/^frontfall_desyncs_total 0$/m);
-  await expect(guest.locator(".notice")).toHaveCount(0);
+  for (const page of [host, guest]) await expect(page.locator(".notice")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
   await Promise.all([host.close(), guest.close()]);
 });

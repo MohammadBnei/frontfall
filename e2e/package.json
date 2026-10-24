@@ -10,6 +10,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "@frontfall/engine": "workspace:*",
+    "@frontfall/protocol": "workspace:*",
     "@playwright/test": "^1.64.1"
   }
 }
