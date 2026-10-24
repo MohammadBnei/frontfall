@@ -8,6 +8,8 @@ export interface TerritoryLayerOptions {
   readonly owners: Uint16Array;
   /** TileKind of every tile, 0 for water. Uploaded once. */
   readonly terrain: Uint8Array;
+  /** Whether the map wraps east-west, drawn as three copies side by side. Default true. */
+  readonly wrapsX?: boolean | undefined;
   /** Highest owner id the palette must hold. */
   readonly maxOwner: number;
 }
@@ -23,7 +25,7 @@ const vertexShader = /* glsl */ `
   uniform vec2 worldSize;
 
   void main() {
-    // Local x runs over three copies of the world, local y from south to north.
+    // Local x runs over the copies of the world, local y from south to north.
     vTile = vec2(position.x, worldSize.y - position.y);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
@@ -41,6 +43,7 @@ const fragmentShader = /* glsl */ `
   uniform highp usampler2D terrain;
   uniform sampler2D palette;
   uniform vec2 worldSize;
+  uniform bool wrapsX;
   uniform vec3 waterColor;
   uniform vec3 landColor;
   uniform vec3 highColor;
@@ -49,14 +52,15 @@ const fragmentShader = /* glsl */ `
 
   uint ownerAt(ivec2 tile) {
     ivec2 size = ivec2(worldSize);
-    tile.x = (tile.x % size.x + size.x) % size.x;
+    tile.x = wrapsX ? (tile.x % size.x + size.x) % size.x : clamp(tile.x, 0, size.x - 1);
     tile.y = clamp(tile.y, 0, size.y - 1);
     return texelFetch(owners, tile, 0).r;
   }
 
   void main() {
     ivec2 tile = ivec2(floor(vTile));
-    tile.x = (tile.x % int(worldSize.x) + int(worldSize.x)) % int(worldSize.x);
+    int columns = int(worldSize.x);
+    tile.x = wrapsX ? (tile.x % columns + columns) % columns : clamp(tile.x, 0, columns - 1);
     tile.y = clamp(tile.y, 0, int(worldSize.y) - 1);
 
     // TileKind: water, plains, hills, mountains, impassable (ice caps, glaciers).
@@ -87,8 +91,9 @@ const fragmentShader = /* glsl */ `
  * changed since the last frame are uploaded again: each row is split into up
  * to 32 chunks, and a chunk is sent if any of its tiles changed.
  *
- * The mesh spans three copies of the world side by side, so a camera kept
- * over the middle copy never sees an edge.
+ * On a map that wraps, the mesh spans three copies of the world side by
+ * side, so a camera kept over the middle copy never sees an edge. A flat map
+ * is drawn once.
  */
 export class TerritoryLayer {
   readonly mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
@@ -104,6 +109,7 @@ export class TerritoryLayer {
 
   constructor(readonly options: TerritoryLayerOptions) {
     const { width, height, owners, terrain, maxOwner } = options;
+    const wrapsX = options.wrapsX ?? true;
     if (owners.length !== width * height || terrain.length !== width * height) {
       throw new RangeError("owner and terrain arrays must cover the whole map");
     }
@@ -149,6 +155,7 @@ export class TerritoryLayer {
         terrain: { value: this.terrainTexture },
         palette: { value: this.paletteTexture },
         worldSize: { value: new THREE.Vector2(width, height) },
+        wrapsX: { value: wrapsX },
         waterColor: { value: new THREE.Color(MAP_COLORS.ocean) },
         landColor: { value: new THREE.Color(MAP_COLORS.land) },
         highColor: { value: new THREE.Color(MAP_COLORS.landHigh) },
@@ -157,8 +164,8 @@ export class TerritoryLayer {
         fillOpacity: { value: 0.55 },
       },
     });
-    const geometry = new THREE.PlaneGeometry(width * 3, height);
-    // Local coordinates: x in [-width, 2 * width), y in [0, height).
+    const geometry = new THREE.PlaneGeometry(wrapsX ? width * 3 : width, height);
+    // Local coordinates: x in [-width, 2 * width) or, on a flat map, [0, width); y in [0, height).
     geometry.translate(width / 2, height / 2, 0);
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.frustumCulled = false;

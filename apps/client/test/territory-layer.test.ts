@@ -106,6 +106,22 @@ describe("TerritoryLayer", () => {
     territory.dispose();
   });
 
+  it("draws a flat map once", () => {
+    const territory = new TerritoryLayer({
+      width: 10,
+      height: 4,
+      owners: new Uint16Array(40),
+      terrain: new Uint8Array(40),
+      wrapsX: false,
+      maxOwner: 1,
+    });
+    territory.mesh.geometry.computeBoundingBox();
+    const box = territory.mesh.geometry.boundingBox ?? new THREE.Box3();
+    expect([box.min.x, box.max.x]).toEqual([0, 10]);
+    expect(territory.mesh.material.uniforms.wrapsX?.value).toBe(false);
+    territory.dispose();
+  });
+
   it("rejects arrays of the wrong size", () => {
     expect(
       () =>

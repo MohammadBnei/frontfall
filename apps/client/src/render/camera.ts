@@ -43,19 +43,22 @@ export interface FlatCameraOptions {
   /** Size of the world in tiles. */
   readonly width: number;
   readonly height: number;
+  /** Whether the map wraps east-west; a flat map stops at its edges. Default true. */
+  readonly wrapsX?: boolean;
   /** Bounds of the zoom, where 1 fits the whole map height on screen. */
   readonly minZoom?: number;
   readonly maxZoom?: number;
 }
 
 /**
- * Orthographic view of a map that wraps east-west. The centre column is kept
- * in [0, width) whatever the pans, and the centre row is clamped so the poles
- * never leave a gap at the top or bottom of the screen.
+ * Orthographic view of a map. On a map that wraps east-west the centre column
+ * is kept in [0, width) whatever the pans; on a flat map it is clamped like
+ * the centre row, so no edge leaves a gap on screen unless the whole map fits.
  */
 export class FlatCamera implements Camera {
   readonly minZoom: number;
   readonly maxZoom: number;
+  readonly wrapsX: boolean;
   private centerX: number;
   private centerY: number;
   private zoomLevel = 1;
@@ -72,6 +75,7 @@ export class FlatCamera implements Camera {
     }
     this.minZoom = minZoom;
     this.maxZoom = maxZoom;
+    this.wrapsX = options.wrapsX ?? true;
     this.centerX = width / 2;
     this.centerY = height / 2;
     this.zoomLevel = minZoom;
@@ -110,15 +114,18 @@ export class FlatCamera implements Camera {
     const row = Math.floor(this.centerY + (y - this.viewHeight / 2) / scale);
     if (row < 0 || row >= height) return undefined;
     const column = Math.floor(this.centerX + (x - this.viewWidth / 2) / scale);
-    return row * width + wrap(column, width);
+    if (this.wrapsX) return row * width + wrap(column, width);
+    return column < 0 || column >= width ? undefined : row * width + column;
   }
 
   tileToScreen(tile: number): ScreenPoint {
     const { width } = this.options;
     const column = tile % width;
     const row = (tile - column) / width;
-    // The shorter way around the world, in [-width / 2, width / 2).
-    const dx = wrap(column + 0.5 - this.centerX + width / 2, width) - width / 2;
+    // On a wrapping map, the shorter way around the world, in [-width / 2, width / 2).
+    const dx = this.wrapsX
+      ? wrap(column + 0.5 - this.centerX + width / 2, width) - width / 2
+      : column + 0.5 - this.centerX;
     const scale = this.scale;
     return {
       x: this.viewWidth / 2 + dx * scale,
@@ -159,7 +166,12 @@ export class FlatCamera implements Camera {
   private moveTo(x: number, y: number): void {
     const { width, height } = this.options;
     const halfHeight = height / 2 / this.zoomLevel;
-    this.centerX = wrap(x, width);
+    const halfWidth = this.viewWidth / 2 / this.scale;
+    this.centerX = this.wrapsX
+      ? wrap(x, width)
+      : halfWidth * 2 >= width
+        ? width / 2
+        : Math.min(width - halfWidth, Math.max(halfWidth, x));
     this.centerY = Math.min(height - halfHeight, Math.max(halfHeight, y));
   }
 }

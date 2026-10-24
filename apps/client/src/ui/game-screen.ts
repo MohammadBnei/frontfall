@@ -47,7 +47,7 @@ export class GameScreen {
     map: MapInfo,
     private readonly actions: GameScreenActions,
   ) {
-    this.camera = new FlatCamera({ width: map.width, height: map.height });
+    this.camera = new FlatCamera({ width: map.width, height: map.height, wrapsX: map.wrapsX });
     // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
     this.surface = document.createElement("div");
     this.surface.className = "map-surface";
@@ -143,6 +143,7 @@ export class GameScreen {
         width: map.width,
         height: map.height,
         kinds: map.kinds,
+        wrapsX: map.wrapsX,
         owners: this.owners,
         maxOwner: this.options.bots + 1,
       });

@@ -72,6 +72,41 @@ describe("FlatCamera", () => {
     expect(flat.view().centerX).toBeCloseTo(WIDTH - 10);
   });
 
+  describe("on a flat map", () => {
+    // At zoom 1 the map is 1600 pixels wide: narrower than a 2000-pixel screen.
+    const flatMap = (viewWidth = 2000): FlatCamera => {
+      const flat = new FlatCamera({ width: WIDTH, height: HEIGHT, wrapsX: false });
+      flat.resize(viewWidth, 800);
+      return flat;
+    };
+
+    it("centres a map narrower than the screen and never pans it", () => {
+      const flat = flatMap();
+      flat.panBy(400, 0);
+      expect(flat.view().centerX).toBe(WIDTH / 2);
+    });
+
+    it("stops at the east and west edges once zoomed in", () => {
+      const flat = flatMap();
+      flat.zoomAt(4, 1000, 400);
+      const { halfWidth } = flat.view();
+      flat.panBy(WIDTH * flat.scale, 0);
+      expect(flat.view().centerX).toBeCloseTo(halfWidth);
+      flat.panBy(-WIDTH * flat.scale * 3, 0);
+      expect(flat.view().centerX).toBeCloseTo(WIDTH - halfWidth);
+    });
+
+    it("has no tile beyond its edges and draws each tile once", () => {
+      const flat = flatMap();
+      expect(flat.screenToTile(100, 400)).toBeUndefined();
+      expect(flat.screenToTile(1900, 400)).toBeUndefined();
+      expect(flat.screenToTile(1000, 400)).toBe(tile(WIDTH / 2, HEIGHT / 2));
+      const west = flat.tileToScreen(tile(0, 128));
+      const east = flat.tileToScreen(tile(WIDTH - 1, 128));
+      expect(east.x - west.x).toBeCloseTo((WIDTH - 1) * flat.scale);
+    });
+  });
+
   it("keeps the tile under the cursor in place while zooming", () => {
     const flat = camera();
     const cursor = { x: 1000, y: 150 };

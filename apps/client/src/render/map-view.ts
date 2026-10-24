@@ -9,6 +9,8 @@ export interface MapViewOptions {
   readonly height: number;
   /** TileKind of every tile; 0 is water. */
   readonly kinds: Uint8Array;
+  /** Whether the map wraps east-west. */
+  readonly wrapsX: boolean;
   /** Owner of every tile, kept up to date by the caller and read in place. */
   readonly owners: Uint16Array;
   readonly maxOwner: number;
@@ -35,6 +37,7 @@ export class MapView {
       height: options.height,
       owners: options.owners,
       terrain: options.kinds,
+      wrapsX: options.wrapsX,
       maxOwner: options.maxOwner,
     });
     // The layer spans x in [-width, 2 * width) and y in [0, height) from the
