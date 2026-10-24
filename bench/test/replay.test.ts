@@ -113,6 +113,6 @@ describe("pnpm sim --replay", () => {
   });
 
   it("refuses a report of another format version", () => {
-    expect(() => run({ ...report, version: 2 as 1 })).toThrow(/unsupported report version 2/);
+    expect(() => run({ ...report, version: 1 as 2 })).toThrow(/unsupported report version 1/);
   });
 });

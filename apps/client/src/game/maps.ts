@@ -12,6 +12,8 @@ export interface MapData {
   readonly kinds: Uint8Array;
   /** Elevation band on land, depth band on water, 0 to 31 (docs/map-format.md). Drawing only. */
   readonly relief: Uint8Array;
+  /** Nations of a published map, in the manifest's order; none on a generated map. */
+  readonly nations: readonly { readonly name: string; readonly tile: number }[];
   /** Published maps only: what pins the terrain, for a desync report. */
   readonly source?: { readonly format: number; readonly version: number; readonly sha256: string };
 }
@@ -84,6 +86,15 @@ const GENERATED: readonly GeneratedMap[] = [
 
 export const GENERATED_MAPS: readonly MapInfo[] = GENERATED;
 
+/**
+ * Bots to suggest for a map: none when its nations play, since they fill a
+ * published map already, and the map's own suggestion otherwise. Generated
+ * maps have no nations.
+ */
+export function suggestedBots(info: MapInfo, nations: boolean): number {
+  return nations && info.manifest !== undefined ? 0 : info.suggestedBots;
+}
+
 /** The first published map, the World when it is there, is the default. */
 export const PREFERRED_MAP = "world";
 
@@ -143,6 +154,7 @@ export async function fetchMapData(info: MapInfo, fetcher: typeof fetch = fetch)
     wrapsX: topology.wrapsX,
     kinds: terrain.kinds,
     relief: magnitude,
+    nations: manifest.nations.map(({ name, tile }) => ({ name, tile })),
     source: {
       format: manifest.format,
       version: manifest.version,
@@ -161,7 +173,15 @@ export function generateMap(id: string): MapData {
   );
   const kinds = land.map((value) => (value === 1 ? TileKind.Plains : TileKind.Water));
   const relief = coastDistance(grid, land).map((distance) => Math.min(distance - 1, 12));
-  return { id: map.id, width: map.width, height: map.height, wrapsX: map.wrapsX, kinds, relief };
+  return {
+    id: map.id,
+    width: map.width,
+    height: map.height,
+    wrapsX: map.wrapsX,
+    kinds,
+    relief,
+    nations: [],
+  };
 }
 
 /**

@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -73,6 +73,8 @@ export const GameOptions = z
       .max(64),
     bots: z.number().int().min(0).max(255),
     difficulty: Difficulty,
+    /** Whether the nations of the map's manifest play (R-BOT-07). */
+    nations: z.boolean(),
   })
   .strict();
 export type GameOptions = z.infer<typeof GameOptions>;
@@ -94,7 +96,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("join"), game: gameId }).strict(),
   /** Take back a seat after a dropped connection, receiving every turn from `from`. */
   z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
-  /** Host only: change the map, bots or difficulty of a private game before it starts. */
+  /** Host only: change the map, bots, difficulty or nations of a private game before it starts. */
   z.object({ type: z.literal("configure"), options: GameOptions }).strict(),
   /** Host only: start a private game now. */
   z.object({ type: z.literal("start") }).strict(),
@@ -122,6 +124,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
     map: z.string(),
     bots: z.number().int().nonnegative(),
     difficulty: Difficulty,
+    nations: z.boolean(),
     capacity: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
@@ -139,6 +142,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     /** Bots that every client adds to the game and runs itself. */
     bots: z.number().int().nonnegative(),
     difficulty: Difficulty,
+    /** Whether every client adds the map's nations after the bots, in the manifest's order. */
+    nations: z.boolean(),
     tickRate: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,

@@ -74,6 +74,7 @@ export const DEFAULT_GAME: GameSettings = {
   capacity: 16,
   bots: 0,
   difficulty: "normal",
+  nations: true,
   minPlayers: 2,
   countdownMs: 30_000,
   reconnectGraceMs: 120_000,

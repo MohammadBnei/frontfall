@@ -56,6 +56,42 @@ export function playerColor(index: number): PlayerColor {
   return PLAYER_COLORS[((index % count) + count) % count] as PlayerColor;
 }
 
+/**
+ * Colour of the n-th nation of a map. Nations are many (64 on World), so
+ * they take muted tones of their own rather than repeat the players'
+ * colours: hues a golden angle apart, at low saturation, so humans and bots
+ * stand out against them and no two neighbouring nations look alike.
+ */
+export function nationColor(index: number): string {
+  const hue = (index * 137.508) % 360;
+  return hslToHex(hue, 0.3, index % 2 === 0 ? 0.5 : 0.6);
+}
+
+/** Colour of player `id`: the palette for humans and bots, a muted tone from `firstNation` on. */
+export function colorOf(id: number, firstNation: number): string {
+  return id >= firstNation ? nationColor(id - firstNation) : playerColor(id - 1).hex;
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number): string {
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = lightness - chroma / 2;
+  const sector = Math.floor(hue / 60);
+  const [r, g, b] = [
+    [chroma, x, 0],
+    [x, chroma, 0],
+    [0, chroma, x],
+    [0, x, chroma],
+    [x, 0, chroma],
+    [chroma, 0, x],
+  ][sector] as [number, number, number];
+  const byte = (value: number) =>
+    Math.round((value + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${byte(r)}${byte(g)}${byte(b)}`.toUpperCase();
+}
+
 /** "#RRGGBB" to [r, g, b] bytes, for textures. */
 export function hexToRgb(hex: string): [number, number, number] {
   const value = Number.parseInt(hex.slice(1), 16);

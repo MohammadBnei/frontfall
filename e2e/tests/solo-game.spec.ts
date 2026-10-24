@@ -138,6 +138,36 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
+test("plays against the nations of the map, named and on the board (R-BOT-07)", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+
+  await page.goto("./?map=island&bots=1&difficulty=easy&nations=1");
+  await expect(page.locator("#nations")).toBeChecked();
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  // Placed on their tiles when the spawn phase ends, then ranked with everyone.
+  await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
+  const leaders = page.locator(".leaderboard-list .leader-name");
+  await expect(leaders.filter({ hasText: "Northmark" })).toHaveCount(1);
+  await expect(page.locator(".leaderboard-list .leader")).toHaveCount(8);
+
+  // Unticked, the next game has none, and the choice is remembered.
+  await page.goto("./");
+  await expect(page.locator("#nations")).toBeChecked();
+  await page.locator("#nations").uncheck();
+  await page.locator("#play").click();
+  await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
+  await expect(
+    page.locator(".leaderboard-list .leader-name").filter({ hasText: "Northmark" }),
+  ).toHaveCount(0);
+
+  expect(pageErrors).toEqual([]);
+});
+
 test("pauses and shows the controls", async ({ page }) => {
   await page.goto("./?map=skirmish&bots=1");
   await page.locator("#play").click();
@@ -186,7 +216,7 @@ test("plays a World game against 8 bots to its end screen", async ({ page }, tes
 
   // Thirty ticks per beat and a 3-minute limit: the 1,800 ticks of a whole
   // game run in well under a minute, every one of them simulated and drawn.
-  await page.goto("./?map=world&bots=8&difficulty=hard&speed=30&minutes=3");
+  await page.goto("./?map=world&bots=8&difficulty=hard&nations=0&speed=30&minutes=3");
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   await expect(page.locator(".goal-clock")).toContainText("of 3:00", { timeout: 30_000 });

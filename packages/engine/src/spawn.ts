@@ -46,7 +46,8 @@ const PLACEMENT_ATTEMPTS = 1000;
 /**
  * The spawn phase (R-SPAWN-01 to R-SPAWN-05). Players pick a start tile, and
  * may pick again until the phase ends; whoever has not picked by then is
- * placed at random. Each player's start is kept in `player.start`.
+ * placed at random. A nation starts on its map tile instead (R-BOT-07). Each
+ * player's start is kept in `player.start`.
  */
 export function installSpawn(game: Game): void {
   game.onOrder((_, player, order) => {
@@ -58,8 +59,14 @@ export function installSpawn(game: Game): void {
   game.onTick(() => {
     // The system runs before the tick counter moves: this is the last tick of the phase.
     if (game.tick !== game.balance.spawnPhaseTicks - 1) return;
+    // Nations first, on the start their map gives them, so random places keep away from them.
     for (const player of game.players()) {
-      if (player.alive && player.start === undefined) placeAtRandom(game, player);
+      if (player.alive && player.home !== undefined) placeAtHome(game, player, player.home);
+    }
+    for (const player of game.players()) {
+      if (player.alive && player.start === undefined && player.home === undefined) {
+        placeAtRandom(game, player);
+      }
     }
   });
 }
@@ -98,6 +105,19 @@ function place(game: Game, player: Player, tile: number): void {
   }
   player.start = tile;
   player.troops = troops;
+}
+
+/**
+ * R-BOT-07: a nation starts on its tile while that tile is free, without the
+ * spacing of R-SPAWN-02: the map already keeps nations apart, and a player
+ * who picked near one chose to. A player who took the tile took the nation's
+ * place: it stays unplaced and is eliminated when play starts (R-ECO-05).
+ */
+function placeAtHome(game: Game, player: Player, home: number): void {
+  if (player.start !== undefined) return;
+  if (game.terrain.isOwnable(home) && game.territory.ownerOf(home) === NEUTRAL) {
+    place(game, player, home);
+  }
 }
 
 /**

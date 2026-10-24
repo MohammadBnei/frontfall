@@ -31,6 +31,8 @@ export interface PlayerSetup {
   /** 1 to MAX_PLAYER_ID; 0 is the neutral owner. */
   id: number;
   name: string;
+  /** Start tile set by the map, for a nation (R-BOT-07); others pick or are placed. */
+  start?: number;
 }
 
 export interface GameSetup {
@@ -52,6 +54,8 @@ export interface Player {
   start: number | undefined;
   /** First tick the player is no longer marked a traitor (R-DIPLO-04); 0 if never. */
   traitorUntil: number;
+  /** Start tile the map sets for a nation (R-BOT-07); undefined for players who pick. */
+  readonly home: number | undefined;
 }
 
 export type Phase = "spawn" | "play";
@@ -107,11 +111,17 @@ export class Game {
     checkBalance(this.balance);
     this.balanceDigest = digestBalance(this.balance);
     let highest = 1;
-    for (const { id, name } of setup.players) {
+    for (const { id, name, start: home } of setup.players) {
       if (!Number.isInteger(id) || id < 1 || id > MAX_PLAYER_ID) {
         throw new RangeError(`invalid player id ${String(id)}`);
       }
       if (this.playersById.has(id)) throw new RangeError(`duplicate player id ${String(id)}`);
+      if (
+        home !== undefined &&
+        !(Number.isInteger(home) && home >= 0 && home < setup.terrain.topology.size)
+      ) {
+        throw new RangeError(`start of player ${String(id)} is off the map`);
+      }
       this.playersById.set(id, {
         id,
         name,
@@ -121,6 +131,7 @@ export class Game {
         alive: true,
         start: undefined,
         traitorUntil: 0,
+        home,
       });
       highest = Math.max(highest, id);
     }
@@ -178,6 +189,8 @@ export class Game {
         p.alive ? 1 : 0,
         p.start ?? -1,
         p.traitorUntil,
+        // The map's nations come from its manifest, which the terrain's hash does not cover.
+        p.home ?? -1,
       ]) {
         mix(value);
       }

@@ -1,11 +1,11 @@
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
-import { BOT_DIFFICULTIES, installBots, type BotDifficulty } from "./bots/index.ts";
+import { BOT_DIFFICULTIES, installBots, installNations, type BotDifficulty } from "./bots/index.ts";
 import { createGame } from "./create-game.ts";
 import type { Order, PlayerSetup, Turn } from "./game.ts";
 import type { Terrain } from "./terrain.ts";
 
 /** Version of the report format below; a reader refuses any other. */
-export const DESYNC_REPORT_VERSION = 1;
+export const DESYNC_REPORT_VERSION = 2;
 
 /**
  * Everything needed to play a game again, tick for tick, and the state
@@ -22,9 +22,11 @@ export interface DesyncReport {
   seed: number;
   /** Every balance value the game ran with, not only those that differ from the defaults. */
   balance: Balance;
-  /** Every player in the game, humans and bots, with the ids the game used. */
+  /** Every player in the game, humans, bots and nations, with the ids the game used. */
   players: PlayerSetup[];
   bots: { ids: number[]; difficulty: BotDifficulty };
+  /** Nations among the players, playing at the bots' difficulty; absent from reports of games without. */
+  nations?: number[];
   /** The player whose client wrote the report. */
   you: number;
   /** Ticks the client had run; turns and hashes come from ticks below this. */
@@ -56,6 +58,7 @@ export function replayDesyncReport(report: DesyncReport, terrain: Terrain): Repl
     balance: report.balance,
   });
   installBots(game, report.bots.ids, report.bots.difficulty);
+  installNations(game, report.nations ?? [], report.bots.difficulty);
   const turns = new Map(report.turns.map((turn) => [turn.tick, turn.orders]));
   const hashes = new Map(report.hashes.map((entry) => [entry.tick, entry]));
   let firstLocalMismatch: ReplayResult["firstLocalMismatch"];
@@ -118,12 +121,20 @@ export function readDesyncReport(value: unknown): DesyncReport {
     balance: balance as unknown as Balance,
     players: list(report.players, "players").map((entry, i) => {
       const player = record(entry, `players[${String(i)}]`);
-      return { id: integer(player.id, "player id"), name: text(player.name, "player name") };
+      const setup: PlayerSetup = {
+        id: integer(player.id, "player id"),
+        name: text(player.name, "player name"),
+      };
+      if (player.start !== undefined) setup.start = integer(player.start, "player start");
+      return setup;
     }),
     bots: {
       ids: list(bots.ids, "bots.ids").map((id) => integer(id, "bot id")),
       difficulty: difficulty as BotDifficulty,
     },
+    ...(report.nations === undefined
+      ? {}
+      : { nations: list(report.nations, "nations").map((id) => integer(id, "nation id")) }),
     you: integer(report.you, "you"),
     ticks: integer(report.ticks, "ticks"),
     turns: list(report.turns, "turns").map((entry, i) => {

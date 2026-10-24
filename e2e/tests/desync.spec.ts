@@ -65,11 +65,13 @@ test("a player whose game drifts apart is told, and can download a report that r
   const file = await (await download).path();
   const saved = readDesyncReport(JSON.parse(await readFile(file, "utf8")));
   expect(saved.map.id).toBe("world");
-  expect(saved.players).toHaveLength(5);
 
   const manifest = MapManifest.parse(
     JSON.parse(await readFile(new URL("world.json", MAPS), "utf8")),
   );
+  // Three players and two bots, then the map's nations, which the replay plays too.
+  expect(saved.players).toHaveLength(5 + manifest.nations.length);
+  expect(saved.nations).toHaveLength(manifest.nations.length);
   const { terrain } = loadMap(
     new Uint8Array(await readFile(new URL(manifest.terrain.file, MAPS))),
     manifest,

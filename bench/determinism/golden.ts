@@ -5,6 +5,7 @@ import {
   DESYNC_REPORT_VERSION,
   installBots,
   isAllied,
+  installNations,
   loadMap,
   orderError,
   reachableCoasts,
@@ -13,6 +14,7 @@ import {
   type DesyncReport,
   type MapDescription,
   type Order,
+  type PlayerSetup,
   type Turn,
 } from "@frontfall/engine";
 import { PROTOCOL_VERSION } from "@frontfall/protocol";
@@ -30,12 +32,23 @@ interface Golden {
   readonly seed: number;
   readonly bots: number;
   readonly difficulty: BotDifficulty;
+  /** Whether the map's nations play, after the bots (R-BOT-07). */
+  readonly nations?: boolean;
   readonly ticks: number;
 }
 
 export const GOLDEN_REPLAYS: readonly Golden[] = [
   { name: "europe-normal", map: "europe", seed: 7, bots: 11, difficulty: "normal", ticks: 3000 },
   { name: "world-hard", map: "world", seed: 11, bots: 7, difficulty: "hard", ticks: 2000 },
+  {
+    name: "world-nations",
+    map: "world",
+    seed: 13,
+    bots: 3,
+    difficulty: "normal",
+    nations: true,
+    ticks: 2000,
+  },
 ];
 
 /** Ticks between two hashes in a golden replay, as online clients send them. */
@@ -44,6 +57,7 @@ export const GOLDEN_HASH_INTERVAL = 50;
 interface PublishedManifest extends MapDescription {
   readonly format: number;
   readonly version: number;
+  readonly nations: readonly { readonly name: string; readonly tile: number }[];
 }
 
 const maps = new URL("../../apps/client/public/maps/", import.meta.url);
@@ -54,13 +68,19 @@ function record(golden: Golden): DesyncReport {
   ) as PublishedManifest;
   const { terrain } = loadMap(readFileSync(new URL(`${golden.map}.bin`, maps)), manifest);
   const { topology } = terrain;
-  const players = Array.from({ length: golden.bots + 1 }, (_, i) => ({
+  const players: PlayerSetup[] = Array.from({ length: golden.bots + 1 }, (_, i) => ({
     id: i + 1,
     name: i === 0 ? "Player" : `Bot ${String(i)}`,
   }));
   const bots = players.slice(1).map((player) => player.id);
+  const nations: number[] = [];
+  for (const { name, tile } of golden.nations ? manifest.nations : []) {
+    nations.push(players.length + 1);
+    players.push({ id: players.length + 1, name, start: tile });
+  }
   const game = createGame({ terrain, seed: golden.seed, players, balance: DEFAULT_BALANCE });
   installBots(game, bots, golden.difficulty);
+  installNations(game, nations, golden.difficulty);
 
   // The scripted player: a start near the middle of the map, then a third of
   // its troops every five seconds at free land, else the first neighbour,
@@ -139,6 +159,7 @@ function record(golden: Golden): DesyncReport {
     balance: DEFAULT_BALANCE,
     players,
     bots: { ids: bots, difficulty: golden.difficulty },
+    ...(nations.length > 0 ? { nations } : {}),
     you: 1,
     ticks: game.tick,
     turns,

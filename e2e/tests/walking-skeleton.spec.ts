@@ -90,7 +90,7 @@ test("two players meet in a private game without leaving the base path", async (
   await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
   await expect(guest.locator("#lobby-start")).toBeHidden();
   await expect(guest.locator("#lobby-map")).toBeHidden();
-  await expect(guest.locator("#lobby-summary")).toHaveText("World · 0 bots · Hard");
+  await expect(guest.locator("#lobby-summary")).toHaveText("World · 0 bots · nations · Hard");
   await host.locator("#lobby-start").click();
 
   for (const page of [host, guest]) {
@@ -143,8 +143,9 @@ test("four players see the same game, without a desync", async ({ browser, baseU
   const invite = host.locator("#invite-link");
   await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
   const link = await invite.inputValue();
-  // Humans only: the game takes the menu's bots otherwise.
+  // Humans only: the game takes the menu's bots and the map's nations otherwise.
   await host.locator("#lobby-bots").fill("0");
+  await host.locator("#lobby-nations").uncheck();
   for (const [index, guest] of guests.entries()) {
     const invited = new URL(link);
     invited.searchParams.set("name", names[index + 1] ?? "");
@@ -152,7 +153,9 @@ test("four players see the same game, without a desync", async ({ browser, baseU
   }
   await expect(host.locator("#lobby-players li")).toHaveCount(4, { timeout: 15_000 });
   // The guests read the host's settings.
-  await expect((guests[0] ?? host).locator("#lobby-summary")).toContainText(" 0 bots ");
+  const summary = (guests[0] ?? host).locator("#lobby-summary");
+  await expect(summary).toContainText(" 0 bots ");
+  await expect(summary).not.toContainText("nations");
   await host.locator("#lobby-start").click();
 
   // Every page lists the same four players with the same colours.
@@ -200,6 +203,8 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   const invite = host.locator("#invite-link");
   await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
   await host.locator("#lobby-bots").fill("2");
+  // Four rows on the board: the players and the bots, without nations.
+  await host.locator("#lobby-nations").uncheck();
   await guest.goto(await invite.inputValue());
   await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
   await host.locator("#lobby-start").click();

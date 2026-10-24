@@ -1,0 +1,320 @@
+import { describe, expect, it, vi } from "vitest";
+import { installAttacks } from "../src/attacks.ts";
+import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
+import { installBoats } from "../src/boats.ts";
+import { BOT_DIFFICULTIES } from "../src/bots/difficulty.ts";
+import {
+  installBots,
+  installNations,
+  NATION_FULL_PERCENT,
+  NATION_HOLD_PERCENT,
+} from "../src/bots/index.ts";
+import { installEconomy, populationCap } from "../src/economy.ts";
+import { Game, type Order, type Player } from "../src/game.ts";
+import { installSpawn, spawnSettings } from "../src/spawn.ts";
+import { StructureKind, installStructures } from "../src/structures.ts";
+import { Terrain, TileKind } from "../src/terrain.ts";
+import { NEUTRAL } from "../src/territory/territory-map.ts";
+import { WorldGrid } from "../src/world-grid.ts";
+
+const balance: Balance = { ...DEFAULT_BALANCE, spawnPhaseTicks: 10, spawnDistance: 12 };
+const interval = BOT_DIFFICULTIES.hard.intervalSeconds * balance.ticksPerSecond;
+
+/**
+ * A strip of 60 x 3 plains, no wrap: Ada holds columns 0 to 19, the nation
+ * (player 1) 20 to 39 and Bea 40 to 59. One tile per tick for every attack,
+ * so a fight lasts. The nation decides on the ticks where (tick + 1) is a
+ * multiple of the hard interval.
+ */
+function strip(overrides: Partial<Balance> = {}) {
+  const grid = new WorldGrid(60, 3, { wrapsX: false });
+  const game = new Game({
+    terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+    seed: 5,
+    players: [
+      { id: 1, name: "Norland" },
+      { id: 2, name: "Ada" },
+      { id: 3, name: "Bea" },
+    ],
+    // No encirclement either: a pocket would end a fight at once.
+    balance: {
+      ...balance,
+      spawnPhaseTicks: 0,
+      attackSpeedDivisor: 1000,
+      encircleMaxTiles: 1,
+      ...overrides,
+    },
+  });
+  installAttacks(game);
+  installStructures(game);
+  installNations(game, [1], "hard", 0);
+  for (let tile = 0; tile < grid.size; tile++) {
+    const x = grid.x(tile);
+    game.territory.setOwner(tile, x < 20 ? 2 : x < 40 ? 1 : 3);
+  }
+  const nation = game.player(1) as Player;
+  const ada = game.player(2) as Player;
+  const bea = game.player(3) as Player;
+  nation.start = grid.index(30, 1);
+  const apply = vi.spyOn(game, "apply");
+  const ordersOf = (player: number) =>
+    apply.mock.calls.filter(([id]) => id === player).map(([, order]) => order);
+  const run = (ticks: number, orders: { player: number; order: Order }[] = []) => {
+    for (let i = 0; i < ticks; i++) {
+      game.step({ tick: game.tick, orders: i === 0 ? orders : [] });
+    }
+  };
+  /** Ada attacks the nation on the tick just before its next decision. */
+  const adaAttacks = (troops = 3000) => {
+    run(interval - 2);
+    run(1, [{ player: 2, order: { type: "attack", target: grid.index(25, 1), troops } }]);
+  };
+  return { grid, game, nation, ada, bea, ordersOf, run, adaAttacks };
+}
+
+describe("nations", () => {
+  it("hold under attack while their troops are at most B-NATION-HOLD of their cap (R-BOT-08)", () => {
+    const { game, nation, ada, bea, ordersOf, run, adaAttacks } = strip();
+    nation.troops = 2000;
+    ada.troops = 5000;
+    // Bea is easy prey: a bot would turn on her.
+    bea.troops = 10;
+    adaAttacks();
+    expect(nation.troops * 100).toBeLessThanOrEqual(
+      populationCap(game, nation) * NATION_HOLD_PERCENT,
+    );
+    run(1);
+    expect(game.attacks.some((attack) => attack.player === 2 && attack.target === 1)).toBe(true);
+    expect(ordersOf(1)).toEqual([]);
+  });
+
+  it("keep playing through attacks too small to threaten them (B-NATION-THREAT)", () => {
+    const { game, grid, nation, ada, bea, ordersOf, run, adaAttacks } = strip();
+    nation.troops = 4000;
+    ada.troops = 5000;
+    bea.troops = 10;
+    // Under a tenth of the nation's troops: it plays on, and turns on Bea rather than answer Ada.
+    adaAttacks(300);
+    run(1);
+    expect(game.attacks.some((attack) => attack.player === 2 && attack.target === 1)).toBe(true);
+    const targets = ordersOf(1).map((order) =>
+      order.type === "attack" ? grid.x(order.target) : -1,
+    );
+    expect(targets).toEqual([40]);
+  });
+
+  it("answer the attacker, and only the attacker, once strong enough (R-BOT-08)", () => {
+    const { game, nation, ada, bea, ordersOf, run, adaAttacks } = strip();
+    nation.troops = 4800;
+    ada.troops = 5000;
+    bea.troops = 10;
+    adaAttacks();
+    run(1);
+    const orders = ordersOf(1);
+    expect(orders).toHaveLength(1);
+    const order = orders[0] as Order;
+    expect(order.type).toBe("attack");
+    expect(order.type === "attack" && game.territory.ownerOf(order.target)).toBe(2);
+  });
+
+  it("build a fort facing the attacker when their gold allows (R-BOT-08)", () => {
+    const { game, grid, nation, ada, run, adaAttacks } = strip({ fortCost: 100 });
+    nation.troops = 2000;
+    nation.gold = 100;
+    ada.troops = 5000;
+    adaAttacks();
+    run(1);
+    expect(game.structures.map((s) => [s.kind, s.player])).toEqual([[StructureKind.Fort, 1]]);
+    // Behind the front at x = 20, so the first tiles lost do not take it.
+    const fort = game.structures[0];
+    expect(fort && game.territory.isBorder(fort.tile)).toBe(false);
+    expect(fort && grid.x(fort.tile)).toBeGreaterThan(22);
+    expect(fort && grid.x(fort.tile)).toBeLessThanOrEqual(30);
+    // One fort per front, even while it is being built.
+    nation.gold = 1000;
+    run(interval);
+    expect(game.structures).toHaveLength(1);
+  });
+
+  it("leave alone a neighbour that is weaker but not by B-NATION-ODDS (R-BOT-09)", () => {
+    const { ordersOf, run, nation, ada, bea } = strip();
+    nation.troops = 4000;
+    // 90 % of the nation's troops per tile on both sides: a hard bot would attack.
+    ada.troops = 3600;
+    bea.troops = 3600;
+    run(3 * interval);
+    expect(ordersOf(1)).toEqual([]);
+  });
+
+  it("take a bot's odds once their army is full (B-NATION-FULL)", () => {
+    const { game, ordersOf, run, nation, ada, bea } = strip();
+    const cap = populationCap(game, nation);
+    // Just under full, then full: neighbours as dense as the nation.
+    nation.troops = Math.floor((cap * NATION_FULL_PERCENT) / 100) - 1;
+    ada.troops = nation.troops;
+    bea.troops = nation.troops;
+    run(interval);
+    expect(ordersOf(1)).toEqual([]);
+    nation.troops = cap;
+    ada.troops = cap;
+    bea.troops = cap;
+    run(interval);
+    expect(ordersOf(1).map((order) => order.type)).toEqual(["attack"]);
+  });
+
+  it("fight one player at a time (R-BOT-09)", () => {
+    const { game, grid, ordersOf, run, nation, ada, bea } = strip();
+    nation.troops = 9000;
+    ada.troops = 1000;
+    run(1, [{ player: 1, order: { type: "attack", target: grid.index(15, 1), troops: 3000 } }]);
+    // Bea is now much weaker than Ada.
+    bea.troops = 10;
+    run(2 * interval);
+    expect(game.attacks.some((attack) => attack.player === 1 && attack.target === 2)).toBe(true);
+    const targets = ordersOf(1)
+      .slice(1)
+      .map((order) => (order.type === "attack" ? grid.x(order.target) : -1));
+    expect(targets.length).toBeGreaterThan(0);
+    for (const x of targets) expect(x).toBeLessThan(20);
+    expect(game.attacks.some((attack) => attack.player === 1 && attack.target === 3)).toBe(false);
+  });
+
+  it("attack no player during B-NATION-GRACE, but still answer an attacker (R-BOT-09)", () => {
+    const grid = new WorldGrid(60, 3, { wrapsX: false });
+    const game = new Game({
+      terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+      seed: 5,
+      players: [
+        { id: 1, name: "Norland" },
+        { id: 2, name: "Ada" },
+      ],
+      balance: { ...balance, spawnPhaseTicks: 0, attackSpeedDivisor: 1000, encircleMaxTiles: 1 },
+    });
+    installAttacks(game);
+    installNations(game, [1], "hard", 10);
+    for (let tile = 0; tile < grid.size; tile++) {
+      game.territory.setOwner(tile, grid.x(tile) < 30 ? 1 : 2);
+    }
+    const nation = game.player(1) as Player;
+    const ada = game.player(2) as Player;
+    const apply = vi.spyOn(game, "apply");
+    const run = (ticks: number, orders: { player: number; order: Order }[] = []) => {
+      for (let i = 0; i < ticks; i++) {
+        game.step({ tick: game.tick, orders: i === 0 ? orders : [] });
+      }
+    };
+    nation.troops = 9000;
+    ada.troops = 10;
+    // Ten seconds of grace: Ada, easy prey, is left alone.
+    run(60);
+    expect(apply).not.toHaveBeenCalled();
+    // Her attack is answered all the same.
+    ada.troops = 6000;
+    run(1, [{ player: 2, order: { type: "attack", target: grid.index(25, 1), troops: 5000 } }]);
+    run(interval);
+    expect(apply.mock.calls.some(([id]) => id === 1)).toBe(true);
+    apply.mockClear();
+    // Once it is over, she is fair game without attacking first.
+    run(100);
+    expect(apply.mock.calls.some(([id]) => id === 1)).toBe(true);
+  });
+
+  it("refuse unknown players", () => {
+    const { game } = strip();
+    expect(() => {
+      installNations(game, [9], "easy");
+    }).toThrow(RangeError);
+  });
+});
+
+describe("nation starts (R-BOT-07)", () => {
+  /** Plains 40 x 20 with a human, a nation whose home is set, and a bot. */
+  function spawnGame(home: number) {
+    const grid = new WorldGrid(40, 20);
+    const game = new Game({
+      terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+      seed: 9,
+      players: [
+        { id: 1, name: "You" },
+        { id: 2, name: "Norland", start: home },
+        { id: 3, name: "Bot" },
+      ],
+      balance,
+    });
+    installSpawn(game);
+    installEconomy(game);
+    const run = (ticks: number, orders: { player: number; order: Order }[] = []) => {
+      for (let i = 0; i < ticks; i++) {
+        game.step({ tick: game.tick, orders: i === 0 ? orders : [] });
+      }
+    };
+    return { grid, game, run };
+  }
+
+  it("start on their tile when the spawn phase ends, however close a human picked", () => {
+    const { grid, game, run } = spawnGame(220);
+    const human = grid.index(14, 5);
+    expect(grid.distance(human, 220)).toBeLessThan(balance.spawnDistance);
+    run(1, [{ player: 1, order: { type: "spawn", tile: human } }]);
+    expect(game.player(2)?.start).toBeUndefined();
+    run(balance.spawnPhaseTicks - 1);
+    expect(game.player(2)?.start).toBe(220);
+    expect(game.territory.ownerOf(220)).toBe(2);
+    // Their areas overlap: the human's tiles stay theirs.
+    expect(game.territory.tileCount(2)).toBeGreaterThan(0);
+    // The bot is placed at random afterwards, away from both.
+    const bot = game.player(3)?.start as number;
+    expect(grid.distance(bot, 220)).toBeGreaterThanOrEqual(spawnSettings(game).distance);
+  });
+
+  it("do not play when a human took their tile", () => {
+    const { game, run } = spawnGame(220);
+    run(1, [{ player: 1, order: { type: "spawn", tile: 221 } }]);
+    run(balance.spawnPhaseTicks);
+    const nation = game.player(2);
+    expect(nation?.start).toBeUndefined();
+    expect(nation?.alive).toBe(false);
+    expect(game.territory.ownerOf(220)).toBe(1);
+  });
+
+  it("refuse a start off the map", () => {
+    const grid = new WorldGrid(4, 4);
+    const terrain = new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains));
+    expect(
+      () => new Game({ terrain, seed: 1, players: [{ id: 1, name: "N", start: 16 }], balance }),
+    ).toThrow(RangeError);
+  });
+
+  it("play the same game on every run with bots around them (R-BOT-03)", () => {
+    const play = () => {
+      const grid = new WorldGrid(96, 48);
+      const players = Array.from({ length: 8 }, (_, i) => ({
+        id: i + 1,
+        name: `P${String(i)}`,
+        ...(i < 4 ? { start: grid.index(12 + 24 * i, 12 + 8 * i) } : {}),
+      }));
+      const game = new Game({
+        terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+        seed: 21,
+        players,
+        balance,
+      });
+      installSpawn(game);
+      installAttacks(game);
+      installBoats(game);
+      installStructures(game);
+      installEconomy(game);
+      installBots(game, [5, 6, 7, 8], "hard");
+      installNations(game, [1, 2, 3, 4], "hard");
+      for (let i = 0; i < 600; i++) game.step({ tick: game.tick, orders: [] });
+      return game;
+    };
+    const first = play();
+    const second = play();
+    expect(first.hash()).toBe(second.hash());
+    for (const id of [1, 2, 3, 4]) {
+      expect(first.territory.tileCount(id)).toBeGreaterThan(0);
+    }
+    expect(first.territory.tileCount(NEUTRAL)).toBeLessThan(96 * 48);
+  });
+});

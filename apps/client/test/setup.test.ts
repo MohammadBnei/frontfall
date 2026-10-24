@@ -41,7 +41,7 @@ describe("game setup", () => {
       sanitizeSetup({ map: "atlantis", bots: "lots", difficulty: "insane" }, base, maps),
     ).toEqual(base);
     expect(sanitizeSetup({ bots: "999" }, base, maps).bots).toBe(25);
-    expect(sanitizeSetup({ bots: "0" }, base, maps).bots).toBe(1);
+    expect(sanitizeSetup({ bots: "-3" }, base, maps).bots).toBe(0);
   });
 
   it("remembers the last setup, and lets the link override it", () => {

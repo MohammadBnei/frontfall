@@ -277,6 +277,7 @@ function initialOptions(
     map: map.id,
     bots: Math.min(chosen.bots, botLimit(map, players)),
     difficulty: chosen.difficulty,
+    nations: chosen.nations ?? true,
   };
 }
 
@@ -306,6 +307,7 @@ function startOnline(start: GameStart, client: OnlineClient): void {
       bots: start.bots,
       // Chosen by the host; every client runs the same bots.
       difficulty: start.difficulty,
+      nations: start.nations,
       playerName: "",
       players: start.players,
       you: start.you,

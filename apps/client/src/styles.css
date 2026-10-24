@@ -139,6 +139,17 @@ input[type="range"] {
   min-width: 0;
 }
 
+.toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--ff-slate-300);
+}
+
+.toggle input {
+  accent-color: var(--ff-ember);
+}
+
 .range-value {
   min-width: 3.5em;
   text-align: right;

@@ -1,4 +1,4 @@
-import type { MapInfo } from "../game/maps.ts";
+import { suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty, type SoloOptions } from "../game/solo-game.ts";
 
 /** What the player chooses in the menu; the seed is drawn when the game starts. */
@@ -8,11 +8,17 @@ const STORAGE_KEY = "frontfall.setup";
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 export const MAX_NAME_LENGTH = 20;
 
-/** The first map of the list, with its suggested number of bots. */
+/** The first map of the list with its nations, and the bots suggested with them. */
 export function defaultSetup(maps: readonly MapInfo[]): GameSetup {
   const map = maps[0];
   if (!map) throw new Error("no map available");
-  return { map: map.id, bots: map.suggestedBots, difficulty: "normal", playerName: "" };
+  return {
+    map: map.id,
+    bots: suggestedBots(map, true),
+    difficulty: "normal",
+    nations: true,
+    playerName: "",
+  };
 }
 
 /** Keeps only values that make sense; anything else falls back to `base`. */
@@ -27,11 +33,14 @@ export function sanitizeSetup(
   }
   const bots = Number(input.bots);
   if (input.bots !== undefined && input.bots !== "" && Number.isInteger(bots)) {
-    setup.bots = Math.max(1, Math.min(MAX_BOTS, bots));
+    setup.bots = Math.max(0, Math.min(MAX_BOTS, bots));
   }
   if (DIFFICULTIES.includes(input.difficulty as Difficulty)) {
     setup.difficulty = input.difficulty as Difficulty;
   }
+  // Stored as a boolean, shared in a link as 1 or 0.
+  if (input.nations === true || input.nations === "1") setup.nations = true;
+  if (input.nations === false || input.nations === "0") setup.nations = false;
   if (typeof input.name === "string") setup.playerName = cleanName(input.name);
   if (typeof input.playerName === "string") setup.playerName = cleanName(input.playerName);
   return setup;
@@ -75,6 +84,7 @@ export function setupQuery(setup: GameSetup): string {
     map: setup.map,
     bots: String(setup.bots),
     difficulty: setup.difficulty,
+    nations: setup.nations ? "1" : "0",
   });
   return `?${params.toString()}`;
 }

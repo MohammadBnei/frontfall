@@ -63,7 +63,7 @@ const turn = clock.advance(); // runs the tick and returns the turn it closed
 
 `pnpm determinism` plays 10,000 ticks of eight bots on World twice in Node and once each in a Chromium and a Firefox worker (`--browsers chromium` for one only), and fails unless every run reaches the same state hash; CI runs it on every push. Hashes are compared every 1,000 ticks, so a failure names the stretch where the runs parted.
 
-Golden replays in `packages/engine/test/replays/` are desync reports (see below) of scripted games on Europe and World, with the hash pinned every 50 ticks. The bench tests play them in Node with today's `DEFAULT_BALANCE`, and `pnpm determinism` plays them again in the Chromium and Firefox workers. `game.hash()` folds in every balance value, so changing a rule or any balance value makes them fail with the first tick that differs. When the change is meant, `pnpm golden` writes them again; commit the new files with the change (see "Changing a rule or the balance" in CONTRIBUTING.md). A failure after a change that should not alter games is a bug, not a reason to regenerate.
+Golden replays in `packages/engine/test/replays/` are desync reports (see below) of scripted games on Europe and World, with the hash pinned every 50 ticks. The bench tests play them in Node with today's `DEFAULT_BALANCE`, and `pnpm determinism` plays them again in the Chromium and Firefox workers. `game.hash()` folds in every balance value and every player's start tile from the map, so a client whose map manifest lists other nations (its JSON is not covered by the terrain's `sha256`) parts from the others at the first hash, at tick 0. Changing a rule or any balance value makes the replays fail with the first tick that differs. When the change is meant, `pnpm golden` writes them again; commit the new files with the change (see "Changing a rule or the balance" in CONTRIBUTING.md). A failure after a change that should not alter games is a bug, not a reason to regenerate.
 
 The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`), so Node runs them without a build step.
 
@@ -97,17 +97,18 @@ The state objects are live: read them, never write them. A renderer reads after 
 
 ## Desync reports
 
-When a client's state hash disagrees with the other players', it can save a `DesyncReport` (format version `DESYNC_REPORT_VERSION`, now 1): plain JSON with everything needed to play the game again on another machine.
+When a client's state hash disagrees with the other players', it can save a `DesyncReport` (format version `DESYNC_REPORT_VERSION`, now 2; version 2 added the nations and their starts): plain JSON with everything needed to play the game again on another machine.
 
 | Field     | Content                                                                                                                         |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `version` | `1`. Readers refuse any other.                                                                                                  |
+| `version` | `2`. Readers refuse any other.                                                                                                  |
 | `build`   | `release`, the build's release name, and `protocol`, the `PROTOCOL_VERSION` it spoke.                                           |
 | `map`     | The published map: `id`, the manifest's `format` and `version`, and `sha256`, the hash of its terrain file.                     |
 | `seed`    | The game's seed.                                                                                                                |
 | `balance` | Every balance value the game ran with, the defaults included.                                                                   |
-| `players` | Every player, humans and bots, as `{ id, name }` with the ids the game used.                                                    |
+| `players` | Every player, humans, bots and nations, as `{ id, name }` with the ids the game used, and `start` for a nation's map tile.      |
 | `bots`    | `ids` of the computer players and their `difficulty`.                                                                           |
+| `nations` | `ids` of the nations, at the bots' difficulty; absent when the game had none.                                                   |
 | `you`     | The id of the player whose client wrote the report.                                                                             |
 | `ticks`   | Ticks the client had run.                                                                                                       |
 | `turns`   | `{ tick, orders: [{ player, order }] }` for every tick with orders, in tick order; other ticks ran without orders.              |

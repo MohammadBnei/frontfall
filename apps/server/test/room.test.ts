@@ -8,6 +8,7 @@ const PUBLIC: RoomSettings = {
   capacity: 4,
   bots: 0,
   difficulty: "normal",
+  nations: true,
   minPlayers: 2,
   countdownMs: 10_000,
   reconnectGraceMs: 60_000,
@@ -186,7 +187,13 @@ describe("private lobby", () => {
     const room = new Room("game0000", PRIVATE, 1);
     const host = seated(room, "Host");
     const guest = seated(room, "Guest");
-    const options = { map: "europe", bots: 5, difficulty: "easy", capacity: 6 } as const;
+    const options = {
+      map: "europe",
+      bots: 5,
+      difficulty: "easy",
+      nations: false,
+      capacity: 6,
+    } as const;
     expect(room.configure(guest.seat, options, 0)).toBe("not_host");
     expect(room.configure(host.seat, options, 0)).toBeUndefined();
     expect(guest.peer.last("lobby")).toMatchObject(options);
@@ -196,6 +203,7 @@ describe("private lobby", () => {
       map: "europe",
       bots: 5,
       difficulty: "easy",
+      nations: false,
     });
     expect(room.configure(host.seat, options, 0)).toBe("game_started");
   });

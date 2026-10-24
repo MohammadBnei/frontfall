@@ -7,7 +7,7 @@ import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
-import { playerColor } from "../palette.ts";
+import { colorOf } from "../palette.ts";
 import { FlatCamera, type CameraView } from "../render/camera.ts";
 import { createRenderer, type Renderer } from "../render/renderer.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
@@ -52,6 +52,8 @@ export class GameScreen {
   private ended = false;
   private focused = false;
   private ticksPerSecond = 10;
+  /** Lowest id of the nations, who take colours of their own. */
+  private firstNation = Infinity;
   private ownableTiles = 1;
   private peakTiles = 0;
   private frameHandle = 0;
@@ -132,6 +134,7 @@ export class GameScreen {
       map,
       {
         onStart: (info) => {
+          this.firstNation = info.rules.firstNation;
           this.showMap(info.map, info.you, info.maxPlayer);
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
@@ -248,7 +251,7 @@ export class GameScreen {
       return;
     }
     for (let id = 1; id <= maxPlayer; id++) {
-      view.setPlayerColor(id, playerColor(id - 1).hex);
+      view.setPlayerColor(id, colorOf(id, this.firstNation));
     }
     view.setHighlight(you);
     view.canvas.classList.add("map-canvas");
@@ -283,7 +286,7 @@ export class GameScreen {
         return {
           x: fromX + dx * progress,
           y: fromY + (toY - fromY) * progress,
-          color: playerColor(ship.player - 1).hex,
+          color: colorOf(ship.player, this.firstNation),
         };
       }),
     );

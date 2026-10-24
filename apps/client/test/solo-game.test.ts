@@ -35,6 +35,28 @@ describe("maps", () => {
 });
 
 describe("SoloGame", () => {
+  it("adds the map's nations after the bots, each on its tile (R-BOT-07)", () => {
+    const base = generateMap(options.map);
+    const land = [...base.kinds.keys()].filter((tile) => base.kinds[tile] !== TileKind.Water);
+    const home = land[Math.floor(land.length / 2)] as number;
+    const map = { ...base, nations: [{ name: "Norland", tile: home }] };
+    const solo = new SoloGame({ ...options, nations: true }, map);
+    let update = solo.step([]);
+    expect(update.players.map((player) => [player.id, player.name])).toEqual([
+      [1, "Ada"],
+      [2, "Aldmere"],
+      [3, "Brask"],
+      [4, "Corvan"],
+      [5, "Norland"],
+    ]);
+    while (update.phase === "spawn") update = solo.step([]);
+    expect(solo.game.player(5)?.start).toBe(home);
+    expect(solo.game.territory.ownerOf(home)).toBe(5);
+
+    const without = new SoloGame(options, map);
+    expect(without.step([]).players).toHaveLength(4);
+  });
+
   it("places the human where they click and reports the tiles that changed", () => {
     const solo = newGame(options);
     const tile = firstLand(options.map);
@@ -180,7 +202,15 @@ describe("SoloGame clicks", () => {
     }
     const solo = new SoloGame(
       { ...options, bots: 0 },
-      { id: "islands", width, height, wrapsX: false, kinds, relief: new Uint8Array(kinds.length) },
+      {
+        id: "islands",
+        width,
+        height,
+        wrapsX: false,
+        kinds,
+        relief: new Uint8Array(kinds.length),
+        nations: [],
+      },
     );
     // A start on the shore: ships leave from the coasts the player holds.
     let update = solo.step([{ type: "spawn", tile: at(9, 6) }]);

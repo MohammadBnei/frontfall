@@ -16,6 +16,8 @@ export interface GameRules {
   readonly maxDurationTicks: number;
   /** B-RETREAT-PENALTY: share of an attack's troops lost when it is called back, in percent. */
   readonly retreatPenaltyPercent: number;
+  /** Lowest id of the map's nations, which take the colours of their own (`colorOf`); above every id without them. */
+  readonly firstNation: number;
 }
 
 /** From the page to the simulation worker. */

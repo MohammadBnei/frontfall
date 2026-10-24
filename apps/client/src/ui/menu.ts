@@ -1,4 +1,4 @@
-import { MAP_GROUPS, generateMap, type MapInfo } from "../game/maps.ts";
+import { MAP_GROUPS, generateMap, suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
 import {
   LANGUAGES,
@@ -28,7 +28,7 @@ interface PublicGame {
 }
 
 /**
- * The main menu: name, map, bots and difficulty, and one button to play.
+ * The main menu: name, map, bots, difficulty and nations, and one button to play.
  * Everything is prefilled, so a new player starts a game in two clicks.
  */
 export class Menu {
@@ -76,11 +76,7 @@ export class Menu {
       input.checked = info.id === this.setup.map;
       input.addEventListener("change", () => {
         this.setup.map = info.id;
-        if (!botsTouched) {
-          this.setup.bots = info.suggestedBots;
-          bots.value = String(info.suggestedBots);
-          botsValue.textContent = bots.value;
-        }
+        suggestBots();
       });
       lists.get(info.group)?.append(
         h(
@@ -102,7 +98,7 @@ export class Menu {
     const bots = h("input", {
       id: "bot-count",
       type: "range",
-      min: 1,
+      min: 0,
       max: MAX_BOTS,
       step: 1,
     });
@@ -128,6 +124,21 @@ export class Menu {
       const label = h("span", { "data-i18n": `difficulty.${level}` });
       difficulty.append(h("label", {}, input, label));
     }
+
+    const nations = h("input", { id: "nations", type: "checkbox" });
+    nations.checked = this.setup.nations ?? true;
+    nations.addEventListener("change", () => {
+      this.setup.nations = nations.checked;
+      suggestBots();
+    });
+    // Until the player sets the bots, they follow the map and the nations.
+    const suggestBots = (): void => {
+      const info = mapList.find((candidate) => candidate.id === this.setup.map);
+      if (botsTouched || !info) return;
+      this.setup.bots = suggestedBots(info, this.setup.nations ?? true);
+      bots.value = String(this.setup.bots);
+      botsValue.textContent = bots.value;
+    };
 
     const language = h("select", { id: "language", "data-i18n-attr": "aria-label:menu.language" });
     for (const { id, label } of LANGUAGES) {
@@ -172,6 +183,17 @@ export class Menu {
             "data-i18n": "menu.difficulty",
           }),
           difficulty,
+        ),
+        h(
+          "div",
+          { class: "field" },
+          h("span", { class: "field-label", "data-i18n": "menu.nations" }),
+          h(
+            "label",
+            { class: "toggle", for: "nations" },
+            nations,
+            h("span", { "data-i18n": "menu.nationsHint" }),
+          ),
         ),
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),

@@ -88,6 +88,7 @@ export class LobbyScreen {
   });
   private readonly botsValue = h("output", { for: "lobby-bots", class: "range-value" });
   private readonly difficulty = h("select", { id: "lobby-difficulty" });
+  private readonly nations = h("input", { id: "lobby-nations", type: "checkbox" });
   private readonly settings = h(
     "div",
     { class: "lobby-settings", hidden: true },
@@ -97,6 +98,13 @@ export class LobbyScreen {
     h("div", { class: "range" }, this.bots, this.botsValue),
     h("label", { for: "lobby-difficulty", "data-i18n": "menu.difficulty" }),
     this.difficulty,
+    h("label", { for: "lobby-nations", "data-i18n": "menu.nations" }),
+    h(
+      "label",
+      { class: "toggle", for: "lobby-nations" },
+      this.nations,
+      h("span", { "data-i18n": "menu.nationsHint" }),
+    ),
   );
   private readonly summary = h("p", { class: "lobby-summary", id: "lobby-summary" });
   private shown: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
@@ -131,10 +139,12 @@ export class LobbyScreen {
         map: map.id,
         bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.players.length)),
         difficulty: this.difficulty.value as Difficulty,
+        nations: this.nations.checked,
       });
     };
     this.mapSelect.addEventListener("change", configure);
     this.difficulty.addEventListener("change", configure);
+    this.nations.addEventListener("change", configure);
     this.bots.addEventListener("input", () => {
       this.botsValue.textContent = this.bots.value;
     });
@@ -271,7 +281,7 @@ export class LobbyScreen {
   private showSettings(lobby: LobbyState): void {
     const map = this.maps.find((candidate) => candidate.id === lobby.map);
     const mapName = map?.name?.[getLanguage()] ?? lobby.map;
-    this.summary.textContent = t("online.summary", {
+    this.summary.textContent = t(lobby.nations ? "online.summaryNations" : "online.summary", {
       map: mapName,
       bots: lobby.bots,
       difficulty: t(`difficulty.${lobby.difficulty}`),
@@ -308,6 +318,7 @@ export class LobbyScreen {
       ...DIFFICULTIES.map((level) => h("option", { value: level }, t(`difficulty.${level}`))),
     );
     this.difficulty.value = lobby.difficulty;
+    this.nations.checked = lobby.nations;
     this.bots.max = String(botLimit(map, lobby.players.length));
     this.bots.value = String(lobby.bots);
     this.botsValue.textContent = String(lobby.bots);

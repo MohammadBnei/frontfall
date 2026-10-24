@@ -59,6 +59,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
         winSharePercent,
         maxDurationTicks,
         retreatPenaltyPercent,
+        firstNation: game.firstNation,
       },
     },
     [view.kinds.buffer, view.relief.buffer],

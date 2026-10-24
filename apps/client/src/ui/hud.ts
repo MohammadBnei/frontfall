@@ -1,7 +1,7 @@
 import type { GameRules } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t } from "../i18n/index.ts";
-import { playerColor } from "../palette.ts";
+import { colorOf } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
 import { h, present, swatch } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
@@ -86,6 +86,7 @@ export class Hud {
     winSharePercent: 100,
     maxDurationTicks: Infinity,
     retreatPenaltyPercent: 0,
+    firstNation: Infinity,
   };
 
   /** `pausable`: false online, where the game runs for everyone. */
@@ -367,7 +368,7 @@ export class Hud {
         return h(
           "li",
           { class: player.id === you ? "leader you" : "leader", value: rank },
-          swatch(playerColor(player.id - 1).hex),
+          swatch(colorOf(player.id, this.rules.firstNation)),
           h("span", { class: "leader-name" }, player.name),
           h("span", { class: "leader-land" }, this.share(player.tiles)),
         );

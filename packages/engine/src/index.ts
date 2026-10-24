@@ -34,6 +34,13 @@ export {
 export { installEconomy, populationCap } from "./economy.ts";
 export {
   installBots,
+  installNations,
+  NATION_EXTRA_RESERVE,
+  NATION_FULL_PERCENT,
+  NATION_GRACE_SECONDS,
+  NATION_HOLD_PERCENT,
+  NATION_ODDS_PERCENT,
+  NATION_THREAT_PERCENT,
   BOT_DIFFICULTIES,
   type BotDifficulty,
   type BotParameters,

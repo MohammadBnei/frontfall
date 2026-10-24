@@ -81,7 +81,7 @@ describe("published maps", () => {
 });
 
 describe("desync report", () => {
-  // Plays 160 ticks of Europe, then replays them: slow on a shared CI runner.
+  // Plays 260 ticks of Europe with its nations, then replays them: slow on a shared CI runner.
   it("replays an online game to the hashes this client saw", { timeout: 60_000 }, async () => {
     const maps = await fetchMaps(PAGE, fromDisk);
     const info = maps.find((map) => map.id === "europe") as MapInfo;
@@ -92,6 +92,7 @@ describe("desync report", () => {
         seed: 9,
         bots: 3,
         difficulty: "hard",
+        nations: true,
         playerName: "",
         players: [
           { id: 1, name: "Ann" },
@@ -102,27 +103,31 @@ describe("desync report", () => {
       map,
     );
     const land = map.kinds.findIndex((kind) => kind === TileKind.Plains);
-    for (let tick = 0; tick < 160; tick++) {
+    for (let tick = 0; tick < 260; tick++) {
       const orders =
         tick === 3 ? [{ player: 2, order: { type: "spawn" as const, tile: land } }] : [];
       game.playTurns([{ tick, orders }]);
     }
-    game.desync(150, 12345);
+    game.desync(250, 12345);
 
     const report = readDesyncReport(JSON.parse(JSON.stringify(game.report())));
     expect(report.map).toMatchObject({ id: "europe", format: 1 });
-    expect(report.players.map((player) => player.id)).toEqual([1, 2, 3, 4, 5]);
+    const nations = map.nations.map((_, i) => 6 + i);
+    expect(nations.length).toBeGreaterThan(0);
+    expect(report.players.map((player) => player.id)).toEqual([1, 2, 3, 4, 5, ...nations]);
+    expect(report.players[5]?.start).toBe(map.nations[0]?.tile);
     expect(report.bots).toEqual({ ids: [3, 4, 5], difficulty: "hard" });
+    expect(report.nations).toEqual(nations);
     expect(report.turns.map((turn) => turn.tick)).toEqual([3]);
-    expect(report.hashes.map((entry) => entry.tick)).toEqual([0, 50, 100, 150]);
+    expect(report.hashes.map((entry) => entry.tick)).toEqual([0, 50, 100, 150, 200, 250]);
     expect(report.hashes[1]?.expected).toBe(report.hashes[1]?.local);
-    expect(report.hashes[3]?.expected).toBe(12345);
+    expect(report.hashes[5]?.expected).toBe(12345);
 
     const grid = new WorldGrid(map.width, map.height, { wrapsX: map.wrapsX });
     const result = replayDesyncReport(report, new Terrain(grid, map.kinds));
-    expect(result.ticks).toBe(160);
+    expect(result.ticks).toBe(260);
     expect(result.firstLocalMismatch).toBeUndefined();
-    expect(result.firstDesync?.tick).toBe(150);
+    expect(result.firstDesync?.tick).toBe(250);
   });
 
   it("has nothing to report on a generated map, or solo", async () => {

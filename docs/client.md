@@ -25,9 +25,11 @@ covers the conventions that are not obvious from the code.
   what a click means: a start during the spawn phase, then an expansion or an
   attack with the attack ratio. The same `GameSession` carries an online
   game, where the orders go to the server instead (below).
-- Bots are installed in the engine (`installBots`) and decide during the tick,
-  from the game state and its seed, so every client of an online game
-  computes the same moves.
+- Bots and nations are installed in the engine (`installBots`,
+  `installNations`) and decide during the tick, from the game state and its
+  seed, so every client of an online game computes the same moves. Nations
+  come from the map's manifest, numbered after the bots, each with its start
+  tile.
 - Only `apps/client/src/render` imports Three.js, which a test checks. The
   interface talks to the two contracts of ADR 0003, never to Three.js:
   `Renderer` (`render/renderer.ts`: player colours, changed tiles, ships, a
@@ -43,7 +45,7 @@ covers the conventions that are not obvious from the code.
   worker downloads a published map and checks it against its manifest
   (`loadMap` of the engine) before the game starts, then hands the page a copy
   of the terrain to draw. Without a catalogue, only the generated maps remain.
-- The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard`),
+- The setup lives in the query string (`?map=pangaea&bots=8&difficulty=hard&nations=1`),
   so a link starts the same game, and the last one is remembered in
   `localStorage` when storage is available.
 
@@ -68,8 +70,9 @@ it started or ended for another reason, and why a request was refused.
 
 Once the server sends `started`, the page builds the same game as every
 other client: the map, the seed, the humans in the server's numbering,
-and `bots` bots of the game's difficulty numbered after them. The host of a
-private game picks the map, bots and difficulty in the lobby (`configure`),
+`bots` bots of the game's difficulty numbered after them, and the map's
+nations after the bots when `nations` is set. The host of a private game
+picks the map, bots, difficulty and nations in the lobby (`configure`),
 starting from the menu's choices; maps come from the published catalogue
 only, grouped like the menu's "World maps" and "Quick games" (`group` in
 `maps/index.json`, generated maps counting as quick), and only those that

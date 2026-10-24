@@ -21,8 +21,10 @@ const report: DesyncReport = {
   players: [
     { id: 1, name: "Ada" },
     { id: 2, name: "Bot" },
+    { id: 3, name: "Norland", start: 200 },
   ],
   bots: { ids: [2], difficulty: "easy" },
+  nations: [3],
   you: 1,
   ticks: 60,
   turns: [
@@ -64,10 +66,12 @@ describe("desync reports", () => {
   it("refuse other versions and malformed fields", () => {
     const broken = (patch: Record<string, unknown>) => () =>
       readDesyncReport({ ...JSON.parse(JSON.stringify(report)), ...patch });
-    expect(broken({ version: 2 })).toThrow(/unsupported report version 2/);
+    expect(broken({ version: 1 })).toThrow(/unsupported report version 1/);
     expect(broken({ seed: 1.5 })).toThrow(DesyncReportError);
     expect(broken({ balance: { ...DEFAULT_BALANCE, popPerTile: "40" } })).toThrow(/popPerTile/);
     expect(broken({ bots: { ids: [2], difficulty: "brutal" } })).toThrow(/brutal/);
+    expect(broken({ nations: ["x"] })).toThrow(/nation id/);
+    expect(broken({ players: [{ id: 3, name: "Norland", start: 1.5 }] })).toThrow(/player start/);
     expect(
       broken({ turns: [{ tick: 0, orders: [{ player: 1, order: { type: "nuke" } }] }] }),
     ).toThrow(/nuke/);

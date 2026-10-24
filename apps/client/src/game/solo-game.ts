@@ -8,6 +8,7 @@ import {
   StructureKind,
   cityLimit,
   installBots,
+  installNations,
   isReady,
   orderError,
   populationCap,
@@ -41,6 +42,8 @@ export interface SoloOptions {
   seed: number;
   bots: number;
   difficulty: Difficulty;
+  /** Whether the map's nations play, after the bots (R-BOT-07); off when left out. */
+  nations?: boolean | undefined;
   playerName: string;
   /**
    * For tests that play a game to its end: ticks run per beat of the clock
@@ -229,6 +232,7 @@ export class SoloGame {
   private readonly depth: Uint16Array;
   private readonly players: PlayerSetup[];
   private readonly botIds: number[];
+  private readonly nationIds: number[];
   /** Online, for a desync report: every turn with orders, and the hashes sent. */
   private readonly history: Turn[] = [];
   private readonly hashes: { tick: number; local: number }[] = [];
@@ -245,11 +249,20 @@ export class SoloGame {
     const humans = options.players ?? [{ id: HUMAN_ID, name: options.playerName }];
     this.you = options.you ?? HUMAN_ID;
     const firstBot = Math.max(...humans.map((human) => human.id)) + 1;
-    const players = [...humans];
+    const players: PlayerSetup[] = [...humans];
     const botIds: number[] = [];
     for (let i = 0; i < bots; i++) {
       botIds.push(firstBot + i);
       players.push({ id: firstBot + i, name: BOT_NAMES[i] as string });
+    }
+    // Nations take the numbers after the bots, in the manifest's order, the same on every client.
+    const nationIds: number[] = [];
+    if (options.nations) {
+      for (const { name, tile } of map.nations) {
+        const id = firstBot + bots + nationIds.length;
+        nationIds.push(id);
+        players.push({ id, name, start: tile });
+      }
     }
     const balance = { ...DEFAULT_BALANCE };
     if (options.maxMinutes !== undefined) {
@@ -261,13 +274,20 @@ export class SoloGame {
       balance.goldPerThousandTroops = Math.floor(options.goldRate);
     this.game = createGame({ terrain, seed: options.seed, players, balance });
     installBots(this.game, botIds, options.difficulty);
+    installNations(this.game, nationIds, options.difficulty);
     this.players = players;
     this.botIds = botIds;
+    this.nationIds = nationIds;
     this.online = options.players !== undefined;
     this.depth = new Uint16Array(grid.size);
     let ownable = 0;
     for (let tile = 0; tile < grid.size; tile++) if (terrain.isOwnable(tile)) ownable++;
     this.ownableTiles = ownable;
+  }
+
+  /** Lowest id of the nations, or one past the last player when there are none. */
+  get firstNation(): number {
+    return this.nationIds[0] ?? Math.max(...this.players.map((player) => player.id)) + 1;
   }
 
   get winner(): number | undefined {
@@ -402,6 +422,7 @@ export class SoloGame {
       balance: this.game.balance,
       players: this.players,
       bots: { ids: this.botIds, difficulty: this.options.difficulty },
+      ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
       you: this.you,
       ticks: this.game.tick,
       turns: this.history,

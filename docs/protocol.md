@@ -99,10 +99,13 @@ Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting).
 ### `configure`
 
 ```json
-{ "type": "configure", "options": { "map": "europe", "bots": 6, "difficulty": "hard" } }
+{
+  "type": "configure",
+  "options": { "map": "europe", "bots": 6, "difficulty": "hard", "nations": true }
+}
 ```
 
-The host of a private game sets its map, its number of bots and how hard they play, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps its 16 seats when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. A new private game starts on World, without bots, at `normal`.
+The host of a private game sets its map, its number of bots, how hard computer players play and whether the map's nations play, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps its 16 seats when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. Nations come on top of the players and bots. A new private game starts on World, without bots, with nations, at `normal`.
 
 ### `start`
 
@@ -150,7 +153,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 5 }
+{ "type": "welcome", "version": 7 }
 ```
 
 The hello was accepted.
@@ -165,6 +168,7 @@ The hello was accepted.
   "map": "world",
   "bots": 0,
   "difficulty": "normal",
+  "nations": true,
   "capacity": 16,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -188,6 +192,7 @@ The game being filled, sent after every change, the host's `configure` included.
   "seed": 1834567,
   "bots": 0,
   "difficulty": "normal",
+  "nations": true,
   "tickRate": 10,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -198,7 +203,7 @@ The game being filled, sent after every change, the host's `configure` included.
 }
 ```
 
-Everything a client needs to create the same game as the others: map, seed, players and the number of bots each client adds and runs itself, at `difficulty`. The server relays only human orders. `token` is secret: it lets this player rejoin after a dropped connection. The message is sent again after a successful `rejoin`.
+Everything a client needs to create the same game as the others: map, seed, players, the number of bots each client adds and runs itself, and whether it adds the map's nations, all at `difficulty`. Bots take the numbers after the last player, then nations those after the last bot, in the order of the map's manifest. The server relays only human orders. `token` is secret: it lets this player rejoin after a dropped connection. The message is sent again after a successful `rejoin`.
 
 ### `turns`
 
@@ -306,4 +311,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

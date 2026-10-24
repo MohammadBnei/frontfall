@@ -29,6 +29,8 @@ export interface RoomSettings {
   /** Bots added by every client at the start; the server never sees their orders. */
   bots: number;
   difficulty: Difficulty;
+  /** Whether every client adds the map's nations after the bots. */
+  nations: boolean;
   /** Public games: players needed before the countdown starts. */
   minPlayers: number;
   /** Public games: wait after reaching minPlayers, unless the game fills up first. */
@@ -386,6 +388,7 @@ export class Room {
           map: this.settings.map,
           bots: this.settings.bots,
           difficulty: this.settings.difficulty,
+          nations: this.settings.nations,
           capacity: this.settings.capacity,
           players,
           you: seat.id,
@@ -404,6 +407,7 @@ export class Room {
       seed: this.seed,
       bots: this.settings.bots,
       difficulty: this.settings.difficulty,
+      nations: this.settings.nations,
       tickRate: TICK_RATE,
       players: this.players(),
       you: seat.id,
