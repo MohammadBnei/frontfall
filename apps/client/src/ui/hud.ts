@@ -1,7 +1,8 @@
 import { HUMAN_ID, type GameUpdate, type PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, t } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
-import { h } from "./dom.ts";
+import { betaBadge } from "./beta.ts";
+import { h, present } from "./dom.ts";
 import { formatCount, formatPercent } from "./format.ts";
 
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
@@ -97,6 +98,7 @@ export class Hud {
         this.ratioValue,
       ),
       h("div", { class: "toolbar" }, help, pause),
+      ...present(betaBadge("beta-hud")),
     );
     applyTranslations(this.element);
   }

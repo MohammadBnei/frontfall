@@ -159,6 +159,9 @@ input[type="range"] {
 }
 
 .menu-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
 }
 
@@ -602,4 +605,52 @@ input[type="range"] {
 
 .map-surface:focus {
   outline: none;
+}
+
+/* Beta badge, shown until 1.0 (src/release.ts). */
+
+.beta-badge {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 2px 8px;
+  border: 1px solid var(--ff-ember);
+  border-radius: 999px;
+  color: var(--ff-ember-bright);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.beta-badge strong {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.beta-version {
+  color: var(--ff-slate-300);
+}
+
+.beta-menu {
+  margin-top: 8px;
+}
+
+.beta-notice {
+  margin: 6px 0 0;
+  color: var(--ff-slate-300);
+  font-size: 13px;
+}
+
+.beta-hud {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: rgb(10 19 28 / 85%);
+  opacity: 0.8;
+}
+
+@media (width < 720px) {
+  .beta-hud {
+    bottom: auto;
+    top: 84px;
+  }
 }

@@ -9,7 +9,8 @@ import {
   type Language,
 } from "../i18n/index.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
-import { h } from "./dom.ts";
+import { betaBadge, betaNotice } from "./beta.ts";
+import { h, present } from "./dom.ts";
 import { MAX_NAME_LENGTH, cleanName, type GameSetup } from "./setup.ts";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
@@ -162,7 +163,9 @@ export class Menu {
         "header",
         { class: "menu-header" },
         h("img", { class: "logo", src: "./logo-horizontal-on-dark.svg", alt: "Frontfall" }),
+        ...present(betaBadge("beta-menu")),
         h("p", { class: "tagline", "data-i18n": "menu.tagline" }),
+        ...present(betaNotice()),
       ),
       form,
       h("footer", { class: "menu-footer" }, language),

@@ -39,6 +39,14 @@ covers the conventions that are not obvious from the code.
   so a link starts the same game, and the last one is remembered in
   `localStorage` when storage is available.
 
+## Beta
+
+Until 1.0, the menu and the HUD show a beta badge with the version of the
+client (`apps/client/package.json`), and the menu says that rules, balance and
+visuals will still change. Vite passes the version to the page
+(`src/release.ts`); the badge disappears by itself once the version reaches
+1.0.0.
+
 ## Controls
 
 | Input                     | Action                                              |

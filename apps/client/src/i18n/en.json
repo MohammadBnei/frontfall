@@ -62,5 +62,7 @@
   "webgl.missing": "Frontfall needs WebGL 2 to draw the map, and this browser could not provide it. Try updating your browser, or turning on hardware acceleration in its settings.",
   "game.map": "Game map",
   "game.loading": "Loading the map…",
-  "game.failed": "The game could not start. Try again, or pick another map."
+  "game.failed": "The game could not start. Try again, or pick another map.",
+  "beta.label": "Beta",
+  "beta.notice": "Beta: rules, balance and visuals will change until 1.0."
 }
