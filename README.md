@@ -25,35 +25,37 @@
 
 The current build runs at **[nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/)**, no account and no install. Every push to `main` is deployed there within minutes.
 
-Be warned: this is a development build, not a game yet. Today it shows a generated test world that you can drag and zoom endlessly east to west, connected live to the turn server. The first playable version, v0.1, is a solo game against bots on a map of the Earth; [the roadmap](#roadmap) has the full sequence.
+Play solo against bots, or online with friends through an invitation link or in a public game. Eight maps: World, Europe, the Americas, Africa and Asia drawn from Natural Earth, and three quick maps, Island, Strait and Ring. Ships carry troops across the sea, through the Panama and Suez canals. The interface is in English and French.
+
+Frontfall is in beta until v1.0: rules, balance and visuals still change. [The roadmap](#roadmap) says what comes next.
 
 ## At a glance
 
 |                  |                                                                                                    |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
 | **What it is**   | Spread from a single tile, outgrow your neighbours, hold the map. Short rounds, no install.        |
-| **The twist**    | The world wraps east to west, and phase 2 puts it on a 3D globe. There is no edge to hide behind.  |
-| **Status**       | Early development. Engine foundations, turn relay, map renderer and deployment are in place.       |
+| **The twist**    | The World map wraps east to west, and v1.0 puts it on a 3D globe. There is no edge to hide behind. |
+| **Status**       | Beta. v0.1 (solo against bots) and v0.2 (online with friends) are live; v0.3 is under way.         |
 | **Play**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), or your own server with one Docker image. |
-| **Requirements** | A desktop browser with WebGL 2.                                                                    |
+| **Requirements** | A browser with WebGL 2. Best on a desktop or laptop.                                               |
 | **License**      | MIT, free to play, fork and host.                                                                  |
 
 ## Roadmap
 
 Development runs in playable versions. Each one ends with something you can play on the public server. Every version before v1.0 is a beta; v1.0 is the complete game on the 3D globe.
 
-| Version | Goal                                                                                 | Status      |
-| ------- | ------------------------------------------------------------------------------------ | ----------- |
-| M0      | Foundations and specification: engine skeleton, turn relay, CI, deployment, rules    | Done        |
-| v0.1    | Solo game in the browser against bots, on a map of the Earth                         | In progress |
-| v0.2    | Online with friends: private invite links, lockstep client, desync detection         | In progress |
-| v0.3    | Deeper game: cities and forts, alliances, nations, relief, rejoin after a disconnect | Planned     |
-| v0.4    | Sea and missiles: ships, naval combat, missiles, team games, replays                 | Planned     |
-| v0.5    | Balanced and monitored: balance pass, uptime checks and alerts                       | Planned     |
-| v0.6    | 3D globe                                                                             | Planned     |
-| v0.7    | Performance, and switching between map and globe during a game                       | Planned     |
-| v1.0    | The complete game on the 3D globe, out of beta                                       | Planned     |
-| M8      | Community and launch                                                                 | Planned     |
+| Version | Goal                                                                                        | Status      |
+| ------- | ------------------------------------------------------------------------------------------- | ----------- |
+| M0      | Foundations and specification: engine skeleton, turn relay, CI, deployment, rules           | Done        |
+| v0.1    | Solo game in the browser against bots, on a map of the Earth                                | Done        |
+| v0.2    | Online with friends: invite links, public games, eight maps, desync reports                 | Done        |
+| v0.3    | Deeper game: cities, ports and defence posts, alliances, nations, stronger bots, monitoring | In progress |
+| v0.4    | Sea and missiles: ports, warships, naval combat, missiles, team games, replays              | Planned     |
+| v0.5    | Balanced: a balance pass checked with a thousand headless games                             | Planned     |
+| v0.6    | 3D globe                                                                                    | Planned     |
+| v0.7    | Performance, and switching between map and globe during a game                              | Planned     |
+| v1.0    | The complete game on the 3D globe, out of beta                                              | Planned     |
+| M8      | Community and launch                                                                        | Planned     |
 
 The scope and "playable when" checks of each version are in [docs/roadmap.md](docs/roadmap.md). Open work is tracked in [milestones](https://github.com/nic0lasm/frontfall/milestones).
 
@@ -124,7 +126,7 @@ Behind a reverse proxy, the game works at the root of a domain or under a sub-pa
 Frontfall is built in the open and contributions of every size are welcome: code, maps, balance feedback, translations, bug reports.
 
 1. **Play the current build** and [report what breaks](https://github.com/nic0lasm/frontfall/issues/new/choose).
-2. **Pick a starter task** among the issues labelled [`good first issue`](https://github.com/nic0lasm/frontfall/labels/good%20first%20issue) or [`help wanted`](https://github.com/nic0lasm/frontfall/labels/help%20wanted), and leave a comment so nobody duplicates the work.
+2. **Pick a starter task** among the issues labelled [`good first issue`](https://github.com/nic0lasm/frontfall/labels/good%20first%20issue) and leave a comment so nobody duplicates the work.
 3. **Discuss before building** anything large in [Discussions](https://github.com/nic0lasm/frontfall/discussions), under Ideas.
 4. **Open a pull request** following [CONTRIBUTING.md](CONTRIBUTING.md). CI runs the same checks as `pnpm test:coverage`, `pnpm lint` and `pnpm build`.
 
@@ -132,7 +134,7 @@ Security issues are reported privately, as described in [SECURITY.md](SECURITY.m
 
 ## Community
 
-- [Discussions](https://github.com/nic0lasm/frontfall/discussions): questions, ideas, map proposals, development notes.
+- [Discussions](https://github.com/nic0lasm/frontfall/discussions): questions, ideas, map proposals, development notes. French is welcome too.
 - [Releases](https://github.com/nic0lasm/frontfall/releases): what changed in each version, in plain words. Watch the repository with "Custom > Releases" to be notified.
 - [CHANGELOG.md](CHANGELOG.md): every merged change, newest first.
 

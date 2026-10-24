@@ -25,18 +25,20 @@
 
 La version en cours tourne sur **[nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/)**, sans compte ni installation. Chaque push sur `main` y est déployé en quelques minutes.
 
-Attention : c'est une version de développement, pas encore un jeu. Elle affiche aujourd'hui un monde de test généré, que l'on fait défiler et zoomer sans fin d'est en ouest, connecté en direct au serveur de tours. La première version jouable, v0.1, est une partie solo contre des bots sur une carte de la Terre ; [la feuille de route](#feuille-de-route) donne toute la suite.
+Jouez en solo contre des bots, ou en ligne entre amis par un lien d'invitation ou dans une partie publique. Huit cartes : Monde, Europe, Amériques, Afrique et Asie, tirées de Natural Earth, et trois cartes rapides, Île, Détroit et Anneau. Les navires portent les troupes par la mer, par les canaux de Panama et de Suez. L'interface est en français et en anglais.
+
+Frontfall est en bêta jusqu'à la v1.0 : règles, équilibrage et visuels changent encore. [La feuille de route](#feuille-de-route) dit ce qui vient ensuite.
 
 ## En un coup d'œil
 
-|                   |                                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| **Le jeu**        | Partir d'une case, dépasser ses voisins, tenir la carte. Parties courtes, sans installation.            |
-| **La différence** | Le monde boucle d'est en ouest, et la phase 2 le pose sur un globe 3D. Aucun bord où se cacher.         |
-| **État**          | Début de développement. Moteur, relais des tours, rendu de la carte et déploiement sont en place.       |
-| **Jouer**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), ou votre propre serveur avec une image Docker. |
-| **Prérequis**     | Un navigateur de bureau compatible WebGL 2.                                                             |
-| **Licence**       | MIT : libre d'y jouer, de le forker et de l'héberger.                                                   |
+|                   |                                                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Le jeu**        | Partir d'une case, dépasser ses voisins, tenir la carte. Parties courtes, sans installation.                |
+| **La différence** | La carte du Monde boucle d'est en ouest, et la v1.0 la pose sur un globe 3D. Aucun bord où se cacher.       |
+| **État**          | Bêta. La v0.1 (solo contre des bots) et la v0.2 (en ligne entre amis) sont en ligne ; la v0.3 est en cours. |
+| **Jouer**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), ou votre propre serveur avec une image Docker.     |
+| **Prérequis**     | Un navigateur compatible WebGL 2. Un ordinateur reste le plus confortable.                                  |
+| **Licence**       | MIT : libre d'y jouer, de le forker et de l'héberger.                                                       |
 
 ## Feuille de route
 
@@ -45,11 +47,11 @@ Le développement avance par versions jouables. Chacune se termine par quelque c
 | Version | Objectif                                                                             | État     |
 | ------- | ------------------------------------------------------------------------------------ | -------- |
 | M0      | Fondations et spécification : squelette du moteur, relais des tours, CI, déploiement | Terminé  |
-| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre            | En cours |
-| v0.2    | En ligne entre amis : liens d'invitation, client lockstep, détection des désyncs     | En cours |
-| v0.3    | Jeu plus riche : villes et forts, alliances, nations, relief, reconnexion            | Prévu    |
-| v0.4    | Mer et missiles : navires, combat naval, missiles, parties en équipes, replays       | Prévu    |
-| v0.5    | Équilibré et surveillé : passe d'équilibrage, contrôle de disponibilité et alertes   | Prévu    |
+| v0.1    | Partie solo dans le navigateur contre des bots, sur une carte de la Terre            | Terminé  |
+| v0.2    | En ligne entre amis : liens d'invitation, parties publiques, huit cartes, désyncs    | Terminé  |
+| v0.3    | Jeu plus riche : villes, ports, défenses, alliances, nations, bots, surveillance     | En cours |
+| v0.4    | Mer et missiles : ports, navires, combat naval, missiles, équipes, replays           | Prévu    |
+| v0.5    | Équilibré : passe d'équilibrage vérifiée sur mille parties simulées                  | Prévu    |
 | v0.6    | Globe 3D                                                                             | Prévu    |
 | v0.7    | Performance, et bascule entre carte et globe en cours de partie                      | Prévu    |
 | v1.0    | Le jeu complet sur le globe 3D, fin de la bêta                                       | Prévu    |
@@ -124,7 +126,7 @@ Derrière un reverse proxy, le jeu fonctionne à la racine d'un domaine ou sous 
 Frontfall se construit en public et toute contribution est bienvenue, quelle que soit sa taille : code, cartes, retours d'équilibrage, traductions, rapports de bug.
 
 1. **Jouez à la version en cours** et [signalez ce qui casse](https://github.com/nic0lasm/frontfall/issues/new/choose).
-2. **Choisissez une première tâche** parmi les issues marquées [`good first issue`](https://github.com/nic0lasm/frontfall/labels/good%20first%20issue) ou [`help wanted`](https://github.com/nic0lasm/frontfall/labels/help%20wanted), et laissez un commentaire pour que personne ne fasse le travail en double.
+2. **Choisissez une première tâche** parmi les issues marquées [`good first issue`](https://github.com/nic0lasm/frontfall/labels/good%20first%20issue) et laissez un commentaire pour que personne ne fasse le travail en double.
 3. **Discutez avant de construire** quoi que ce soit d'important dans les [Discussions](https://github.com/nic0lasm/frontfall/discussions), catégorie Ideas.
 4. **Ouvrez une pull request** en suivant [CONTRIBUTING.md](CONTRIBUTING.md) (en anglais). La CI lance les mêmes vérifications que `pnpm test:coverage`, `pnpm lint` et `pnpm build`.
 
