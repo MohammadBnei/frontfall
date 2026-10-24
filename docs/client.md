@@ -81,6 +81,11 @@ visuals will still change. Vite passes the version to the page
 | `P` or `Esc`              | Pause and resume                                    |
 | `H` or `?`                | Show the controls                                   |
 
+While attacks are under way, a panel at the bottom left lists each one, its
+target and its troops, with a Retreat button that calls it back
+(`R-ATTACK-06`): the troops come home, less `B-RETREAT-PENALTY`, which the
+button's tooltip states.
+
 `Esc` also closes a dialog: on the end screen it does what "Keep watching"
 does, and the menu button of the HUD stays the way out.
 

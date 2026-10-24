@@ -75,5 +75,10 @@
   "click.troops": "Pas assez de troupes : augmentez la part d’attaque ou patientez.",
   "click.unreachable": "Hors d’atteinte : pas de frontière commune, et aucun navire ne peut y accoster.",
   "click.ships": "Tous vos navires sont en mer : attendez qu’un d’eux accoste.",
-  "help.ships": "Cliquez sur une côte de l’autre côté de la mer pour envoyer un navire"
+  "help.ships": "Cliquez sur une côte de l’autre côté de la mer pour envoyer un navire",
+  "hud.attacks": "Vos attaques",
+  "hud.attackOn": "{target} : {troops}",
+  "hud.unclaimed": "Terres libres",
+  "hud.retreat": "Retraite",
+  "hud.retreatHint": "Rappeler les troupes ; {penalty} d'entre elles sont perdues"
 }

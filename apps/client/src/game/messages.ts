@@ -13,6 +13,8 @@ export interface GameRules {
   readonly winSharePercent: number;
   /** B-MAX-DURATION: the leader wins when the game reaches it. */
   readonly maxDurationTicks: number;
+  /** B-RETREAT-PENALTY: share of an attack's troops lost when it is called back, in percent. */
+  readonly retreatPenaltyPercent: number;
 }
 
 /** From the page to the simulation worker. */

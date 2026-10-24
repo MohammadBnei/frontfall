@@ -447,6 +447,55 @@ input[type="range"] {
   min-width: 0;
 }
 
+/* The player's attacks under way, each with its retreat button (ui/hud.ts). */
+
+.attacks {
+  bottom: 48px;
+  left: 12px;
+  width: 220px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: 6px 8px;
+}
+
+.attack-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attack {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.attack-text {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attack-retreat {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.attack-retreat:hover,
+.attack-retreat:focus-visible {
+  border-color: var(--ff-slate-400);
+}
+
 .toolbar {
   position: absolute;
   right: 12px;
@@ -556,6 +605,13 @@ input[type="range"] {
 
   .banner {
     top: 72px;
+  }
+
+  /* Beside the leaderboard, above the attack ratio. */
+  .attacks {
+    bottom: 64px;
+    width: auto;
+    max-width: calc(100vw - 206px);
   }
 
   /* The ratio panel stops short of the three toolbar buttons. */

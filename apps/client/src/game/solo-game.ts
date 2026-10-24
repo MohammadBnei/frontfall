@@ -36,6 +36,14 @@ export interface PlayerView {
   alive: boolean;
 }
 
+/** One of the human's attacks under way; its id is what a retreat order names. */
+export interface AttackView {
+  id: number;
+  /** Owner of the land under attack, 0 for unclaimed land. */
+  target: number;
+  troops: number;
+}
+
 export interface GameUpdate {
   tick: number;
   phase: Phase;
@@ -43,7 +51,7 @@ export interface GameUpdate {
   spawnTicksLeft: number;
   players: PlayerView[];
   /** Troops of the human's attacks under way, one entry per attack. */
-  attacks: { target: number; troops: number }[];
+  attacks: AttackView[];
   /** Tiles that changed owner this tick, and their new owners, pair by pair. */
   changedTiles: Int32Array;
   changedOwners: Uint16Array;
@@ -231,7 +239,7 @@ export class SoloGame {
       players,
       attacks: game.attacks
         .filter((attack) => attack.player === HUMAN_ID)
-        .map((attack) => ({ target: attack.target, troops: attack.troops })),
+        .map((attack) => ({ id: attack.id, target: attack.target, troops: attack.troops })),
       changedTiles: new Int32Array(0),
       changedOwners: new Uint16Array(0),
       boats: game.boats.map((boat) => ({

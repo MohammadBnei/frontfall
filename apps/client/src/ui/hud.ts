@@ -17,6 +17,8 @@ export interface HudActions {
   onPause(): void;
   onHelp(): void;
   onMenu(): void;
+  /** Calls back one of the player's attacks, by id. */
+  onRetreat(attack: number): void;
 }
 
 /**
@@ -49,14 +51,27 @@ export class Hud {
   private readonly goalLeader = h("span", { class: "goal-fill goal-leader" });
   private readonly goalYou = h("span", { class: "goal-fill goal-you" });
   private readonly clock = h("p", { class: "goal-clock" });
+  private readonly attackList = h("ul", { class: "attack-list" });
+  private readonly attackPanel = h(
+    "section",
+    { class: "panel attacks", "data-i18n-attr": "aria-label:hud.attacks", hidden: true },
+    this.attackList,
+  );
+  /** One row per attack under way, kept across renders so a button under the pointer stays put. */
+  private readonly attackRows = new Map<number, { row: HTMLElement; text: HTMLElement }>();
+  private readonly onRetreat: (attack: number) => void;
   private rules: GameRules = {
     ownableTiles: 1,
     ticksPerSecond: 10,
     winSharePercent: 100,
     maxDurationTicks: Infinity,
+    retreatPenaltyPercent: 0,
   };
 
   constructor(actions: HudActions) {
+    this.onRetreat = (attack) => {
+      actions.onRetreat(attack);
+    };
     this.ratioInput.addEventListener("input", () => {
       this.setRatio(Number(this.ratioInput.value));
     });
@@ -125,6 +140,7 @@ export class Hud {
         this.ratioInput,
         this.ratioValue,
       ),
+      this.attackPanel,
       h("div", { class: "toolbar" }, help, pause, menu),
       ...present(betaBadge("beta-hud")),
     );
@@ -172,6 +188,39 @@ export class Hud {
     this.banner.textContent = this.bannerText(update, human);
     this.renderLeaders(update.players);
     this.renderGoal(update, human);
+    this.renderAttacks(update);
+  }
+
+  /** The player's attacks under way, each with a button to call it back. */
+  private renderAttacks(update: GameUpdate): void {
+    const names = new Map(update.players.map((player) => [player.id, player.name]));
+    const current = new Set<number>();
+    for (const attack of update.attacks) {
+      current.add(attack.id);
+      let entry = this.attackRows.get(attack.id);
+      if (!entry) {
+        const text = h("span", { class: "attack-text" });
+        const retreat = h("button", { type: "button", class: "attack-retreat" }, t("hud.retreat"));
+        retreat.title = t("hud.retreatHint", {
+          penalty: formatPercent(this.rules.retreatPenaltyPercent / 100),
+        });
+        retreat.addEventListener("click", () => {
+          this.onRetreat(attack.id);
+        });
+        entry = { row: h("li", { class: "attack" }, text, retreat), text };
+        this.attackRows.set(attack.id, entry);
+        this.attackList.append(entry.row);
+      }
+      const target =
+        attack.target === 0 ? t("hud.unclaimed") : (names.get(attack.target) ?? t("hud.unclaimed"));
+      entry.text.textContent = t("hud.attackOn", { target, troops: formatCount(attack.troops) });
+    }
+    for (const [id, entry] of this.attackRows) {
+      if (current.has(id)) continue;
+      entry.row.remove();
+      this.attackRows.delete(id);
+    }
+    this.attackPanel.hidden = current.size === 0;
   }
 
   /** Share of the land; a start on the World is a few hundredths of a percent. */

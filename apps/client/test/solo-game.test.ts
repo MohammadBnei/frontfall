@@ -97,6 +97,21 @@ describe("SoloGame attacks", () => {
     for (let i = 0; i < 20; i++) update = solo.step([]);
     expect(human()).toBeGreaterThan(before);
   });
+
+  it("calls an attack back by the id the update gives it", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    let update = solo.step([{ type: "spawn", tile: firstLand(options.map) }]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const { territory, terrain } = solo.game;
+    const target = territory.owners.findIndex(
+      (owner, tile) => owner === 0 && terrain.isOwnable(tile),
+    );
+    update = solo.step([{ type: "attack", target, troops: 1000 }]);
+    const [attack] = update.attacks;
+    expect(attack?.target).toBe(0);
+    update = solo.step([{ type: "retreat", attack: attack?.id ?? -1 }]);
+    expect(update.attacks).toEqual([]);
+  });
 });
 
 describe("SoloGame clicks", () => {

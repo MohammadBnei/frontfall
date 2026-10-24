@@ -85,6 +85,9 @@ export class GameScreen {
       onMenu: () => {
         this.leave();
       },
+      onRetreat: (attack) => {
+        this.retreat(attack);
+      },
     });
     this.element = document.createElement("div");
     this.element.className = "game";
@@ -295,6 +298,12 @@ export class GameScreen {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined) return;
     this.session.click(tile, this.hud.ratio);
+  }
+
+  private retreat(attack: number): void {
+    const update = this.latest;
+    if (!update || this.paused || update.winner !== undefined) return;
+    this.session.sendOrder({ type: "retreat", attack });
   }
 
   private key(event: KeyboardEvent): void {

@@ -75,5 +75,10 @@
   "click.troops": "Not enough troops: raise the attack ratio or wait.",
   "click.unreachable": "Out of reach: no shared border, and no ship can land there.",
   "click.ships": "All your ships are at sea: wait for one to land.",
-  "help.ships": "Click a coast across the sea to send a ship"
+  "help.ships": "Click a coast across the sea to send a ship",
+  "hud.attacks": "Your attacks",
+  "hud.attackOn": "{target}: {troops}",
+  "hud.unclaimed": "Unclaimed land",
+  "hud.retreat": "Retreat",
+  "hud.retreatHint": "Call the troops back; {penalty} of them are lost"
 }

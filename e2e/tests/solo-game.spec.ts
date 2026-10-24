@@ -60,6 +60,17 @@ test("plays a solo game from the menu: spawn, then expand", async ({ page }) => 
   await clickAround(page, center, async () => (await landShare(page)) > before);
   await expect.poll(() => landShare(page), { timeout: 10_000 }).toBeGreaterThan(before);
 
+  // With all its troops, an attack lasts long enough to be called back.
+  await page.keyboard.press("Digit0");
+  await expect(page.locator("#attack-ratio")).toHaveValue("100");
+  const retreat = page.locator(".attack-retreat");
+  await clickAround(page, center, async () => (await retreat.count()) > 0);
+  while ((await retreat.count()) > 0) {
+    await retreat.first().click({ timeout: 2_000 }).catch(() => undefined);
+    await page.waitForTimeout(300);
+  }
+  await expect(page.locator(".attacks")).toBeHidden();
+
   expect(pageErrors).toEqual([]);
 });
 
