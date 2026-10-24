@@ -14,6 +14,7 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 
 ### Changed
 
+- Hard bots are stronger: they attack with more troops, keep fewer at home and take on denser neighbours ([docs/balance.md](docs/balance.md#bots)). Easy and normal bots play as before.
 - CI holds the game to a performance budget ([docs/performance.md](docs/performance.md#budgets)). A new Performance job plays 64 bots on World on the commit and on the commit it branched from, alternating on the same runner, and fails when the engine got slower or its tick p95 exceeds 30 ms; it also fails when the client's download outgrows its budget, and reports load times and frame rate in headless Chromium. `pnpm perf:engine` and `pnpm perf:client` run the same checks locally.
 
 ## [0.2.0] - 2026-10-24

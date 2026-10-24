@@ -18,5 +18,5 @@ export interface BotParameters {
 export const BOT_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<BotParameters>>> = {
   easy: { intervalSeconds: 5, attackRatioPercent: 15, reservePercent: 50, boldnessPercent: 100 },
   normal: { intervalSeconds: 3, attackRatioPercent: 25, reservePercent: 40, boldnessPercent: 110 },
-  hard: { intervalSeconds: 2, attackRatioPercent: 35, reservePercent: 30, boldnessPercent: 125 },
+  hard: { intervalSeconds: 2, attackRatioPercent: 40, reservePercent: 20, boldnessPercent: 150 },
 };
