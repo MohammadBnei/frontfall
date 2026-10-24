@@ -1,7 +1,7 @@
 import type { Order } from "@frontfall/engine";
 import type { MapData } from "./maps.ts";
 import type { ClickOutcome, GameRules } from "./messages.ts";
-import type { GameUpdate } from "./solo-game.ts";
+import type { ClickMode, GameUpdate } from "./solo-game.ts";
 
 /** What the page needs to draw a game, once its map is loaded. */
 export interface StartInfo {
@@ -31,8 +31,8 @@ export interface SessionEvents {
 export interface GameSession {
   /** Order of the local player, carried out on a coming tick. */
   sendOrder(order: Order): void;
-  /** A click on the map, with the attack ratio in percent; the session picks the order. */
-  click(tile: number, ratio: number): void;
+  /** A click on the map, with the attack ratio in percent and the HUD's mode; the session picks the order. */
+  click(tile: number, ratio: number, mode?: ClickMode): void;
   /** Solo only: online games never pause. */
   setPaused(paused: boolean): void;
   dispose(): void;

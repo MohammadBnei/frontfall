@@ -17,6 +17,12 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   troops: "click.troops",
   unreachable: "click.unreachable",
   ships: "click.ships",
+  early: "click.early",
+  foreign: "click.foreign",
+  crowded: "click.crowded",
+  land: "click.land",
+  gold: "click.gold",
+  nothing: "click.nothing",
 };
 
 interface Mark {

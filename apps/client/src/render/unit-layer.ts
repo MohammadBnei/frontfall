@@ -10,16 +10,21 @@ export interface UnitLayerOptions {
   readonly capacity: number;
   /** Footprint of a unit in tiles. */
   readonly size?: number;
+  /** Sides of the shape: 8 draws a disc, 4 a diamond, 3 a triangle. Default 8. */
+  readonly sides?: number;
+  /** Height above the map; a layer drawn over another needs a larger one. Default 0.1. */
+  readonly depth?: number;
 }
 
 const vertexShader = /* glsl */ `
   uniform float worldWidth;
   uniform float cameraX;
   uniform bool wrapsX;
+  uniform float unitScale;
   out vec3 vColor;
 
   void main() {
-    vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
+    vec4 world = modelMatrix * instanceMatrix * vec4(position * unitScale, 1.0);
     // Draw each unit on the copy of the world closest to the camera.
     if (wrapsX) world.x += worldWidth * floor((cameraX - world.x) / worldWidth + 0.5);
     vColor = instanceColor;
@@ -46,6 +51,7 @@ export class UnitLayer {
   private readonly matrix = new THREE.Matrix4();
   private readonly color = new THREE.Color();
   private readonly cameraX = { value: 0 };
+  private readonly unitScale = { value: 1 };
   private dirtyFrom = Infinity;
   private dirtyTo = -1;
 
@@ -53,7 +59,7 @@ export class UnitLayer {
     const size = options.size ?? 3;
     // Eight triangles per unit: measured cheaper than a quad with a round
     // discard in the fragment shader, which also turns off early depth tests.
-    const geometry = new THREE.CircleGeometry(size / 2, 8);
+    const geometry = new THREE.CircleGeometry(size / 2, options.sides ?? 8, Math.PI / 2);
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       vertexShader,
@@ -61,6 +67,7 @@ export class UnitLayer {
       uniforms: {
         worldWidth: { value: options.worldWidth },
         cameraX: this.cameraX,
+        unitScale: this.unitScale,
         wrapsX: { value: options.wrapsX ?? true },
       },
     });
@@ -89,11 +96,20 @@ export class UnitLayer {
     if (!Number.isInteger(index) || index < 0 || index >= this.options.capacity) {
       throw new RangeError(`unit ${String(index)} is outside the capacity`);
     }
-    this.matrix.makeTranslation(x + 0.5, this.options.worldHeight - y - 0.5, 0.1);
+    this.matrix.makeTranslation(
+      x + 0.5,
+      this.options.worldHeight - y - 0.5,
+      this.options.depth ?? 0.1,
+    );
     this.mesh.setMatrixAt(index, this.matrix);
     this.mesh.setColorAt(index, this.color.set(color));
     this.dirtyFrom = Math.min(this.dirtyFrom, index);
     this.dirtyTo = Math.max(this.dirtyTo, index);
+  }
+
+  /** Draws every unit this many times its footprint, around its centre; 1 by default. */
+  setScale(scale: number): void {
+    this.unitScale.value = scale;
   }
 
   /**

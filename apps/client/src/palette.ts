@@ -10,6 +10,13 @@ export const MAP_COLORS = {
   landHigh: "#4C5A47",
 } as const;
 
+/** Structures stand out from land of any colour: light glyphs on a dark outline (brand `paper`, `slate-300`, `ink`). */
+export const STRUCTURE_COLORS = {
+  fill: "#F5F2EC",
+  building: "#8DA2B6",
+  outline: "#0A131C",
+} as const;
+
 export interface PlayerColor {
   name: string;
   hex: string;

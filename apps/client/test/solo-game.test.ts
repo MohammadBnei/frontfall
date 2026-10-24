@@ -115,6 +115,38 @@ describe("SoloGame attacks", () => {
 });
 
 describe("SoloGame clicks", () => {
+  it("builds and demolishes in the mode the HUD picked, and reports structures (R-BUILD)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const land = firstLand(options.map);
+    expect(solo.orderForClick(land, 30, "city")).toEqual({ refused: "early" });
+    let update = solo.step([{ type: "spawn", tile: land }]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    expect(solo.orderForClick(land, 30, "city")).toEqual({ refused: "gold" });
+    human.gold = 1_000_000;
+    const foreign = solo.game.territory.owners.findIndex(
+      (owner, tile) => owner !== HUMAN_ID && solo.game.terrain.isOwnable(tile),
+    );
+    expect(solo.orderForClick(foreign, 30, "fort")).toEqual({ refused: "foreign" });
+    const build = solo.orderForClick(land, 30, "city");
+    expect(build).toEqual({ order: { type: "build", structure: 0, tile: land } });
+    if (!("order" in build)) throw new Error("the build was refused");
+    update = solo.step([build.order]);
+    expect(update.structures).toEqual([
+      { id: 1, player: HUMAN_ID, type: "city", tile: land, ready: false },
+    ]);
+    expect(update.build.cities).toBe(1);
+    expect(update.build.cityCost).toBeGreaterThan(solo.game.balance.cityCost);
+    expect(solo.orderForClick(land, 30, "fort")).toEqual({ refused: "crowded" });
+    // A click a tile away still finds the city to demolish.
+    const near = solo.game.terrain.topology.neighbors(land)[0] ?? land;
+    expect(solo.orderForClick(near, 30, "demolish")).toEqual({
+      order: { type: "demolish", tile: land },
+    });
+    expect(solo.orderForClick(foreign, 30, "demolish")).toEqual({ refused: "nothing" });
+  });
+
   it("turns a click into the order the phase allows", () => {
     const solo = newGame(options);
     const land = firstLand(options.map);

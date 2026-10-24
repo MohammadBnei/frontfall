@@ -125,16 +125,20 @@ visuals will still change. Vite passes the version to the page
 
 ## Controls
 
-| Input                     | Action                                              |
-| ------------------------- | --------------------------------------------------- |
-| Click or tap              | Pick a start, then expand or attack                 |
-| Click a coast over water  | Send a ship with the attack ratio of the troops     |
-| Drag, one finger          | Move the map                                        |
-| Wheel, pinch, `+` and `-` | Zoom, towards the cursor or between the fingers     |
-| Arrows or `WASD`          | Move the map, at the same speed at any frame rate   |
-| `1` to `9`, `0`           | Attack with 10 % to 90 % of the troops, `0` for all |
-| `P` or `Esc`              | Pause and resume                                    |
-| `H` or `?`                | Show the controls                                   |
+| Input                     | Action                                                                                   |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| Click or tap              | Pick a start, then expand or attack                                                      |
+| Click a coast over water  | Send a ship with the attack ratio of the troops                                          |
+| Drag, one finger          | Move the map                                                                             |
+| Wheel, pinch, `+` and `-` | Zoom, towards the cursor or between the fingers                                          |
+| Arrows or `WASD`          | Move the map, at the same speed at any frame rate                                        |
+| `1` to `9`, `0`           | Attack with 10 % to 90 % of the troops, `0` for all                                      |
+| `C`, `F`, `X`             | Build a city, build a fort, demolish: then click your land; the next click attacks again |
+| `Esc`                     | Leave a build mode                                                                       |
+| `P` or `Esc`              | Pause and resume                                                                         |
+| `H` or `?`                | Show the controls                                                                        |
+
+The build panel on the right edge has the same three modes as buttons, with the cost of the next city and fort, and the cities owned against the most the land supports (`R-BUILD-07`). Structures are drawn as light diamonds (cities) and triangles (forts) on a dark outline, greyed while being built.
 
 While attacks are under way, a panel at the bottom left lists each one, its
 target and its troops, with a Retreat button that calls it back

@@ -1,5 +1,5 @@
 import type { GameRules } from "../game/messages.ts";
-import type { GameUpdate, PlayerView } from "../game/solo-game.ts";
+import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, t } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
@@ -19,7 +19,22 @@ export interface HudActions {
   onMenu(): void;
   /** Calls back one of the player's attacks, by id. */
   onRetreat(attack: number): void;
+  /** A build button was pressed: what clicks on the map do next. */
+  onMode(mode: ClickMode): void;
 }
+
+const MODE_BANNERS = {
+  city: "hud.modeCity",
+  fort: "hud.modeFort",
+  demolish: "hud.modeDemolish",
+} as const;
+
+/** The build buttons, with their shortcut keys (game-screen.ts). */
+const BUILD_MODES = [
+  { mode: "city", key: "C" },
+  { mode: "fort", key: "F" },
+  { mode: "demolish", key: "X" },
+] as const satisfies readonly { mode: ClickMode; key: string }[];
 
 /**
  * Numbers the player plays by: their troops, gold and land, the attack
@@ -60,6 +75,11 @@ export class Hud {
   /** One row per attack under way, kept across renders so a button under the pointer stays put. */
   private readonly attackRows = new Map<number, { row: HTMLElement; text: HTMLElement }>();
   private readonly onRetreat: (attack: number) => void;
+  private readonly buildButtons = new Map<ClickMode, HTMLButtonElement>();
+  private readonly cityCost = h("span", { class: "build-cost" });
+  private readonly fortCost = h("span", { class: "build-cost" });
+  private readonly cityCount = h("span", { class: "build-count" });
+  private mode: ClickMode = "attack";
   private rules: GameRules = {
     ownableTiles: 1,
     ticksPerSecond: 10,
@@ -109,6 +129,38 @@ export class Hud {
       actions.onMenu();
     });
 
+    const buildPanel = h(
+      "section",
+      { class: "panel build", "data-i18n-attr": "aria-label:hud.build" },
+      ...BUILD_MODES.map(({ mode, key }) => {
+        const extra =
+          mode === "city"
+            ? [this.cityCost, this.cityCount]
+            : mode === "fort"
+              ? [this.fortCost]
+              : [];
+        const button = h(
+          "button",
+          {
+            type: "button",
+            class: `build-button build-${mode}`,
+            id: `build-${mode}`,
+            "aria-pressed": "false",
+            "data-i18n-attr": `title:hud.${mode}Hint`,
+            "aria-keyshortcuts": key,
+          },
+          h("span", { class: "build-icon", "aria-hidden": "true" }),
+          h("span", { class: "build-name", "data-i18n": `hud.${mode}` }),
+          ...extra,
+        );
+        button.addEventListener("click", () => {
+          actions.onMode(mode);
+        });
+        this.buildButtons.set(mode, button);
+        return button;
+      }),
+    );
+
     this.element = h(
       "div",
       { class: "hud", id: "hud" },
@@ -142,6 +194,7 @@ export class Hud {
         this.ratioValue,
       ),
       this.attackPanel,
+      buildPanel,
       h("div", { class: "toolbar" }, help, ...(pausable ? [pause] : []), menu),
       ...present(betaBadge("beta-hud")),
     );
@@ -157,6 +210,15 @@ export class Hud {
     const value = Math.max(MIN_RATIO, Math.min(100, Math.round(percent)));
     this.ratioInput.value = String(value);
     this.ratioValue.textContent = formatPercent(value / 100);
+  }
+
+  /** Shows which build button, if any, the next click on the map follows. */
+  setMode(mode: ClickMode): void {
+    this.mode = mode;
+    if (this.last) this.banner.textContent = this.bannerText(this.last, this.you(this.last));
+    for (const [button, element] of this.buildButtons) {
+      element.setAttribute("aria-pressed", String(button === mode));
+    }
   }
 
   setRules(rules: GameRules): void {
@@ -178,18 +240,38 @@ export class Hud {
     if (this.last) this.render(this.last);
   }
 
+  private you(update: GameUpdate): PlayerView | undefined {
+    return update.players.find((player) => player.id === update.you);
+  }
+
   private render(update: GameUpdate): void {
-    const human = update.players.find((player) => player.id === update.you);
+    const human = this.you(update);
     if (human) {
       this.troops.textContent = formatCount(human.troops);
       this.troopsCap.textContent = t("hud.cap", { cap: formatCount(human.cap) });
       this.gold.textContent = formatCount(human.gold);
       this.land.textContent = this.share(human.tiles);
+      this.renderBuild(update, human);
     }
     this.banner.textContent = this.bannerText(update, human);
     this.renderLeaders(update.players, update.you);
     this.renderGoal(update, human);
     this.renderAttacks(update);
+  }
+
+  /** Costs of the next city and fort, greyed out while the player cannot pay or has no room. */
+  private renderBuild(update: GameUpdate, human: PlayerView): void {
+    const { cityCost, fortCost, cities, cityLimit } = update.build;
+    this.cityCost.textContent = formatCount(cityCost);
+    this.fortCost.textContent = formatCount(fortCost);
+    this.cityCount.textContent = t("hud.cities", { count: cities, limit: cityLimit });
+    const playing = update.phase === "play" && human.alive;
+    this.buildButtons
+      .get("city")
+      ?.classList.toggle("unaffordable", !playing || human.gold < cityCost || cities >= cityLimit);
+    this.buildButtons
+      .get("fort")
+      ?.classList.toggle("unaffordable", !playing || human.gold < fortCost);
   }
 
   /** The player's attacks under way, each with a button to call it back. */
@@ -259,6 +341,7 @@ export class Hud {
         : t("hud.spawnPick", { seconds });
     }
     if (human && !human.alive) return t("hud.eliminated");
+    if (this.mode !== "attack") return t(MODE_BANNERS[this.mode]);
     if (update.attacks.length > 0) {
       const troops = update.attacks.reduce((sum, attack) => sum + attack.troops, 0);
       return t("hud.attacking", { count: update.attacks.length, troops: formatCount(troops) });

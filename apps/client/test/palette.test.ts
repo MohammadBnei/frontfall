@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import tokens from "../../../assets/brand/tokens.json" with { type: "json" };
-import { MAP_COLORS, PLAYER_COLORS, hexToRgb, playerColor } from "../src/palette.ts";
+import {
+  MAP_COLORS,
+  PLAYER_COLORS,
+  STRUCTURE_COLORS,
+  hexToRgb,
+  playerColor,
+} from "../src/palette.ts";
 
 describe("palette", () => {
   it("matches the brand tokens", () => {
@@ -10,6 +16,11 @@ describe("palette", () => {
       oceanDeep: tokens.map["ocean-deep"],
       land: tokens.map.land,
       landHigh: tokens.map["land-high"],
+    });
+    expect(STRUCTURE_COLORS).toEqual({
+      fill: tokens.ui.paper,
+      building: tokens.ui["slate-300"],
+      outline: tokens.ui.ink,
     });
   });
 

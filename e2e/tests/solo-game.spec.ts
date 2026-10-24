@@ -7,24 +7,24 @@ async function landShare(page: Page): Promise<number> {
   return Number.parseFloat(text.replace(",", ".")) || 0;
 }
 
-/** Clicks in a widening spiral around a point until `done` holds. */
+/** Clicks in a widening spiral around a point until `done` holds; returns the last point clicked. */
 async function clickAround(
   page: Page,
   center: { x: number; y: number },
   done: () => Promise<boolean>,
-): Promise<void> {
+): Promise<{ x: number; y: number }> {
+  let last = center;
   for (let ring = 0; ring < 12; ring++) {
     for (let step = 0; step < 8; step++) {
       const angle = (step / 8) * 2 * Math.PI;
       const radius = 20 + ring * 25;
-      await page.mouse.click(
-        center.x + Math.cos(angle) * radius,
-        center.y + Math.sin(angle) * radius,
-      );
+      last = { x: center.x + Math.cos(angle) * radius, y: center.y + Math.sin(angle) * radius };
+      await page.mouse.click(last.x, last.y);
       await page.waitForTimeout(150);
-      if (await done()) return;
+      if (await done()) return last;
     }
   }
+  return last;
 }
 
 test("plays a solo game from the menu: spawn, then expand", async ({ page }) => {
@@ -79,6 +79,72 @@ test("plays a solo game from the menu: spawn, then expand", async ({ page }) => 
   }
   await expect(page.locator(".attacks")).toBeHidden();
 
+  expect(pageErrors).toEqual([]);
+});
+
+/** Pixels of the light fill structures are drawn with, around a point of the page. */
+async function structurePixels(page: Page, at: { x: number; y: number }): Promise<number> {
+  const clip = { x: at.x - 40, y: at.y - 40, width: 80, height: 80 };
+  const png = (await page.screenshot({ scale: "css", clip })).toString("base64");
+  // The suite has no DOM types: the counting runs in the page, as a string.
+  return page.evaluate<number>(`(async (png) => {
+    const image = new Image();
+    image.src = "data:image/png;base64," + png;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const data = context.getImageData(0, 0, image.width, image.height).data;
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] > 225 && data[i + 1] > 220 && data[i + 2] > 210) count++;
+    }
+    return count;
+  })(${JSON.stringify(png)})`);
+}
+
+test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
+  test.setTimeout(120_000);
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy&speed=5");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  const box = await page.locator("#map").boundingBox();
+  if (!box) throw new Error("the map has no size");
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  // The tile clicked to start on stays the player's: the city goes there.
+  const start = await clickAround(page, center, async () => (await landShare(page)) > 0);
+  expect(await landShare(page)).toBeGreaterThan(0);
+
+  // Grow, so the gold comes in faster.
+  await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
+  await page.keyboard.press("Digit3");
+  const city = page.locator("#build-city");
+  // Clicks walk a spiral out from the start: those next to free land expand.
+  for (let i = 0; i < 400 && (await city.getAttribute("class"))?.includes("unaffordable"); i++) {
+    const angle = ((i % 8) / 8) * 2 * Math.PI;
+    const radius = 20 + (Math.floor(i / 8) % 12) * 25;
+    await page.mouse.click(
+      center.x + Math.cos(angle) * radius,
+      center.y + Math.sin(angle) * radius,
+    );
+    await page.waitForTimeout(250);
+  }
+  await expect(city).not.toHaveClass(/unaffordable/, { timeout: 60_000 });
+
+  const before = await structurePixels(page, start);
+  await page.keyboard.press("KeyC");
+  await expect(city).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".banner")).toContainText("build a city");
+  await page.mouse.click(start.x, start.y);
+  await expect(page.locator("#build-city .build-count")).toContainText("1 of", { timeout: 5_000 });
+  await expect(city).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .poll(() => structurePixels(page, start), { timeout: 10_000 })
+    .toBeGreaterThan(before);
   expect(pageErrors).toEqual([]);
 });
 

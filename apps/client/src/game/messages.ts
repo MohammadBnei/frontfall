@@ -1,7 +1,7 @@
 import type { DesyncReport, Order, Turn } from "@frontfall/engine";
 import type { MapInfo } from "./maps.ts";
 import type { StartInfo } from "./session.ts";
-import type { ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
+import type { ClickMode, ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
 
 /** What became of a click: the order it sent, or why it sent none. */
 export type ClickOutcome = Order["type"] | ClickRefusal;
@@ -26,7 +26,7 @@ export type WorkerRequest =
   | { type: "turns"; turns: Turn[] }
   | { type: "order"; order: Order }
   /** A click on the map, turned into an order by the worker, which knows the game. */
-  | { type: "click"; tile: number; ratio: number }
+  | { type: "click"; tile: number; ratio: number; mode: ClickMode }
   | { type: "pause"; paused: boolean }
   /** Online: the server flagged this client's hash after `tick`. */
   | { type: "desync"; tick: number; expected: number | null }

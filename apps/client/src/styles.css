@@ -1038,3 +1038,96 @@ input[type="range"] {
   font-weight: 600;
   opacity: 0.85;
 }
+
+/* Build buttons (ui/hud.ts): city, fort and demolish, with the cost of the next one. */
+
+.build {
+  top: 50%;
+  right: 12px;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  transform: translateY(-50%);
+}
+
+.build-button {
+  display: grid;
+  grid-template-columns: 16px auto;
+  column-gap: 8px;
+  align-items: center;
+  min-width: 112px;
+  padding: 6px 8px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: transparent;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.build-button:hover,
+.build-button:focus-visible {
+  border-color: var(--ff-slate-400);
+}
+
+.build-button[aria-pressed="true"] {
+  border-color: var(--ff-ember);
+  background: rgb(242 92 42 / 18%);
+}
+
+.build-button.unaffordable .build-cost {
+  color: var(--ff-danger);
+}
+
+.build-icon {
+  grid-row: span 2;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ff-night-800);
+  background: var(--ff-text);
+}
+
+.build-city .build-icon {
+  transform: rotate(45deg) scale(0.8);
+}
+
+.build-fort .build-icon {
+  border: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.build-demolish .build-icon {
+  border-color: var(--ff-danger);
+  background: transparent;
+}
+
+.build-name {
+  font-weight: 600;
+}
+
+.build-cost,
+.build-count {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.build-cost + .build-count {
+  grid-column: 2;
+}
+
+.map-surface[data-mode="city"],
+.map-surface[data-mode="fort"],
+.map-surface[data-mode="demolish"] {
+  cursor: crosshair;
+}
+
+.click-mark.build::before {
+  border-color: var(--ff-text);
+  border-radius: 2px;
+}
+
+.click-mark.demolish::before {
+  border-color: var(--ff-danger);
+  border-style: dashed;
+}

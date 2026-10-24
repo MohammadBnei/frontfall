@@ -3,7 +3,7 @@ import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
 import type { MapData, MapInfo } from "../game/maps.ts";
-import type { GameUpdate, SoloOptions } from "../game/solo-game.ts";
+import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
@@ -66,6 +66,10 @@ export class GameScreen {
   private readonly pacer: TurnPacer;
   /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
   private fadingUntil = 0;
+  /** What a click on the map does, picked in the HUD. */
+  private mode: ClickMode = "attack";
+  /** The structures last drawn, as a key that changes when any of them does. */
+  private drawnStructures = "";
 
   constructor(
     readonly options: SoloOptions,
@@ -97,6 +101,9 @@ export class GameScreen {
         },
         onRetreat: (attack) => {
           this.retreat(attack);
+        },
+        onMode: (mode) => {
+          this.setMode(mode);
         },
       },
       { pausable: link === undefined },
@@ -132,6 +139,8 @@ export class GameScreen {
         },
         onClick: (tile, outcome) => {
           this.marks.show(tile, outcome, performance.now(), link !== undefined);
+          // One structure per pick of the button: the next click attacks again.
+          if (outcome === "build" || outcome === "demolish") this.setMode("attack");
         },
         onError: (message) => {
           console.error(message);
@@ -312,6 +321,7 @@ export class GameScreen {
       const zoom = (START_TILE_PIXELS * this.camera.options.height) / this.camera.viewportHeight;
       if (start >= 0) this.camera.focus(start, Math.max(this.camera.zoom, zoom));
     }
+    this.placeStructures(update);
     this.latest = update;
     this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
@@ -331,7 +341,33 @@ export class GameScreen {
   private click(tile: number): void {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined) return;
-    this.session.click(tile, this.hud.ratio);
+    this.session.click(tile, this.hud.ratio, this.mode);
+  }
+
+  /** Picking the current mode again goes back to attacking. */
+  private setMode(mode: ClickMode): void {
+    this.mode = mode === this.mode ? "attack" : mode;
+    this.hud.setMode(this.mode);
+    this.surface.dataset.mode = this.mode;
+  }
+
+  /** Structures change rarely: they are drawn again only when one appears, finishes or changes hands. */
+  private placeStructures(update: GameUpdate): void {
+    const key = update.structures
+      .map((s) => `${String(s.id)}:${String(s.player)}:${s.ready ? "1" : "0"}`)
+      .join(",");
+    if (!this.view || key === this.drawnStructures) return;
+    this.drawnStructures = key;
+    const { width } = this.camera.options;
+    this.view.setStructures(
+      update.structures.map((structure) => ({
+        x: structure.tile % width,
+        y: Math.floor(structure.tile / width),
+        type: structure.type,
+        ready: structure.ready,
+      })),
+    );
+    this.dirty = true;
   }
 
   private retreat(attack: number): void {
@@ -345,6 +381,23 @@ export class GameScreen {
     if (event.target instanceof HTMLInputElement && event.target.type === "text") return;
     if (event.code === "Escape" && this.overlay) {
       this.closeOverlay();
+      event.preventDefault();
+      return;
+    }
+    // Esc first drops a build mode, before it pauses the game.
+    if (event.code === "Escape" && this.mode !== "attack") {
+      this.setMode("attack");
+      event.preventDefault();
+      return;
+    }
+    const modes: Partial<Record<string, ClickMode>> = {
+      KeyC: "city",
+      KeyF: "fort",
+      KeyX: "demolish",
+    };
+    const mode = modes[event.code];
+    if (mode) {
+      this.setMode(mode);
       event.preventDefault();
       return;
     }

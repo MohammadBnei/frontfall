@@ -4,9 +4,15 @@ import {
   Terrain,
   WorldGrid,
   createGame,
+  StructureKind,
+  cityLimit,
   installBots,
+  isReady,
+  orderError,
   populationCap,
   seaRoute,
+  structureCost,
+  structureCount,
   type DesyncReport,
   type Game,
   type Order,
@@ -22,6 +28,12 @@ import type { MapData } from "./maps.ts";
 export const HUMAN_ID = 1;
 
 export type Difficulty = "easy" | "normal" | "hard";
+
+/** What a click on the map does: attack by default, or build or demolish once picked in the HUD. */
+export type ClickMode = "attack" | "city" | "fort" | "demolish";
+
+/** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
+const DEMOLISH_REACH = 3;
 
 export interface SoloOptions {
   map: string;
@@ -80,6 +92,10 @@ export interface GameUpdate {
   labels?: LabelAnchor[];
   /** Every ship at sea. */
   boats: BoatView[];
+  /** Every structure on the map. */
+  structures: StructureView[];
+  /** What the player at this screen can build next. */
+  build: BuildView;
   /** Set instead of the change lists when too much changed to list. */
   owners?: Uint16Array;
   winner?: number;
@@ -99,9 +115,54 @@ export type ClickRefusal =
   /** B-BOAT-MAX ships are already at sea. */
   | "ships"
   /** The game is decided, or the player is out. */
-  | "over";
+  | "over"
+  /** Building opens with the attacks, after the spawn phase. */
+  | "early"
+  /** A structure goes on the player's own land only. */
+  | "foreign"
+  /** Another structure stands closer than B-BUILD-SPACING. */
+  | "crowded"
+  /** The player's land supports no more cities (R-BUILD-07). */
+  | "land"
+  | "gold"
+  /** No structure of the player's near the click to demolish. */
+  | "nothing";
 
 export type ClickResult = { order: Order } | { refused: ClickRefusal };
+
+export type StructureType = "city" | "fort";
+
+export interface StructureView {
+  id: number;
+  player: number;
+  type: StructureType;
+  tile: number;
+  /** False while it is being built (B-BUILD-TIME). */
+  ready: boolean;
+}
+
+export interface BuildView {
+  /** Gold the next city and the next fort cost the player. */
+  cityCost: number;
+  fortCost: number;
+  cities: number;
+  /** Most cities the player's land supports now. */
+  cityLimit: number;
+}
+
+const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
+  city: StructureKind.City,
+  fort: StructureKind.Fort,
+};
+
+/** Engine refusals of a build order, as the interface explains them. */
+const BUILD_REFUSALS: Readonly<Record<string, ClickRefusal>> = {
+  "building starts after the spawn phase": "early",
+  "the tile is not yours": "foreign",
+  "too close to another structure": "crowded",
+  "not enough land for another city": "land",
+  "not enough gold": "gold",
+};
 
 /** A transport ship at sea, where it is this tick. */
 export interface BoatView {
@@ -211,7 +272,7 @@ export class SoloGame {
    * by land when the target touches their land, by sea when it is a coast
    * on another land mass. Otherwise, why nothing happens.
    */
-  orderForClick(tile: number, ratio: number): ClickResult {
+  orderForClick(tile: number, ratio: number, mode: ClickMode = "attack"): ClickResult {
     const { game } = this;
     const { terrain, territory } = game;
     const human = game.player(this.you);
@@ -219,7 +280,13 @@ export class SoloGame {
     if (!Number.isInteger(tile) || tile < 0 || tile >= terrain.topology.size) {
       return { refused: "terrain" };
     }
+    if (mode === "demolish") return this.demolishNear(tile);
     if (!terrain.isOwnable(tile)) return { refused: "terrain" };
+    if (mode === "city" || mode === "fort") {
+      const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };
+      const error = orderError(game, human, order);
+      return error === undefined ? { order } : { refused: BUILD_REFUSALS[error] ?? "foreign" };
+    }
     if (game.phase === "spawn") return { order: { type: "spawn", tile } };
     if (territory.ownerOf(tile) === this.you) return { refused: "own" };
     const troops = Math.floor((human.troops * Math.min(100, Math.max(0, ratio))) / 100);
@@ -249,6 +316,20 @@ export class SoloGame {
       return { order: { type: "embark", target: tile, troops } };
     }
     return { refused: "unreachable" };
+  }
+
+  /** The player's structure closest to the click, within a few tiles. */
+  private demolishNear(tile: number): ClickResult {
+    const topology = this.game.terrain.topology;
+    let best: { tile: number; distance: number } | undefined;
+    for (const structure of this.game.structures) {
+      if (structure.player !== this.you) continue;
+      const distance = topology.distance(structure.tile, tile);
+      if (distance <= DEMOLISH_REACH && (!best || distance < best.distance)) {
+        best = { tile: structure.tile, distance };
+      }
+    }
+    return best ? { order: { type: "demolish", tile: best.tile } } : { refused: "nothing" };
   }
 
   /**
@@ -358,6 +439,19 @@ export class SoloGame {
         tile: boat.path[Math.max(0, Math.min(boat.step, boat.path.length) - 1)] ?? boat.target,
         troops: boat.troops,
       })),
+      structures: game.structures.map((structure) => ({
+        id: structure.id,
+        player: structure.player,
+        type: structure.kind === StructureKind.City ? "city" : "fort",
+        tile: structure.tile,
+        ready: isReady(game, structure),
+      })),
+      build: {
+        cityCost: structureCost(game, this.you, StructureKind.City),
+        fortCost: structureCost(game, this.you, StructureKind.Fort),
+        cities: structureCount(game, this.you, StructureKind.City),
+        cityLimit: cityLimit(game, this.you),
+      },
     };
     if (territory.changesOverflowed) {
       update.owners = territory.owners.slice();

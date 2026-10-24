@@ -2,7 +2,7 @@ import type { DesyncReport, Order, Turn } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import type { MapInfo } from "./maps.ts";
-import type { SoloOptions } from "./solo-game.ts";
+import type { ClickMode, SoloOptions } from "./solo-game.ts";
 
 /** Where an online game's orders and state hashes go: the connection to the server. */
 export interface ServerLink {
@@ -55,8 +55,8 @@ export class LocalSession implements GameSession {
     else this.post({ type: "order", order });
   }
 
-  click(tile: number, ratio: number): void {
-    this.post({ type: "click", tile, ratio });
+  click(tile: number, ratio: number, mode: ClickMode = "attack"): void {
+    this.post({ type: "click", tile, ratio, mode });
   }
 
   /** Online: turns from the server, consecutive, from the next tick on. */

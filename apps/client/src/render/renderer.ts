@@ -8,6 +8,15 @@ export interface UnitMark {
   readonly color: string;
 }
 
+/** A structure to draw on its tile, y counted from the north. */
+export interface StructureMark {
+  readonly x: number;
+  readonly y: number;
+  readonly type: "city" | "fort";
+  /** Drawn faded while it is being built. */
+  readonly ready: boolean;
+}
+
 /** What a renderer is made from: the map, and the owners array it reads in place. */
 export interface RendererOptions {
   readonly width: number;
@@ -40,6 +49,8 @@ export interface Renderer {
   markAllChanged(): void;
   /** Ships at sea, replacing the previous ones. */
   setShips(ships: readonly UnitMark[]): void;
+  /** Every structure on the map, replacing the previous ones. */
+  setStructures(structures: readonly StructureMark[]): void;
   resize(width: number, height: number): void;
   render(view: CameraView): void;
   dispose(): void;
