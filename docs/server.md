@@ -121,4 +121,4 @@ HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sen
 
 ## Shutdown
 
-On `SIGTERM` the server closes every WebSocket with code `1012` and stops listening; it exits within 5 seconds, before Docker's 10-second limit. Games in progress are lost: they live in memory only.
+On `SIGTERM` the server closes every WebSocket with code `1012` and stops listening; it exits within 5 seconds, before Docker's default 10-second limit and well within the 30 seconds the production host allows. Games in progress are lost: they live in memory only.

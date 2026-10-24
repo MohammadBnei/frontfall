@@ -2,6 +2,8 @@
 
 How the public server at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/) runs, and what to do when it misbehaves. Configuration, limits, logs and metrics of the game server itself are described in [server.md](server.md).
 
+The host is configured in [nic0lasm/nclsmgr.com](https://github.com/nic0lasm/nclsmgr.com). What the game and the host promise each other (image, paths, health check, shutdown, container limits, deployer) is written down in its [deploy/frontfall/CONTRAT.md](https://github.com/nic0lasm/nclsmgr.com/blob/main/deploy/frontfall/CONTRAT.md), in French. A change that touches one of those promises, such as a new environment variable needed in production, is requested there first, in its section "Frontfall → nclsmgr.com".
+
 ## Where things are
 
 | What            | Where                                                                                                                       |
