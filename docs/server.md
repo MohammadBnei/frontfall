@@ -17,19 +17,22 @@
 
 ## Games
 
-| Setting                        | Value                      | Notes                                                        |
-| ------------------------------ | -------------------------- | ------------------------------------------------------------ |
-| Players per game               | 16                         | A public game starts at once when full                       |
-| Players to start a public game | 2                          | Then the countdown runs; it stops if a player leaves below 2 |
-| Seat kept after a drop         | 2 minutes                  | The player rejoins with their token and every missed turn    |
-| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                     |
-| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`    |
-| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                     |
-| Private games per address      | 3 not yet started          | Further `create` requests get `too_many_games`               |
+| Setting                        | Value                                                  | Notes                                                        |
+| ------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------ |
+| Players per game               | 16                                                     | A public game starts at once when full                       |
+| Players to start a public game | 2                                                      | Then the countdown runs; it stops if a player leaves below 2 |
+| Seat kept after a drop         | 2 minutes                                              | The player rejoins with their token and every missed turn    |
+| Longest game                   | 4 hours                                                | Then the game ends with reason `timeout`                     |
+| Games at once                  | 500                                                    | Further `play` and `create` requests get `too_many_games`    |
+| Bots in a private game         | 25, and seats plus bots within the map's `players.max` | Set by the host with `configure`                             |
+| Game not started               | 10 minutes after it opened                             | Then the game ends with reason `expired`                     |
+| Private games per address      | 3 not yet started                                      | Further `create` requests get `too_many_games`               |
 
 A game is freed as soon as it ends: when its last player leaves before the start, when it has not started ten minutes after it opened, when every player has been gone for two minutes, or at the time limit. Its turn log, about one byte per quiet tick, goes with it.
 
 All running games share one timer that closes a turn every 100 ms. The `frontfall_turn_duration_seconds` histogram measures how long one pass over every game takes.
+
+Private games offer the maps listed in `maps/index.json` of the built client, read once at start. Without that file, only the default map, World, can be picked.
 
 ## Limits
 
@@ -65,15 +68,15 @@ The server writes one JSON object per line on standard output, read with `docker
 }
 ```
 
-| Event                 | Level | Fields                          |
-| --------------------- | ----- | ------------------------------- |
-| `server_started`      | info  | `port`, `version`               |
-| `server_stopping`     | info  |                                 |
-| `game_started`        | info  | `game`, `visibility`, `players` |
-| `game_finished`       | info  | `game`, `reason`, `ticks`       |
-| `player_rejoined`     | info  | `game`, `player`, `from`        |
-| `desync`              | warn  | `game`, `tick`                  |
-| `connection_rejected` | warn  | `client`, `reason`              |
+| Event                 | Level | Fields                                                                                  |
+| --------------------- | ----- | --------------------------------------------------------------------------------------- |
+| `server_started`      | info  | `port`, `version`                                                                       |
+| `server_stopping`     | info  |                                                                                         |
+| `game_started`        | info  | `game`, `visibility`, `players`                                                         |
+| `game_finished`       | info  | `game`, `reason`, `ticks`                                                               |
+| `player_rejoined`     | info  | `game`, `player`, `from`                                                                |
+| `desync`              | warn  | `game`, `tick`, `hash` (the player out of step), `expected` (the majority's, or `null`) |
+| `connection_rejected` | warn  | `client`, `reason`                                                                      |
 
 Client addresses never appear in clear. `client` is a keyed hash of the address: stable while the process runs, so repeated abuse from one address can be spotted, and impossible to link to the address or across restarts, because the key is drawn at random on start. Player names are not logged.
 

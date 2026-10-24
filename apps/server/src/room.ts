@@ -3,8 +3,10 @@ import {
   encodeTurnsFrame,
   HASH_INTERVAL,
   TICK_RATE,
+  type Difficulty,
   type ErrorCode,
   type Frame,
+  type GameOptions,
   type Order,
   type PlayerInfo,
   type ServerMessage,
@@ -26,6 +28,7 @@ export interface RoomSettings {
   capacity: number;
   /** Bots added by every client at the start; the server never sees their orders. */
   bots: number;
+  difficulty: Difficulty;
   /** Public games: players needed before the countdown starts. */
   minPlayers: number;
   /** Public games: wait after reaching minPlayers, unless the game fills up first. */
@@ -64,7 +67,8 @@ export interface Seat {
 export interface RoomObserver {
   started?(room: Room): void;
   finished?(room: Room, reason: FinishReason): void;
-  desync?(room: Room, tick: number): void;
+  /** `hash` is the flagged players' hash, `expected` the majority's, if any. */
+  desync?(room: Room, tick: number, hash: number, expected: number | undefined): void;
 }
 
 /**
@@ -95,12 +99,17 @@ export class Room {
 
   constructor(
     readonly id: string,
-    readonly settings: RoomSettings,
+    settings: RoomSettings,
     readonly seed: number,
     private readonly observer: RoomObserver = {},
     /** Address of the player who opened the game, for per-address limits. */
     readonly owner?: string,
-  ) {}
+  ) {
+    // Copied: the host of a private game changes its own map and bots.
+    this.settings = { ...settings };
+  }
+
+  readonly settings: RoomSettings;
 
   get state(): RoomState {
     return this.stateValue;
@@ -197,6 +206,16 @@ export class Room {
     return undefined;
   }
 
+  /** Host of a private game: map, bots and difficulty, until the start. */
+  configure(seat: Seat, options: GameOptions, now: number): ErrorCode | undefined {
+    if (!this.holds(seat)) return "not_in_game";
+    if (this.stateValue === "running") return "game_started";
+    if (this.host !== seat) return "not_host";
+    Object.assign(this.settings, options);
+    this.lobbyChanged(now);
+    return undefined;
+  }
+
   /** Host of a private game: start now, whoever has joined. */
   requestStart(seat: Seat, now: number): ErrorCode | undefined {
     if (!this.holds(seat)) return "not_in_game";
@@ -247,14 +266,14 @@ export class Room {
     const [first, second] = ranked;
     const majority = first && second && first[1] > second[1] ? first[0] : undefined;
     const firstDesync = this.desyncs.size === 0;
-    let flagged = 0;
+    let flagged: number | undefined;
     for (const [seat, hash] of reports) {
       if (hash === majority || this.desyncs.has(seat)) continue;
       this.desyncs.set(seat, tick);
       seat.peer?.send(encodeServerMessage({ type: "desync", tick }));
-      flagged++;
+      flagged ??= hash;
     }
-    if (firstDesync && flagged > 0) this.observer.desync?.(this, tick);
+    if (firstDesync && flagged !== undefined) this.observer.desync?.(this, tick, flagged, majority);
   }
 
   /** Runs once per tick of the server: countdown, turn, timeouts. */
@@ -355,6 +374,8 @@ export class Room {
           game: this.id,
           visibility: this.settings.visibility,
           map: this.settings.map,
+          bots: this.settings.bots,
+          difficulty: this.settings.difficulty,
           capacity: this.settings.capacity,
           players,
           you: seat.id,
@@ -372,6 +393,7 @@ export class Room {
       map: this.settings.map,
       seed: this.seed,
       bots: this.settings.bots,
+      difficulty: this.settings.difficulty,
       tickRate: TICK_RATE,
       players: this.players(),
       you: seat.id,

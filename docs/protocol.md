@@ -1,6 +1,6 @@
 # Network protocol
 
-Version 2. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 3. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 2, name } ---------> |
+  | -- hello { version: 3, name } ---------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -34,7 +34,7 @@ client                                   server
 
 1. **Hello.** The first message of every connection. The server checks the protocol version and the player name, then answers `welcome`. A connection that sends nothing within 10 seconds is closed with `4003`.
 2. **Lobby.** The player joins a public game (`play`), opens a private one (`create`) or joins one by id (`join`). The server sends `lobby` to everyone in the game each time a player arrives or leaves.
-3. **Start.** A public game counts down 30 seconds once it has two players, and starts at once when it is full. A private game starts when its host sends `start`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
+3. **Start.** A public game counts down 30 seconds once it has two players, and starts at once when it is full. The host of a private game may change its map, bots and difficulty with `configure`, then starts it with `start`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
 4. **Turns.** From tick 0, the server sends one turn every 100 ms, with or without orders. A client runs tick `n` only after receiving turn `n`.
 5. **End.** The server sends `ended` when every player is gone, when the game reaches four hours, or when a game has not started ten minutes after it opened. A client that leaves earlier sends `leave`. Either way, the connection can join another game.
 
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection gives its seat up. The client joins a
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 2, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 3, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -95,6 +95,14 @@ Joins a game by id, public or private, before it starts.
 ```
 
 Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting). `from` is the first tick the client has not received.
+
+### `configure`
+
+```json
+{ "type": "configure", "options": { "map": "europe", "bots": 6, "difficulty": "hard" } }
+```
+
+The host of a private game sets its map, its number of bots and how hard they play, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The bots and the seats of the game together must fit the most players the map allows (`players.max` in the catalog), and the server adds at most 25 bots. Every player receives the new options in `lobby`. A new private game starts on World, without bots, at `normal`.
 
 ### `start`
 
@@ -138,7 +146,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 2 }
+{ "type": "welcome", "version": 3 }
 ```
 
 The hello was accepted.
@@ -151,6 +159,8 @@ The hello was accepted.
   "game": "Xk3_9aB-q2Lm",
   "visibility": "public",
   "map": "world",
+  "bots": 0,
+  "difficulty": "normal",
   "capacity": 16,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -162,7 +172,7 @@ The hello was accepted.
 }
 ```
 
-The game being filled, sent after every change. `host` is the host's number in a private game and `null` in a public one. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs.
+The game being filled, sent after every change, the host's `configure` included. `host` is the host's number in a private game and `null` in a public one. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs.
 
 ### `started`
 
@@ -173,6 +183,7 @@ The game being filled, sent after every change. `host` is the host's number in a
   "map": "world",
   "seed": 1834567,
   "bots": 0,
+  "difficulty": "normal",
   "tickRate": 10,
   "players": [
     { "id": 1, "name": "Nico" },
@@ -183,7 +194,7 @@ The game being filled, sent after every change. `host` is the host's number in a
 }
 ```
 
-Everything a client needs to create the same game as the others: map, seed, players and the number of bots each client adds and runs itself. The server relays only human orders. `token` is secret: it lets this player rejoin after a dropped connection. The message is sent again after a successful `rejoin`.
+Everything a client needs to create the same game as the others: map, seed, players and the number of bots each client adds and runs itself, at `difficulty`. The server relays only human orders. `token` is secret: it lets this player rejoin after a dropped connection. The message is sent again after a successful `rejoin`.
 
 ### `turns`
 
@@ -228,18 +239,19 @@ The game is over for this connection. Reasons: `abandoned` (every player is gone
 
 A request was refused; the connection stays open. `message` is for people, `code` for programs:
 
-| Code              | Answer to                | Meaning                                         |
-| ----------------- | ------------------------ | ----------------------------------------------- |
-| `invalid_name`    | `hello`                  | The name breaks the name rules                  |
-| `not_found`       | `join`                   | No game has this id                             |
-| `game_full`       | `join`                   | The game has no free seat                       |
-| `game_started`    | `join`, `start`          | The game has already started                    |
-| `already_in_game` | `play`, `create`, `join` | Leave the current game first                    |
-| `not_in_game`     | `start`                  | The connection is not in a game                 |
-| `not_host`        | `start`                  | Only the host of a private game can start it    |
-| `too_many_games`  | `play`, `create`         | The server holds as many games as it can        |
-| `token_invalid`   | `rejoin`                 | The game is over or the seat was given up       |
-| `token_in_use`    | `rejoin`                 | Another connection holds the seat; retry in 1 s |
+| Code               | Answer to                    | Meaning                                                |
+| ------------------ | ---------------------------- | ------------------------------------------------------ |
+| `invalid_name`     | `hello`                      | The name breaks the name rules                         |
+| `not_found`        | `join`                       | No game has this id                                    |
+| `game_full`        | `join`                       | The game has no free seat                              |
+| `game_started`     | `join`, `configure`, `start` | The game has already started                           |
+| `already_in_game`  | `play`, `create`, `join`     | Leave the current game first                           |
+| `not_in_game`      | `configure`, `start`         | The connection is not in a game                        |
+| `not_host`         | `configure`, `start`         | Only the host of a private game can change or start it |
+| `invalid_settings` | `configure`                  | No published map has this id, or too many bots for it  |
+| `too_many_games`   | `play`, `create`             | The server holds as many games as it can               |
+| `token_invalid`    | `rejoin`                     | The game is over or the seat was given up              |
+| `token_in_use`     | `rejoin`                     | Another connection holds the seat; retry in 1 s        |
 
 ## Close codes
 
@@ -286,4 +298,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`). The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

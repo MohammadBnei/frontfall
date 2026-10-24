@@ -7,6 +7,7 @@ const PUBLIC: RoomSettings = {
   map: "world",
   capacity: 4,
   bots: 0,
+  difficulty: "normal",
   minPlayers: 2,
   countdownMs: 10_000,
   reconnectGraceMs: 60_000,
@@ -55,7 +56,8 @@ function events(): RoomObserver & { log: string[] } {
     log,
     started: () => log.push("started"),
     finished: (_room, reason) => log.push(`finished:${reason}`),
-    desync: (_room, tick) => log.push(`desync:${String(tick)}`),
+    desync: (_room, tick, hash, expected) =>
+      log.push(`desync:${String(tick)}:${String(hash)}:${String(expected)}`),
   };
 }
 
@@ -178,6 +180,20 @@ describe("private lobby", () => {
     expect(room.requestStart(host.seat, 0)).toBeUndefined();
     expect(room.state).toBe("running");
     expect(room.requestStart(host.seat, 0)).toBe("game_started");
+  });
+
+  it("lets the host alone change the game before it starts", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    const host = seated(room, "Host");
+    const guest = seated(room, "Guest");
+    const options = { map: "europe", bots: 5, difficulty: "easy" } as const;
+    expect(room.configure(guest.seat, options, 0)).toBe("not_host");
+    expect(room.configure(host.seat, options, 0)).toBeUndefined();
+    expect(guest.peer.last("lobby")).toMatchObject(options);
+    expect(PRIVATE.map).toBe("world");
+    room.requestStart(host.seat, 0);
+    expect(guest.peer.last("started")).toMatchObject(options);
+    expect(room.configure(host.seat, options, 0)).toBe("game_started");
   });
 
   it("hands the host role to the next player", () => {
@@ -344,7 +360,7 @@ describe("desync detection", () => {
     expect(room.desynced).toBe(true);
     expect(c.peer.last("desync").tick).toBe(100);
     expect(a.peer.inbox.some((message) => message.type === "desync")).toBe(false);
-    expect(observer.log.filter((entry) => entry.startsWith("desync"))).toEqual(["desync:100"]);
+    expect(observer.log.filter((entry) => entry.startsWith("desync"))).toEqual(["desync:100:8:7"]);
 
     room.disconnect(c.seat, 20_000);
     const back = new FakePeer();

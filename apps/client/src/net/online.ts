@@ -5,6 +5,7 @@ import {
   PROTOCOL_VERSION,
   type ClientMessage,
   type ErrorCode,
+  type GameOptions,
   type Order,
   type ServerMessage,
   type Turn,
@@ -112,6 +113,11 @@ export class OnlineClient {
   }
 
   /** Host of a private game: start now. */
+  /** Host of a private game: map, bots and difficulty, until the start. */
+  configure(options: GameOptions): void {
+    this.send({ type: "configure", options });
+  }
+
   start(): void {
     this.send({ type: "start" });
   }

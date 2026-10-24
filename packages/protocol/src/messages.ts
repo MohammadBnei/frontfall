@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -49,6 +49,7 @@ export const ErrorCode = z.enum([
   "too_many_games",
   "token_invalid",
   "token_in_use",
+  "invalid_settings",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
@@ -56,6 +57,24 @@ export type ErrorCode = z.infer<typeof ErrorCode>;
 const gameId = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
 const token = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
 const tick = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+
+/** How hard the bots play. Every client runs them at the level the game was set to. */
+export const Difficulty = z.enum(["easy", "normal", "hard"]);
+export type Difficulty = z.infer<typeof Difficulty>;
+
+/** What the host of a private game chooses before the start. */
+export const GameOptions = z
+  .object({
+    /** Id of a map in `maps/index.json`. */
+    map: z
+      .string()
+      .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+      .max(64),
+    bots: z.number().int().min(0).max(255),
+    difficulty: Difficulty,
+  })
+  .strict();
+export type GameOptions = z.infer<typeof GameOptions>;
 
 export const ClientMessage = z.discriminatedUnion("type", [
   /** First message of every connection. The name is checked by `normalizeName`. */
@@ -74,6 +93,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("join"), game: gameId }).strict(),
   /** Take back a seat after a dropped connection, receiving every turn from `from`. */
   z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
+  /** Host only: change the map, bots or difficulty of a private game before it starts. */
+  z.object({ type: z.literal("configure"), options: GameOptions }).strict(),
   /** Host only: start a private game now. */
   z.object({ type: z.literal("start") }).strict(),
   /** Leave the current game for good. */
@@ -100,6 +121,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     game: gameId,
     visibility: Visibility,
     map: z.string(),
+    bots: z.number().int().nonnegative(),
+    difficulty: Difficulty,
     capacity: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
@@ -116,6 +139,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
     seed: z.number().int().min(0).max(0x7fffffff),
     /** Bots that every client adds to the game and runs itself. */
     bots: z.number().int().nonnegative(),
+    difficulty: Difficulty,
     tickRate: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,

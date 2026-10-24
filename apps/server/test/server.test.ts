@@ -258,6 +258,50 @@ describe("WebSocket", () => {
     ]);
   });
 
+  it("lets the host pick a published map, bots and difficulty", async () => {
+    mkdirSync(join(staticRoot, "maps"));
+    const entry = (id: string, max: number) => ({
+      id,
+      name: { en: id, fr: id },
+      width: 64,
+      height: 32,
+      topology: "flat",
+      players: { min: 2, recommended: 8, max },
+      manifest: `${id}.json`,
+      thumbnail: `${id}.png`,
+    });
+    writeFileSync(
+      join(staticRoot, "maps", "index.json"),
+      JSON.stringify({ format: 1, maps: [entry("world", 64), entry("europe", 20)] }),
+    );
+    const host = await start({ privateGame: { capacity: 4 } });
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "create" });
+    const lobby = await alice.next("lobby");
+    expect(lobby).toMatchObject({ map: "world", bots: 0, difficulty: "normal" });
+    bob.send({ type: "join", game: lobby.game });
+    await bob.next("lobby");
+
+    bob.send({ type: "configure", options: { map: "europe", bots: 2, difficulty: "hard" } });
+    expect((await bob.next("error")).code).toBe("not_host");
+    alice.send({ type: "configure", options: { map: "mars", bots: 2, difficulty: "hard" } });
+    expect((await alice.next("error")).code).toBe("invalid_settings");
+    alice.send({ type: "configure", options: { map: "europe", bots: 17, difficulty: "hard" } });
+    expect((await alice.next("error")).code).toBe("invalid_settings");
+    alice.send({ type: "configure", options: { map: "europe", bots: 16, difficulty: "hard" } });
+    expect(await bob.next("lobby")).toMatchObject({ map: "europe", bots: 16, difficulty: "hard" });
+
+    alice.send({ type: "start" });
+    expect(await bob.next("started")).toMatchObject({
+      map: "europe",
+      bots: 16,
+      difficulty: "hard",
+    });
+    alice.send({ type: "configure", options: { map: "world", bots: 0, difficulty: "easy" } });
+    expect((await alice.next("error")).code).toBe("game_started");
+  });
+
   it("explains why a game cannot be joined", async () => {
     const host = await start({ privateGame: { capacity: 1 } });
     const alice = await player(host, "Alice");

@@ -9,8 +9,10 @@ import {
   type ClientMessage,
   type ErrorCode,
   type Frame,
+  type GameOptions,
 } from "@frontfall/protocol";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
+import { loadMapLimits, type MapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger, type Logger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
@@ -36,6 +38,8 @@ export interface ServerOptions {
   /** Private games not yet started that one address may hold. */
   maxPrivateGamesPerAddress?: number;
   maxRooms?: number;
+  /** Bots the host of a private game may add, within the map's player count. */
+  maxBots?: number;
   /** A connection must say hello within this delay. */
   helloTimeoutMs?: number;
   /** A connection whose seat is claimed must answer a ping within this delay. */
@@ -67,6 +71,7 @@ export const DEFAULT_GAME: GameSettings = {
   map: "world",
   capacity: 16,
   bots: 0,
+  difficulty: "normal",
   minPlayers: 2,
   countdownMs: 30_000,
   reconnectGraceMs: 120_000,
@@ -110,11 +115,25 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   game_started: "the game has already started",
   already_in_game: "leave the current game first",
   not_in_game: "you are not in a game",
-  not_host: "only the host can start the game",
+  not_host: "only the host can change or start the game",
   too_many_games: "too many games in progress",
   token_invalid: "this game is over or the seat was given up",
   token_in_use: "the seat is still connected",
+  invalid_settings: "no such map, or too many bots for it",
 };
+
+/** Bots below the server's cap that leave room on the map for every seat. */
+function validOptions(
+  options: GameOptions,
+  maps: MapLimits,
+  maxBots: number,
+  capacity: number,
+): boolean {
+  const maxPlayers = maps.get(options.map);
+  return (
+    maxPlayers !== undefined && options.bots <= maxBots && options.bots + capacity <= maxPlayers
+  );
+}
 
 /** What one WebSocket connection has done so far. */
 interface Session {
@@ -159,16 +178,19 @@ export function createGameServer(options: ServerOptions): GameServer {
       metrics.gamesFinished.inc({ reason });
       logger.info("game_finished", { game: room.id, reason, ticks: room.log.length });
     },
-    desync(room, tick) {
+    desync(room, tick, hash, expected) {
       metrics.desyncs.inc();
-      logger.warn("desync", { game: room.id, tick });
+      logger.warn("desync", { game: room.id, tick, hash, expected: expected ?? null });
     },
   };
+  const privateGame = { ...DEFAULT_GAME, ...options.privateGame };
+  const maps = loadMapLimits(options.staticRoot, privateGame.map);
+  const maxBots = options.maxBots ?? 25;
   const games = new Directory({
     maxRooms: options.maxRooms ?? 500,
     maxPrivatePerOwner: options.maxPrivateGamesPerAddress ?? 3,
     publicGame: { ...DEFAULT_GAME, ...options.publicGame },
-    privateGame: { ...DEFAULT_GAME, ...options.privateGame },
+    privateGame,
     observer,
   });
   /** When the oldest ping a socket has not answered yet was sent. */
@@ -350,6 +372,15 @@ export function createGameServer(options: ServerOptions): GameServer {
         else if (message.type === "join") enter(session, games.find(message.game), "not_found");
         else rejoin(session, message.token, message.from);
         return;
+      case "configure": {
+        const error = !current
+          ? "not_in_game"
+          : !validOptions(message.options, maps, maxBots, current.room.settings.capacity)
+            ? "invalid_settings"
+            : current.room.configure(current.seat, message.options, Date.now());
+        if (error) reply(session, error);
+        return;
+      }
       case "start": {
         const error = current ? current.room.requestStart(current.seat, Date.now()) : "not_in_game";
         if (error) reply(session, error);
