@@ -1,5 +1,5 @@
 import type { Game, Order, Player } from "./game.ts";
-import { isStructureKind, placementError } from "./structures.ts";
+import { BuildError, isStructureKind, placementError } from "./structures.ts";
 
 /**
  * Why an order cannot be carried out in the current state, or undefined when
@@ -38,14 +38,14 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       if (!Number.isSafeInteger(order.attack) || order.attack < 1) return "invalid attack id";
       return undefined;
     case "build": {
-      if (game.phase !== "play") return "building starts after the spawn phase";
+      if (game.phase !== "play") return BuildError.Early;
       if (!isStructureKind(order.structure)) return "unknown structure";
       return (
         tileError(game, order.tile) ?? placementError(game, player, order.structure, order.tile)
       );
     }
     case "demolish": {
-      if (game.phase !== "play") return "building starts after the spawn phase";
+      if (game.phase !== "play") return BuildError.Early;
       const error = tileError(game, order.tile);
       if (error) return error;
       const owned = game.structures.some((s) => s.tile === order.tile && s.player === player.id);

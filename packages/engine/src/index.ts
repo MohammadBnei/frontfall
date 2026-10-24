@@ -39,6 +39,7 @@ export { orderError } from "./orders.ts";
 export { Random, type RandomState } from "./random.ts";
 export { installSpawn, spawnSettings } from "./spawn.ts";
 export {
+  BuildError,
   StructureKind,
   cityLimit,
   fortRadius,

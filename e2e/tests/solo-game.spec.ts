@@ -124,7 +124,12 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   await page.keyboard.press("Digit3");
   const city = page.locator("#build-city");
   // Clicks walk a spiral out from the start: those next to free land expand.
-  for (let i = 0; i < 400 && (await city.getAttribute("class"))?.includes("unaffordable"); i++) {
+  const deadline = Date.now() + 75_000;
+  for (
+    let i = 0;
+    Date.now() < deadline && (await city.getAttribute("class"))?.includes("unaffordable");
+    i++
+  ) {
     const angle = ((i % 8) / 8) * 2 * Math.PI;
     const radius = 20 + (Math.floor(i / 8) % 12) * 25;
     await page.mouse.click(
@@ -133,7 +138,7 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
     );
     await page.waitForTimeout(250);
   }
-  await expect(city).not.toHaveClass(/unaffordable/, { timeout: 60_000 });
+  await expect(city).not.toHaveClass(/unaffordable/);
 
   const before = await structurePixels(page, start);
   await page.keyboard.press("KeyC");

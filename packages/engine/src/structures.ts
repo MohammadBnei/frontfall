@@ -22,6 +22,16 @@ export interface Structure {
   readonly readyAt: number;
 }
 
+/** Why a build order is refused once its tile is known to be on the map and ownable. */
+export const BuildError = {
+  Early: "building starts after the spawn phase",
+  Foreign: "the tile is not yours",
+  Crowded: "too close to another structure",
+  Land: "not enough land for another city",
+  Gold: "not enough gold",
+} as const;
+export type BuildError = (typeof BuildError)[keyof typeof BuildError];
+
 export function isStructureKind(kind: number): kind is StructureKind {
   return Number.isInteger(kind) && kind >= 0 && kind <= HIGHEST_KIND;
 }
@@ -86,20 +96,20 @@ export function placementError(
   player: Player,
   kind: StructureKind,
   tile: number,
-): string | undefined {
-  if (game.territory.ownerOf(tile) !== player.id) return "the tile is not yours";
+): BuildError | undefined {
+  if (game.territory.ownerOf(tile) !== player.id) return BuildError.Foreign;
   const spacing = game.balance.buildSpacing;
   const topology = game.terrain.topology;
   for (const structure of game.structures) {
-    if (topology.distance(structure.tile, tile) < spacing) return "too close to another structure";
+    if (topology.distance(structure.tile, tile) < spacing) return BuildError.Crowded;
   }
   if (
     kind === StructureKind.City &&
     structureCount(game, player.id, kind) >= cityLimit(game, player.id)
   ) {
-    return "not enough land for another city";
+    return BuildError.Land;
   }
-  if (player.gold < structureCost(game, player.id, kind)) return "not enough gold";
+  if (player.gold < structureCost(game, player.id, kind)) return BuildError.Gold;
   return undefined;
 }
 

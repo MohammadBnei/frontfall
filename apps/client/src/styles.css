@@ -759,11 +759,11 @@ input[type="range"] {
 
   .click-note {
     bottom: auto;
-    top: 184px;
+    top: 196px;
   }
 
   .banner {
-    top: 140px;
+    top: 152px;
   }
 
   /* Play stays in reach without scrolling past the maps. */
@@ -1137,7 +1137,7 @@ input[type="range"] {
    it wins over them. */
 @media (width < 720px), (height < 560px) {
   .build {
-    top: 88px;
+    top: 100px;
     right: auto;
     bottom: auto;
     left: 12px;
@@ -1155,5 +1155,16 @@ input[type="range"] {
     height: 1px;
     overflow: hidden;
     clip-path: inset(50%);
+  }
+}
+
+/* Short and wide windows keep the leaderboard top right: the banner goes under
+   the build row, on the left, short of it. */
+@media (height < 560px) and (width >= 720px) {
+  .banner {
+    top: 152px;
+    left: 12px;
+    max-width: calc(100vw - 300px);
+    transform: none;
   }
 }

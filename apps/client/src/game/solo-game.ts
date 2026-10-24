@@ -4,6 +4,7 @@ import {
   Terrain,
   WorldGrid,
   createGame,
+  BuildError,
   StructureKind,
   cityLimit,
   installBots,
@@ -155,14 +156,18 @@ const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   fort: StructureKind.Fort,
 };
 
-/** Engine refusals of a build order, as the interface explains them. */
-const BUILD_REFUSALS: Readonly<Record<string, ClickRefusal>> = {
-  "building starts after the spawn phase": "early",
-  "the tile is not yours": "foreign",
-  "too close to another structure": "crowded",
-  "not enough land for another city": "land",
-  "not enough gold": "gold",
+/** Engine refusals of a build order, as the interface explains them: one for each BuildError. */
+const BUILD_REFUSALS: Readonly<Record<BuildError, ClickRefusal>> = {
+  [BuildError.Early]: "early",
+  [BuildError.Foreign]: "foreign",
+  [BuildError.Crowded]: "crowded",
+  [BuildError.Land]: "land",
+  [BuildError.Gold]: "gold",
 };
+
+function isBuildError(error: string): error is BuildError {
+  return Object.hasOwn(BUILD_REFUSALS, error);
+}
 
 /** A transport ship at sea, where it is this tick. */
 export interface BoatView {
@@ -285,7 +290,9 @@ export class SoloGame {
     if (mode === "city" || mode === "fort") {
       const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };
       const error = orderError(game, human, order);
-      return error === undefined ? { order } : { refused: BUILD_REFUSALS[error] ?? "foreign" };
+      if (error === undefined) return { order };
+      // The tile was checked above: anything else is a placement rule.
+      return { refused: isBuildError(error) ? BUILD_REFUSALS[error] : "terrain" };
     }
     if (game.phase === "spawn") return { order: { type: "spawn", tile } };
     if (territory.ownerOf(tile) === this.you) return { refused: "own" };
