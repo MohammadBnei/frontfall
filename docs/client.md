@@ -138,7 +138,7 @@ visuals will still change. Vite passes the version to the page
 | `P` or `Esc`              | Pause and resume                                                                         |
 | `H` or `?`                | Show the controls                                                                        |
 
-The build panel on the right edge has the same three modes as buttons, with the cost of the next city and fort, and the cities owned against the most the land supports (`R-BUILD-07`). Structures are drawn as light diamonds (cities) and triangles (forts) on a dark outline, greyed while being built.
+The build panel above the toolbar (a row of icons under the stats on phones and short windows) has the same three modes as buttons, with the cost of the next city and fort, and the cities owned against the most the land supports (`R-BUILD-07`). Structures are drawn as light diamonds (cities) and triangles (forts) on a dark outline, greyed while being built.
 
 While attacks are under way, a panel at the bottom left lists each one, its
 target and its troops, with a Retreat button that calls it back

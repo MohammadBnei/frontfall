@@ -121,7 +121,6 @@
   "hud.cityHint": "Ville (C) : relève votre plafond de troupes. Cliquez ensuite sur vos terres.",
   "hud.fortHint": "Fort (F) : les terres voisines coûtent deux fois plus cher à prendre. Cliquez ensuite sur vos terres.",
   "hud.demolishHint": "Démolir (X) : retire l'une de vos structures, sans remboursement.",
-  "hud.cities": "{count} sur {limit} villes",
   "hud.modeCity": "Cliquez sur vos terres pour bâtir une ville. Échap pour annuler.",
   "hud.modeFort": "Cliquez sur vos terres pour bâtir un fort. Échap pour annuler.",
   "hud.modeDemolish": "Cliquez sur l'une de vos structures pour la démolir. Échap pour annuler.",
@@ -131,5 +130,7 @@
   "click.land": "Vos terres ne portent pas d'autre ville : prenez d'abord des terres.",
   "click.gold": "Pas encore assez d'or.",
   "click.nothing": "Aucune de vos structures ici.",
-  "help.build": "C : ville · F : fort · X : démolir, puis cliquez sur vos terres"
+  "help.build": "C : ville · F : fort · X : démolir, puis cliquez sur vos terres",
+  "hud.cities.one": "{built} sur {count} ville",
+  "hud.cities.other": "{built} sur {count} villes"
 }

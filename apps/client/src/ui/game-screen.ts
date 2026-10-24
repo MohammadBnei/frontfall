@@ -3,6 +3,7 @@ import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
 import type { MapData, MapInfo } from "../game/maps.ts";
+import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
@@ -68,6 +69,8 @@ export class GameScreen {
   private fadingUntil = 0;
   /** What a click on the map does, picked in the HUD. */
   private mode: ClickMode = "attack";
+  /** Build mode of the last click sent, picked again if the click is refused. */
+  private modeSent: ClickMode | undefined;
   /** The structures last drawn, as a key that changes when any of them does. */
   private drawnStructures = "";
 
@@ -139,8 +142,7 @@ export class GameScreen {
         },
         onClick: (tile, outcome) => {
           this.marks.show(tile, outcome, performance.now(), link !== undefined);
-          // One structure per pick of the button: the next click attacks again.
-          if (outcome === "build" || outcome === "demolish") this.setMode("attack");
+          this.afterBuildClick(outcome);
         },
         onError: (message) => {
           console.error(message);
@@ -342,10 +344,26 @@ export class GameScreen {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined) return;
     this.session.click(tile, this.hud.ratio, this.mode);
+    // One structure per pick of the button: the next click attacks again,
+    // unless the worker refuses this one (afterBuildClick).
+    if (this.mode !== "attack") {
+      const sent = this.mode;
+      this.setMode("attack");
+      this.modeSent = sent;
+    }
+  }
+
+  /** A refused build gives its mode back, if the player has not picked another since. */
+  private afterBuildClick(outcome: ClickOutcome): void {
+    const sent = this.modeSent;
+    this.modeSent = undefined;
+    if (!sent || outcome === "build" || outcome === "demolish") return;
+    if (this.mode === "attack") this.setMode(sent);
   }
 
   /** Picking the current mode again goes back to attacking. */
   private setMode(mode: ClickMode): void {
+    this.modeSent = undefined;
     this.mode = mode === this.mode ? "attack" : mode;
     this.hud.setMode(this.mode);
     this.surface.dataset.mode = this.mode;

@@ -121,7 +121,6 @@
   "hud.cityHint": "City (C): raises your troop cap. Then click your land.",
   "hud.fortHint": "Fort (F): nearby land costs twice as much to take. Then click your land.",
   "hud.demolishHint": "Demolish (X): remove one of your structures, with no refund.",
-  "hud.cities": "{count} of {limit} cities",
   "hud.modeCity": "Click your land to build a city. Esc to cancel.",
   "hud.modeFort": "Click your land to build a fort. Esc to cancel.",
   "hud.modeDemolish": "Click one of your structures to demolish it. Esc to cancel.",
@@ -131,5 +130,7 @@
   "click.land": "Your land supports no more cities: take more land first.",
   "click.gold": "Not enough gold yet.",
   "click.nothing": "None of your structures here.",
-  "help.build": "C: city · F: fort · X: demolish, then click your land"
+  "help.build": "C: city · F: fort · X: demolish, then click your land",
+  "hud.cities.one": "{built} of {count} city",
+  "hud.cities.other": "{built} of {count} cities"
 }

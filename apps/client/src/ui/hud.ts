@@ -1,6 +1,6 @@
 import type { GameRules } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
-import { applyTranslations, t } from "../i18n/index.ts";
+import { applyTranslations, plural, t } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
 import { h, present, swatch } from "./dom.ts";
@@ -264,14 +264,19 @@ export class Hud {
     const { cityCost, fortCost, cities, cityLimit } = update.build;
     this.cityCost.textContent = formatCount(cityCost);
     this.fortCost.textContent = formatCount(fortCost);
-    this.cityCount.textContent = t("hud.cities", { count: cities, limit: cityLimit });
+    this.cityCount.textContent = plural("hud.cities", cityLimit, { built: cities });
     const playing = update.phase === "play" && human.alive;
-    this.buildButtons
-      .get("city")
-      ?.classList.toggle("unaffordable", !playing || human.gold < cityCost || cities >= cityLimit);
-    this.buildButtons
-      .get("fort")
-      ?.classList.toggle("unaffordable", !playing || human.gold < fortCost);
+    const can: Partial<Record<ClickMode, boolean>> = {
+      city: playing && human.gold >= cityCost && cities < cityLimit,
+      fort: playing && human.gold >= fortCost,
+      demolish: playing,
+    };
+    // Still pressable: a click on the map then says what is missing.
+    for (const [mode, button] of this.buildButtons) {
+      const allowed = can[mode] === true;
+      button.classList.toggle("unaffordable", !allowed);
+      button.setAttribute("aria-disabled", String(!allowed));
+    }
   }
 
   /** The player's attacks under way, each with a button to call it back. */

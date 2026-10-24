@@ -24,9 +24,11 @@ const vertexShader = /* glsl */ `
   out vec3 vColor;
 
   void main() {
+    vec4 center = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
     vec4 world = modelMatrix * instanceMatrix * vec4(position * unitScale, 1.0);
-    // Draw each unit on the copy of the world closest to the camera.
-    if (wrapsX) world.x += worldWidth * floor((cameraX - world.x) / worldWidth + 0.5);
+    // Draw each unit on the copy of the world closest to the camera, judged by
+    // its centre so that a unit across the seam is never torn in two.
+    if (wrapsX) world.x += worldWidth * floor((cameraX - center.x) / worldWidth + 0.5);
     vColor = instanceColor;
     gl_Position = projectionMatrix * viewMatrix * world;
   }

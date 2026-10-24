@@ -734,10 +734,6 @@ input[type="range"] {
     display: none;
   }
 
-  .banner {
-    top: 72px;
-  }
-
   /* Beside the leaderboard, above the attack ratio. */
   .attacks {
     bottom: 64px;
@@ -763,7 +759,11 @@ input[type="range"] {
 
   .click-note {
     bottom: auto;
-    top: 120px;
+    top: 184px;
+  }
+
+  .banner {
+    top: 140px;
   }
 
   /* Play stays in reach without scrolling past the maps. */
@@ -1041,13 +1041,13 @@ input[type="range"] {
 
 /* Build buttons (ui/hud.ts): city, fort and demolish, with the cost of the next one. */
 
+/* Above the toolbar, clear of the leaderboard on short screens. */
 .build {
-  top: 50%;
   right: 12px;
+  bottom: 64px;
   display: grid;
   gap: 6px;
   padding: 6px;
-  transform: translateY(-50%);
 }
 
 .build-button {
@@ -1130,4 +1130,30 @@ input[type="range"] {
 .click-mark.demolish::before {
   border-color: var(--ff-danger);
   border-style: dashed;
+}
+
+/* Phones and short windows: the build panel turns into a row of icons and
+   costs under the stats, clear of the leaderboard. After the rules above, so
+   it wins over them. */
+@media (width < 720px), (height < 560px) {
+  .build {
+    top: 88px;
+    right: auto;
+    bottom: auto;
+    left: 12px;
+    grid-auto-flow: column;
+  }
+
+  .build-button {
+    min-width: 0;
+  }
+
+  .build-name,
+  .build-count {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }

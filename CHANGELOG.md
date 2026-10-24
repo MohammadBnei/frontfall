@@ -6,7 +6,7 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 
 ### Added
 
-- Build cities and forts in a game: a panel on the right edge, or C, F and X, picks what the next click builds or demolishes, with the cost of each and the cities your land supports. Structures show on the map, faded while being built.
+- Build cities and forts in a game: a panel above the toolbar, or C, F and X, picks what the next click builds or demolishes, with the cost of each and the cities your land supports. Structures show on the map, faded while being built.
 - Engine: cities and forts ([docs/rules.md](docs/rules.md#6-structures)). Gold now buys structures: a city adds a twentieth of what the land holds to the population cap, a fort makes nearby land dearer to take and cheaper to lose, and both change hands with their tile. Players may own one city plus one more for every 10,000 tiles of land (40,000 on World), structures keep their distance, and bots build cities near their start. Protocol version 5 carries the new `build` and `demolish` orders.
 
 ## [0.2.0] - 2026-10-24
