@@ -614,7 +614,7 @@ export class GameScreen {
     const modes: Partial<Record<string, ClickMode>> = {
       KeyC: "city",
       KeyF: "fort",
-      KeyP: "port",
+      KeyO: "port",
       KeyX: "demolish",
     };
     const mode = this.replayBar ? undefined : modes[event.code];

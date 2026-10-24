@@ -36,7 +36,7 @@ const MODE_BANNERS = {
 const BUILD_MODES = [
   { mode: "city", key: "C" },
   { mode: "fort", key: "F" },
-  { mode: "port", key: "P" },
+  { mode: "port", key: "O" },
   { mode: "demolish", key: "X" },
 ] as const satisfies readonly { mode: ClickMode; key: string }[];
 

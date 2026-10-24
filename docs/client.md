@@ -175,7 +175,7 @@ visuals will still change. Vite passes the version to the page
 | Wheel, pinch, `+` and `-`                     | Zoom, towards the cursor or between the fingers                                              |
 | Arrows or `WASD`                              | Move the map, at the same speed at any frame rate                                            |
 | `1` to `9`, `0`                               | Attack with 10 % to 90 % of the troops, `0` for all                                          |
-| `C`, `F`, `P`, `X`                            | Build a city, a fort or a port, demolish: then click your land; the next click attacks again |
+| `C`, `F`, `O`, `X`                            | Build a city, a fort or a port, demolish: then click your land; the next click attacks again |
 | Right click, long press, or a leaderboard row | Open that player's menu: ask for an alliance, accept, renew or betray, embargo their trade   |
 | `Esc`                                         | Close the player menu, or leave a build mode                                                 |
 | `P` or `Esc`                                  | Pause and resume                                                                             |
