@@ -79,7 +79,7 @@ The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`)
 
 A ship's `path` lists the water tiles from the departure coast to the landing coast, in order, neither coast included. The ship is on `path[step]` until `step` reaches `path.length`, the tick it lands. `landmassOf(tile)` numbers the land masses of the map (ownable tiles connected over land, `-1` for water and impassable tiles): a click on a land mass where the player holds no tile is a job for a ship, not an attack.
 
-For computer players, `reachableCoasts(game, player, limit)` lists the coastal tiles a ship of theirs can reach, closest by sea first, and `seaRoute(game, player, target)` gives the route an embark order would take, or `undefined`. Both walk the sea breadth-first, up to `B-BOAT-RANGE` tiles; call them a few times per second at most, not every tick for every bot.
+For computer players, `reachableCoasts(game, player, limit, accept?)` lists the coastal tiles a ship of theirs can reach, closest by sea first, keeping only those `accept` lets through; bots use it to look past the land masses they already stand on (R-BOT-05), and `seaRoute(game, player, target)` gives the route an embark order would take, or `undefined`. Both walk the sea breadth-first, up to `B-BOAT-RANGE` tiles; call them a few times per second at most, not every tick for every bot.
 
 The state objects are live: read them, never write them. A renderer reads after each `step`; the engine never calls the renderer ([ADR 0003](adr/0003-renderer-split.md)).
 

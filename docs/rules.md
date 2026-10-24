@@ -94,6 +94,7 @@ Every structure is built on an owned land tile, costs gold, and takes `B-BUILD-T
 - **R-BOT-02** Nations are stronger computer players placed at named positions on a map. They build, ally, trade and retaliate when attacked.
 - **R-BOT-03** Computer players follow the same rules as humans and send their orders the same way. They take decisions only from the game state and the game's seed, so every client computes the same decisions.
 - **R-BOT-04** The difficulty setting changes how often and how boldly computer players act, never the rules they follow.
+- **R-BOT-05** A bot with nothing worth taking by land sends a transport ship to the closest unowned coast it can reach on another land mass, or else to the coast of a weaker player there, with one ship at sea at a time.
 
 ## 9. Victory and game modes
 

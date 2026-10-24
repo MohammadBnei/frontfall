@@ -1,3 +1,5 @@
+import { captureCost } from "../attacks.ts";
+import { reachableCoasts } from "../boats.ts";
 import { populationCap } from "../economy.ts";
 import type { Game, Player } from "../game.ts";
 import { divFloor, percentOf } from "../integer-math.ts";
@@ -11,12 +13,19 @@ import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
  */
 const BORDER_SAMPLES = 16;
 
+/** Coasts, closest by sea first, a bot weighs when nothing is left to take by land. */
+const SEA_TARGETS = 8;
+
 /**
  * Bots (R-BOT-01, R-BOT-03, R-BOT-04): the given players expand into unowned
  * land while some is in reach and attack weaker neighbours, keeping a reserve
  * at home. They decide from the game state and the game's Random only, and
  * act through game.apply with the orders humans send, so every client runs
  * the same decisions.
+ *
+ * With nothing worth taking by land, a bot sails to the closest free coast it
+ * can reach, or else to the coast of a weaker player, one ship at a time
+ * (R-BOT-05).
  *
  * Bots do not pick a start: the spawn phase places them at random when it
  * ends (R-SPAWN-03).
@@ -31,6 +40,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     if (!game.player(id)) throw new RangeError(`unknown player ${String(id)}`);
   }
   const around = new Int32Array(4);
+  const landmasses = new Set<number>();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -82,5 +92,36 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     const muchWeaker = weak && enemyDensity * 200 <= ownDensity * params.boldnessPercent;
     const target = neutralTarget >= 0 && !muchWeaker ? neutralTarget : weak ? enemyTarget : -1;
     if (target >= 0) game.apply(bot.id, { type: "attack", target, troops });
+    else sail(bot, troops, ownDensity);
+  }
+
+  function sail(bot: Player, troops: number, ownDensity: number): void {
+    if (game.boats.some((boat) => boat.player === bot.id)) return;
+    // Land masses the bot already stands on are better reached by land.
+    landmasses.clear();
+    const borders = territory.borderCount(bot.id);
+    for (let i = 0; i < borders; i++)
+      landmasses.add(terrain.landmassOf(territory.borderTile(bot.id, i)));
+    const elsewhere = (coast: number) => !landmasses.has(terrain.landmassOf(coast));
+    let target = -1;
+    let targetDensity = 0;
+    for (const coast of reachableCoasts(game, bot.id, SEA_TARGETS, elsewhere)) {
+      const owner = territory.ownerOf(coast);
+      if (owner === NEUTRAL) {
+        target = coast;
+        break;
+      }
+      const enemy = game.player(owner);
+      if (!enemy?.alive) continue;
+      const density = divFloor(enemy.troops, territory.tileCount(owner));
+      if (density * 100 > ownDensity * params.boldnessPercent) continue;
+      // The ship must at least pay for the beach (R-ATTACK-09).
+      if (troops <= captureCost(game, coast, enemy)) continue;
+      if (target < 0 || density < targetDensity) {
+        target = coast;
+        targetDensity = density;
+      }
+    }
+    if (target >= 0) game.apply(bot.id, { type: "embark", target, troops });
   }
 }

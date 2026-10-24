@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { installAttacks } from "../src/attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
+import { installBoats } from "../src/boats.ts";
 import { BOT_DIFFICULTIES, installBots, type BotDifficulty } from "../src/bots/index.ts";
 import { installEconomy } from "../src/economy.ts";
 import { Game, type Order, type Player } from "../src/game.ts";
@@ -166,6 +167,47 @@ describe("bots", () => {
     bot.troops = 307;
     run(80);
     expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("sail to another land mass once theirs is full (R-BOT-05)", () => {
+    // The bot holds the whole west island; the east one is free.
+    const grid = new WorldGrid(20, 4);
+    const cells = [
+      "XXXXXXXXXXXXXXXXXXXX",
+      "#11...........#####.",
+      "#11..........######.",
+      "XXXXXXXXXXXXXXXXXXXX",
+    ].join("");
+    const kinds = new Uint8Array(grid.size);
+    for (let tile = 0; tile < grid.size; tile++) {
+      const cell = cells[tile] as string;
+      kinds[tile] =
+        cell === "." ? TileKind.Water : cell === "X" ? TileKind.Impassable : TileKind.Plains;
+    }
+    const game = new Game({
+      terrain: new Terrain(grid, kinds),
+      seed: 5,
+      players: [{ id: 1, name: "Bot" }],
+      balance: { ...balance, spawnPhaseTicks: 0, attackSpeedDivisor: 1000 },
+    });
+    installAttacks(game);
+    installBoats(game);
+    installBots(game, [1], "hard");
+    for (const x of [0, 1, 2]) {
+      for (const y of [1, 2]) game.territory.setOwner(grid.index(x, y), 1);
+    }
+    const apply = vi.spyOn(game, "apply");
+    (game.player(1) as Player).troops = 2000;
+    for (let i = 0; i < BOT_DIFFICULTIES.hard.intervalSeconds * balance.ticksPerSecond; i++) {
+      game.step({ tick: game.tick, orders: [] });
+    }
+    expect(apply).toHaveBeenCalledOnce();
+    const order = apply.mock.calls[0]?.[1] as Order;
+    expect(order.type).toBe("embark");
+    expect(order.type === "embark" && game.terrain.landmassOf(order.target)).toBe(
+      game.terrain.landmassOf(grid.index(14, 1)),
+    );
+    expect(game.boats).toHaveLength(1);
   });
 
   it("stop once eliminated", () => {
