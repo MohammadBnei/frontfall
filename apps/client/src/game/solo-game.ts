@@ -10,7 +10,9 @@ import {
   type Game,
   type Order,
   type Phase,
+  type Turn,
 } from "@frontfall/engine";
+import { HASH_INTERVAL } from "@frontfall/protocol";
 import { labelAnchors, type LabelAnchor } from "./label-anchors.ts";
 import type { MapData } from "./maps.ts";
 
@@ -30,6 +32,13 @@ export interface SoloOptions {
    */
   speed?: number | undefined;
   maxMinutes?: number | undefined;
+  /**
+   * Online: the human players in their final numbering, and which one plays
+   * at this screen. Bots then take the numbers after the last human, and
+   * `playerName` is not used.
+   */
+  players?: readonly { id: number; name: string }[] | undefined;
+  you?: number | undefined;
 }
 
 export interface PlayerView {
@@ -52,6 +61,8 @@ export interface AttackView {
 }
 
 export interface GameUpdate {
+  /** The player at this screen. */
+  you: number;
   tick: number;
   phase: Phase;
   /** Ticks left before attacks open; 0 once the game is under way. */
@@ -69,6 +80,8 @@ export interface GameUpdate {
   /** Set instead of the change lists when too much changed to list. */
   owners?: Uint16Array;
   winner?: number;
+  /** Online: state hashes after the ticks the server checks (`HASH_INTERVAL`). */
+  hashes?: { tick: number; hash: number }[];
 }
 
 /** Why a click on the map leads to no order. */
@@ -137,6 +150,8 @@ const LABEL_TICKS = 5;
 export class SoloGame {
   readonly game: Game;
   readonly ownableTiles: number;
+  /** The player at this screen. */
+  readonly you: number;
   private readonly clock: TurnClock;
   private readonly depth: Uint16Array;
 
@@ -147,9 +162,14 @@ export class SoloGame {
     const grid = new WorldGrid(map.width, map.height, { wrapsX: map.wrapsX });
     const terrain = new Terrain(grid, map.kinds);
     const bots = Math.max(0, Math.min(MAX_BOTS, Math.floor(options.bots)));
-    const players = [{ id: HUMAN_ID, name: options.playerName }];
+    const humans = options.players ?? [{ id: HUMAN_ID, name: options.playerName }];
+    this.you = options.you ?? HUMAN_ID;
+    const firstBot = Math.max(...humans.map((human) => human.id)) + 1;
+    const players = [...humans];
+    const botIds: number[] = [];
     for (let i = 0; i < bots; i++) {
-      players.push({ id: HUMAN_ID + 1 + i, name: BOT_NAMES[i] as string });
+      botIds.push(firstBot + i);
+      players.push({ id: firstBot + i, name: BOT_NAMES[i] as string });
     }
     const balance =
       options.maxMinutes === undefined
@@ -159,11 +179,7 @@ export class SoloGame {
             maxDurationTicks: Math.round(options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond),
           };
     this.game = createGame({ terrain, seed: options.seed, players, balance });
-    installBots(
-      this.game,
-      players.slice(1).map((player) => player.id),
-      options.difficulty,
-    );
+    installBots(this.game, botIds, options.difficulty);
     this.clock = new TurnClock(this.game);
     this.depth = new Uint16Array(grid.size);
     let ownable = 0;
@@ -184,14 +200,14 @@ export class SoloGame {
   orderForClick(tile: number, ratio: number): ClickResult {
     const { game } = this;
     const { terrain, territory } = game;
-    const human = game.player(HUMAN_ID);
+    const human = game.player(this.you);
     if (!human?.alive || game.winner !== undefined) return { refused: "over" };
     if (!Number.isInteger(tile) || tile < 0 || tile >= terrain.topology.size) {
       return { refused: "terrain" };
     }
     if (!terrain.isOwnable(tile)) return { refused: "terrain" };
     if (game.phase === "spawn") return { order: { type: "spawn", tile } };
-    if (territory.ownerOf(tile) === HUMAN_ID) return { refused: "own" };
+    if (territory.ownerOf(tile) === this.you) return { refused: "own" };
     const troops = Math.floor((human.troops * Math.min(100, Math.max(0, ratio))) / 100);
     if (troops < 1) return { refused: "troops" };
 
@@ -201,8 +217,8 @@ export class SoloGame {
     const mass = terrain.landmassOf(tile);
     const around = new Int32Array(4);
     let touches = false;
-    for (let i = 0; i < territory.borderCount(HUMAN_ID) && !touches; i++) {
-      const border = territory.borderTile(HUMAN_ID, i);
+    for (let i = 0; i < territory.borderCount(this.you) && !touches; i++) {
+      const border = territory.borderTile(this.you, i);
       if (terrain.landmassOf(border) !== mass) continue;
       const count = terrain.topology.neighborsInto(border, around);
       for (let j = 0; j < count; j++) {
@@ -213,8 +229,8 @@ export class SoloGame {
     if (touches) {
       return { order: { type: "attack", target: tile, troops } };
     }
-    if (terrain.isCoast(tile) && seaRoute(game, HUMAN_ID, tile)) {
-      const atSea = game.boats.filter((boat) => boat.player === HUMAN_ID).length;
+    if (terrain.isCoast(tile) && seaRoute(game, this.you, tile)) {
+      const atSea = game.boats.filter((boat) => boat.player === this.you).length;
       if (atSea >= game.balance.boatMax) return { refused: "ships" };
       return { order: { type: "embark", target: tile, troops } };
     }
@@ -228,10 +244,27 @@ export class SoloGame {
    */
   step(orders: readonly Order[]): GameUpdate {
     if (this.game.winner === undefined) {
-      for (const order of orders) this.clock.submit(HUMAN_ID, order);
+      for (const order of orders) this.clock.submit(this.you, order);
     }
     this.clock.advance();
     return this.update();
+  }
+
+  /**
+   * Online: runs turns relayed by the server, every player's orders in
+   * them, and returns what changed over all of them. Hashes of the state
+   * after every HASH_INTERVAL-th tick come with the update, for the server
+   * to compare between players.
+   */
+  playTurns(turns: readonly Turn[]): GameUpdate {
+    const hashes: { tick: number; hash: number }[] = [];
+    for (const turn of turns) {
+      this.game.step(turn);
+      if (turn.tick % HASH_INTERVAL === 0) hashes.push({ tick: turn.tick, hash: this.game.hash() });
+    }
+    const update = this.update();
+    if (hashes.length > 0) update.hashes = hashes;
+    return update;
   }
 
   private update(): GameUpdate {
@@ -247,12 +280,13 @@ export class SoloGame {
       alive: player.alive,
     }));
     const update: GameUpdate = {
+      you: this.you,
       tick: game.tick,
       phase: game.phase,
       spawnTicksLeft: Math.max(0, game.balance.spawnPhaseTicks - game.tick),
       players,
       attacks: game.attacks
-        .filter((attack) => attack.player === HUMAN_ID)
+        .filter((attack) => attack.player === this.you)
         .map((attack) => ({ id: attack.id, target: attack.target, troops: attack.troops })),
       changedTiles: new Int32Array(0),
       changedOwners: new Uint16Array(0),

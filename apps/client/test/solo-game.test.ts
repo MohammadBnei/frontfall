@@ -171,3 +171,54 @@ describe("SoloGame clicks", () => {
     expect(solo.orderForClick(at(34, 6), 50)).toMatchObject({ order: { type: "attack" } });
   });
 });
+
+describe("SoloGame online", () => {
+  const online: SoloOptions = {
+    ...options,
+    bots: 2,
+    players: [
+      { id: 1, name: "Nico" },
+      { id: 2, name: "Léa" },
+    ],
+    you: 2,
+  };
+
+  it("numbers the humans as the server did and the bots after them", () => {
+    const update = newGame(online).playTurns([{ tick: 0, orders: [] }]);
+    expect(update.you).toBe(2);
+    expect(update.players.map(({ id, name }) => [id, name])).toEqual([
+      [1, "Nico"],
+      [2, "Léa"],
+      [3, "Aldmere"],
+      [4, "Brask"],
+    ]);
+  });
+
+  it("plays every player's orders from the relayed turns, the same way on every client", () => {
+    const tile = firstLand(online.map);
+    const run = () => {
+      const game = newGame(online);
+      const first = game.playTurns([
+        { tick: 0, orders: [{ player: 1, order: { type: "spawn", tile } }] },
+      ]);
+      const turns = Array.from({ length: 100 }, (_, i) => ({ tick: i + 1, orders: [] }));
+      return { first, rest: game.playTurns(turns) };
+    };
+    const a = run();
+    expect(a.first.players.find((player) => player.id === 1)?.tiles).toBeGreaterThan(0);
+    // Hashes after ticks 0, 50 and 100, for the server to compare between players.
+    expect(a.first.hashes?.map((entry) => entry.tick)).toEqual([0]);
+    expect(a.rest.hashes?.map((entry) => entry.tick)).toEqual([50, 100]);
+    expect(run().rest.hashes).toEqual(a.rest.hashes);
+  });
+
+  it("takes clicks for the player at this screen", () => {
+    const game = newGame(online);
+    const result = game.orderForClick(firstLand(online.map), 30);
+    expect(result).toEqual({ order: { type: "spawn", tile: firstLand(online.map) } });
+  });
+
+  it("refuses a turn out of step with the game", () => {
+    expect(() => newGame(online).playTurns([{ tick: 3, orders: [] }])).toThrow(RangeError);
+  });
+});

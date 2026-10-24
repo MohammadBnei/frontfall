@@ -1,4 +1,4 @@
-import { HUMAN_ID, type GameUpdate } from "../game/solo-game.ts";
+import type { GameUpdate } from "../game/solo-game.ts";
 import { applyTranslations, t, type MessageKey } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 import { formatDuration, formatPercent } from "./format.ts";
@@ -21,7 +21,7 @@ export interface GameSummary {
 export function endScreen(summary: GameSummary, actions: EndScreenActions): HTMLElement {
   const { update } = summary;
   const winner = update.players.find((player) => player.id === update.winner);
-  const won = update.winner === HUMAN_ID;
+  const won = update.winner === update.you;
   const seconds = update.tick / summary.ticksPerSecond;
 
   const button = (key: MessageKey, onClick: () => void, primary = false): HTMLButtonElement => {

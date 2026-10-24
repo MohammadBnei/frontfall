@@ -5,7 +5,7 @@ import type { GameUpdate } from "./solo-game.ts";
 
 export interface SessionEvents {
   /** The map is loaded and the first tick is coming. */
-  onStart(info: { map: MapData; rules: GameRules }): void;
+  onStart(info: { map: MapData; rules: GameRules; you: number }): void;
   /** Once per tick, in order. The game is over when `update.winner` is set. */
   onUpdate(update: GameUpdate): void;
   /** What a click sent through `click` turned into. */

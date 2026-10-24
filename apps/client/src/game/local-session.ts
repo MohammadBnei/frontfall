@@ -1,42 +1,68 @@
-import type { Order } from "@frontfall/engine";
+import type { Order, Turn } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import type { MapInfo } from "./maps.ts";
 import type { SoloOptions } from "./solo-game.ts";
 
+/** Where an online game's orders and state hashes go: the connection to the server. */
+export interface ServerLink {
+  order(order: Order): void;
+  hash(tick: number, hash: number): void;
+}
+
 /**
- * A game played on this machine against bots. The simulation runs in a
- * worker so the page keeps drawing at full speed; orders go through the
- * same shape a networked game will use.
+ * A game simulated on this machine, in a worker so the page keeps drawing
+ * at full speed. Solo, the worker runs its own clock and takes the orders.
+ * Online, with a link to the server, orders go to the server, and the game
+ * advances only with the turns it relays, passed in through `pushTurns`.
  */
 export class LocalSession implements GameSession {
   private readonly worker: Worker;
 
-  constructor(options: SoloOptions, map: MapInfo, events: SessionEvents) {
+  constructor(
+    options: SoloOptions,
+    map: MapInfo,
+    events: SessionEvents,
+    private readonly link?: ServerLink,
+  ) {
     this.worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     this.worker.onmessage = (event: MessageEvent<WorkerReply>) => {
       const reply = event.data;
-      if (reply.type === "started") events.onStart(reply);
-      else if (reply.type === "update") events.onUpdate(reply.update);
-      else if (reply.type === "click") events.onClick(reply.tile, reply.outcome);
-      else events.onError(reply.message);
+      if (reply.type === "started") {
+        events.onStart(reply);
+      } else if (reply.type === "update") {
+        for (const { tick, hash } of reply.update.hashes ?? []) link?.hash(tick, hash);
+        events.onUpdate(reply.update);
+      } else if (reply.type === "click") {
+        if (reply.order) link?.order(reply.order);
+        events.onClick(reply.tile, reply.outcome);
+      } else {
+        events.onError(reply.message);
+      }
     };
     this.worker.onerror = (event) => {
       events.onError(event.message);
     };
-    this.post({ type: "start", options, map });
+    this.post({ type: "start", options, map, online: link !== undefined });
   }
 
   sendOrder(order: Order): void {
-    this.post({ type: "order", order });
+    if (this.link) this.link.order(order);
+    else this.post({ type: "order", order });
   }
 
   click(tile: number, ratio: number): void {
     this.post({ type: "click", tile, ratio });
   }
 
+  /** Online: turns from the server, consecutive, from the next tick on. */
+  pushTurns(turns: Turn[]): void {
+    this.post({ type: "turns", turns });
+  }
+
   setPaused(paused: boolean): void {
-    this.post({ type: "pause", paused });
+    // An online game runs at the server's pace for everyone.
+    if (!this.link) this.post({ type: "pause", paused });
   }
 
   dispose(): void {

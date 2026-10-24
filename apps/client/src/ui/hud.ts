@@ -1,5 +1,5 @@
 import type { GameRules } from "../game/messages.ts";
-import { HUMAN_ID, type GameUpdate, type PlayerView } from "../game/solo-game.ts";
+import type { GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, t } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
@@ -178,7 +178,7 @@ export class Hud {
   }
 
   private render(update: GameUpdate): void {
-    const human = update.players.find((player) => player.id === HUMAN_ID);
+    const human = update.players.find((player) => player.id === update.you);
     if (human) {
       this.troops.textContent = formatCount(human.troops);
       this.troopsCap.textContent = t("hud.cap", { cap: formatCount(human.cap) });
@@ -186,7 +186,7 @@ export class Hud {
       this.land.textContent = this.share(human.tiles);
     }
     this.banner.textContent = this.bannerText(update, human);
-    this.renderLeaders(update.players);
+    this.renderLeaders(update.players, update.you);
     this.renderGoal(update, human);
     this.renderAttacks(update);
   }
@@ -265,19 +265,19 @@ export class Hud {
     return t("hud.playHint");
   }
 
-  private renderLeaders(players: readonly PlayerView[]): void {
+  private renderLeaders(players: readonly PlayerView[], you: number): void {
     const ranked = players
       .filter((player) => player.alive)
       .sort((a, b) => b.tiles - a.tiles || a.id - b.id);
     const shown = ranked.slice(0, LEADERBOARD_SIZE);
-    const humanRank = ranked.findIndex((player) => player.id === HUMAN_ID);
+    const humanRank = ranked.findIndex((player) => player.id === you);
     if (humanRank >= LEADERBOARD_SIZE) shown.push(ranked[humanRank] as PlayerView);
     this.leaders.replaceChildren(
       ...shown.map((player) => {
         const rank = ranked.indexOf(player) + 1;
         return h(
           "li",
-          { class: player.id === HUMAN_ID ? "leader you" : "leader", value: rank },
+          { class: player.id === you ? "leader you" : "leader", value: rank },
           h("span", {
             class: "swatch",
             style: `background:${playerColor(player.id - 1).hex}`,

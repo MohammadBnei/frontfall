@@ -1,4 +1,4 @@
-import type { Order } from "@frontfall/engine";
+import type { Order, Turn } from "@frontfall/engine";
 import type { MapData, MapInfo } from "./maps.ts";
 import type { ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
 
@@ -19,7 +19,10 @@ export interface GameRules {
 
 /** From the page to the simulation worker. */
 export type WorkerRequest =
-  | { type: "start"; options: SoloOptions; map: MapInfo }
+  /** `online`: no clock of its own; the game advances with the turns the page relays. */
+  | { type: "start"; options: SoloOptions; map: MapInfo; online?: boolean }
+  /** Online: consecutive turns from the server, from the next tick on. */
+  | { type: "turns"; turns: Turn[] }
   | { type: "order"; order: Order }
   /** A click on the map, turned into an order by the worker, which knows the game. */
   | { type: "click"; tile: number; ratio: number }
@@ -29,9 +32,10 @@ export type WorkerRequest =
 
 /** From the simulation worker to the page. */
 export type WorkerReply =
-  | { type: "started"; map: MapData; rules: GameRules }
+  | { type: "started"; map: MapData; rules: GameRules; you: number }
   | { type: "update"; update: GameUpdate }
-  | { type: "click"; tile: number; outcome: ClickOutcome }
+  /** Online, `order` is what the page must send to the server; solo, the worker queued it. */
+  | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order }
   | { type: "error"; message: string };
 
 /** Buffers of an update, handed over to the page instead of copied. */

@@ -1,7 +1,7 @@
 import { LocalSession } from "../game/local-session.ts";
 import type { MapData, MapInfo } from "../game/maps.ts";
 import type { GameSession } from "../game/session.ts";
-import { HUMAN_ID, type GameUpdate, type SoloOptions } from "../game/solo-game.ts";
+import type { GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
@@ -107,7 +107,7 @@ export class GameScreen {
 
     this.session = new LocalSession(options, map, {
       onStart: (info) => {
-        this.showMap(info.map);
+        this.showMap(info.map, info.you);
         this.ticksPerSecond = info.rules.ticksPerSecond;
         this.ownableTiles = info.rules.ownableTiles;
         this.hud.setRules(info.rules);
@@ -182,7 +182,7 @@ export class GameScreen {
     this.element.remove();
   }
 
-  private showMap(map: MapData): void {
+  private showMap(map: MapData, you: number): void {
     this.owners = new Uint16Array(map.width * map.height);
     this.wrapsX = map.wrapsX;
     let view: Renderer;
@@ -205,7 +205,7 @@ export class GameScreen {
     for (let id = 1; id <= this.options.bots + 1; id++) {
       view.setPlayerColor(id, playerColor(id - 1).hex);
     }
-    view.setHighlight(HUMAN_ID);
+    view.setHighlight(you);
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
@@ -268,13 +268,13 @@ export class GameScreen {
       this.dirty = true;
       this.fadingUntil = performance.now() + FADE_MS;
     }
-    const human = update.players.find((player) => player.id === HUMAN_ID);
+    const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
     if (!this.focused && human && human.tiles > 0) {
       // Once, when the player's start appears, picked or placed by the game:
       // on a large map it is a few pixels wide at the zoom that shows it all.
       this.focused = true;
-      const start = this.owners.indexOf(HUMAN_ID);
+      const start = this.owners.indexOf(update.you);
       const zoom = (START_TILE_PIXELS * this.camera.options.height) / this.camera.viewportHeight;
       if (start >= 0) this.camera.focus(start, Math.max(this.camera.zoom, zoom));
     }
@@ -329,7 +329,8 @@ export class GameScreen {
 
   /** Back to the menu; asks first while the player still has a game to lose. */
   private leave(): void {
-    const human = this.latest?.players.find((player) => player.id === HUMAN_ID);
+    const latest = this.latest;
+    const human = latest?.players.find((player) => player.id === latest.you);
     const playing = !this.ended && human?.alive === true && human.tiles > 0;
     if (playing && !window.confirm(t("hud.leaveConfirm"))) return;
     this.actions.onMenu();
