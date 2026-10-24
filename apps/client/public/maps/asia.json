@@ -5,7 +5,7 @@
     "en": "Asia",
     "fr": "Asie"
   },
-  "version": 1,
+  "version": 2,
   "width": 1280,
   "height": 1088,
   "topology": "flat",
@@ -19,7 +19,7 @@
   "terrain": {
     "file": "asia.bin",
     "bytes": 1392656,
-    "sha256": "27f13ac1556a807c28ccb561ace6896afa60236c8d6042976bdd3b655b25fb75"
+    "sha256": "849e321badf0155451e8bd90150425c1cf0fa5d61c9e964bfd321bf2f340220e"
   },
   "thumbnail": "asia.png",
   "players": {

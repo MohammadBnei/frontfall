@@ -5,7 +5,7 @@
     "en": "World",
     "fr": "Monde"
   },
-  "version": 2,
+  "version": 3,
   "width": 2048,
   "height": 1024,
   "topology": "cylinder",
@@ -19,7 +19,7 @@
   "terrain": {
     "file": "world.bin",
     "bytes": 2097168,
-    "sha256": "13e7357a08af01d915872fe43df99bf6c9d6781b6cbb0efd7db7cd41359eba7a"
+    "sha256": "40beda6f89d03ba9ea665fe9a14e72472dfe484aa45a902a3b3f4d54dbacd1ae"
   },
   "thumbnail": "world.png",
   "players": {

@@ -4,7 +4,7 @@
     "en": "World",
     "fr": "Monde"
   },
-  "version": 2,
+  "version": 3,
   "width": 2048,
   "height": 1024,
   "topology": "cylinder",

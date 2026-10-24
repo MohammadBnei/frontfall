@@ -92,8 +92,9 @@ The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
    otherwise cut the Black Sea off from the ocean (R-MAP-05). Each is a path
    of points carved as a one-tile channel. Seas left enclosed on purpose,
    such as the Caspian, the Aral Sea and Lake Balkhash, stay lakes. The
-   Panama and Suez canals are not in Natural Earth's coastlines, so the
-   Americas and Africa are joined to their neighbours by land on every map.
+   Panama and Suez canals are missing from Natural Earth's coastlines, so
+   they are carved the same way, the Suez Canal together with the Gulf of
+   Suez, which is too narrow on the World map to reach the Red Sea.
 3. **Cleans the coast**: islands and lakes smaller than `minIslandTiles` and
    `minLakeTiles` are removed, except where they touch the edge of a flat map
    and continue beyond it.
@@ -178,7 +179,8 @@ The tests in [`tools/test/published-maps.test.ts`](../tools/test/published-maps.
 check every committed map: manifest and checksum, the seam, ice beyond the
 polar limits, every nation on land a player can own, the Himalayas, the Andes
 and the Alps among the mountains, the Black Sea, the Sea of Azov, the Baltic
-and the Mediterranean reachable from the ocean, thumbnails under 40 kB.
+and the Mediterranean reachable from the ocean, short sea routes through
+the Panama and Suez canals, thumbnails under 40 kB.
 
 ## Adding a map
 

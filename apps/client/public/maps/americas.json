@@ -5,7 +5,7 @@
     "en": "Americas",
     "fr": "Amériques"
   },
-  "version": 1,
+  "version": 2,
   "width": 960,
   "height": 1024,
   "topology": "flat",
@@ -19,7 +19,7 @@
   "terrain": {
     "file": "americas.bin",
     "bytes": 983056,
-    "sha256": "69969845d21f358c58f86fde97c10694b237cc9cb0e669a65b3917f542a678a1"
+    "sha256": "024a6969098f21aa147a39ad18484c042489f7171222d49314ca12ac2f5e4cb5"
   },
   "thumbnail": "americas.png",
   "players": {

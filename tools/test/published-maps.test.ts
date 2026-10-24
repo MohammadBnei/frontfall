@@ -294,6 +294,44 @@ describe("seas", () => {
     const { inOcean } = ocean("world");
     expect(inOcean(51, 42)).toBe(false);
   });
+
+  /** Fewest water tiles between two points, or -1 when no water path joins them. */
+  const sail = (id: string, from: [number, number], to: [number, number]): number => {
+    const map = maps.find((m) => m.definition.id === id);
+    if (!map) throw new Error(`no map ${id}`);
+    const topology = loadMap(map.bytes, map.manifest).topology;
+    const start = tileAt(map.grid, ...from) as number;
+    const goal = tileAt(map.grid, ...to) as number;
+    const distance = new Int32Array(topology.size).fill(-1);
+    const neighbours = new Int32Array(4);
+    const queue = [start];
+    distance[start] = 0;
+    for (let head = 0; head < queue.length && distance[goal] === -1; head++) {
+      const tile = queue[head] as number;
+      const count = topology.neighborsInto(tile, neighbours);
+      for (let k = 0; k < count; k++) {
+        const next = neighbours[k] as number;
+        if (!isLand(map.tiles[next] as number) && distance[next] === -1) {
+          distance[next] = (distance[tile] as number) + 1;
+          queue.push(next);
+        }
+      }
+    }
+    return distance[goal] as number;
+  };
+
+  it.each(["world", "americas"])("opens the Panama Canal on %s", (id) => {
+    const steps = sail(id, [-79.93, 9.6], [-79.5, 8.6]);
+    expect(steps).toBeGreaterThan(0);
+    expect(steps).toBeLessThan(20);
+  });
+
+  it.each(["world", "africa", "asia"])("opens the Suez Canal on %s", (id) => {
+    // Port Said to the middle of the Red Sea, about 18 degrees of latitude.
+    const steps = sail(id, [32.3, 31.6], [38.5, 20]);
+    expect(steps).toBeGreaterThan(0);
+    expect(steps).toBeLessThan(260);
+  });
 });
 
 describe("catalog", () => {
