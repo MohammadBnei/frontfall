@@ -101,6 +101,8 @@ export const MapCatalog = z.object({
       height: count,
       topology: z.enum(["flat", "cylinder"]),
       players: MapPlayers,
+      /** Menu section: maps of the Earth, or small drawn maps for quick games. */
+      group: z.enum(["world", "quick"]).default("world"),
       manifest: fileName,
       thumbnail: fileName,
     }),

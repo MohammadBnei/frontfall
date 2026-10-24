@@ -43,6 +43,8 @@ export const MapDefinition = z.object({
   minIslandTiles: z.number().int().nonnegative(),
   minLakeTiles: z.number().int().nonnegative(),
   players: MapPlayers,
+  /** Section of the menu the map is listed in (MapCatalog). */
+  group: z.enum(["world", "quick"]).default("world"),
   nations: z.object({
     count: z.number().int().nonnegative(),
     minDistance: z.number().int(),
@@ -241,16 +243,19 @@ function colorIndex(tile: number): number {
   return 2;
 }
 
-export function catalog(manifests: readonly MapManifest[]): MapCatalog {
+export function catalog(
+  maps: readonly { manifest: MapManifest; group: MapCatalog["maps"][number]["group"] }[],
+): MapCatalog {
   return {
     format: 1,
-    maps: manifests.map((m) => ({
+    maps: maps.map(({ manifest: m, group }) => ({
       id: m.id,
       name: m.name,
       width: m.width,
       height: m.height,
       topology: m.topology,
       players: m.players,
+      group,
       manifest: `${m.id}.json`,
       thumbnail: m.thumbnail,
     })),

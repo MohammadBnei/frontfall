@@ -15,6 +15,7 @@
         "recommended": 12,
         "max": 32
       },
+      "group": "world",
       "manifest": "africa.json",
       "thumbnail": "africa.png"
     },
@@ -32,6 +33,7 @@
         "recommended": 10,
         "max": 22
       },
+      "group": "world",
       "manifest": "americas.json",
       "thumbnail": "americas.png"
     },
@@ -49,6 +51,7 @@
         "recommended": 14,
         "max": 40
       },
+      "group": "world",
       "manifest": "asia.json",
       "thumbnail": "asia.png"
     },
@@ -66,6 +69,7 @@
         "recommended": 12,
         "max": 32
       },
+      "group": "world",
       "manifest": "europe.json",
       "thumbnail": "europe.png"
     },
@@ -83,6 +87,7 @@
         "recommended": 4,
         "max": 8
       },
+      "group": "quick",
       "manifest": "island.json",
       "thumbnail": "island.png"
     },
@@ -100,6 +105,7 @@
         "recommended": 6,
         "max": 8
       },
+      "group": "quick",
       "manifest": "ring.json",
       "thumbnail": "ring.png"
     },
@@ -117,6 +123,7 @@
         "recommended": 4,
         "max": 8
       },
+      "group": "quick",
       "manifest": "strait.json",
       "thumbnail": "strait.png"
     },
@@ -134,6 +141,7 @@
         "recommended": 24,
         "max": 64
       },
+      "group": "world",
       "manifest": "world.json",
       "thumbnail": "world.png"
     }

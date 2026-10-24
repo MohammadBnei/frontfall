@@ -300,6 +300,9 @@ describe("catalog", () => {
   it("lists every generated map for the menu", () => {
     const catalog = MapCatalog.parse(json(join(mapsDir, "index.json")));
     expect(catalog.maps.map((m) => m.id)).toEqual(definitions.map((d) => d.id));
+    const group = (name: string) => catalog.maps.filter((m) => m.group === name).map((m) => m.id);
+    expect(group("world")).toEqual(["africa", "americas", "asia", "europe", "world"]);
+    expect(group("quick")).toEqual(["island", "ring", "strait"]);
   });
 
   it("keeps the whole set under 6 MB once compressed", () => {

@@ -72,6 +72,7 @@ let published = existsSync(publishedPath) ? PublishedMaps.parse(await json(publi
 
 await mkdir(values.out, { recursive: true });
 const manifests = [];
+const listed = [];
 for (const file of definitionFiles) {
   const definition = MapDefinition.parse(await json(join(mapgenDir, "definitions", file)));
   const started = process.hrtime.bigint();
@@ -84,12 +85,13 @@ for (const file of definitionFiles) {
   if (!keepThumbnail) await writeFile(thumbnailPath, map.thumbnail);
   await writeFile(join(values.out, `${definition.id}.json`), text(map.manifest));
   manifests.push(map.manifest);
+  listed.push({ manifest: map.manifest, group: definition.group });
   const ms = Number((process.hrtime.bigint() - started) / 1_000_000n);
   log(
     `${definition.id} v${String(definition.version)}: ${String(definition.width)}x${String(definition.height)}, ${String(map.manifest.nations.length)} nations, ${map.manifest.terrain.sha256.slice(0, 12)}, ${String(ms)} ms`,
   );
 }
-await writeFile(join(values.out, "index.json"), text(catalog(manifests)));
+await writeFile(join(values.out, "index.json"), text(catalog(listed)));
 if (!values.check) await writeFile(publishedPath, text(published));
 
 // Budget of the map loader (M2-02): best of a few runs, the first also compiles it.

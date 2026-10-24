@@ -67,10 +67,17 @@ describe("MapCatalog", () => {
       height: 2,
       topology: "cylinder",
       players: manifest.players,
+      group: "quick",
       manifest: "tiny-world.json",
       thumbnail: "tiny-world.png",
     };
     expect(MapCatalog.parse({ format: 1, maps: [entry] }).maps).toHaveLength(1);
+    // Catalogues written before groups existed list every map with the Earth maps.
+    const older = { ...entry, group: undefined };
+    expect(MapCatalog.parse({ format: 1, maps: [older] }).maps[0]?.group).toBe("world");
     expect(MapCatalog.safeParse({ format: 2, maps: [] }).success).toBe(false);
+    expect(MapCatalog.safeParse({ format: 1, maps: [{ ...entry, group: "other" }] }).success).toBe(
+      false,
+    );
   });
 });

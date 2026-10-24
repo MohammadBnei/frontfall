@@ -8,8 +8,11 @@ A map is three files that sit side by side in `maps/`:
 | `<id>.json` | Manifest: name, size, topology, nations, credits, sum |
 | `<id>.png`  | Thumbnail for the menu, at most 256 pixels wide       |
 
-`maps/index.json` lists every published map for the menu. How the files are
-produced from open data is described in [`maps.md`](maps.md).
+`maps/index.json` lists every published map for the menu, each with its
+name, size, topology, player counts, file names and a `group`: `world` for
+the maps of the Earth, `quick` for the small drawn maps. A catalogue without
+groups reads as `world`. How the files are produced is described in
+[`maps.md`](maps.md).
 
 Files stay uncompressed so they can be read in place; the web server
 compresses them on the way (gzip or Brotli). The format is read by

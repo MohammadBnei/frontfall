@@ -17,6 +17,10 @@ game. The file layout is specified in
 | Strait   | 320 × 192   | Flat, drawn                           | 6       | 2 / 4 / 8                         |
 | Ring     | 512 × 256   | Cylinder, drawn                       | 6       | 2 / 6 / 8                         |
 
+The catalogue `maps/index.json` lists each map with a `group` the menu shows
+apart: `world` for the maps of the Earth, `quick` for the drawn ones. A
+definition sets it with `"group"`, `world` by default.
+
 The three drawn maps are small and quick to play, and each exercises one
 case: a single landmass, two continents joined only across a four-tile
 strait, and a belt of land that crosses the east-west seam.

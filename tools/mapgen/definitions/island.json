@@ -25,6 +25,7 @@
     "recommended": 4,
     "max": 8
   },
+  "group": "quick",
   "nations": {
     "count": 6,
     "minDistance": 20
