@@ -120,7 +120,7 @@ export function betrayError(game: Game, player: Player, target: number): string 
  * ends one at once and marks the player who broke it. Requests, alliances and
  * cooldowns run out on ticks, so every client drops them at the same moment.
  * Queries ignore what has run out, so the rules that run later in the tick
- * agree with the orders of the tick; the lists are tidied a tick later.
+ * agree with the orders of the tick; the lists drop it at the end of that tick.
  */
 export function installDiplomacy(game: Game): void {
   const { balance } = game;

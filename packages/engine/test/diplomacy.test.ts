@@ -353,6 +353,23 @@ describe("bots and alliances (R-BOT-10)", () => {
     expect(isAllied(game, 3, 2)).toBe(false);
   });
 
+  it("renews on the same terms, voting once", () => {
+    const { game, grid, ally, run } = newGame({ allianceRequestTicks: 100, winSharePercent: 100 });
+    for (let x = 40; x < 50; x++)
+      for (let y = 0; y < 20; y++) game.territory.setOwner(grid.index(x, y), 2);
+    installBots(game, [2], "normal");
+    ally(1, 2);
+    run(60);
+    const alliance = allianceOf(game, 1, 2);
+    run((alliance?.until ?? 0) - 25 - game.tick);
+    run(20);
+    // Bea voted on a decision in the window, and once only: Ada's vote completes the renewal.
+    expect(alliance?.renewB).toBe(true);
+    const tick = game.tick;
+    ally(1, 2);
+    expect(alliance?.until).toBe(tick + 100);
+  });
+
   it("lets a larger player's request run out, and never asks", () => {
     const { game, grid, ally, run } = newGame({ allianceRequestTicks: 100 });
     for (let x = 20; x < 30; x++)

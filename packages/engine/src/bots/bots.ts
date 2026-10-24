@@ -129,13 +129,14 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
 
   /** R-BOT-10: alliances with smaller players the bot is not fighting, asked for by them. */
   function answerAlliances(bot: Player, tiles: number): void {
+    // Attacks either way, and ships of theirs sailing for the bot's coast.
     const fighting = (other: number) =>
       game.attacks.some(
         (a) =>
           a.troops > 0 &&
           ((a.player === bot.id && a.target === other) ||
             (a.player === other && a.target === bot.id)),
-      );
+      ) || game.boats.some((b) => b.player === other && territory.ownerOf(b.target) === bot.id);
     // Two allies who hold the winning share between them could only wait for the time limit.
     const room = mulDiv(terrain.ownableCount, balance.winSharePercent, 100);
     const worth = (other: number) => {
@@ -146,6 +147,8 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     for (const ally of alliesOf(game, bot.id)) {
       const alliance = allianceOf(game, bot.id, ally);
       if (!alliance || !canRenew(game, alliance) || !worth(ally)) continue;
+      // Its vote stands until the other side's comes.
+      if (bot.id === alliance.a ? alliance.renewA : alliance.renewB) continue;
       game.apply(bot.id, { type: "ally", target: ally });
     }
     // Oldest request first, the same on every client.
