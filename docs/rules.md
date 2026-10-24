@@ -73,7 +73,7 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 
 - **R-BUILD-01** City: raises the population cap by `B-POP-PER-CITY` of what the player's land holds (`R-ECO-01`), so a city is worth as much to a large empire as to a small one.
 - **R-BUILD-02** Port: built on a coastal tile. Launches ships and trade (`R-UNIT-02`, `R-UNIT-03`).
-- **R-BUILD-03** Fort: on the owner's tiles within `B-FORT-RADIUS`, attackers pay `B-FORT-STRENGTH` of the usual price per tile, and the defender loses `B-FORT-LOSSES` of the usual troops per tile lost. Land taken by encirclement (`R-ATTACK-08`) pays no price, fort or not.
+- **R-BUILD-03** Fort: on the owner's tiles within `B-FORT-RADIUS`, attackers pay `B-FORT-STRENGTH` of the usual price per tile, and the defender loses `B-FORT-LOSSES` of the usual troops per tile lost. Land taken by encirclement (`R-ATTACK-08`) pays no price, fort or not: a fortified pocket smaller than `B-ENCIRCLE-MAX` falls whole once surrounded, which on small maps can be all the land a fort covers.
 - **R-BUILD-04** Missile silo: launches missiles (`R-UNIT-05`). Needs a reload time between launches.
 - **R-BUILD-05** Air defense: has a chance to destroy missiles that pass within its radius (`B-AIR-DEFENSE-RADIUS`).
 - **R-BUILD-06** A structure can be demolished by its owner, with no refund.

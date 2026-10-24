@@ -87,6 +87,20 @@ describe("frames", () => {
     });
   });
 
+  it("carries a build with its structure code and tile", () => {
+    expect(decodeFrame(encodeOrderFrame({ type: "build", structure: 1, tile: 70_000 }))).toEqual({
+      kind: "order",
+      order: { type: "build", structure: 1, tile: 70_000 },
+    });
+  });
+
+  it("carries a demolition's tile", () => {
+    expect(decodeFrame(encodeOrderFrame({ type: "demolish", tile: 5 }))).toEqual({
+      kind: "order",
+      order: { type: "demolish", tile: 5 },
+    });
+  });
+
   it("numbers decoded turns from the first tick", () => {
     const frame = encodeTurnsFrame(41, [
       encodeTurnBody([]),

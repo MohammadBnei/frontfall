@@ -45,6 +45,7 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       );
     }
     case "demolish": {
+      if (game.phase !== "play") return "building starts after the spawn phase";
       const error = tileError(game, order.tile);
       if (error) return error;
       const owned = game.structures.some((s) => s.tile === order.tile && s.player === player.id);
