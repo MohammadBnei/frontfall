@@ -109,7 +109,8 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   test.setTimeout(120_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
-  await page.goto("./?map=skirmish&bots=2&difficulty=easy&speed=5");
+  // A hundred times the usual gold, so the first city is paid for in seconds of play.
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy&speed=5&gold=500");
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   const box = await page.locator("#map").boundingBox();
@@ -119,26 +120,10 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   const start = await clickAround(page, center, async () => (await landShare(page)) > 0);
   expect(await landShare(page)).toBeGreaterThan(0);
 
-  // Grow, so the gold comes in faster.
   await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
-  await page.keyboard.press("Digit3");
   const city = page.locator("#build-city");
-  // Clicks walk a spiral out from the start: those next to free land expand.
-  const deadline = Date.now() + 75_000;
-  for (
-    let i = 0;
-    Date.now() < deadline && (await city.getAttribute("class"))?.includes("unaffordable");
-    i++
-  ) {
-    const angle = ((i % 8) / 8) * 2 * Math.PI;
-    const radius = 20 + (Math.floor(i / 8) % 12) * 25;
-    await page.mouse.click(
-      center.x + Math.cos(angle) * radius,
-      center.y + Math.sin(angle) * radius,
-    );
-    await page.waitForTimeout(250);
-  }
-  await expect(city).not.toHaveClass(/unaffordable/);
+  // One generous deadline: how fast the gold comes depends on the machine's speed.
+  await expect(city).not.toHaveClass(/unaffordable/, { timeout: 60_000 });
 
   const before = await structurePixels(page, start);
   await page.keyboard.press("KeyC");

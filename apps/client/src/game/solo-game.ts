@@ -48,6 +48,8 @@ export interface SoloOptions {
    */
   speed?: number | undefined;
   maxMinutes?: number | undefined;
+  /** For tests that build: B-GOLD-RATE instead of its value in the balance. */
+  goldRate?: number | undefined;
   /**
    * Online: the human players in their final numbering, and which one plays
    * at this screen. Bots then take the numbers after the last human, and
@@ -249,13 +251,14 @@ export class SoloGame {
       botIds.push(firstBot + i);
       players.push({ id: firstBot + i, name: BOT_NAMES[i] as string });
     }
-    const balance =
-      options.maxMinutes === undefined
-        ? DEFAULT_BALANCE
-        : {
-            ...DEFAULT_BALANCE,
-            maxDurationTicks: Math.round(options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond),
-          };
+    const balance = { ...DEFAULT_BALANCE };
+    if (options.maxMinutes !== undefined) {
+      balance.maxDurationTicks = Math.round(
+        options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond,
+      );
+    }
+    if (options.goldRate !== undefined)
+      balance.goldPerThousandTroops = Math.floor(options.goldRate);
     this.game = createGame({ terrain, seed: options.seed, players, balance });
     installBots(this.game, botIds, options.difficulty);
     this.players = players;

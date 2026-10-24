@@ -37,7 +37,8 @@ function showMenu(): void {
 
 /**
  * `?speed=` and `?minutes=` let end-to-end tests play a whole game in
- * seconds; nothing in the interface sets them.
+ * seconds, and `?gold=` (B-GOLD-RATE) pay for a structure without a long
+ * wait; nothing in the interface sets them.
  */
 const testing = (() => {
   const params = new URLSearchParams(location.search);
@@ -45,7 +46,11 @@ const testing = (() => {
     const value = Number(params.get(name));
     return params.has(name) && value > 0 && value <= max ? value : undefined;
   };
-  return { speed: number("speed", 100), maxMinutes: number("minutes", 60) };
+  return {
+    speed: number("speed", 100),
+    maxMinutes: number("minutes", 60),
+    goldRate: number("gold", 10_000),
+  };
 })();
 
 function play(chosen: GameSetup): void {
