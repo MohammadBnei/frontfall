@@ -160,8 +160,8 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 | M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility                  | S    | #26        |
 | M2-04 | [#18](https://github.com/nic0lasm/frontfall/issues/18) Relief and impassable terrain (remainder)   | S    | #17        |
 | M4-06 | [#39](https://github.com/nic0lasm/frontfall/issues/39) Reconnection and catch-up (remainder)       | M    | #37        |
-| M3-13 | Stronger bots: spread the difficulties                                                             | S    | #28        |
-| M3-14 | Hover highlight and animated attack fronts                                                         | S    | #82        |
+| M3-13 | [#83](https://github.com/nic0lasm/frontfall/issues/83) Stronger bots: spread the difficulties      | S    | #28        |
+| M3-14 | [#84](https://github.com/nic0lasm/frontfall/issues/84) Hover highlight and animated attack fronts  | S    | #82        |
 | M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) Playtest with outside players               | S    | #30        |
 | M5-09 | [#51](https://github.com/nic0lasm/frontfall/issues/51) Uptime monitoring and alerts                | S    | None       |
 | M7-01 | [#60](https://github.com/nic0lasm/frontfall/issues/60) Performance budget and reference hardware   | S    | None       |
