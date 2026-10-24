@@ -92,6 +92,8 @@ Bot values were tuned on World against a scripted stand-in for a casual player (
 
 `B-POP-FALLOFF` is off (100 %) for now. It was tried at 50 % past 20 % of the land with eight hard bots on World, five seeds, once bots had learnt to sail (`R-BOT-05`). The leader reached `B-WIN-SHARE` in 7 to 8 minutes in every seed, with or without it. Against seven hard bots over eight minutes, the scripted casual player was eliminated in four seeds out of six with it (after 5.1 to 7.2 minutes), in five out of six without it (after 4.5 to 6.0), and in four out of six with the previous bots (after 3.8 to 6.3). On a small map with three bots, though, every bot is past the share, and with the falloff the lead changed hands for 15 minutes; without it, the game was won in under 2 minutes. That gain for the casual player is within noise, so it does not pay for the stalemates.
 
+With ships for everyone, a scripted player that also sails (free land first, then its weakest neighbour, then a ship to a free or weaker coast, 30 % of its troops every 5 s) wins most solo games: against 7 normal bots on World, 7 seeds out of 8, in 5.5 to 7.2 minutes; against the menu's default of 11 normal bots on Europe, 5 out of 6, in 4.3 to 5.4 minutes. Against 7 hard bots on World it wins 2 seeds out of 4. A real casual player is slower than this script, so these are upper bounds; playtests decide whether normal bots need to be bolder.
+
 ## Victory
 
 | Key           | Value | Unit              | Used by    | Notes |
