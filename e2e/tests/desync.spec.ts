@@ -10,7 +10,6 @@ test("a player whose game drifts apart is told, and can download a report that r
   baseURL,
 }) => {
   test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
-  test.skip(test.info().project.name !== "root", "one browser is enough");
   test.setTimeout(120_000);
   if (!baseURL) throw new Error("baseURL is not configured");
   const [host, guest, drifting] = await Promise.all([1, 2, 3].map(() => browser.newPage()));
