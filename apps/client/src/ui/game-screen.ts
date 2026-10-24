@@ -1,5 +1,7 @@
 import type { Turn } from "@frontfall/engine";
+import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
+import { TurnPacer } from "../game/turn-pacer.ts";
 import type { MapData, MapInfo } from "../game/maps.ts";
 import type { GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
@@ -14,6 +16,9 @@ import { PlayerLabels } from "./labels.ts";
 
 /** Matches the fade of the territory layer, with a frame to spare. */
 const FADE_MS = 200;
+
+/** How often the turns of an online game are checked for being due. */
+const PACER_MS = 10;
 
 /** Size of a tile on screen once the view closes in on the player's start. */
 const START_TILE_PIXELS = 6;
@@ -57,6 +62,8 @@ export class GameScreen {
   private drawnView: CameraView | undefined;
   private wrapsX = true;
   private readonly labels = new PlayerLabels();
+  /** Online: evens out the arrival of the server's turns before the worker plays them. */
+  private readonly pacer: TurnPacer;
   /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
   private fadingUntil = 0;
 
@@ -142,6 +149,18 @@ export class GameScreen {
       this.resize();
     };
     window.addEventListener("resize", resize);
+    this.pacer = new TurnPacer((turns) => {
+      this.session.pushTurns(turns);
+    }, 1000 / TICK_RATE);
+    if (link) {
+      // A timer rather than frames: a hidden tab draws nothing but must keep playing.
+      const pacing = setInterval(() => {
+        this.pacer.update(performance.now());
+      }, PACER_MS);
+      this.cleanups.push(() => {
+        clearInterval(pacing);
+      });
+    }
     this.cleanups.push(
       () => {
         window.removeEventListener("keydown", keydown);
@@ -348,7 +367,8 @@ export class GameScreen {
 
   /** Online: turns relayed by the server, in order. */
   pushTurns(turns: Turn[]): void {
-    this.session.pushTurns(turns);
+    this.pacer.push(turns, performance.now());
+    this.pacer.update(performance.now());
   }
 
   private togglePause(): void {

@@ -1,7 +1,6 @@
 import {
   DEFAULT_BALANCE,
   Terrain,
-  TurnClock,
   WorldGrid,
   createGame,
   installBots,
@@ -143,16 +142,18 @@ export const MAX_BOTS = BOT_NAMES.length;
 const LABEL_TICKS = 5;
 
 /**
- * One solo game: the engine with every rule installed, bots for every other
- * player, and a turn clock that closes the human's orders into turns as the
- * server does online. Runs in a worker in the browser and directly in tests.
+ * One game as this client runs it: the engine with every rule installed and
+ * the bots. Online, it plays the turns the server relays (`playTurns`); solo,
+ * `step` relays the player's orders into the same kind of turn, so both go
+ * down one path. Runs in a worker in the browser and directly in tests.
  */
 export class SoloGame {
   readonly game: Game;
   readonly ownableTiles: number;
   /** The player at this screen. */
   readonly you: number;
-  private readonly clock: TurnClock;
+  /** Online games report state hashes; a solo game has no one to compare with. */
+  private readonly online: boolean;
   private readonly depth: Uint16Array;
 
   constructor(
@@ -180,7 +181,7 @@ export class SoloGame {
           };
     this.game = createGame({ terrain, seed: options.seed, players, balance });
     installBots(this.game, botIds, options.difficulty);
-    this.clock = new TurnClock(this.game);
+    this.online = options.players !== undefined;
     this.depth = new Uint16Array(grid.size);
     let ownable = 0;
     for (let tile = 0; tile < grid.size; tile++) if (terrain.isOwnable(tile)) ownable++;
@@ -238,16 +239,18 @@ export class SoloGame {
   }
 
   /**
-   * Runs one tick with the human's orders and returns what changed. Once the
-   * game is decided the bots play on for spectators (R-WIN-03), and the
-   * human's orders are dropped.
+   * Solo: runs one tick with the player's orders and returns what changed.
+   * Once the game is decided the bots play on for spectators (R-WIN-03), and
+   * the player's orders are dropped.
    */
   step(orders: readonly Order[]): GameUpdate {
-    if (this.game.winner === undefined) {
-      for (const order of orders) this.clock.submit(this.you, order);
-    }
-    this.clock.advance();
-    return this.update();
+    // The local relay: the turn the server would send, with this player's orders only.
+    const turn: Turn = {
+      tick: this.game.tick,
+      orders:
+        this.game.winner === undefined ? orders.map((order) => ({ player: this.you, order })) : [],
+    };
+    return this.playTurns([turn]);
   }
 
   /**
@@ -260,7 +263,8 @@ export class SoloGame {
     const hashes: { tick: number; hash: number }[] = [];
     for (const turn of turns) {
       this.game.step(turn);
-      if (turn.tick % HASH_INTERVAL === 0) hashes.push({ tick: turn.tick, hash: this.game.hash() });
+      if (this.online && turn.tick % HASH_INTERVAL === 0)
+        hashes.push({ tick: turn.tick, hash: this.game.hash() });
     }
     const update = this.update();
     if (hashes.length > 0) update.hashes = hashes;

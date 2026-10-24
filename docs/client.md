@@ -9,7 +9,7 @@ covers the conventions that are not obvious from the code.
  page                                    worker (game/sim.worker.ts)
  ----                                    ---------------------------
  Menu ── setup ──> GameScreen            SoloGame
-                    │  click(tile, ratio) ──>  orderForClick ─> TurnClock ─> Game
+                    │  click(tile, ratio) ──>  orderForClick ─> turn ──> Game
                     │                          bots decide inside the tick
                     │  <── update every tick:  changed tiles, players, attacks
                     ├─ Renderer (render/)  draws owners from a mirror array
@@ -70,7 +70,12 @@ Once the server sends `started`, the page builds the same game as every
 other client: the World map, the seed, the humans in the server's numbering,
 and `bots` bots of normal difficulty numbered after them. The worker has no
 clock of its own: it runs each turn the server relays, every player's orders
-in it, and a batch of turns at once after a rejoin. A click becomes an order
+in it, and a batch of turns at once after a rejoin. The page holds the turns
+back in a jitter buffer (`game/turn-pacer.ts`): turn n plays at n ticks of
+the clock plus the largest delay among the last 30 turns, so bunched
+arrivals still come out one per tick; a backlog of more than 4 turns plays
+at once. A solo game goes down the same path: each tick, its orders become
+the turn a server would have sent. A click becomes an order
 the page sends to the server; it takes effect when its turn comes back.
 After every 50th tick the worker hashes the game state and the page reports
 it, so the server can tell a client out of step (`desync`). An online game
