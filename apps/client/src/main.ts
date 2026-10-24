@@ -26,7 +26,8 @@ function showMenu(): void {
   document.body.classList.remove("playing");
   menu = new Menu(setup, maps, play);
   document.body.prepend(menu.element);
-  menu.element.querySelector<HTMLButtonElement>("#play")?.focus();
+  // Ready for Enter, without scrolling a phone's menu down to the button.
+  menu.element.querySelector<HTMLButtonElement>("#play")?.focus({ preventScroll: true });
 }
 
 function play(chosen: GameSetup): void {

@@ -533,6 +533,7 @@ input[type="range"] {
   line-height: 1.8;
 }
 
+/* Phones: the map keeps the middle of the screen; panels hug the edges. */
 @media (width < 720px) {
   .hud {
     font-size: 13px;
@@ -548,8 +549,41 @@ input[type="range"] {
     width: 170px;
   }
 
+  /* Five leaders and the player, wherever they rank. */
+  .leader:nth-child(n + 6):not(.you) {
+    display: none;
+  }
+
   .banner {
     top: 72px;
+  }
+
+  /* The ratio panel stops short of the three toolbar buttons. */
+  .ratio {
+    left: 12px;
+    right: 160px;
+    width: auto;
+    transform: none;
+  }
+
+  .ratio label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .click-note {
+    bottom: auto;
+    top: 120px;
+  }
+
+  /* Play stays in reach without scrolling past the maps. */
+  .menu-form #play {
+    position: sticky;
+    bottom: 12px;
+    z-index: 1;
   }
 }
 
@@ -651,8 +685,10 @@ input[type="range"] {
 
 @media (width < 720px) {
   .beta-hud {
+    top: 12px;
+    right: 12px;
     bottom: auto;
-    top: 84px;
+    left: auto;
   }
 }
 
