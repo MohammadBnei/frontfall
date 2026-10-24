@@ -335,6 +335,17 @@ input[type="range"] {
   background: var(--ff-night-600);
 }
 
+.map-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-group-label {
+  color: var(--ff-slate-300);
+  font-size: 13px;
+}
+
 .map-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));

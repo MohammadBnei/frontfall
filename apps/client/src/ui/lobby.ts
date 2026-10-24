@@ -1,5 +1,5 @@
 import type { Difficulty, ErrorCode, GameOptions } from "@frontfall/protocol";
-import type { MapInfo } from "../game/maps.ts";
+import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
@@ -13,9 +13,12 @@ export function onlineMaps(maps: readonly MapInfo[]): MapInfo[] {
   return maps.filter((map) => map.maxPlayers !== undefined);
 }
 
-/** Most bots the server accepts on `map` beside `capacity` human seats. */
-export function botLimit(map: MapInfo, capacity: number): number {
-  return Math.max(0, Math.min(MAX_BOTS, (map.maxPlayers ?? 0) - capacity));
+/**
+ * Most bots the server accepts on `map` with `players` humans in the game:
+ * the seats left empty shrink to make room for them.
+ */
+export function botLimit(map: MapInfo, players: number): number {
+  return Math.max(0, Math.min(MAX_BOTS, (map.maxPlayers ?? 0) - Math.max(1, players)));
 }
 
 export interface LobbyActions {
@@ -126,7 +129,7 @@ export class LobbyScreen {
       if (!map || !this.lastLobby) return;
       actions.onConfigure({
         map: map.id,
-        bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.capacity)),
+        bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.players.length)),
         difficulty: this.difficulty.value as Difficulty,
       });
     };
@@ -280,9 +283,27 @@ export class LobbyScreen {
     this.settings.hidden = !editable;
     this.summary.hidden = Boolean(editable);
     if (!editable) return;
+    // Only maps that seat every player already in.
+    const fitting = this.maps.filter(
+      (candidate) =>
+        (candidate.maxPlayers ?? 0) >= lobby.players.length || candidate.id === lobby.map,
+    );
     this.mapSelect.replaceChildren(
-      ...this.maps.map((candidate) =>
-        h("option", { value: candidate.id }, candidate.name?.[getLanguage()] ?? candidate.id),
+      ...MAP_GROUPS.filter((group) => fitting.some((candidate) => candidate.group === group)).map(
+        (group) =>
+          h(
+            "optgroup",
+            { label: t(`menu.maps.${group}`) },
+            ...fitting
+              .filter((candidate) => candidate.group === group)
+              .map((candidate) =>
+                h(
+                  "option",
+                  { value: candidate.id },
+                  candidate.name?.[getLanguage()] ?? candidate.id,
+                ),
+              ),
+          ),
       ),
     );
     this.mapSelect.value = lobby.map;
@@ -290,7 +311,7 @@ export class LobbyScreen {
       ...DIFFICULTIES.map((level) => h("option", { value: level }, t(`difficulty.${level}`))),
     );
     this.difficulty.value = lobby.difficulty;
-    this.bots.max = String(botLimit(map, lobby.capacity));
+    this.bots.max = String(botLimit(map, lobby.players.length));
     this.bots.value = String(lobby.bots);
     this.botsValue.textContent = String(lobby.bots);
   }

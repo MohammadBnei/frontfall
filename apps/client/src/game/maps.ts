@@ -16,11 +16,16 @@ export interface MapData {
   readonly source?: { readonly format: number; readonly version: number; readonly sha256: string };
 }
 
+export type MapGroup = "world" | "quick";
+export const MAP_GROUPS: readonly MapGroup[] = ["world", "quick"];
+
 export interface MapInfo {
   readonly id: string;
   readonly width: number;
   readonly height: number;
   readonly wrapsX: boolean;
+  /** Earth maps, or small quick ones; generated maps are quick. */
+  readonly group: MapGroup;
   /** Bots suggested for a game that fills the map without crowding it. */
   readonly suggestedBots: number;
   /** Published maps only: their name, absolute URLs of the manifest and thumbnail. */
@@ -48,6 +53,7 @@ const GENERATED: readonly GeneratedMap[] = [
     height: 256,
     wrapsX: true,
     suggestedBots: 12,
+    group: "quick",
     seed: 2026,
     seeds: 12,
     landShare: 0.35,
@@ -58,6 +64,7 @@ const GENERATED: readonly GeneratedMap[] = [
     height: 192,
     wrapsX: true,
     suggestedBots: 8,
+    group: "quick",
     seed: 7,
     seeds: 3,
     landShare: 0.45,
@@ -68,6 +75,7 @@ const GENERATED: readonly GeneratedMap[] = [
     height: 96,
     wrapsX: false,
     suggestedBots: 3,
+    group: "quick",
     seed: 5,
     seeds: 2,
     landShare: 0.5,
@@ -105,6 +113,7 @@ export async function fetchMaps(base: string, fetcher: typeof fetch = fetch): Pr
         manifest: new URL(map.manifest, url).href,
         thumbnail: new URL(map.thumbnail, url).href,
         maxPlayers: map.players.max,
+        group: map.group,
       });
     }
   } catch (error) {

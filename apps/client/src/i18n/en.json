@@ -111,5 +111,7 @@
   "online.error.invalid_settings": "The server refused these settings.",
   "online.summary": "{map} · {bots} bots · {difficulty}",
   "online.desyncReport": "Download a report",
-  "online.error.token_invalid": "This game has ended, or went on without you."
+  "online.error.token_invalid": "This game has ended, or went on without you.",
+  "menu.maps.world": "World maps",
+  "menu.maps.quick": "Quick games"
 }

@@ -111,5 +111,7 @@
   "online.error.invalid_settings": "Le serveur a refusé ces réglages.",
   "online.summary": "{map} · {bots} bots · {difficulty}",
   "online.desyncReport": "Télécharger un rapport",
-  "online.error.token_invalid": "Cette partie est terminée, ou a continué sans vous."
+  "online.error.token_invalid": "Cette partie est terminée, ou a continué sans vous.",
+  "menu.maps.world": "Cartes du monde",
+  "menu.maps.quick": "Parties rapides"
 }

@@ -1,4 +1,4 @@
-import { generateMap, type MapInfo } from "../game/maps.ts";
+import { MAP_GROUPS, generateMap, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
 import {
   LANGUAGES,
@@ -58,10 +58,19 @@ export class Menu {
     });
 
     const maps = h("div", {
-      class: "map-list",
+      class: "map-groups",
       role: "radiogroup",
       "aria-labelledby": "map-label",
     });
+    const lists = new Map(
+      MAP_GROUPS.map((group) => [group, h("div", { class: "map-list" })] as const),
+    );
+    for (const group of MAP_GROUPS) {
+      const list = lists.get(group);
+      if (!list || !mapList.some((info) => info.group === group)) continue;
+      const label = h("span", { class: "map-group-label", "data-i18n": `menu.maps.${group}` });
+      maps.append(label, list);
+    }
     for (const info of mapList) {
       const input = h("input", { type: "radio", name: "map", value: info.id });
       input.checked = info.id === this.setup.map;
@@ -73,7 +82,7 @@ export class Menu {
           botsValue.textContent = bots.value;
         }
       });
-      maps.append(
+      lists.get(info.group)?.append(
         h(
           "label",
           { class: "map-card" },

@@ -223,7 +223,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         }
         if (fromMenu && state.host === state.you) {
           fromMenu = false;
-          const options = initialOptions(chosen, playable, state.capacity);
+          const options = initialOptions(chosen, playable, state.players.length);
           if (options) client.configure(options);
         }
         room.lobby(state, inviteLink(state.game));
@@ -264,13 +264,13 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
 function initialOptions(
   chosen: GameSetup,
   playable: readonly MapInfo[],
-  capacity: number,
+  players: number,
 ): GameOptions | undefined {
   const map = playable.find((candidate) => candidate.id === chosen.map);
-  if (!map) return undefined;
+  if (!map || (map.maxPlayers ?? 0) < players) return undefined;
   return {
     map: map.id,
-    bots: Math.min(chosen.bots, botLimit(map, capacity)),
+    bots: Math.min(chosen.bots, botLimit(map, players)),
     difficulty: chosen.difficulty,
   };
 }

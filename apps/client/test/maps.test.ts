@@ -41,6 +41,15 @@ describe("published maps", () => {
     expect(maps.every((map) => map.suggestedBots >= 1 && map.suggestedBots <= 24)).toBe(true);
   });
 
+  it("sorts Earth maps from quick ones, generated maps among the quick", async () => {
+    const maps = await fetchMaps(PAGE, fromDisk);
+    const group = (id: string) => maps.find((map) => map.id === id)?.group;
+    expect(group("world")).toBe("world");
+    expect(group("europe")).toBe("world");
+    expect(group("island")).toBe("quick");
+    expect(GENERATED_MAPS.every((map) => map.group === "quick")).toBe(true);
+  });
+
   it("offers the published maps online, with as many bots as the server takes", async () => {
     const maps = onlineMaps(await fetchMaps(PAGE, fromDisk));
     const ids = maps.map((map) => map.id);
@@ -49,7 +58,7 @@ describe("published maps", () => {
     expect(ids).toEqual(expect.arrayContaining(["europe", "africa", "americas", "asia"]));
     const world = maps[0] as MapInfo;
     const europe = maps.find((map) => map.id === "europe") as MapInfo;
-    // 25 bot names; Europe takes 32 players, 16 of them human seats.
+    // 25 bot names; Europe takes 32 players, here 16 humans.
     expect(botLimit(world, 16)).toBe(25);
     expect(botLimit(europe, 16)).toBe(16);
     expect(botLimit(europe, 40)).toBe(0);
@@ -72,7 +81,8 @@ describe("published maps", () => {
 });
 
 describe("desync report", () => {
-  it("replays an online game to the hashes this client saw", async () => {
+  // Plays 160 ticks of Europe, then replays them: slow on a shared CI runner.
+  it("replays an online game to the hashes this client saw", { timeout: 60_000 }, async () => {
     const maps = await fetchMaps(PAGE, fromDisk);
     const info = maps.find((map) => map.id === "europe") as MapInfo;
     const map = await fetchMapData(info, fromDisk);

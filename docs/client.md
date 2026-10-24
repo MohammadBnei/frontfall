@@ -71,7 +71,9 @@ other client: the map, the seed, the humans in the server's numbering,
 and `bots` bots of the game's difficulty numbered after them. The host of a
 private game picks the map, bots and difficulty in the lobby (`configure`),
 starting from the menu's choices; maps come from the published catalogue
-only, and bots stop at 25 or at the map's most players less the 16 seats,
+only, grouped like the menu's "World maps" and "Quick games" (`group` in
+`maps/index.json`, generated maps counting as quick), and only those that
+seat the players already in, and bots stop at 25 or at the map's most players less the players in (empty seats shrink to make room),
 whichever is lower. The other players see the settings as one line. The worker has no
 clock of its own: it runs each turn the server relays, every player's orders
 in it, and a batch of turns at once after a rejoin. The page holds the turns
