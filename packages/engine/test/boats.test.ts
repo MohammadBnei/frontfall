@@ -165,6 +165,21 @@ describe("transport ships (R-UNIT-02, R-ATTACK-09)", () => {
     expect(ada.troops).toBeGreaterThanOrEqual(before + 300);
   });
 
+  it("brings the troops home when the coast became an ally's on the way (R-DIPLO-02)", () => {
+    const { grid, game, ada, run, embark } = newGame(islands);
+    const target = grid.index(13, 1);
+    game.territory.setOwner(target, 2);
+    run([{ player: 2, order: { type: "ally", target: 1 } }]);
+    // Ada sails, then accepts in the same turn: the ship is already at sea.
+    run([embark(1, target, 300), { player: 1, order: { type: "ally", target: 2 } }]);
+    expect(game.boats).toHaveLength(1);
+    const before = ada.troops;
+    for (let i = 0; i < 5; i++) run();
+    expect(game.boats).toHaveLength(0);
+    expect(game.territory.ownerOf(target)).toBe(2);
+    expect(ada.troops).toBeGreaterThanOrEqual(before + 300);
+  });
+
   it("loses the troops when they cannot pay for the beach", () => {
     const { grid, game, run, embark } = newGame(islands, { neutralCost: 500 });
     run([embark(2, grid.index(0, 1), 100)]);

@@ -143,7 +143,7 @@ Shipped as `v0.2.0`.
 
 **Playable when**
 
-1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-05` and `R-BOT-02` is implemented and covered by a test that names it.
+1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-04` and `R-BOT-02` is implemented and covered by a test that names it.
 2. A player who reloads the page 20 minutes into a game is back in sync in under 10 seconds.
 3. An external check alerts the owner within 5 minutes when the public server stops answering.
 4. A World game with 64 players, nations and structures keeps the tick p95 under 8 ms, and CI fails on a regression of more than 20 %.
@@ -155,7 +155,7 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 | ID    | Issue                                                                                              | Size | Depends on |
 | ----- | -------------------------------------------------------------------------------------------------- | ---- | ---------- |
 | M5-01 | [#43](https://github.com/nic0lasm/frontfall/issues/43) Structures: cities, ports and defence posts | L    | #26        |
-| M5-05 | [#47](https://github.com/nic0lasm/frontfall/issues/47) Alliances, betrayal and embargoes           | M    | #26        |
+| M5-05 | [#47](https://github.com/nic0lasm/frontfall/issues/47) Alliances and betrayal; embargoes in v0.4   | M    | #26        |
 | M3-07 | [#29](https://github.com/nic0lasm/frontfall/issues/29) Nations                                     | M    | #28, #20   |
 | M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility                  | S    | #26        |
 | M2-04 | [#18](https://github.com/nic0lasm/frontfall/issues/18) Relief and impassable terrain (remainder)   | S    | #17        |
@@ -306,6 +306,7 @@ Reviewed on 24 October 2026, once v0.1 and v0.2 were live and played. The order 
 | Globe spike during v0.3                          | The 3D globe is the main risk for v1.0 and the Renderer contract has one implementation. Three days now can save a rework of the 2D view later.                               |
 | Outside playtest (#33) from v0.1 to v0.3         | v0.1 and v0.2 are tagged after the owner's playtest; three outside players are a check of v0.3.                                                                               |
 | #44 from L to M                                  | Ships, sea routes across the seam and bots that sail came with v0.1 (#81).                                                                                                    |
+| Embargoes (`R-DIPLO-05`) from v0.3 to v0.4       | An embargo stops trade, and trade comes with ports in v0.4. Until then it would be a button that does nothing.                                                                |
 | v0.5 renamed "Balanced"                          | Monitoring moved out; the balance pass is what is left.                                                                                                                       |
 
 ## Good first issues

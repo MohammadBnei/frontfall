@@ -59,10 +59,12 @@ Words used throughout:
 
 ## 5. Diplomacy
 
-- **R-DIPLO-01** A player can ask any other player for an alliance. The request expires after `B-ALLIANCE-REQUEST-TIMEOUT` if not accepted.
-- **R-DIPLO-02** Allies cannot attack each other, and their units do not fire at each other.
-- **R-DIPLO-03** An alliance lasts `B-ALLIANCE-DURATION`. Both players may renew it in the last part of that time.
-- **R-DIPLO-04** Attacking an ally breaks the alliance. The attacker is marked a traitor for `B-TRAITOR-DURATION`: their defense is weakened and every player is told.
+Diplomacy starts with the play phase, like attacks.
+
+- **R-DIPLO-01** A player can ask any other player still in the game for an alliance. It is formed when the asked player asks back; the request expires after `B-ALLIANCE-REQUEST-TIMEOUT` if not. One request at a time waits between two players, and after one expires its sender waits `B-ALLIANCE-REQUEST-COOLDOWN` before asking the same player again.
+- **R-DIPLO-02** Allies cannot attack each other, by land or by sea, and their units do not fire at each other. When an alliance is formed, the attacks between the two players stop and their troops go home as from a retreat (`R-ATTACK-06`); a ship that reaches an ally's coast brings its troops home too. Encirclement (`R-ATTACK-08`) never takes an ally's land.
+- **R-DIPLO-03** An alliance lasts `B-ALLIANCE-DURATION`, then ends with no penalty. In its last `B-ALLIANCE-RENEWAL`, each ally may ask to renew it; once both have, it starts again for a full `B-ALLIANCE-DURATION`.
+- **R-DIPLO-04** To attack an ally, a player must first betray them, which ends the alliance at once. The betrayer is marked a traitor for `B-TRAITOR-DURATION`: their land costs `B-TRAITOR-DEFENSE` of the usual price to take, and every player is told. The betrayer then waits `B-ALLIANCE-REQUEST-COOLDOWN` before asking the betrayed player again.
 - **R-DIPLO-05** A player can place an embargo on another, which stops trade between them in both directions until lifted.
 - **R-DIPLO-06** Players can send each other troops or gold. Gifts are refused between players at war.
 - **R-DIPLO-07** Players can send preset quick messages and emoji to each other; free text chat is not part of v1.
@@ -92,12 +94,13 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 
 ## 8. Bots and nations
 
-- **R-BOT-01** Bots are simple players that fill empty maps: they expand into unowned land and attack weak neighbours, and never make alliances.
+- **R-BOT-01** Bots are simple players that fill empty maps: they expand into unowned land and attack weak neighbours. They never ask for an alliance and answer requests by `R-BOT-10`.
 - **R-BOT-02** Nations are stronger computer players placed at named positions on a map. They build, ally, trade and retaliate when attacked.
 - **R-BOT-03** Computer players follow the same rules as humans and send their orders the same way. They take decisions only from the game state and the game's seed, so every client computes the same decisions.
 - **R-BOT-04** The difficulty setting changes how often and how boldly computer players act, never the rules they follow.
 - **R-BOT-05** A bot with nothing worth taking by land sends a transport ship to the closest unowned coast it can reach away from its own shore, or else to the coast of a weaker player there, with up to `B-BOAT-MAX` ships at sea. A large empire looks at more of its border before deciding, so a narrow land front is not missed.
 - **R-BOT-06** A bot whose gold pays for a city its land supports builds one on the free inland tile closest to its start, or to one of its border tiles once the start is lost. Bots build no other structure.
+- **R-BOT-10** A bot accepts an alliance from a player with less land than itself, not marked a traitor, with no attack between them, while the two of them hold less than `B-WIN-SHARE` of the land together and the bot has fewer than `B-BOT-ALLIANCE-MAX` allies, and renews an alliance on the same terms. A bot never betrays, and never attacks or sails to an ally.
 
 ## 9. Victory and game modes
 

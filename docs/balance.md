@@ -60,11 +60,14 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 ## Diplomacy
 
-| Key                          | Value | Unit | Used by      | Notes                                  |
-| ---------------------------- | ----: | ---- | ------------ | -------------------------------------- |
-| `B-ALLIANCE-REQUEST-TIMEOUT` |    20 | s    | `R-DIPLO-01` |                                        |
-| `B-ALLIANCE-DURATION`        |   300 | s    | `R-DIPLO-03` | Renewal opens in the last 60 s         |
-| `B-TRAITOR-DURATION`         |    30 | s    | `R-DIPLO-04` | Defense reduced by half while it lasts |
+| Key                           | Value | Unit | Used by      | Notes                                                     |
+| ----------------------------- | ----: | ---- | ------------ | --------------------------------------------------------- |
+| `B-ALLIANCE-REQUEST-TIMEOUT`  |    20 | s    | `R-DIPLO-01` |                                                           |
+| `B-ALLIANCE-REQUEST-COOLDOWN` |    30 | s    | `R-DIPLO-01` | From a request running out to the next to the same player |
+| `B-ALLIANCE-DURATION`         |   300 | s    | `R-DIPLO-03` | Fixed, so that no pact freezes a free-for-all             |
+| `B-ALLIANCE-RENEWAL`          |    60 | s    | `R-DIPLO-03` | Last part of an alliance in which both may renew it       |
+| `B-TRAITOR-DURATION`          |    30 | s    | `R-DIPLO-04` |                                                           |
+| `B-TRAITOR-DEFENSE`           |    50 | %    | `R-DIPLO-04` | Of the usual price of a traitor's tile, after any fort    |
 
 ## Structures
 
@@ -89,7 +92,7 @@ Distances and land are given for a map of 2^19 tiles, like the spawn values: on 
 
 ## Bots
 
-Each value is given for easy / normal / hard (`R-BOT-04`); the last five are the same at every difficulty.
+Each value is given for easy / normal / hard (`R-BOT-04`); the last six are the same at every difficulty.
 
 | Key                  |           Value | Unit                         | Used by    | Notes                                                                                                                                          |
 | -------------------- | --------------: | ---------------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -102,6 +105,7 @@ Each value is given for easy / normal / hard (`R-BOT-04`); the last five are the
 | `B-BOT-SEA-MIN`      |              16 | water tiles                  | `R-BOT-05` | Coasts closer to the bot's shore count as the same front                                                                                       |
 | `B-BOT-SEA-RETRY`    |               4 | decisions                    | `R-BOT-05` | Skipped after a sea search that found nothing, since one search can walk `B-BOAT-RANGE` of sea                                                 |
 | `B-BOT-CITY-SEARCH`  |              40 | tiles                        | `R-BOT-06` | Radius around its start in which a bot looks for room for a city                                                                               |
+| `B-BOT-ALLIANCE-MAX` |               1 | allies                       | `R-BOT-10` | So that a bot always has someone left to fight                                                                                                 |
 
 Bot values were tuned on World against a scripted stand-in for a casual player (an order every 5 s with 30 % of its troops, unowned land first, then its weakest neighbour), three seeds, seven bots. With the first values, hard bots wiped it out in under 3 minutes in two games out of three; with these, it survives every game at every difficulty, and the leading hard bot holds about half the land after 4 minutes, against a quarter for easy bots.
 

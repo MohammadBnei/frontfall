@@ -9,6 +9,21 @@ export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
 export { createGame } from "./create-game.ts";
 export {
+  DiplomacyError,
+  allianceOf,
+  alliesOf,
+  allyError,
+  betrayError,
+  canRenew,
+  installDiplomacy,
+  isAllied,
+  isTraitor,
+  requestBetween,
+  type Alliance,
+  type AllianceRequest,
+  type RequestCooldown,
+} from "./diplomacy.ts";
+export {
   DESYNC_REPORT_VERSION,
   DesyncReportError,
   readDesyncReport,

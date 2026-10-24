@@ -173,6 +173,9 @@ function order(value: unknown): Order {
       };
     case "demolish":
       return { type: "demolish", tile: integer(raw.tile, "demolish tile") };
+    case "ally":
+    case "betray":
+      return { type: raw.type, target: integer(raw.target, "order target") };
     default:
       throw new DesyncReportError(`unknown order type ${String(raw.type)}`);
   }

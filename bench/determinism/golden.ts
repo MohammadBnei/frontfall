@@ -4,6 +4,7 @@ import {
   DEFAULT_BALANCE,
   DESYNC_REPORT_VERSION,
   installBots,
+  isAllied,
   loadMap,
   orderError,
   reachableCoasts,
@@ -64,14 +65,17 @@ function record(golden: Golden): DesyncReport {
   // The scripted player: a start near the middle of the map, then a third of
   // its troops every five seconds at free land, else the first neighbour,
   // else by sea. When its gold allows, it also builds a city near its start,
-  // or else a fort.
+  // or else a fort. It asks its neighbours for an alliance, and leaves alone
+  // the land of those who accept.
   let start = topology.index(Math.floor(topology.width / 2), Math.floor(topology.height / 3));
   while (!terrain.isOwnable(start)) start = (start + 1) % topology.size;
   const around = new Int32Array(4);
   const every = 5 * DEFAULT_BALANCE.ticksPerSecond;
   const human = game.player(1);
   if (!human) throw new Error("no player 1");
+  let ally: Order | undefined;
   const choose = (): Order | undefined => {
+    ally = undefined;
     const troops = Math.floor(human.troops / 3);
     if (troops < 1) return undefined;
     let enemy = -1;
@@ -81,8 +85,13 @@ function record(golden: Golden): DesyncReport {
       for (let j = 0; j < count; j++) {
         const tile = around[j] as number;
         if (!terrain.isOwnable(tile) || game.territory.ownerOf(tile) === 1) continue;
+        if (isAllied(game, 1, game.territory.ownerOf(tile))) continue;
         if (game.territory.ownerOf(tile) === 0) return { type: "attack", target: tile, troops };
         if (enemy < 0) enemy = tile;
+        if (ally === undefined) {
+          const asked: Order = { type: "ally", target: game.territory.ownerOf(tile) };
+          if (orderError(game, human, asked) === undefined) ally = asked;
+        }
       }
     }
     if (enemy >= 0) return { type: "attack", target: enemy, troops };
@@ -107,7 +116,7 @@ function record(golden: Golden): DesyncReport {
     const orders: Order[] = [];
     if (tick === 0) orders.push({ type: "spawn", tile: start });
     else if (game.phase === "play" && human.alive && tick % every === 0) {
-      for (const order of [build(), choose()]) if (order) orders.push(order);
+      for (const order of [build(), choose(), ally]) if (order) orders.push(order);
     }
     const turn: Turn = { tick, orders: orders.map((order) => ({ player: 1, order })) };
     if (orders.length > 0) turns.push(turn);

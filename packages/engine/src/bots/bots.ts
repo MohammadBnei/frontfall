@@ -1,8 +1,9 @@
 import { captureCost } from "../attacks.ts";
 import { reachableCoasts } from "../boats.ts";
 import { populationCap } from "../economy.ts";
+import { allianceOf, alliesOf, canRenew, isAllied, isTraitor } from "../diplomacy.ts";
 import type { Game, Player } from "../game.ts";
-import { divFloor, isqrt, percentOf } from "../integer-math.ts";
+import { divFloor, isqrt, mulDiv, percentOf } from "../integer-math.ts";
 import { StructureKind, cityLimit, structureCost, structureCount } from "../structures.ts";
 import { NEUTRAL } from "../territory/territory-map.ts";
 import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
@@ -29,6 +30,9 @@ const SEA_RETRY_DECISIONS = 4; // B-BOT-SEA-RETRY
 /** Tiles around its start within which a bot looks for room for a city. */
 const CITY_SEARCH_RADIUS = 40; // B-BOT-CITY-SEARCH
 
+/** Allies a bot keeps at most, so that it always has someone left to fight. */
+const ALLIANCE_MAX = 1; // B-BOT-ALLIANCE-MAX
+
 /**
  * Bots (R-BOT-01, R-BOT-03, R-BOT-04): the given players expand into unowned
  * land while some is in reach and attack weaker neighbours, keeping a reserve
@@ -42,6 +46,11 @@ const CITY_SEARCH_RADIUS = 40; // B-BOT-CITY-SEARCH
  *
  * Whenever their gold pays for a city their land supports, they build one
  * as close as they can to where they started, away from the front (R-BOT-06).
+ *
+ * Bots never ask for an alliance. They accept one from a smaller player, not
+ * a traitor, with no attack between them, while the two hold less than B-WIN-SHARE of the land
+ * together, up to B-BOT-ALLIANCE-MAX allies, and renew it on the same terms;
+ * they never betray (R-BOT-10).
  *
  * Bots do not pick a start: the spawn phase places them at random when it
  * ends (R-SPAWN-03).
@@ -75,6 +84,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     const tiles = territory.tileCount(bot.id);
     const borders = territory.borderCount(bot.id);
     if (tiles === 0 || borders === 0) return;
+    answerAlliances(bot, tiles);
     buildCity(bot);
     const reserve = percentOf(populationCap(game, bot), params.reservePercent);
     const troops = Math.min(percentOf(bot.troops, params.attackRatioPercent), bot.troops - reserve);
@@ -93,6 +103,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
         const tile = around[j] as number;
         const owner = territory.ownerOf(tile);
         if (owner === bot.id || !terrain.isOwnable(tile)) continue;
+        if (isAllied(game, bot.id, owner)) continue;
         if (owner === NEUTRAL) {
           if (neutralTarget < 0) neutralTarget = tile;
           continue;
@@ -114,6 +125,34 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     const target = neutralTarget >= 0 && !muchWeaker ? neutralTarget : weak ? enemyTarget : -1;
     if (target >= 0) game.apply(bot.id, { type: "attack", target, troops });
     else sail(bot, troops, ownDensity);
+  }
+
+  /** R-BOT-10: alliances with smaller players the bot is not fighting, asked for by them. */
+  function answerAlliances(bot: Player, tiles: number): void {
+    const fighting = (other: number) =>
+      game.attacks.some(
+        (a) =>
+          a.troops > 0 &&
+          ((a.player === bot.id && a.target === other) ||
+            (a.player === other && a.target === bot.id)),
+      );
+    // Two allies who hold the winning share between them could only wait for the time limit.
+    const room = mulDiv(terrain.ownableCount, balance.winSharePercent, 100);
+    const worth = (other: number) => {
+      const theirs = territory.tileCount(other);
+      const traitor = isTraitor(game, game.player(other) as Player);
+      return theirs < tiles && tiles + theirs < room && !fighting(other) && !traitor;
+    };
+    for (const ally of alliesOf(game, bot.id)) {
+      const alliance = allianceOf(game, bot.id, ally);
+      if (!alliance || !canRenew(game, alliance) || !worth(ally)) continue;
+      game.apply(bot.id, { type: "ally", target: ally });
+    }
+    // Oldest request first, the same on every client.
+    for (const request of [...game.allianceRequests]) {
+      if (request.to !== bot.id || alliesOf(game, bot.id).length >= ALLIANCE_MAX) continue;
+      if (worth(request.from)) game.apply(bot.id, { type: "ally", target: request.from });
+    }
   }
 
   /** R-BOT-06: a city on the closest free inland tile to the bot's start, or to a border tile once the start is lost. */
@@ -165,7 +204,7 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
         break;
       }
       const enemy = game.player(owner);
-      if (!enemy?.alive) continue;
+      if (!enemy?.alive || isAllied(game, bot.id, owner)) continue;
       const density = divFloor(enemy.troops, territory.tileCount(owner));
       if (density * 100 > ownDensity * params.boldnessPercent) continue;
       // The ship must at least pay for the beach.

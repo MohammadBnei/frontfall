@@ -1,4 +1,5 @@
 import { captureCost, defenderLoss } from "./attacks.ts";
+import { isAllied } from "./diplomacy.ts";
 import type { Game } from "./game.ts";
 import { TileKind } from "./terrain.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
@@ -95,7 +96,8 @@ export function installBoats(game: Game): void {
     const player = game.player(boat.player);
     if (!player) return;
     const owner = territory.ownerOf(boat.target);
-    if (owner === player.id) {
+    // An ally's coast, since the ship sailed (R-DIPLO-02): the troops come home.
+    if (owner === player.id || isAllied(game, player.id, owner)) {
       player.troops += boat.troops;
       return;
     }

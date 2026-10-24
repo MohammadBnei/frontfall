@@ -1,5 +1,6 @@
 import type { Game, Player } from "./game.ts";
 import { divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
+import { isAllied, isTraitor } from "./diplomacy.ts";
 import { fortified } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
 import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
@@ -234,6 +235,8 @@ export function installAttacks(game: Game): void {
         const start = nextToCapture[i] as number;
         const defender = territory.ownerOf(start);
         if (defender === attacker || defender === NEUTRAL) continue;
+        // R-DIPLO-02: an ally's pocket stays theirs.
+        if (isAllied(game, attacker, defender)) continue;
         if (examined[start] === examination) continue;
         const size = pocketFill.fill(
           start,
@@ -309,9 +312,12 @@ export function captureCost(game: Game, tile: number, defender: Player | undefin
     balance.reliefCostTenths[kind === TileKind.Mountains ? 2 : kind === TileKind.Hills ? 1 : 0];
   const density = defender ? troopsPerTile(game, defender) : 0;
   const base = balance.neutralCost + mulDiv(density, balance.defenseDensityTenths, 10);
-  const cost = Math.max(1, mulDiv(base, relief, 10));
-  if (!defender || !fortified(game, tile, defender.id)) return cost;
-  return Math.max(1, mulDiv(cost, balance.fortStrengthPercent, 100));
+  let cost = Math.max(1, mulDiv(base, relief, 10));
+  if (!defender) return cost;
+  if (fortified(game, tile, defender.id)) cost = mulDiv(cost, balance.fortStrengthPercent, 100);
+  // R-DIPLO-04: a traitor's land is cheaper to take while the mark lasts.
+  if (isTraitor(game, defender)) cost = mulDiv(cost, balance.traitorDefensePercent, 100);
+  return Math.max(1, cost);
 }
 
 /** Troops a defender loses with one of their tiles: their density, less within reach of their forts (R-BUILD-03). */

@@ -1,4 +1,5 @@
 import type { Game, Order, Player } from "./game.ts";
+import { DiplomacyError, allyError, betrayError, isAllied } from "./diplomacy.ts";
 import { BuildError, isStructureKind, placementError } from "./structures.ts";
 
 /**
@@ -19,6 +20,9 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       if (!Number.isSafeInteger(order.troops) || order.troops < 1) return "invalid troop count";
       if (order.troops > player.troops) return "not enough troops";
       if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
+      // R-DIPLO-02: an ally is attacked only after betraying them.
+      if (isAllied(game, player.id, game.territory.ownerOf(order.target)))
+        return DiplomacyError.Ally;
       return undefined;
     }
     case "embark": {
@@ -28,6 +32,8 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       if (!Number.isSafeInteger(order.troops) || order.troops < 1) return "invalid troop count";
       if (order.troops > player.troops) return "not enough troops";
       if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
+      if (isAllied(game, player.id, game.territory.ownerOf(order.target)))
+        return DiplomacyError.Ally;
       if (!game.terrain.isCoast(order.target)) return "ships can only land on a coast";
       const atSea = game.boats.filter((boat) => boat.player === player.id).length;
       if (atSea >= game.balance.boatMax) return "too many ships at sea";
@@ -51,7 +57,15 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       const owned = game.structures.some((s) => s.tile === order.tile && s.player === player.id);
       return owned ? undefined : "no structure of yours on the tile";
     }
+    case "ally":
+      return playerError(order.target) ?? allyError(game, player, order.target);
+    case "betray":
+      return playerError(order.target) ?? betrayError(game, player, order.target);
   }
+}
+
+function playerError(id: number): string | undefined {
+  return Number.isSafeInteger(id) ? undefined : DiplomacyError.Player;
 }
 
 function tileError(game: Game, tile: number): string | undefined {

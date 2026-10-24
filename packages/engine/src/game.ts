@@ -1,6 +1,7 @@
 import type { Attack } from "./attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
 import type { Boat } from "./boats.ts";
+import type { Alliance, AllianceRequest, RequestCooldown } from "./diplomacy.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
 import type { Structure } from "./structures.ts";
@@ -15,7 +16,10 @@ export type Order =
   | { type: "embark"; target: number; troops: number }
   /** `structure` is a StructureKind code. */
   | { type: "build"; structure: number; tile: number }
-  | { type: "demolish"; tile: number };
+  | { type: "demolish"; tile: number }
+  /** `target` is a player id. */
+  | { type: "ally"; target: number }
+  | { type: "betray"; target: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -46,6 +50,8 @@ export interface Player {
   alive: boolean;
   /** Start tile, once picked or placed during the spawn phase. */
   start: number | undefined;
+  /** First tick the player is no longer marked a traitor (R-DIPLO-04); 0 if never. */
+  traitorUntil: number;
 }
 
 export type Phase = "spawn" | "play";
@@ -77,6 +83,12 @@ export class Game {
   /** Structures on the map, oldest first. Owned by the structure rules; read only elsewhere. */
   readonly structures: Structure[] = [];
   nextStructureId = 1;
+  /** Alliances by ascending pair of ids. Owned by the diplomacy rules; read only elsewhere. */
+  readonly alliances: Alliance[] = [];
+  /** Alliance requests waiting for an answer, oldest first. */
+  readonly allianceRequests: AllianceRequest[] = [];
+  /** Players who may not ask a given player again yet, oldest first. */
+  readonly requestCooldowns: RequestCooldown[] = [];
   /** Winner once the game is decided (R-WIN), and the tick it happened. */
   winner: number | undefined;
   decidedAt: number | undefined;
@@ -108,6 +120,7 @@ export class Game {
         goldRemainder: 0,
         alive: true,
         start: undefined,
+        traitorUntil: 0,
       });
       highest = Math.max(highest, id);
     }
@@ -164,6 +177,7 @@ export class Game {
         p.goldRemainder,
         p.alive ? 1 : 0,
         p.start ?? -1,
+        p.traitorUntil,
       ]) {
         mix(value);
       }
@@ -179,6 +193,14 @@ export class Game {
     mix(this.nextStructureId);
     for (const s of this.structures)
       for (const value of [s.id, s.player, s.kind, s.tile, s.readyAt]) mix(value);
+    mix(this.alliances.length);
+    for (const a of this.alliances)
+      for (const value of [a.a, a.b, a.until, a.renewA ? 1 : 0, a.renewB ? 1 : 0]) mix(value);
+    mix(this.allianceRequests.length);
+    for (const r of this.allianceRequests)
+      for (const value of [r.from, r.to, r.expiresAt]) mix(value);
+    mix(this.requestCooldowns.length);
+    for (const c of this.requestCooldowns) for (const value of [c.from, c.to, c.until]) mix(value);
     mix(this.winner ?? 0);
     mix(this.decidedAt ?? -1);
     return hash >>> 0;
@@ -251,6 +273,8 @@ function checkBalance(balance: Balance): void {
     "boatMax",
     "boatRange",
     "cityLand",
+    "allianceRequestTicks",
+    "allianceTicks",
     "maxDurationTicks",
   ];
   for (const key of atLeastOne) {
@@ -263,7 +287,15 @@ function checkBalance(balance: Balance): void {
   if (!Number.isSafeInteger(balance.buildSpacing) || balance.buildSpacing < 1) {
     throw new RangeError("balance buildSpacing must be a positive integer");
   }
-  for (const key of ["cityCost", "fortCost", "buildTicks"] as const) {
+  for (const key of [
+    "cityCost",
+    "fortCost",
+    "buildTicks",
+    "allianceRenewTicks",
+    "allianceCooldownTicks",
+    "traitorTicks",
+    "traitorDefensePercent",
+  ] as const) {
     if (!Number.isSafeInteger(balance[key]) || balance[key] < 0) {
       throw new RangeError(`balance ${key} must be a non-negative integer`);
     }

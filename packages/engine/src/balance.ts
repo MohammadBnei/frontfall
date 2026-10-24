@@ -63,6 +63,18 @@ export interface Balance {
   fortStrengthPercent: number;
   /** B-FORT-LOSSES, percent of the usual troops a defender loses with a tile a fort covers */
   fortLossPercent: number;
+  /** B-ALLIANCE-REQUEST-TIMEOUT, in ticks */
+  allianceRequestTicks: number;
+  /** B-ALLIANCE-DURATION, in ticks */
+  allianceTicks: number;
+  /** B-ALLIANCE-RENEWAL, in ticks before the end of an alliance from which it can be renewed */
+  allianceRenewTicks: number;
+  /** B-ALLIANCE-REQUEST-COOLDOWN, in ticks from a request running out to the next one to the same player */
+  allianceCooldownTicks: number;
+  /** B-TRAITOR-DURATION, in ticks */
+  traitorTicks: number;
+  /** B-TRAITOR-DEFENSE, percent of the usual price an attacker pays for a traitor's tile */
+  traitorDefensePercent: number;
   /** B-WIN-SHARE, percent of all ownable land */
   winSharePercent: number;
   /** B-MAX-DURATION, in ticks */
@@ -100,6 +112,12 @@ export const DEFAULT_BALANCE: Balance = {
   fortRadius: 25,
   fortStrengthPercent: 200,
   fortLossPercent: 50,
+  allianceRequestTicks: 20 * 10,
+  allianceTicks: 300 * 10,
+  allianceRenewTicks: 60 * 10,
+  allianceCooldownTicks: 30 * 10,
+  traitorTicks: 30 * 10,
+  traitorDefensePercent: 50,
   winSharePercent: 75,
   maxDurationTicks: 3600 * 10,
 };
