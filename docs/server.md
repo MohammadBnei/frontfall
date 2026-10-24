@@ -117,7 +117,7 @@ HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sen
 
 ## Health check
 
-`/healthz` answers `200 ok` while the turn timer runs. The timer runs whether or not any game is in progress, so an idle server is healthy. It answers `503 stalled` when no turn has been closed for 5 seconds, and `200 ok` again from the next turn, and `503 stopping` to requests still in flight while it shuts down. A blocked event loop does not answer at all, which a check with a timeout reports as well. The deployment waits for this route, the image's `HEALTHCHECK` polls it, and an external uptime check alerts on it. Docker only marks an unhealthy container as such; it does not restart it.
+`/healthz` answers `200 ok` while the turn timer runs. The timer runs whether or not any game is in progress, so an idle server is healthy. It answers `503 stalled` when no turn has been closed for 5 seconds, and `200 ok` again from the next turn, and `503 stopping` to requests still in flight while it shuts down. A blocked event loop does not answer at all, which a check with a timeout reports as well. The deployment waits for this route, the image's `HEALTHCHECK` polls it, and an external uptime check alerts on it: Better Stack requests it from outside every 3 minutes and emails the maintainer when it fails, so an outage is known within about 6 minutes. Docker only marks an unhealthy container as such; it does not restart it.
 
 ## Shutdown
 
