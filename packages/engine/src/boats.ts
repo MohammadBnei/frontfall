@@ -35,14 +35,14 @@ export function seaRoute(game: Game, player: number, target: number): SeaRoute |
 /**
  * Coastal tiles not owned by `player` that a ship of theirs can reach, the
  * closest by sea first, at most `limit` of them, skipping those `accept`
- * turns down. Meant for computer players looking beyond their own land mass;
+ * turns down; it is given each coast and its distance by sea, in water tiles. Meant for computer players looking beyond their own land mass;
  * one call walks up to B-BOAT-RANGE of sea.
  */
 export function reachableCoasts(
   game: Game,
   player: number,
   limit: number,
-  accept: (tile: number) => boolean = () => true,
+  accept: (tile: number, distance: number) => boolean = () => true,
 ): number[] {
   return searchFor(game).coasts(player, limit, accept);
 }
@@ -178,7 +178,11 @@ class SeaSearch {
     return { from: found.shore, path };
   }
 
-  coasts(player: number, limit: number, accept: (tile: number) => boolean): number[] {
+  coasts(
+    player: number,
+    limit: number,
+    accept: (tile: number, distance: number) => boolean,
+  ): number[] {
     const { terrain } = this.game;
     const { topology } = terrain;
     const { territory } = this.game;
@@ -203,7 +207,7 @@ class SeaSearch {
         if (this.seen(tile) || territory.ownerOf(tile) === player) continue;
         if (!terrain.isCoast(tile)) continue;
         this.mark(tile, 0);
-        if (!accept(tile)) continue;
+        if (!accept(tile, this.distance(water) + 1)) continue;
         coasts.push(tile);
         if (coasts.length === limit) return tile;
       }

@@ -49,6 +49,17 @@ describe("economy", () => {
     expect(populationCap(game, ada)).toBe(1400);
   });
 
+  it("counts land beyond B-POP-FALLOFF-SHARE for less (R-ECO-06)", () => {
+    // 10 of 100 tiles is 10 % of the land: past 5 %, each tile holds a quarter.
+    const { game, ada } = newGame({ popFalloffSharePercent: 5, popFalloffPercent: 25 });
+    expect(populationCap(game, ada)).toBe(5 * 100 + 5 * 25);
+    const within = newGame({ popFalloffSharePercent: 10, popFalloffPercent: 25 });
+    expect(populationCap(within.game, within.ada)).toBe(1000);
+    // Off by default.
+    const off = newGame({ popFalloffSharePercent: 5, popFalloffPercent: 100 });
+    expect(populationCap(off.game, off.ada)).toBe(1000);
+  });
+
   it("grows troops fastest far from the cap and stops at it (R-ECO-02)", () => {
     const { ada, run } = newGame();
     // 10 % of the gap per second at 10 ticks per second: 1 % per tick.

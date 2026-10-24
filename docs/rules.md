@@ -43,6 +43,7 @@ Words used throughout:
 - **R-ECO-03** A player earns gold every tick in proportion to the troops they hold back from attacks (`B-GOLD-RATE`). Trade adds to this income (`R-UNIT-03`).
 - **R-ECO-04** Troops and gold are whole numbers. When a computation produces a fraction, it is rounded down.
 - **R-ECO-05** A player whose territory drops to zero tiles is eliminated. Their troops and gold are lost.
+- **R-ECO-06** Land beyond a share of the map (`B-POP-FALLOFF-SHARE`) adds less to the population cap (`B-POP-FALLOFF`; 100 % turns this off), so the largest empires do not refill as fast as they can be taken apart.
 
 ## 4. Expansion and attacks
 
@@ -53,7 +54,7 @@ Words used throughout:
 - **R-ATTACK-05** An attack ends when its troops run out, when no reachable target tile remains, or when its player retreats.
 - **R-ATTACK-06** Retreating returns the attack's remaining troops to the player, minus a penalty (`B-RETREAT-PENALTY`).
 - **R-ATTACK-07** Two attacks between the same players in opposite directions cancel out first: troops fight troops before any tile changes hands.
-- **R-ATTACK-08** Territory that ends up surrounded by one other player, with no border to any third party or to unowned land, is captured by that player at once, whether or not the attack was aimed at its owner. Water and impassable land count as part of the surrounding; pockets larger than `B-ENCIRCLE-MAX` tiles are not captured this way.
+- **R-ATTACK-08** Territory that ends up surrounded by one other player, with no border to any third party or to unowned land, is captured by that player at once, whether or not the attack was aimed at its owner. Water and impassable land count as part of the surrounding; pockets larger than `B-ENCIRCLE-MAX` tiles are not captured this way, nor is land whose owner is attacking the surrounding player, such as a beachhead its troops are fighting from.
 - **R-ATTACK-09** Players can attack across water only with ships (`R-UNIT-02`).
 
 ## 5. Diplomacy
@@ -94,7 +95,7 @@ Every structure is built on an owned land tile, costs gold, and takes `B-BUILD-T
 - **R-BOT-02** Nations are stronger computer players placed at named positions on a map. They build, ally, trade and retaliate when attacked.
 - **R-BOT-03** Computer players follow the same rules as humans and send their orders the same way. They take decisions only from the game state and the game's seed, so every client computes the same decisions.
 - **R-BOT-04** The difficulty setting changes how often and how boldly computer players act, never the rules they follow.
-- **R-BOT-05** A bot with nothing worth taking by land sends a transport ship to the closest unowned coast it can reach on another land mass, or else to the coast of a weaker player there, with one ship at sea at a time.
+- **R-BOT-05** A bot with nothing worth taking by land sends a transport ship to the closest unowned coast it can reach away from its own shore, or else to the coast of a weaker player there, with up to `B-BOAT-MAX` ships at sea. A large empire looks at more of its border before deciding, so a narrow land front is not missed.
 
 ## 9. Victory and game modes
 

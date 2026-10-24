@@ -15,6 +15,10 @@ export interface Balance {
   startTroops: number;
   /** B-POP-PER-TILE, troops of population cap per owned tile */
   popPerTile: number;
+  /** B-POP-FALLOFF-SHARE, percent of all ownable land beyond which tiles add less to the cap */
+  popFalloffSharePercent: number;
+  /** B-POP-FALLOFF, percent of B-POP-PER-TILE that each tile beyond that share adds */
+  popFalloffPercent: number;
   /** B-POP-PER-CITY */
   popPerCity: number;
   /** B-GROWTH-RATE, in basis points of the gap to the cap per second (320 = 3.2 %) */
@@ -54,6 +58,8 @@ export const DEFAULT_BALANCE: Balance = {
   spawnRadius: 3,
   startTroops: 2500,
   popPerTile: 40,
+  popFalloffSharePercent: 20,
+  popFalloffPercent: 100,
   popPerCity: 25_000,
   growthBasisPoints: 320,
   goldPerThousandTroops: 5,

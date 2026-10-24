@@ -26,14 +26,16 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 
 ## Economy
 
-| Key              | Value | Unit                        | Used by     | Notes                                    |
-| ---------------- | ----: | --------------------------- | ----------- | ---------------------------------------- |
-| `B-POP-BASE`     | start | troops                      | `R-ECO-01`  | The map's starting troops (`R-SPAWN-06`) |
-| `B-POP-PER-TILE` |    40 | troops                      | `R-ECO-01`  | Cap contribution of each owned land tile |
-| `B-POP-PER-CITY` | 25000 | troops                      | `R-ECO-01`  |                                          |
-| `B-GROWTH-RATE`  |   3.2 | % of the gap to cap/second  | `R-ECO-02`  | Applied per tick as an integer ratio     |
-| `B-GOLD-RATE`    |   0.5 | gold per 100 idle troops/s  | `R-ECO-03`  |                                          |
-| `B-TRADE-GOLD`   |    60 | gold per 100 tiles of route | `R-UNIT-03` | Paid to both ports on arrival            |
+| Key                   | Value | Unit                        | Used by     | Notes                                          |
+| --------------------- | ----: | --------------------------- | ----------- | ---------------------------------------------- |
+| `B-POP-BASE`          | start | troops                      | `R-ECO-01`  | The map's starting troops (`R-SPAWN-06`)       |
+| `B-POP-PER-TILE`      |    40 | troops                      | `R-ECO-01`  | Cap contribution of each owned land tile       |
+| `B-POP-PER-CITY`      | 25000 | troops                      | `R-ECO-01`  |                                                |
+| `B-POP-FALLOFF-SHARE` |    20 | % of all ownable land       | `R-ECO-06`  | Land past this share counts for less           |
+| `B-POP-FALLOFF`       |   100 | % of `B-POP-PER-TILE`       | `R-ECO-06`  | What each tile past that share adds to the cap |
+| `B-GROWTH-RATE`       |   3.2 | % of the gap to cap/second  | `R-ECO-02`  | Applied per tick as an integer ratio           |
+| `B-GOLD-RATE`         |   0.5 | gold per 100 idle troops/s  | `R-ECO-03`  |                                                |
+| `B-TRADE-GOLD`        |    60 | gold per 100 tiles of route | `R-UNIT-03` | Paid to both ports on arrival                  |
 
 ## Attacks
 
@@ -87,6 +89,8 @@ Each value is given for easy / normal / hard (`R-BOT-04`).
 | `B-BOT-BOLDNESS`     | 100 / 110 / 125 | % of the bot's troop density | `R-BOT-01` | Attacks a neighbour at most this dense; half while land is free. Equal density is worth attacking: spent troops grow back, captured land stays |
 
 Bot values were tuned on World against a scripted stand-in for a casual player (an order every 5 s with 30 % of its troops, unowned land first, then its weakest neighbour), three seeds, seven bots. With the first values, hard bots wiped it out in under 3 minutes in two games out of three; with these, it survives every game at every difficulty, and the leading hard bot holds about half the land after 4 minutes, against a quarter for easy bots.
+
+`B-POP-FALLOFF` is off (100 %) for now. It was tried at 50 % past 20 % of the land with eight hard bots on World, five seeds, once bots had learnt to sail (`R-BOT-05`). The leader reached `B-WIN-SHARE` in 7 to 8 minutes in every seed, with or without it. Against seven hard bots over eight minutes, the scripted casual player was eliminated in four seeds out of six with it (after 5.1 to 7.2 minutes), in five out of six without it (after 4.5 to 6.0), and in four out of six with the previous bots (after 3.8 to 6.3). On a small map with three bots, though, every bot is past the share, and with the falloff the lead changed hands for 15 minutes; without it, the game was won in under 2 minutes. That gain for the casual player is within noise, so it does not pay for the stalemates.
 
 ## Victory
 

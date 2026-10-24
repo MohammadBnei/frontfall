@@ -169,14 +169,15 @@ describe("bots", () => {
     expect(apply).not.toHaveBeenCalled();
   });
 
-  it("sail to another land mass once theirs is full (R-BOT-05)", () => {
-    // The bot holds the whole west island; the east one is free.
-    const grid = new WorldGrid(20, 4);
+  it("sail to a coast away from their shore once their land is full (R-BOT-05)", () => {
+    // The bot holds the whole west island. The rock at (8, 1) is free but along its shore;
+    // the east island is far enough to open another front.
+    const grid = new WorldGrid(44, 4);
     const cells = [
-      "XXXXXXXXXXXXXXXXXXXX",
-      "#11...........#####.",
-      "#11..........######.",
-      "XXXXXXXXXXXXXXXXXXXX",
+      "X".repeat(44),
+      "#11.....#.............#####.................",
+      "#11...................#####.................",
+      "X".repeat(44),
     ].join("");
     const kinds = new Uint8Array(grid.size);
     for (let tile = 0; tile < grid.size; tile++) {
@@ -205,7 +206,7 @@ describe("bots", () => {
     const order = apply.mock.calls[0]?.[1] as Order;
     expect(order.type).toBe("embark");
     expect(order.type === "embark" && game.terrain.landmassOf(order.target)).toBe(
-      game.terrain.landmassOf(grid.index(14, 1)),
+      game.terrain.landmassOf(grid.index(22, 1)),
     );
     expect(game.boats).toHaveLength(1);
   });

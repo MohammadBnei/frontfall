@@ -2,7 +2,7 @@ import { captureCost } from "../attacks.ts";
 import { reachableCoasts } from "../boats.ts";
 import { populationCap } from "../economy.ts";
 import type { Game, Player } from "../game.ts";
-import { divFloor, percentOf } from "../integer-math.ts";
+import { divFloor, isqrt, percentOf } from "../integer-math.ts";
 import { NEUTRAL } from "../territory/territory-map.ts";
 import { BOT_DIFFICULTIES, type BotDifficulty } from "./difficulty.ts";
 
@@ -16,6 +16,9 @@ const BORDER_SAMPLES = 16;
 /** Coasts, closest by sea first, a bot weighs when nothing is left to take by land. */
 const SEA_TARGETS = 8;
 
+/** Water tiles from the bot's shore under which a coast does not count as another front. */
+const SEA_MIN_DISTANCE = 16;
+
 /**
  * Bots (R-BOT-01, R-BOT-03, R-BOT-04): the given players expand into unowned
  * land while some is in reach and attack weaker neighbours, keeping a reserve
@@ -24,8 +27,8 @@ const SEA_TARGETS = 8;
  * the same decisions.
  *
  * With nothing worth taking by land, a bot sails to the closest free coast it
- * can reach, or else to the coast of a weaker player, one ship at a time
- * (R-BOT-05).
+ * can reach, or else to the coast of a weaker player, up to B-BOAT-MAX
+ * ships at sea (R-BOT-05).
  *
  * Bots do not pick a start: the spawn phase places them at random when it
  * ends (R-SPAWN-03).
@@ -40,7 +43,6 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     if (!game.player(id)) throw new RangeError(`unknown player ${String(id)}`);
   }
   const around = new Int32Array(4);
-  const landmasses = new Set<number>();
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -64,9 +66,10 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
     let neutralTarget = -1;
     let enemyTarget = -1;
     let enemyDensity = 0;
-    const samples = Math.min(borders, BORDER_SAMPLES);
+    // A large empire looks at more of its border, so a narrow land front is still found.
+    const samples = Math.min(borders, Math.max(BORDER_SAMPLES, isqrt(borders)));
     for (let i = 0; i < samples; i++) {
-      const index = borders <= BORDER_SAMPLES ? i : random.nextInt(0, borders);
+      const index = borders <= samples ? i : random.nextInt(0, borders);
       const count = topology.neighborsInto(territory.borderTile(bot.id, index), around);
       for (let j = 0; j < count; j++) {
         const tile = around[j] as number;
@@ -96,13 +99,11 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
   }
 
   function sail(bot: Player, troops: number, ownDensity: number): void {
-    if (game.boats.some((boat) => boat.player === bot.id)) return;
-    // Land masses the bot already stands on are better reached by land.
-    landmasses.clear();
-    const borders = territory.borderCount(bot.id);
-    for (let i = 0; i < borders; i++)
-      landmasses.add(terrain.landmassOf(territory.borderTile(bot.id, i)));
-    const elsewhere = (coast: number) => !landmasses.has(terrain.landmassOf(coast));
+    let atSea = 0;
+    for (const boat of game.boats) if (boat.player === bot.id) atSea++;
+    if (atSea >= balance.boatMax) return;
+    // A coast just along the bot's own shore is better reached by land.
+    const elsewhere = (_: number, distance: number) => distance >= SEA_MIN_DISTANCE;
     let target = -1;
     let targetDensity = 0;
     for (const coast of reachableCoasts(game, bot.id, SEA_TARGETS, elsewhere)) {

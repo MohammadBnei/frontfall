@@ -18,6 +18,7 @@ export class Terrain {
   readonly topology: Topology;
   readonly kinds: Uint8Array;
   private landmasses: Int32Array | undefined;
+  private ownable = -1;
   private readonly around = new Int32Array(4);
 
   constructor(topology: Topology, kinds: Uint8Array) {
@@ -42,6 +43,16 @@ export class Terrain {
   isOwnable(tile: number): boolean {
     const kind = this.kinds[tile];
     return kind !== TileKind.Water && kind !== TileKind.Impassable;
+  }
+
+  /** Number of ownable tiles on the map, counted once, on first use. */
+  get ownableCount(): number {
+    if (this.ownable < 0) {
+      let count = 0;
+      for (let tile = 0; tile < this.kinds.length; tile++) if (this.isOwnable(tile)) count++;
+      this.ownable = count;
+    }
+    return this.ownable;
   }
 
   /** Ownable land next to water: where transport ships land and leave (R-UNIT-02). */

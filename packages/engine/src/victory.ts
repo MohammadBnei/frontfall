@@ -7,8 +7,7 @@ import type { Game } from "./game.ts";
  */
 export function installVictory(game: Game): void {
   const { terrain, territory, balance } = game;
-  let ownable = 0;
-  for (let tile = 0; tile < terrain.topology.size; tile++) if (terrain.isOwnable(tile)) ownable++;
+  const ownable = terrain.ownableCount;
   const contested = game.players().length > 1;
 
   game.onTick(() => {

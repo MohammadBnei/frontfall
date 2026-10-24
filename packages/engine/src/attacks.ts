@@ -227,6 +227,8 @@ export function installAttacks(game: Game): void {
         const start = nextToCapture[i] as number;
         const defender = territory.ownerOf(start);
         if (defender === attacker || defender === NEUTRAL) continue;
+        // Troops still attacking from it hold the ground, a beachhead above all.
+        if (isAttacking(defender, attacker)) continue;
         if (examined[start] === examination) continue;
         const size = pocketFill.fill(
           start,
@@ -250,6 +252,13 @@ export function installAttacks(game: Game): void {
         }
       }
     }
+  }
+
+  function isAttacking(player: number, target: number): boolean {
+    for (const attack of attacks) {
+      if (attack.player === player && attack.target === target && attack.troops > 0) return true;
+    }
+    return false;
   }
 
   /** Ends an attack at the next sweep, returning its troops to the player. */

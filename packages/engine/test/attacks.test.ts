@@ -225,6 +225,19 @@ describe("encirclement", () => {
     expect(game.territory.ownerOf(grid.index(7, 1))).toBe(2);
   });
 
+  it("leaves a pocket its owner is attacking from, such as a beachhead", () => {
+    const { grid, game, ada, bea, run, attack } = pocketGame(2);
+    game.territory.setOwner(grid.index(4, 1), NEUTRAL);
+    game.territory.setOwner(grid.index(7, 1), 2);
+    ada.troops = 1000;
+    bea.troops = 10;
+    // Bea's attack is too small to take a tile, but it is still under way when Ada closes the ring.
+    run([attack(1, grid.index(4, 1), 100), attack(2, grid.index(2, 0), 1)]);
+    expect(game.territory.ownerOf(grid.index(4, 1))).toBe(1);
+    expect(game.territory.ownerOf(grid.index(2, 1))).toBe(2);
+    expect(game.territory.ownerOf(grid.index(3, 1))).toBe(2);
+  });
+
   it("captures a pocket across the east-west seam", () => {
     const { grid, game, ada, bea, run, attack } = newGame({ 1: [7, 8, 9, 0, 1] });
     for (const x of [9, 0, 1, 2]) game.territory.setOwner(grid.index(x, 1), 2);
