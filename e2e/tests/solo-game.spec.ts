@@ -73,6 +73,16 @@ test("pauses and shows the controls", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("goes back to the menu from a game", async ({ page }) => {
+  await page.goto("./?map=skirmish&bots=1");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  // No start picked yet: nothing to lose, so no confirmation.
+  await page.locator("#leave").click();
+  await expect(page.locator("#menu")).toBeVisible();
+  await expect(page.locator("#map")).toHaveCount(0);
+});
+
 test("offers the World first and starts a game on it", async ({ page }) => {
   test.setTimeout(60_000);
   const pageErrors: Error[] = [];

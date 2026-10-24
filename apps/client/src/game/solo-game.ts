@@ -135,12 +135,16 @@ export class SoloGame {
     return troops >= 1 ? { type: "attack", target: tile, troops } : undefined;
   }
 
-  /** Runs one tick with the human's orders and returns what changed. */
+  /**
+   * Runs one tick with the human's orders and returns what changed. Once the
+   * game is decided the bots play on for spectators (R-WIN-03), and the
+   * human's orders are dropped.
+   */
   step(orders: readonly Order[]): GameUpdate {
     if (this.game.winner === undefined) {
       for (const order of orders) this.clock.submit(HUMAN_ID, order);
-      this.clock.advance();
     }
+    this.clock.advance();
     return this.update();
   }
 

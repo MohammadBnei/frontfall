@@ -15,6 +15,7 @@ const LEADERBOARD_SIZE = 10;
 export interface HudActions {
   onPause(): void;
   onHelp(): void;
+  onMenu(): void;
 }
 
 /**
@@ -72,6 +73,15 @@ export class Hud {
     help.addEventListener("click", () => {
       actions.onHelp();
     });
+    const menu = h("button", {
+      type: "button",
+      class: "icon-button icon-menu",
+      id: "leave",
+      "data-i18n-attr": "aria-label:hud.menu;title:hud.menu",
+    });
+    menu.addEventListener("click", () => {
+      actions.onMenu();
+    });
 
     this.element = h(
       "div",
@@ -97,7 +107,7 @@ export class Hud {
         this.ratioInput,
         this.ratioValue,
       ),
-      h("div", { class: "toolbar" }, help, pause),
+      h("div", { class: "toolbar" }, help, pause, menu),
       ...present(betaBadge("beta-hud")),
     );
     applyTranslations(this.element);

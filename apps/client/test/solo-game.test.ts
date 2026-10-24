@@ -67,13 +67,15 @@ describe("SoloGame", () => {
     expect(run()).toEqual(tiles);
   });
 
-  it("plays a whole game against hard bots to a winner, then stops (R-WIN-01)", () => {
+  it("plays a whole game against hard bots to a winner, then plays on for spectators (R-WIN-01, R-WIN-03)", () => {
     const solo = newGame({ ...options, difficulty: "hard" });
     let update = solo.step([]);
     while (update.winner === undefined && update.tick < 6000) update = solo.step([]);
     expect(update.winner).toBeDefined();
     expect(update.phase).toBe("play");
-    expect(solo.step([]).tick).toBe(update.tick);
+    const next = solo.step([]);
+    expect(next.tick).toBe(update.tick + 1);
+    expect(next.winner).toBe(update.winner);
   }, 60_000);
 });
 

@@ -64,5 +64,7 @@
   "game.loading": "Loading the map…",
   "game.failed": "The game could not start. Try again, or pick another map.",
   "beta.label": "Beta",
-  "beta.notice": "Beta: rules, balance and visuals will change until 1.0."
+  "beta.notice": "Beta: rules, balance and visuals will change until 1.0.",
+  "hud.menu": "Main menu",
+  "hud.leaveConfirm": "Leave this game and go back to the menu?"
 }

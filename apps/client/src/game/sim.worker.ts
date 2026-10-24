@@ -11,7 +11,7 @@ interface WorkerScope {
 const scope = self as unknown as WorkerScope;
 
 let game: SoloGame | undefined;
-let timer: ReturnType<typeof setInterval> | undefined;
+let started = false;
 let paused = false;
 let pending: Order[] = [];
 
@@ -20,14 +20,14 @@ function tick(): void {
   const orders = pending;
   pending = [];
   const update = game.step(orders);
+  // The game goes on once decided, for a player who keeps watching (R-WIN-03).
   scope.postMessage({ type: "update", update }, transferables(update));
-  if (update.winner !== undefined && timer !== undefined) {
-    clearInterval(timer);
-    timer = undefined;
-  }
 }
 
 async function start(request: Extract<WorkerRequest, { type: "start" }>): Promise<void> {
+  // One game per worker: a second start would run two clocks on one game.
+  if (started) throw new Error("the game has already started");
+  started = true;
   const map = await fetchMapData(request.map);
   game = new SoloGame(request.options, map);
   const { ticksPerSecond } = game.game.balance;
@@ -37,7 +37,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
     { type: "started", map: view, ownableTiles: game.ownableTiles, ticksPerSecond },
     [view.kinds.buffer],
   );
-  timer = setInterval(tick, 1000 / ticksPerSecond);
+  setInterval(tick, 1000 / ticksPerSecond);
 }
 
 scope.onmessage = (event) => {

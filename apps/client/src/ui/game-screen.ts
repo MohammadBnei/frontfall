@@ -64,6 +64,9 @@ export class GameScreen {
       onHelp: () => {
         this.showHelp();
       },
+      onMenu: () => {
+        this.leave();
+      },
     });
     this.element = document.createElement("div");
     this.element.className = "game";
@@ -208,12 +211,11 @@ export class GameScreen {
   private key(event: KeyboardEvent): void {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLInputElement && event.target.type === "text") return;
-    if (event.code === "Escape" && this.overlay && !this.ended) {
+    if (event.code === "Escape" && this.overlay) {
       this.closeOverlay();
       event.preventDefault();
       return;
     }
-    if (this.ended) return;
     if (event.code.startsWith("Digit")) {
       const digit = Number(event.code.slice(5));
       this.hud.setRatio(digit === 0 ? 100 : digit * 10);
@@ -227,8 +229,15 @@ export class GameScreen {
     }
   }
 
+  /** Back to the menu; asks first while the player still has a game to lose. */
+  private leave(): void {
+    const human = this.latest?.players.find((player) => player.id === HUMAN_ID);
+    const playing = !this.ended && human?.alive === true && human.tiles > 0;
+    if (playing && !window.confirm(t("hud.leaveConfirm"))) return;
+    this.actions.onMenu();
+  }
+
   private togglePause(): void {
-    if (this.ended) return;
     if (this.paused) {
       this.closeOverlay();
       return;
@@ -248,7 +257,6 @@ export class GameScreen {
   }
 
   private showHelp(): void {
-    if (this.ended) return;
     this.paused = true;
     this.session.setPaused(true);
     this.showOverlay(
@@ -268,7 +276,7 @@ export class GameScreen {
   private closeOverlay(): void {
     this.overlay?.remove();
     this.overlay = undefined;
-    if (this.paused && !this.ended) {
+    if (this.paused) {
       this.paused = false;
       this.session.setPaused(false);
     }

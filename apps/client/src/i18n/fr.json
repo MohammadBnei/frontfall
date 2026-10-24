@@ -64,5 +64,7 @@
   "game.loading": "Chargement de la carte…",
   "game.failed": "La partie n'a pas pu démarrer. Réessayez, ou choisissez une autre carte.",
   "beta.label": "Bêta",
-  "beta.notice": "Bêta : les règles, l’équilibrage et les graphismes changeront jusqu’à la 1.0."
+  "beta.notice": "Bêta : les règles, l’équilibrage et les graphismes changeront jusqu’à la 1.0.",
+  "hud.menu": "Menu principal",
+  "hud.leaveConfirm": "Quitter cette partie et revenir au menu ?"
 }
