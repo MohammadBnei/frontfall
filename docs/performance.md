@@ -53,12 +53,12 @@ Why these numbers:
 
 ### Reference machines
 
-| Machine                      | Used for                                        | Notes                                                     |
-| ---------------------------- | ----------------------------------------------- | --------------------------------------------------------- |
-| GitHub `ubuntu-24.04` runner | Every CI budget, and the comparison with `main` | 4 vCPU, shared: absolute times vary by run, ratios do not |
-| 4-core Intel Xeon, 2.1 GHz   | The results below                               | Cloud VM, 16 GB                                           |
-| A Mac laptop                 | Desktop frame time                              | To do: `pnpm bench:render -- --gpu` and a real game       |
-| A mid-range Android phone    | Phone frame time                                | To do: `pnpm bench:render -- --serve` on the same network |
+| Machine                      | Used for                                        | Notes                                                          |
+| ---------------------------- | ----------------------------------------------- | -------------------------------------------------------------- |
+| GitHub `ubuntu-24.04` runner | Every CI budget, and the comparison with `main` | 4 vCPU, shared: absolute times vary by run, ratios do not      |
+| 4-core Intel Xeon, 2.1 GHz   | The results below                               | Cloud VM, 16 GB                                                |
+| MacBook Air, Apple M4        | Desktop frame time                              | Chrome on the GPU, `pnpm bench:render -- --gpu`; results below |
+| A mid-range phone            | Phone frame time                                | To do: `pnpm bench:render -- --serve` on the same network      |
 
 ## Running the benchmarks
 
@@ -336,6 +336,32 @@ requested and the World game 2.2 s after Play. Panning ran at 22 frames per
 second in the spawn phase (p95 83 ms) and 20 once 63 bots were attacking
 (p95 100 ms): software rendering, not a frame rate a player would see.
 
+### Rendering, real GPU
+
+Measured on 2026-10-24 on a MacBook Air with an Apple M4, in Google Chrome
+(ANGLE on Metal, maximum texture size 16,384), with
+`CHROMIUM_PATH=".../Google Chrome" pnpm bench:render -- --gpu`.
+
+| Map       | Viewport |  Units | Draw calls | Static frame p50 / p95 | Frame with a tick p50 / p95 | Full upload frame | First frame | GPU memory |
+| --------- | -------- | -----: | ---------: | ---------------------- | --------------------------- | ----------------: | ----------: | ---------: |
+| 4096×2048 | 1280×720 | 10,000 |          2 | 1.0 / 1.8 ms           | 16.9 / 19.0 ms              |            7.9 ms |    241.4 ms |   80.7 MiB |
+| 2048×1024 | 1280×720 |  2,000 |          2 | 0.5 / 1.2 ms           | 11.8 / 13.1 ms              |            3.9 ms |     21.6 ms |   20.1 MiB |
+| 2048×1024 | 780×1688 |  2,000 |          2 | 0.5 / 1.1 ms           | 11.6 / 13.3 ms              |            2.7 ms |     22.4 ms |   20.1 MiB |
+
+- A frame that only redraws stays under 2 ms at p95: the GPU is far from the
+  16.7 ms budget.
+- On World (2048 × 1024), a frame that also uploads a tick's changes takes
+  13 ms at p95, inside the budget. On the 4096 × 2048 map it takes 19 ms, over
+  it: that frame comes once per tick, one frame in six at 60 fps, so a player
+  sees an occasional dropped frame. The upload, not the drawing, is the cost to
+  cut there.
+- GPU memory on the largest map is 80.7 MiB, over the 64 MiB budget, against
+  24.7 MiB under SwiftShader: Metal reports what the driver allocates, padding
+  and copies included. Phones will tell whether the budget needs to change.
+- The globe renderer being tried on the `spike/globe` branch draws World in
+  1 draw call at 0.4 to 0.5 ms (p95 0.8 to 1.0 ms) per static frame, and
+  11.8 ms (p95 13.3 to 15.2 ms) with a tick, at both zoom levels tried.
+
 ### Rendering, software GL
 
 Headless Chromium on SwiftShader, Google's CPU implementation of the GPU, on
@@ -488,8 +514,8 @@ server. Reasons are now cut to 123 bytes.
 
 ## Next steps
 
-1. Run the render benchmark on real GPUs (a Mac laptop, a mid-range Android
-   phone, an iPhone) and fill in the frame-rate budgets.
+1. Run the render benchmark on phones (a mid-range Android phone, an iPhone)
+   and bring the tick upload frame on the largest map under 16.7 ms.
 2. Move the simulation into its Web Worker and send each tick's change log to
    the page as a transferable `Int32Array`. A `SharedArrayBuffer` would avoid
    even that copy, but needs cross-origin isolation headers on the server.
