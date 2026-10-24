@@ -1,6 +1,7 @@
 import {
   DEFAULT_BALANCE,
   DESYNC_REPORT_VERSION,
+  GAME_RECORD_VERSION,
   Terrain,
   WorldGrid,
   createGame,
@@ -21,12 +22,15 @@ import {
   structureCount,
   type DesyncReport,
   type Game,
+  type GameRecord,
+  type Balance,
   type Order,
   type PlayerSetup,
   type Phase,
   type Turn,
 } from "@frontfall/engine";
 import { HASH_INTERVAL, PROTOCOL_VERSION } from "@frontfall/protocol";
+import { BUILD } from "../net/build.ts";
 import { RELEASE } from "../release.ts";
 import { labelAnchors, type LabelAnchor } from "./label-anchors.ts";
 import type { MapData } from "./maps.ts";
@@ -64,6 +68,18 @@ export interface SoloOptions {
    */
   players?: readonly { id: number; name: string }[] | undefined;
   you?: number | undefined;
+  /**
+   * A finished game to watch again: its setup replaces every option above
+   * but `map` and `speed`, and its turns are the only orders (#50).
+   */
+  record?: GameRecord | undefined;
+}
+
+/** How far a replay has got; `hash` once it reached its last tick, to compare with `expected`. */
+export interface ReplayView {
+  ticks: number;
+  expected: number;
+  hash?: number;
 }
 
 export interface PlayerView {
@@ -115,6 +131,8 @@ export interface GameUpdate {
   winner?: number;
   /** Online: state hashes after the ticks the server checks (`HASH_INTERVAL`). */
   hashes?: { tick: number; hash: number }[];
+  /** Set while watching a recorded game. */
+  replay?: ReplayView;
 }
 
 /** Why a click on the map leads to no order. */
@@ -254,6 +272,37 @@ export const MAX_BOTS = BOT_NAMES.length;
 /** Names follow the land twice a second at the default tick rate: a scan of the map each time. */
 const LABEL_TICKS = 5;
 
+/** Players and balance of a new game: the humans, then the bots, then the map's nations. */
+function newSetup(
+  options: SoloOptions,
+  map: MapData,
+): { players: PlayerSetup[]; botIds: number[]; nationIds: number[]; balance: Balance } {
+  const bots = Math.max(0, Math.min(MAX_BOTS, Math.floor(options.bots)));
+  const humans = options.players ?? [{ id: HUMAN_ID, name: options.playerName }];
+  const firstBot = Math.max(...humans.map((human) => human.id)) + 1;
+  const players: PlayerSetup[] = [...humans];
+  const botIds: number[] = [];
+  for (let i = 0; i < bots; i++) {
+    botIds.push(firstBot + i);
+    players.push({ id: firstBot + i, name: BOT_NAMES[i] as string });
+  }
+  // Nations take the numbers after the bots, in the manifest's order, the same on every client.
+  const nationIds: number[] = [];
+  if (options.nations) {
+    for (const { name, tile } of map.nations) {
+      const id = firstBot + bots + nationIds.length;
+      nationIds.push(id);
+      players.push({ id, name, start: tile });
+    }
+  }
+  const balance = { ...DEFAULT_BALANCE };
+  if (options.maxMinutes !== undefined) {
+    balance.maxDurationTicks = Math.round(options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond);
+  }
+  if (options.goldRate !== undefined) balance.goldPerThousandTroops = Math.floor(options.goldRate);
+  return { players, botIds, nationIds, balance };
+}
+
 /**
  * One game as this client runs it: the engine with every rule installed and
  * the bots. Online, it plays the turns the server relays (`playTurns`); solo,
@@ -271,8 +320,11 @@ export class SoloGame {
   private readonly players: PlayerSetup[];
   private readonly botIds: number[];
   private readonly nationIds: number[];
-  /** Online, for a desync report: every turn with orders, and the hashes sent. */
+  private readonly difficulty: Difficulty;
+  /** Every turn with orders, for a record of the game and, online, a desync report. */
   private readonly history: Turn[] = [];
+  /** Turns of the game being watched again, by tick. */
+  private readonly recorded: ReadonlyMap<number, Turn["orders"]> | undefined;
   private readonly hashes: { tick: number; local: number }[] = [];
   /** Hashes the server says most players had, where this client's differed. */
   private readonly expected = new Map<number, number | null>();
@@ -283,40 +335,29 @@ export class SoloGame {
   ) {
     const grid = new WorldGrid(map.width, map.height, { wrapsX: map.wrapsX });
     const terrain = new Terrain(grid, map.kinds);
-    const bots = Math.max(0, Math.min(MAX_BOTS, Math.floor(options.bots)));
-    const humans = options.players ?? [{ id: HUMAN_ID, name: options.playerName }];
-    this.you = options.you ?? HUMAN_ID;
-    const firstBot = Math.max(...humans.map((human) => human.id)) + 1;
-    const players: PlayerSetup[] = [...humans];
-    const botIds: number[] = [];
-    for (let i = 0; i < bots; i++) {
-      botIds.push(firstBot + i);
-      players.push({ id: firstBot + i, name: BOT_NAMES[i] as string });
-    }
-    // Nations take the numbers after the bots, in the manifest's order, the same on every client.
-    const nationIds: number[] = [];
-    if (options.nations) {
-      for (const { name, tile } of map.nations) {
-        const id = firstBot + bots + nationIds.length;
-        nationIds.push(id);
-        players.push({ id, name, start: tile });
-      }
-    }
-    const balance = { ...DEFAULT_BALANCE };
-    if (options.maxMinutes !== undefined) {
-      balance.maxDurationTicks = Math.round(
-        options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond,
-      );
-    }
-    if (options.goldRate !== undefined)
-      balance.goldPerThousandTroops = Math.floor(options.goldRate);
-    this.game = createGame({ terrain, seed: options.seed, players, balance });
-    installBots(this.game, botIds, options.difficulty);
-    installNations(this.game, nationIds, options.difficulty);
+    const { record } = options;
+    const { players, botIds, nationIds, balance } = record
+      ? {
+          players: record.players,
+          botIds: record.bots.ids,
+          nationIds: record.nations ?? [],
+          balance: record.balance,
+        }
+      : newSetup(options, map);
+    this.you = options.record?.you ?? options.you ?? HUMAN_ID;
+    const seed = options.record?.seed ?? options.seed;
+    const difficulty = options.record?.bots.difficulty ?? options.difficulty;
+    this.game = createGame({ terrain, seed, players, balance });
+    installBots(this.game, botIds, difficulty);
+    installNations(this.game, nationIds, difficulty);
     this.players = players;
     this.botIds = botIds;
     this.nationIds = nationIds;
-    this.online = options.players !== undefined;
+    this.difficulty = difficulty;
+    this.online = options.players !== undefined && !options.record;
+    if (options.record) {
+      this.recorded = new Map(options.record.turns.map((turn) => [turn.tick, turn.orders]));
+    }
     this.depth = new Uint16Array(grid.size);
     let ownable = 0;
     for (let tile = 0; tile < grid.size; tile++) if (terrain.isOwnable(tile)) ownable++;
@@ -432,8 +473,8 @@ export class SoloGame {
     const hashes: { tick: number; hash: number }[] = [];
     for (const turn of turns) {
       this.game.step(turn);
-      if (!this.online) continue;
       if (turn.orders.length > 0) this.history.push(turn);
+      if (!this.online) continue;
       if (turn.tick % HASH_INTERVAL === 0) {
         const hash = this.game.hash();
         hashes.push({ tick: turn.tick, hash });
@@ -443,6 +484,47 @@ export class SoloGame {
     const update = this.update();
     if (hashes.length > 0) update.hashes = hashes;
     return update;
+  }
+
+  /**
+   * Watching a recorded game: runs up to `ticks` more of it, with its own
+   * turns, and stops at its last tick, where the hash it reaches should be
+   * the one recorded.
+   */
+  replay(ticks: number): GameUpdate {
+    const record = this.options.record;
+    if (!record || !this.recorded) throw new Error("not a replay");
+    const end = Math.min(record.ticks, this.game.tick + Math.max(0, Math.floor(ticks)));
+    while (this.game.tick < end) {
+      this.game.step({ tick: this.game.tick, orders: this.recorded.get(this.game.tick) ?? [] });
+    }
+    const update = this.update();
+    update.replay = { ticks: record.ticks, expected: record.hash };
+    if (this.game.tick >= record.ticks) update.replay.hash = this.game.hash();
+    return update;
+  }
+
+  /**
+   * The game so far, to watch again on this build (#50). Published maps
+   * only, like a desync report; none while watching a replay.
+   */
+  record(): GameRecord | undefined {
+    const { source } = this.map;
+    if (!source || this.options.record) return undefined;
+    return {
+      version: GAME_RECORD_VERSION,
+      build: { release: RELEASE, build: BUILD, protocol: PROTOCOL_VERSION },
+      map: { id: this.map.id, ...source },
+      seed: this.options.seed,
+      balance: this.game.balance,
+      players: this.players,
+      bots: { ids: this.botIds, difficulty: this.difficulty },
+      ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
+      you: this.you,
+      ticks: this.game.tick,
+      turns: this.history,
+      hash: this.game.hash(),
+    };
   }
 
   /** The server found this client's hash after `tick` differs from most players'. */
@@ -466,7 +548,7 @@ export class SoloGame {
       seed: this.options.seed,
       balance: this.game.balance,
       players: this.players,
-      bots: { ids: this.botIds, difficulty: this.options.difficulty },
+      bots: { ids: this.botIds, difficulty: this.difficulty },
       ...(this.nationIds.length > 0 ? { nations: this.nationIds } : {}),
       you: this.you,
       ticks: this.game.tick,

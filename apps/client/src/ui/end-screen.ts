@@ -7,6 +7,8 @@ export interface EndScreenActions {
   onNewGame(): void;
   onMenu(): void;
   onWatch(): void;
+  /** Saves a record of the game to watch again. */
+  onDownload(): void;
 }
 
 export interface GameSummary {
@@ -15,6 +17,8 @@ export interface GameSummary {
   ownableTiles: number;
   /** Most land the human held at any time, in tiles. */
   peakTiles: number;
+  /** Whether the game can be saved as a replay. */
+  canRecord: boolean;
 }
 
 /** Who won, how long it took, how far the player got, and a way to play again. */
@@ -69,6 +73,13 @@ export function endScreen(summary: GameSummary, actions: EndScreenActions): HTML
       button("end.watch", () => {
         actions.onWatch();
       }),
+      ...(summary.canRecord
+        ? [
+            button("end.download", () => {
+              actions.onDownload();
+            }),
+          ]
+        : []),
       button("end.menu", () => {
         actions.onMenu();
       }),

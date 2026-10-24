@@ -1,4 +1,4 @@
-import type { DesyncReport, Turn } from "@frontfall/engine";
+import type { DesyncReport, GameRecord, Turn } from "@frontfall/engine";
 import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
@@ -19,6 +19,8 @@ import {
   type ViewKind,
 } from "../render/renderer.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
+import { ReplayBar } from "./replay-bar.ts";
+import { REPLAY_MAP_CHANGED } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
 import { Hud } from "./hud.ts";
@@ -41,6 +43,8 @@ export interface GameScreenActions {
   onMenu(): void;
   /** The game could not start; the key names the message to show. */
   onFailure(key: MessageKey): void;
+  /** The player asked for a record of the game, to save. */
+  onRecord?(record: GameRecord): void;
 }
 
 /**
@@ -62,6 +66,10 @@ export class GameScreen {
   private overlay: HTMLElement | undefined;
   private paused = false;
   private ended = false;
+  /** Set while watching a recorded game: no orders, and a bar to set the pace. */
+  private readonly replayBar: ReplayBar | undefined;
+  /** Whether the map is a published one, which a record of the game can name. */
+  private readonly published: boolean;
   private focused = false;
   private ticksPerSecond = 10;
   /** Lowest id of the nations, who take colours of their own. */
@@ -120,6 +128,7 @@ export class GameScreen {
     this.globeAllowed = view === "globe" && fitsGlobe(map) && globeLoaded();
     this.viewKind = this.globeAllowed ? "globe" : "flat";
     this.mapSize = { width: map.width, height: map.height };
+    this.published = map.manifest !== undefined;
     this.camera = createCamera(map, this.viewKind);
     // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
     this.surface = document.createElement("div");
@@ -148,7 +157,7 @@ export class GameScreen {
           this.setMode(mode);
         },
         onPlayer: (player) => {
-          this.diplomacy.pick(player);
+          if (!options.record) this.diplomacy.pick(player);
         },
       },
       { pausable: link === undefined },
@@ -174,6 +183,13 @@ export class GameScreen {
     );
 
     this.input = this.createInput();
+    if (options.record) {
+      this.element.classList.add("watching");
+      this.replayBar = new ReplayBar((speed) => {
+        this.session.setSpeed(speed);
+      });
+      this.element.append(this.replayBar.element);
+    }
 
     this.session = new LocalSession(
       options,
@@ -196,7 +212,9 @@ export class GameScreen {
         },
         onError: (message) => {
           console.error(message);
-          this.actions.onFailure("game.failed");
+          this.actions.onFailure(
+            message === REPLAY_MAP_CHANGED ? "replay.unknownMap" : "game.failed",
+          );
         },
       },
       link,
@@ -294,7 +312,7 @@ export class GameScreen {
         this.click(tile);
       },
       onTileHold: (tile) => {
-        this.diplomacy.pick(this.owners[tile] ?? 0);
+        if (!this.replayBar) this.diplomacy.pick(this.owners[tile] ?? 0);
       },
       onHover: (tile) => {
         this.hoveredTile = tile;
@@ -467,7 +485,8 @@ export class GameScreen {
         .map((child) => child.getBoundingClientRect())
         .filter((rect) => rect.width > 0),
     );
-    if (update.winner !== undefined && !this.ended) {
+    if (update.replay) this.replayBar?.update(update.tick, update.replay, this.ticksPerSecond);
+    if (update.winner !== undefined && !this.ended && !this.replayBar) {
       this.ended = true;
       this.hud.update(update, performance.now(), true);
       this.showEnd(update);
@@ -476,7 +495,7 @@ export class GameScreen {
 
   private click(tile: number): void {
     const update = this.latest;
-    if (!update || this.paused || update.winner !== undefined) return;
+    if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
     this.session.click(tile, this.hud.ratio, this.mode);
     // One structure per pick of the button: the next click attacks again,
     // unless the worker refuses this one (afterBuildClick).
@@ -534,7 +553,13 @@ export class GameScreen {
   /** Whether the order went out. */
   private diplomaticOrder(type: "ally" | "betray", target: number): boolean {
     const update = this.latest;
-    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) {
+    if (
+      !update ||
+      this.paused ||
+      update.phase !== "play" ||
+      update.winner !== undefined ||
+      this.replayBar
+    ) {
       return false;
     }
     this.session.sendOrder({ type, target });
@@ -543,7 +568,7 @@ export class GameScreen {
 
   private retreat(attack: number): void {
     const update = this.latest;
-    if (!update || this.paused || update.winner !== undefined) return;
+    if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
     this.session.sendOrder({ type: "retreat", attack });
   }
 
@@ -571,7 +596,7 @@ export class GameScreen {
       KeyF: "fort",
       KeyX: "demolish",
     };
-    const mode = modes[event.code];
+    const mode = this.replayBar ? undefined : modes[event.code];
     if (mode) {
       this.setMode(mode);
       event.preventDefault();
@@ -597,7 +622,7 @@ export class GameScreen {
   private leave(): void {
     const latest = this.latest;
     const human = latest?.players.find((player) => player.id === latest.you);
-    const playing = !this.ended && human?.alive === true && human.tiles > 0;
+    const playing = !this.replayBar && !this.ended && human?.alive === true && human.tiles > 0;
     if (playing && !window.confirm(t("hud.leaveConfirm"))) return;
     this.actions.onMenu();
   }
@@ -610,6 +635,11 @@ export class GameScreen {
   /** Online: the game so far as a desync report, or none on a generated map. */
   desyncReport(): Promise<DesyncReport | undefined> {
     return this.session.report();
+  }
+
+  /** The game so far, to watch again; none on a generated map or in a replay. */
+  record(): Promise<GameRecord | undefined> {
+    return this.session.record();
   }
 
   /** Online: turns relayed by the server, in order. */
@@ -679,6 +709,8 @@ export class GameScreen {
           ticksPerSecond: this.ticksPerSecond,
           ownableTiles: this.ownableTiles,
           peakTiles: this.peakTiles,
+          // Only a published map can be pinned in a record.
+          canRecord: this.published,
         },
         {
           onNewGame: () => {
@@ -690,6 +722,11 @@ export class GameScreen {
           onWatch: () => {
             this.overlay?.remove();
             this.overlay = undefined;
+          },
+          onDownload: () => {
+            void this.record().then((record) => {
+              if (record) this.actions.onRecord?.(record);
+            });
           },
         },
       ),

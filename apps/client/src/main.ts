@@ -1,6 +1,8 @@
+import type { GameRecord } from "@frontfall/engine";
 import type { GameOptions } from "@frontfall/protocol";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
+import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
 import { BUILD } from "./net/build.ts";
 import { forgetSeat, saveSeat, seatIn } from "./net/seat.ts";
 import { OnlineClient, socketUrl, type GameStart, type OnlineEntry } from "./net/online.ts";
@@ -26,11 +28,19 @@ function showMenu(): void {
   game = undefined;
   menu?.dispose();
   document.body.classList.remove("playing");
-  menu = new Menu(setup, maps, play, (entry, chosen) => {
-    setup = chosen;
-    saveSetup(setup, storage);
-    goOnline(entry, chosen);
-  });
+  menu = new Menu(
+    setup,
+    maps,
+    play,
+    (entry, chosen) => {
+      setup = chosen;
+      saveSetup(setup, storage);
+      goOnline(entry, chosen);
+    },
+    (file) => {
+      void watch(file);
+    },
+  );
   document.body.prepend(menu.element);
   // Ready for Enter, without scrolling a phone's menu down to the button.
   menu.element.querySelector<HTMLButtonElement>("#play")?.focus({ preventScroll: true });
@@ -82,6 +92,69 @@ function play(chosen: GameSetup): void {
       onNewGame: () => {
         play(setup);
       },
+      onMenu: showMenu,
+      onFailure: (key) => {
+        showMenu();
+        showNotice(key);
+      },
+      onRecord: saveReplay,
+    },
+    undefined,
+    startView,
+  );
+  menu?.dispose();
+  menu = undefined;
+  document.querySelector(".notice")?.remove();
+  document.body.classList.add("playing");
+  document.body.prepend(game.element);
+  game.start();
+}
+
+/** Offers a finished game as a file to save, to watch again later. */
+function saveReplay(record: GameRecord): void {
+  replayFile(record)
+    .then((file) => {
+      const link = h("a", {
+        href: URL.createObjectURL(file),
+        download: replayFileName(record),
+        hidden: true,
+      });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      // Long enough for the browser to have read the file.
+      setTimeout(() => {
+        URL.revokeObjectURL(link.href);
+      }, 30_000);
+    })
+    .catch((error: unknown) => {
+      console.error(error);
+      showNotice("replay.unsupported");
+    });
+}
+
+/** Plays a saved game again, from its file, at the pace the viewer sets. */
+async function watch(file: File): Promise<void> {
+  const record = await readReplayFile(file);
+  if (typeof record === "string") {
+    showNotice(`replay.${record}`);
+    return;
+  }
+  const map = maps.find((candidate) => candidate.id === record.map.id);
+  if (!map) {
+    showNotice("replay.unknownMap");
+    return;
+  }
+  if (!hasWebGL2()) {
+    showNotice("webgl.missing");
+    return;
+  }
+  game?.dispose();
+  game = new GameScreen(
+    { ...setup, map: map.id, seed: record.seed, record },
+    map,
+    {
+      onNewGame: showMenu,
       onMenu: showMenu,
       onFailure: (key) => {
         showMenu();
@@ -331,6 +404,7 @@ function startOnline(start: GameStart, client: OnlineClient): void {
         leave();
         showNotice(key);
       },
+      onRecord: saveReplay,
     },
     {
       order: (order) => {

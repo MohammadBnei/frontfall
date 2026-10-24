@@ -1409,3 +1409,83 @@ input[type="range"] {
   font-size: 18px;
   line-height: 1;
 }
+
+/* Watching a replay: no orders to give, a bar to set the pace instead. */
+
+.watching .ratio,
+.watching .build,
+.watching .attacks,
+.watching .requests,
+.watching .banner {
+  display: none;
+}
+
+.replay-bar {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: center;
+  width: min(600px, calc(100vw - 24px));
+  box-sizing: border-box;
+}
+
+.replay-progress {
+  width: 160px;
+  accent-color: var(--ff-ember);
+}
+
+.replay-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-speeds {
+  display: flex;
+  gap: 4px;
+}
+
+.replay-speed {
+  min-width: 40px;
+  min-height: 32px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.replay-speed[aria-pressed="true"] {
+  border-color: var(--ff-ember);
+  color: var(--ff-ember);
+}
+
+.replay-result.same {
+  color: var(--ff-slate-300);
+}
+
+.replay-result.different {
+  color: var(--ff-ember);
+  font-weight: 600;
+}
+
+.replay-picker {
+  display: flex;
+  justify-content: center;
+}
+
+/* Phones: the leaderboard holds the bottom, the banner's place at the top is free. */
+@media (width < 720px) {
+  .replay-bar {
+    top: 84px;
+    bottom: auto;
+  }
+
+  .replay-progress {
+    flex: 1;
+    width: auto;
+  }
+}

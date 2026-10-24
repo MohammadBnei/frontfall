@@ -1,6 +1,7 @@
 import type { Order, Turn } from "@frontfall/engine";
 import { transferables, type WorkerReply, type WorkerRequest } from "./messages.ts";
 import { fetchMapData } from "./maps.ts";
+import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS } from "./replay-file.ts";
 import { SoloGame } from "./solo-game.ts";
 
 interface WorkerScope {
@@ -10,10 +11,15 @@ interface WorkerScope {
 
 const scope = self as unknown as WorkerScope;
 
+/** Fastest a replay runs, in ticks per beat. */
+const MAX_SPEED = Math.max(...REPLAY_SPEEDS);
+
 let game: SoloGame | undefined;
 let started = false;
 let timer: ReturnType<typeof setInterval> | undefined;
 let paused = false;
+/** Ticks run per beat of the clock. */
+let speed = 1;
 let pending: Order[] = [];
 /** Online games advance with the server's turns, never with a clock of their own. */
 let online = false;
@@ -22,6 +28,13 @@ let early: Turn[] = [];
 
 function tick(): void {
   if (!game || paused) return;
+  if (game.options.record) {
+    const update = game.replay(speed);
+    scope.postMessage({ type: "update", update }, transferables(update));
+    // The last tick of the record: nothing more to play.
+    if (update.replay?.hash !== undefined) clearInterval(timer);
+    return;
+  }
   const orders = pending;
   pending = [];
   const update = game.step(orders);
@@ -41,6 +54,9 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
   started = true;
   online = request.online === true;
   const map = await fetchMapData(request.map);
+  const record = request.options.record;
+  // The map of a replay must be the one its game was played on, terrain and all.
+  if (record && record.map.sha256 !== map.source?.sha256) throw new Error(REPLAY_MAP_CHANGED);
   game = new SoloGame(request.options, map);
   const {
     ticksPerSecond,
@@ -75,9 +91,11 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
     early = [];
     return;
   }
-  const speed = Math.max(1, Math.floor(request.options.speed ?? 1));
+  speed = Math.max(1, Math.floor(request.options.speed ?? 1));
   timer = setInterval(() => {
-    for (let i = 0; i < speed; i++) tick();
+    // A replay runs its ticks in one go, so that its update covers them all.
+    if (game?.options.record) tick();
+    else for (let i = 0; i < speed; i++) tick();
   }, 1000 / ticksPerSecond);
 }
 
@@ -86,7 +104,10 @@ scope.onmessage = (event) => {
   switch (request.type) {
     case "start":
       start(request).catch((error: unknown) => {
-        scope.postMessage({ type: "error", message: String(error) });
+        scope.postMessage({
+          type: "error",
+          message: error instanceof Error ? error.message : String(error),
+        });
       });
       break;
     case "order":
@@ -120,6 +141,12 @@ scope.onmessage = (event) => {
       break;
     case "report":
       scope.postMessage({ type: "report", report: game?.report() });
+      break;
+    case "record":
+      scope.postMessage({ type: "record", record: game?.record() });
+      break;
+    case "speed":
+      speed = Math.max(1, Math.min(MAX_SPEED, Math.floor(request.speed)));
       break;
     case "pause":
       paused = request.paused;

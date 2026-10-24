@@ -1,4 +1,4 @@
-import type { DesyncReport, Order, Turn } from "@frontfall/engine";
+import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { MapInfo } from "./maps.ts";
 import type { StartInfo } from "./session.ts";
 import type { ClickMode, ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
@@ -36,6 +36,10 @@ export type WorkerRequest =
   | { type: "desync"; tick: number; expected: number | null }
   /** Online: the desync report, as of now. */
   | { type: "report" }
+  /** The game so far, to watch again. */
+  | { type: "record" }
+  /** Ticks per beat of the clock: how fast a replay runs. */
+  | { type: "speed"; speed: number }
   /** The page leaves the game: the clock stops before the worker is terminated. */
   | { type: "stop" };
 
@@ -47,6 +51,8 @@ export type WorkerReply =
   | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order }
   /** None for a game on a generated map. */
   | { type: "report"; report: DesyncReport | undefined }
+  /** None for a game on a generated map, or while watching a replay. */
+  | { type: "record"; record: GameRecord | undefined }
   | { type: "error"; message: string };
 
 /** Buffers of an update, handed over to the page instead of copied. */

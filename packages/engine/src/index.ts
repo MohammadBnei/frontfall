@@ -28,10 +28,18 @@ export {
   DESYNC_REPORT_VERSION,
   DesyncReportError,
   readDesyncReport,
+  recreateGame,
   replayDesyncReport,
   type DesyncReport,
+  type RecordedGame,
   type ReplayResult,
 } from "./desync-report.ts";
+export {
+  GAME_RECORD_VERSION,
+  readGameRecord,
+  replayGameRecord,
+  type GameRecord,
+} from "./game-record.ts";
 export { installEconomy, populationCap } from "./economy.ts";
 export {
   installBots,

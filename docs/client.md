@@ -54,6 +54,23 @@ covers the conventions that are not obvious from the code.
   between the globe and the flat map during the game. It is a prototype for
   v0.6, kept out of the menu; see [ADR 0005](adr/0005-globe-spike.md).
 
+## Replays
+
+The end screen saves the game as a replay: a `GameRecord` (see
+[engine.md](engine.md#game-records)) in JSON, compressed with gzip, in a
+`.ffr` file named after the map and the day. "Watch a replay", at the foot of
+the menu, opens one. Only the build that played a game replays it, since the
+rules and the balance may have changed since; another build's file is refused
+with a message, and so is a file that is not a replay, or one whose map has
+changed since. A development build (`dev`) opens any build's replay.
+
+While watching, the worker plays the recorded turns at ×1, ×2, ×4 or ×8 from
+the bar at the bottom (at the top on a phone), the bots decide again as they
+did, and no order can be given: the build panel, the attack ratio, the attack
+list and the banner are hidden. At the last tick of the record the bar says
+whether the replay reached the hash the game recorded. A replay runs on past
+the win when the player kept watching before saving it.
+
 ## Playing online
 
 The menu offers the next public game, a new private game, and the public

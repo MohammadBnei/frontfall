@@ -123,6 +123,17 @@ pnpm sim -- --replay report.json
 
 loads the published map the report names, refuses a map whose terrain hash differs, replays the game, prints the first desync tick, and exits with 1 when the replay does not reproduce the client's hashes.
 
+## Game records
+
+A `GameRecord` (format version `GAME_RECORD_VERSION`, now 1) keeps a finished game to watch again (#50). It has the fields of a desync report from `map` to `turns`, without `hashes`, and two of its own:
+
+| Field   | Content                                                                                                                            |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `build` | `release` and `protocol` as in a desync report, and `build`, the page's build. Only the same build replays a record: rules change. |
+| `hash`  | The state hash after `ticks` ticks. A replay that reaches another one ran different rules, or the file was damaged.                |
+
+Bots and nations are not in the turns: they decide again, from the same state, as they did in the game. `readGameRecord(json)` checks a parsed record and `replayGameRecord(record, terrain)` plays it to its last tick and returns the hash it reaches; `recreateGame(record, terrain)` sets up the game before its first tick, for a viewer that plays it at its own pace. Both readers refuse turns out of order or past `ticks`, and a `you` that is not one of the players.
+
 ## Helpers
 
 - `Random`: the seeded generator. Anything random in a game comes from `game.random`.

@@ -1,3 +1,4 @@
+import { REPLAY_EXTENSION } from "../game/replay-file.ts";
 import { MAP_GROUPS, generateMap, suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
 import {
@@ -41,6 +42,8 @@ export class Menu {
     mapList: readonly MapInfo[],
     onPlay: (setup: GameSetup) => void,
     onOnline: (entry: OnlineEntry, setup: GameSetup) => void,
+    /** A replay file the player picked, to watch. */
+    onReplay: (file: File) => void,
   ) {
     this.setup = { ...initial };
 
@@ -219,7 +222,7 @@ export class Menu {
       ),
       form,
       online,
-      h("footer", { class: "menu-footer" }, language),
+      h("footer", { class: "menu-footer" }, replayPicker(onReplay), language),
     );
     applyTranslations(this.element);
   }
@@ -371,4 +374,29 @@ function thumbnail(info: MapInfo): HTMLElement {
   }
   context.putImageData(image, 0, 0);
   return canvas;
+}
+
+/** A button that opens the file picker for a replay saved from the end of a game. */
+function replayPicker(onReplay: (file: File) => void): HTMLElement {
+  const input = h("input", {
+    type: "file",
+    id: "replay-file",
+    hidden: true,
+    accept: `${REPLAY_EXTENSION},application/gzip`,
+  });
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (file) onReplay(file);
+  });
+  const button = h("button", {
+    type: "button",
+    class: "secondary replay-open",
+    id: "replay-open",
+    "data-i18n": "replay.open",
+  });
+  button.addEventListener("click", () => {
+    input.click();
+  });
+  return h("div", { class: "replay-picker" }, button, input);
 }

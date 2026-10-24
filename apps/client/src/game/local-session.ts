@@ -1,4 +1,4 @@
-import type { DesyncReport, Order, Turn } from "@frontfall/engine";
+import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import type { MapInfo } from "./maps.ts";
@@ -20,6 +20,8 @@ export class LocalSession implements GameSession {
   private readonly worker: Worker;
   /** Callers waiting for a desync report, answered in order. */
   private readonly reports: ((report: DesyncReport | undefined) => void)[] = [];
+  /** Callers waiting for a record of the game, answered in order. */
+  private readonly records: ((record: GameRecord | undefined) => void)[] = [];
 
   constructor(
     options: SoloOptions,
@@ -37,6 +39,8 @@ export class LocalSession implements GameSession {
         events.onUpdate(reply.update);
       } else if (reply.type === "report") {
         this.reports.shift()?.(reply.report);
+      } else if (reply.type === "record") {
+        this.records.shift()?.(reply.record);
       } else if (reply.type === "click") {
         if (reply.order) link?.order(reply.order);
         events.onClick(reply.tile, reply.outcome);
@@ -75,6 +79,19 @@ export class LocalSession implements GameSession {
       this.reports.push(resolve);
       this.post({ type: "report" });
     });
+  }
+
+  /** The game so far, to watch again; none on a generated map or in a replay. */
+  record(): Promise<GameRecord | undefined> {
+    return new Promise((resolve) => {
+      this.records.push(resolve);
+      this.post({ type: "record" });
+    });
+  }
+
+  /** Replay: ticks played per tick of time. */
+  setSpeed(speed: number): void {
+    this.post({ type: "speed", speed });
   }
 
   setPaused(paused: boolean): void {
