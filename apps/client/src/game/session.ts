@@ -1,10 +1,11 @@
 import type { Order } from "@frontfall/engine";
 import type { MapData } from "./maps.ts";
+import type { GameRules } from "./messages.ts";
 import type { GameUpdate } from "./solo-game.ts";
 
 export interface SessionEvents {
   /** The map is loaded and the first tick is coming. */
-  onStart(info: { map: MapData; ownableTiles: number; ticksPerSecond: number }): void;
+  onStart(info: { map: MapData; rules: GameRules }): void;
   /** Once per tick, in order. The game is over when `update.winner` is set. */
   onUpdate(update: GameUpdate): void;
   onError(message: string): void;

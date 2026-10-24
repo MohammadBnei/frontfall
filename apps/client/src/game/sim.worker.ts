@@ -30,11 +30,15 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
   started = true;
   const map = await fetchMapData(request.map);
   game = new SoloGame(request.options, map);
-  const { ticksPerSecond } = game.game.balance;
+  const { ticksPerSecond, winSharePercent, maxDurationTicks } = game.game.balance;
   // The page draws the terrain too: it gets its own copy.
   const view = { ...map, kinds: map.kinds.slice() };
   scope.postMessage(
-    { type: "started", map: view, ownableTiles: game.ownableTiles, ticksPerSecond },
+    {
+      type: "started",
+      map: view,
+      rules: { ownableTiles: game.ownableTiles, ticksPerSecond, winSharePercent, maxDurationTicks },
+    },
     [view.kinds.buffer],
   );
   setInterval(tick, 1000 / ticksPerSecond);

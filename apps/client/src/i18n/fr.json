@@ -66,5 +66,8 @@
   "beta.label": "Bêta",
   "beta.notice": "Bêta : les règles, l’équilibrage et les graphismes changeront jusqu’à la 1.0.",
   "hud.menu": "Menu principal",
-  "hud.leaveConfirm": "Quitter cette partie et revenir au menu ?"
+  "hud.leaveConfirm": "Quitter cette partie et revenir au menu ?",
+  "hud.under": "< {value}",
+  "hud.goal": "Victoire : {share} des terres, ou être le dernier en lice",
+  "hud.clock": "{elapsed} sur {limit}"
 }

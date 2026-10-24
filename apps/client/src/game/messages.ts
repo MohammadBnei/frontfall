@@ -2,6 +2,16 @@ import type { Order } from "@frontfall/engine";
 import type { MapData, MapInfo } from "./maps.ts";
 import type { GameUpdate, SoloOptions } from "./solo-game.ts";
 
+/** What the interface shows of the rules of a game, from the engine's balance. */
+export interface GameRules {
+  readonly ownableTiles: number;
+  readonly ticksPerSecond: number;
+  /** B-WIN-SHARE: share of the ownable land that wins, in percent. */
+  readonly winSharePercent: number;
+  /** B-MAX-DURATION: the leader wins when the game reaches it. */
+  readonly maxDurationTicks: number;
+}
+
 /** From the page to the simulation worker. */
 export type WorkerRequest =
   | { type: "start"; options: SoloOptions; map: MapInfo }
@@ -12,7 +22,7 @@ export type WorkerRequest =
 
 /** From the simulation worker to the page. */
 export type WorkerReply =
-  | { type: "started"; map: MapData; ownableTiles: number; ticksPerSecond: number }
+  | { type: "started"; map: MapData; rules: GameRules }
   | { type: "update"; update: GameUpdate }
   | { type: "error"; message: string };
 

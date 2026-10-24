@@ -84,9 +84,9 @@ export class GameScreen {
     this.session = new LocalSession(options, map, {
       onStart: (info) => {
         this.showMap(info.map);
-        this.ticksPerSecond = info.ticksPerSecond;
-        this.ownableTiles = info.ownableTiles;
-        this.hud.setOwnableTiles(info.ownableTiles);
+        this.ticksPerSecond = info.rules.ticksPerSecond;
+        this.ownableTiles = info.rules.ownableTiles;
+        this.hud.setRules(info.rules);
       },
       onUpdate: (update) => {
         this.apply(update);

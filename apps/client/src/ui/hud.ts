@@ -1,9 +1,10 @@
+import type { GameRules } from "../game/messages.ts";
 import { HUMAN_ID, type GameUpdate, type PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, t } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
 import { h, present } from "./dom.ts";
-import { formatCount, formatPercent } from "./format.ts";
+import { formatCount, formatDuration, formatPercent } from "./format.ts";
 
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
 export const MIN_RATIO = 5;
@@ -44,7 +45,16 @@ export class Hud {
   private readonly ratioValue = h("output", { for: "attack-ratio", class: "range-value" });
   private lastRender = -Infinity;
   private last: GameUpdate | undefined;
-  private ownableTiles = 1;
+  private readonly goal = h("p", { class: "goal-text" });
+  private readonly goalLeader = h("span", { class: "goal-fill goal-leader" });
+  private readonly goalYou = h("span", { class: "goal-fill goal-you" });
+  private readonly clock = h("p", { class: "goal-clock" });
+  private rules: GameRules = {
+    ownableTiles: 1,
+    ticksPerSecond: 10,
+    winSharePercent: 100,
+    maxDurationTicks: Infinity,
+  };
 
   constructor(actions: HudActions) {
     this.ratioInput.addEventListener("input", () => {
@@ -99,6 +109,14 @@ export class Hud {
         { class: "panel leaderboard", "aria-labelledby": "leaderboard-title" },
         h("h2", { id: "leaderboard-title", "data-i18n": "hud.leaderboard" }),
         this.leaders,
+        h(
+          "div",
+          { class: "goal" },
+          this.goal,
+          // Both bars run from 0 to the winning share; the leader's is drawn under yours.
+          h("div", { class: "goal-bar", "aria-hidden": "true" }, this.goalLeader, this.goalYou),
+          this.clock,
+        ),
       ),
       h(
         "div",
@@ -124,8 +142,8 @@ export class Hud {
     this.ratioValue.textContent = formatPercent(value / 100);
   }
 
-  setOwnableTiles(count: number): void {
-    this.ownableTiles = Math.max(1, count);
+  setRules(rules: GameRules): void {
+    this.rules = { ...rules, ownableTiles: Math.max(1, rules.ownableTiles) };
   }
 
   /** Takes every update; draws only a few times per second, or at once when forced. */
@@ -149,14 +167,41 @@ export class Hud {
       this.troops.textContent = formatCount(human.troops);
       this.troopsCap.textContent = t("hud.cap", { cap: formatCount(human.cap) });
       this.gold.textContent = formatCount(human.gold);
-      this.land.textContent = formatPercent(human.tiles / this.ownableTiles);
+      this.land.textContent = this.share(human.tiles);
     }
     this.banner.textContent = this.bannerText(update, human);
     this.renderLeaders(update.players);
+    this.renderGoal(update, human);
+  }
+
+  /** Share of the land; a start on the World is a few hundredths of a percent. */
+  private share(tiles: number): string {
+    const share = tiles / this.rules.ownableTiles;
+    return share > 0 && share < 0.001
+      ? t("hud.under", { value: formatPercent(0.001) })
+      : formatPercent(share);
+  }
+
+  /** How far the leader and the player are from winning, and the time left. */
+  private renderGoal(update: GameUpdate, human: PlayerView | undefined): void {
+    const { ownableTiles, ticksPerSecond, winSharePercent, maxDurationTicks } = this.rules;
+    const win = winSharePercent / 100;
+    this.goal.textContent = t("hud.goal", { share: formatPercent(win) });
+    const leader = Math.max(0, ...update.players.map((player) => player.tiles));
+    const width = (tiles: number): string =>
+      `${String(Math.min(100, (tiles / ownableTiles / win) * 100))}%`;
+    this.goalLeader.style.width = width(leader);
+    this.goalYou.style.width = width(human?.tiles ?? 0);
+    this.clock.textContent = Number.isFinite(maxDurationTicks)
+      ? t("hud.clock", {
+          elapsed: formatDuration(update.tick / ticksPerSecond),
+          limit: formatDuration(maxDurationTicks / ticksPerSecond),
+        })
+      : formatDuration(update.tick / ticksPerSecond);
   }
 
   private bannerText(update: GameUpdate, human: PlayerView | undefined): string {
-    const seconds = Math.ceil(update.spawnTicksLeft / 10);
+    const seconds = Math.ceil(update.spawnTicksLeft / this.rules.ticksPerSecond);
     if (update.phase === "spawn") {
       return human && human.tiles > 0
         ? t("hud.spawnMove", { seconds })
@@ -188,7 +233,7 @@ export class Hud {
             style: `background:${playerColor(player.id - 1).hex}`,
           }),
           h("span", { class: "leader-name" }, player.name),
-          h("span", { class: "leader-land" }, formatPercent(player.tiles / this.ownableTiles)),
+          h("span", { class: "leader-land" }, this.share(player.tiles)),
         );
       }),
     );
