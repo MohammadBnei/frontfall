@@ -166,7 +166,7 @@ export function installDiplomacy(game: Game): void {
     const broken = allianceOf(game, player.id, order.target);
     removeWhere(game.alliances, (a) => a === broken);
     player.traitorUntil = game.tick + balance.traitorTicks;
-    game.diplomacyEvents.push({ tick: game.tick, type: "betrayed", a: player.id, b: order.target });
+    logEvent(game, { tick: game.tick, type: "betrayed", a: player.id, b: order.target });
     // No asking the betrayed player straight back.
     game.requestCooldowns.push({
       from: player.id,
@@ -194,7 +194,7 @@ export function installDiplomacy(game: Game): void {
     for (const alliance of game.alliances) {
       // An alliance with a player who fell ends with them, unremarked.
       if (tick < alliance.until || !alive(alliance.a) || !alive(alliance.b)) continue;
-      game.diplomacyEvents.push({ tick, type: "ended", a: alliance.a, b: alliance.b });
+      logEvent(game, { tick, type: "ended", a: alliance.a, b: alliance.b });
     }
     removeWhere(game.alliances, (a) => tick >= a.until || !alive(a.a) || !alive(a.b));
     removeWhere(game.requestCooldowns, (c) => tick >= c.until);
@@ -216,7 +216,7 @@ export function installDiplomacy(game: Game): void {
       renewB: false,
     });
     game.alliances.sort((x, y) => x.a - y.a || x.b - y.b);
-    game.diplomacyEvents.push({ tick: game.tick, type: "allied", a: low, b: high });
+    logEvent(game, { tick: game.tick, type: "allied", a: low, b: high });
     for (const attack of game.attacks) {
       const against =
         (attack.player === low && attack.target === high) ||
@@ -234,4 +234,13 @@ function removeWhere<T>(list: T[], drop: (item: T) => boolean): void {
   let kept = 0;
   for (const item of list) if (!drop(item)) list[kept++] = item;
   list.length = kept;
+}
+
+/** Events kept when nobody reads the log, in a server, a bench or a replay. */
+export const DIPLOMACY_LOG_SIZE = 256;
+
+function logEvent(game: Game, event: DiplomacyEvent): void {
+  const log = game.diplomacyEvents;
+  log.push(event);
+  if (log.length > DIPLOMACY_LOG_SIZE) log.splice(0, log.length - DIPLOMACY_LOG_SIZE);
 }

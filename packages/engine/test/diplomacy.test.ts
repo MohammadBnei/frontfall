@@ -4,6 +4,7 @@ import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
 import { installBots } from "../src/bots/bots.ts";
 import { createGame } from "../src/create-game.ts";
 import {
+  DIPLOMACY_LOG_SIZE,
   DiplomacyError,
   allianceOf,
   isAllied,
@@ -290,6 +291,17 @@ describe("diplomacy", () => {
       ["betrayed", 3, 1],
       ["ended", 1, 2],
     ]);
+  });
+
+  it("keeps only the latest events when nobody reads the log", () => {
+    const { game, ally } = newGame();
+    for (let i = 0; i < DIPLOMACY_LOG_SIZE; i++) {
+      game.diplomacyEvents.push({ tick: 0, type: "ended", a: 2, b: 3 });
+    }
+    ally(1, 2);
+    ally(2, 1);
+    expect(game.diplomacyEvents).toHaveLength(DIPLOMACY_LOG_SIZE);
+    expect(game.diplomacyEvents.at(-1)).toMatchObject({ type: "allied", a: 1, b: 2 });
   });
 
   it("folds alliances, requests and traitor marks into the hash (R-FAIR-01)", () => {
