@@ -6,7 +6,7 @@ import { InputController } from "../input/controller.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { playerColor } from "../palette.ts";
 import { FlatCamera, type CameraView } from "../render/camera.ts";
-import { MapView } from "../render/map-view.ts";
+import { createRenderer, type Renderer } from "../render/renderer.ts";
 import { endScreen, helpPanel } from "./end-screen.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { Hud } from "./hud.ts";
@@ -35,7 +35,7 @@ export class GameScreen {
   private owners = new Uint16Array(0);
   private readonly camera: FlatCamera;
   private readonly surface: HTMLElement;
-  private view: MapView | undefined;
+  private view: Renderer | undefined;
   private readonly input: InputController;
   private readonly hud: Hud;
   private readonly session: GameSession;
@@ -185,9 +185,9 @@ export class GameScreen {
   private showMap(map: MapData): void {
     this.owners = new Uint16Array(map.width * map.height);
     this.wrapsX = map.wrapsX;
-    let view: MapView;
+    let view: Renderer;
     try {
-      view = new MapView({
+      view = createRenderer({
         width: map.width,
         height: map.height,
         kinds: map.kinds,

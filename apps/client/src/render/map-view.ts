@@ -2,38 +2,18 @@ import * as THREE from "three";
 import { MAP_COLORS } from "../palette.ts";
 import type { CameraView } from "./camera.ts";
 import { applyView } from "./orthographic.ts";
+import type { Renderer, RendererOptions, UnitMark } from "./renderer.ts";
 import { TerritoryLayer } from "./territory-layer.ts";
 import { UnitLayer } from "./unit-layer.ts";
 
-/** A unit to draw, in tiles, y counted from the north. */
-export interface UnitMark {
-  readonly x: number;
-  readonly y: number;
-  readonly color: string;
-}
-
 /** Ships at sea at once: B-BOAT-MAX for each of up to 26 players, with room to spare. */
 const SHIP_CAPACITY = 128;
-
-export interface MapViewOptions {
-  readonly width: number;
-  readonly height: number;
-  /** TileKind of every tile; 0 is water. */
-  readonly kinds: Uint8Array;
-  /** Whether the map wraps east-west. */
-  readonly wrapsX: boolean;
-  /** Elevation on land, depth at sea, 0 to 31. */
-  readonly relief?: Uint8Array;
-  /** Owner of every tile, kept up to date by the caller and read in place. */
-  readonly owners: Uint16Array;
-  readonly maxOwner: number;
-}
 
 /**
  * The flat map: one WebGL canvas, the territory layer, and an orthographic
  * camera placed from the view of the interface's camera.
  */
-export class MapView {
+export class MapView implements Renderer {
   readonly canvas: HTMLCanvasElement;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
@@ -42,7 +22,7 @@ export class MapView {
   private readonly ships: UnitLayer;
   private readonly startedAt = performance.now();
 
-  constructor(readonly options: MapViewOptions) {
+  constructor(readonly options: RendererOptions) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setClearColor(MAP_COLORS.oceanDeep);

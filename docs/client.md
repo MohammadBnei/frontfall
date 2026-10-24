@@ -12,7 +12,7 @@ covers the conventions that are not obvious from the code.
                     │  click(tile, ratio) ──>  orderForClick ─> TurnClock ─> Game
                     │                          bots decide inside the tick
                     │  <── update every tick:  changed tiles, players, attacks
-                    ├─ MapView (render/)   draws owners from a mirror array
+                    ├─ Renderer (render/)  draws owners from a mirror array
                     ├─ FlatCamera          screen <-> tile, pan and zoom
                     ├─ InputController     pointer, wheel, pinch, keys
                     └─ Hud, dialogs        plain HTML over the canvas
@@ -28,8 +28,16 @@ covers the conventions that are not obvious from the code.
 - Bots are installed in the engine (`installBots`) and decide during the tick,
   from the game state and its seed, so every client of an online game will
   compute the same moves.
-- Only `apps/client/src/render` imports Three.js. The interface talks to the
-  `Camera` contract (ADR 0003), never to a Three.js camera.
+- Only `apps/client/src/render` imports Three.js, which a test checks. The
+  interface talks to the two contracts of ADR 0003, never to Three.js:
+  `Renderer` (`render/renderer.ts`: player colours, changed tiles, ships, a
+  frame for a camera view) and `Camera` (`render/camera.ts`: screen to tile
+  and back, pan, zoom, focus, with east-west wrapping). `createRenderer`
+  returns the flat `MapView` today; the globe will implement the same
+  contract with its own camera. The issue that set them out named the
+  renderer's calls `init`, `applyUpdates` and `frame`: they became the
+  constructor, `markChanged` and `setShips`, and `render(view)`, because the
+  page, not the renderer, holds the game state.
 - The menu lists the maps of `maps/index.json`, the World first, then small
   generated test maps (`game/maps.ts`), reduced to their largest landmass. The
   worker downloads a published map and checks it against its manifest
