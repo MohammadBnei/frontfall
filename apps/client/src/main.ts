@@ -100,39 +100,50 @@ onLanguageChange(() => {
 
 const seconds = (ms: number): number => Math.ceil(ms / 1000);
 
-const online = new OnlineClient({
-  url: socketUrl(location.href),
-  name: "Guest",
-  build: BUILD,
-  events: {
-    status(state, retryInMs) {
-      if (state === "connecting") showStatus("status.connecting");
-      if (state === "offline")
-        showStatus("status.disconnected", { seconds: seconds(retryInMs ?? 0) });
-      if (state === "outdated") showStatus("status.outdated");
+/**
+ * The online client until the lobby screens arrive: it connects only when the
+ * address asks for it, with ?game=<id> from an invitation link or ?online for
+ * the next public game, so a solo player never sits in the public queue.
+ */
+function goOnline(entry: { game: string } | "public"): void {
+  if (status) status.hidden = false;
+  const online = new OnlineClient({
+    url: socketUrl(location.href),
+    name: "Guest",
+    build: BUILD,
+    events: {
+      status(state, retryInMs) {
+        if (state === "connecting") showStatus("status.connecting");
+        if (state === "offline")
+          showStatus("status.disconnected", { seconds: seconds(retryInMs ?? 0) });
+        if (state === "outdated") showStatus("status.outdated");
+      },
+      lobby(lobby) {
+        const count = { players: lobby.players.length, capacity: lobby.capacity };
+        if (lobby.startsIn === null) showStatus("status.waiting", count);
+        else showStatus("status.starting", { ...count, seconds: seconds(lobby.startsIn) });
+      },
+      started(game) {
+        showStatus("status.playing", { player: game.you });
+      },
+      turns(turns) {
+        const last = turns.at(-1)?.tick ?? 0;
+        if (last % 10 === 0) showStatus("status.turn", { tick: last });
+      },
+      ended() {
+        showStatus("status.ended");
+      },
+      error(_code, message) {
+        showStatus("status.refused", { message });
+      },
     },
-    lobby(lobby) {
-      const count = { players: lobby.players.length, capacity: lobby.capacity };
-      if (lobby.startsIn === null) showStatus("status.waiting", count);
-      else showStatus("status.starting", { ...count, seconds: seconds(lobby.startsIn) });
-    },
-    started(game) {
-      showStatus("status.playing", { player: game.you });
-    },
-    turns(turns) {
-      const last = turns.at(-1)?.tick ?? 0;
-      if (last % 10 === 0) showStatus("status.turn", { tick: last });
-    },
-    ended() {
-      showStatus("status.ended");
-    },
-    error(_code, message) {
-      showStatus("status.refused", { message });
-    },
-  },
-});
+  });
 
-// An invite link carries the game id: ?game=<id>. Otherwise join the next public game.
-const invited = new URLSearchParams(location.search).get("game");
-if (invited) online.join(invited);
-else online.play();
+  if (entry === "public") online.play();
+  else online.join(entry.game);
+}
+
+const query = new URLSearchParams(location.search);
+const invited = query.get("game");
+if (invited) goOnline({ game: invited });
+else if (query.has("online")) goOnline("public");

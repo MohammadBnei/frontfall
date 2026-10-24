@@ -28,11 +28,13 @@ test("two players meet in a public game without leaving the base path", async ({
     page.on("pageerror", (error) => pageErrors.push(error));
   }
 
-  await first.goto(baseURL);
+  // Solo players stay offline: ?online asks for the next public game.
+  const lobby = new URL("?online", baseURL).href;
+  await first.goto(lobby);
   await expect(first.locator("#status")).toHaveText(/^(Waiting for players|Starting in)/, {
     timeout: 15_000,
   });
-  await second.goto(baseURL);
+  await second.goto(lobby);
 
   for (const page of [first, second]) {
     await expect(page.locator("#status")).toHaveText(/^Turn \d+$/, {
