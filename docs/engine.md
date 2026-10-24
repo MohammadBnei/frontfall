@@ -59,6 +59,8 @@ const turn = clock.advance(); // runs the tick and returns the turn it closed
 
 `pnpm determinism` plays 10,000 ticks of eight bots on World twice in Node and once in a Chromium worker, and fails unless every run reaches the same state hash; CI runs it on every push. Hashes are compared every 1,000 ticks, so a failure names the stretch where the runs parted.
 
+Golden replays in `packages/engine/test/replays/` are desync reports (see below) of scripted games on Europe and World, with the hash pinned every 50 ticks. The bench tests play them in Node with today's `DEFAULT_BALANCE`, and `pnpm determinism` plays them again in a Chromium worker. `game.hash()` folds in every balance value, so changing a rule or any balance value makes them fail with the first tick that differs. When the change is meant, `pnpm golden` writes them again; commit the new files with the change.
+
 The sources use only syntax that type stripping can erase (`erasableSyntaxOnly`), so Node runs them without a build step.
 
 ## Reading the state
@@ -121,4 +123,4 @@ loads the published map the report names, refuses a map whose terrain hash diffe
 
 ## Extending the engine
 
-A new rule is a function `installX(game)` that registers order handlers (`game.onOrder`) and tick systems (`game.onTick`), cites its rule identifiers, and is added to `createGame` in the right place. Its state lives on `Game` or `Player`, never in a closure, so that `game.hash()` covers it and a game can later be saved and restored. It draws randomness from `game.random` and comes with tests that name the rules they cover. A change to any outcome changes the pinned hash in `test/hash.test.ts`: update it on purpose, and record the change in the changelog.
+A new rule is a function `installX(game)` that registers order handlers (`game.onOrder`) and tick systems (`game.onTick`), cites its rule identifiers, and is added to `createGame` in the right place. Its state lives on `Game` or `Player`, never in a closure, so that `game.hash()` covers it and a game can later be saved and restored. It draws randomness from `game.random` and comes with tests that name the rules they cover. A change to any outcome changes the pinned hash in `test/hash.test.ts` and the golden replays: update them on purpose (`pnpm golden`), and record the change in the changelog.

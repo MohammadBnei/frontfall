@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_BALANCE } from "../src/balance.ts";
+import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
 import { createGame } from "../src/create-game.ts";
-import type { Game, Order } from "../src/game.ts";
+import { Game, type Order } from "../src/game.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
@@ -55,6 +55,22 @@ function scriptedGame(ticks: number): Game {
 }
 
 describe("Game.hash", () => {
+  it("tells apart games that differ in any balance value, whatever the key order", () => {
+    const grid = new WorldGrid(8, 8);
+    const terrain = new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains));
+    const hashWith = (balance: Balance) =>
+      new Game({ terrain, seed: 1, players: [{ id: 1, name: "Ada" }], balance }).hash();
+    const reference = hashWith(DEFAULT_BALANCE);
+    const reversed = Object.fromEntries(Object.entries(DEFAULT_BALANCE).reverse()) as Balance;
+    expect(hashWith(reversed)).toBe(reference);
+    for (const key of Object.keys(DEFAULT_BALANCE) as (keyof Balance)[]) {
+      const value = DEFAULT_BALANCE[key];
+      const changed =
+        typeof value === "number" ? value + 1 : value.map((v, i) => (i === 0 ? v + 1 : v));
+      expect(hashWith({ ...DEFAULT_BALANCE, [key]: changed }), key).not.toBe(reference);
+    }
+  });
+
   it("is the same for the same game, and changes with any part of the state", () => {
     const a = scriptedGame(50);
     const b = scriptedGame(50);
@@ -72,6 +88,6 @@ describe("Game.hash", () => {
     // Update this value only for a deliberate change to the rules, and say so in the changelog.
     const game = scriptedGame(600);
     expect(game.players().map((p) => game.territory.tileCount(p.id))).toEqual([0, 900, 192, 186]);
-    expect(game.hash()).toBe(325994776);
+    expect(game.hash()).toBe(2305961487);
   });
 });

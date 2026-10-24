@@ -78,12 +78,15 @@ export class Game {
   private readonly handlers: OrderHandler[] = [];
   private readonly systems: TickSystem[] = [];
   private currentTick = 0;
+  /** The balance values, folded once into the state hash: clients that disagree on them part at once. */
+  private readonly balanceDigest: number;
 
   constructor(setup: GameSetup) {
     this.terrain = setup.terrain;
     this.random = new Random(setup.seed);
     this.balance = setup.balance ?? DEFAULT_BALANCE;
     checkBalance(this.balance);
+    this.balanceDigest = digestBalance(this.balance);
     let highest = 1;
     for (const { id, name } of setup.players) {
       if (!Number.isInteger(id) || id < 1 || id > MAX_PLAYER_ID) {
@@ -140,6 +143,7 @@ export class Game {
       mixWord(Math.floor(value / 2 ** 32) >>> 0);
     };
     mix(this.currentTick);
+    mixWord(this.balanceDigest);
     for (const word of this.random.state()) mix(word);
     const owners = this.territory.owners;
     for (let tile = 0; tile < owners.length; tile++) {
@@ -206,6 +210,25 @@ export class Game {
     this.currentTick++;
     return applied;
   }
+}
+
+/** FNV-1a over the balance values, by key name, so the order fields were written in does not matter. */
+function digestBalance(balance: Balance): number {
+  let digest = 0x811c9dc5;
+  const record = balance as unknown as Record<string, number | readonly number[]>;
+  for (const key of Object.keys(record).sort()) {
+    for (let i = 0; i < key.length; i++) digest = Math.imul(digest ^ key.charCodeAt(i), 0x01000193);
+    const value = record[key];
+    for (const number of typeof value === "number" ? [value] : (value ?? [])) {
+      // Halves, like the state hash: balance values are safe integers.
+      for (const word of [number >>> 0, Math.floor(number / 2 ** 32) >>> 0]) {
+        for (let shift = 0; shift < 32; shift += 8) {
+          digest = Math.imul(digest ^ ((word >>> shift) & 0xff), 0x01000193);
+        }
+      }
+    }
+  }
+  return digest >>> 0;
 }
 
 /** Refuses balance values the rules cannot run with, before the first tick rather than during one. */

@@ -11,7 +11,8 @@
     "sim": "tsx sim/run.ts",
     "load": "node --import tsx server/run.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "determinism": "tsx determinism/run.ts"
+    "determinism": "tsx determinism/run.ts",
+    "golden": "tsx determinism/golden.ts"
   },
   "dependencies": {
     "@frontfall/engine": "workspace:*",
