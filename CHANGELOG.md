@@ -4,6 +4,8 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+These changes will ship as **v0.1.0, the first playable beta**: a solo game in the browser against bots on a map of the Earth or of Europe, with expansion, attacks, encirclement, retreat and ships across the sea, from the menu to the end screen. Online games already work and are completed in v0.2. The tag follows the first playtest round ([docs/roadmap.md](docs/roadmap.md#v01--solo-on-a-real-map)).
+
 ### Added
 
 - **Online games, protocol version 2** ([docs/protocol.md](docs/protocol.md)): a version handshake, binary frames for orders and turns, public games that start after a countdown or when full, private games joined by invitation link (`?game=<id>`), a list of public games at `/api/games`, reconnection with every missed turn, desync detection from client state hashes, and player name rules.
