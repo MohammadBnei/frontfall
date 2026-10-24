@@ -42,6 +42,7 @@ export const MissileError = {
   Size: "unknown missile size",
   Silo: "no loaded silo of yours",
   Ally: "an ally's land cannot be targeted",
+  Near: "an ally's land is within the blast",
   Gold: "not enough gold",
 } as const;
 export type MissileError = (typeof MissileError)[keyof typeof MissileError];
@@ -108,9 +109,32 @@ export function missileError(
   if (!isMissileSize(size)) return MissileError.Size;
   const owner = game.territory.ownerOf(target);
   if (owner !== player.id && isAllied(game, player.id, owner)) return MissileError.Ally;
+  if (blastHitsAlly(game, player.id, target, blastRadius(game, size))) return MissileError.Near;
   if (!launchSilo(game, player.id, target)) return MissileError.Silo;
   if (player.gold < missileCost(game, size)) return MissileError.Gold;
   return undefined;
+}
+
+/**
+ * Whether the disc of `radius` around `center` holds land of an ally or a
+ * teammate of `player`, which a missile of theirs must spare.
+ */
+function blastHitsAlly(game: Game, player: number, center: number, radius: number): boolean {
+  const { terrain, territory } = game;
+  const topology = terrain.topology;
+  const reach = radius * radius;
+  const checked = new Map<number, boolean>();
+  for (const tile of topology.tilesWithin(center, radius)) {
+    const owner = territory.ownerOf(tile);
+    if (owner === NEUTRAL || owner === player) continue;
+    let allied = checked.get(owner);
+    if (allied === undefined) {
+      allied = isAllied(game, player, owner);
+      checked.set(owner, allied);
+    }
+    if (allied && topology.squaredDistance(tile, center) <= reach) return true;
+  }
+  return false;
 }
 
 /**
@@ -193,10 +217,10 @@ export function installMissiles(game: Game): void {
     for (const missile of missiles) {
       if (intercepted(missile)) continue;
       if (tick + 1 >= missile.arrivesAt) {
-        // Land that became an ally's or a teammate's while it flew is spared, and the missile paid back.
-        const owner = territory.ownerOf(missile.to);
+        // Land under the blast that became an ally's or a teammate's while it flew is spared, and the missile paid back.
         const launcher = game.player(missile.player);
-        if (owner !== missile.player && isAllied(game, missile.player, owner)) {
+        const radius = blastRadius(game, missile.size);
+        if (blastHitsAlly(game, missile.player, missile.to, radius)) {
           if (launcher) launcher.gold += missileCost(game, missile.size);
         } else {
           strike(missile);

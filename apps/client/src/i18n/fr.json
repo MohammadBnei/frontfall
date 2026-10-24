@@ -171,6 +171,7 @@
   "click.coast": "Un port se bâtit sur vos terres, au bord de l'eau.",
   "click.port": "Cliquez sur un de vos ports prêts pour y acheter un navire de guerre.",
   "click.shore": "Ce port n'a pas d'eau libre à côté pour un navire de guerre.",
+  "click.allyNear": "Trop près d'un allié : le souffle toucherait ses terres.",
   "click.warships": "Vous avez déjà autant de navires de guerre que permis.",
   "click.noWarship": "Aucun de vos navires de guerre ne peut y aller.",
   "click.silo": "Il vous faut un silo bâti avec un missile chargé.",

@@ -206,7 +206,9 @@ export type ClickRefusal =
   /** No structure of the player's near the click to demolish. */
   | "nothing"
   /** The land belongs to an ally: betray them first (R-DIPLO-02). */
-  | "ally";
+  | "ally"
+  /** A missile's blast would reach an ally's or a teammate's land (R-UNIT-05). */
+  | "allyNear";
 
 export type ClickResult = { order: Order } | { refused: ClickRefusal };
 
@@ -576,6 +578,7 @@ export class SoloGame {
         refused: sameTeam(game, this.you, game.territory.ownerOf(tile)) ? "teammate" : "ally",
       };
     }
+    if (error === MissileError.Near) return { refused: "allyNear" };
     if (error === MissileError.Gold) return { refused: "gold" };
     return { refused: "silo" };
   }

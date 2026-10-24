@@ -171,6 +171,7 @@
   "click.coast": "A port goes on your land by the water.",
   "click.port": "Click one of your ready ports to buy a warship there.",
   "click.shore": "This port has no open water next to it for a warship.",
+  "click.allyNear": "Too close to an ally: the blast would reach their land.",
   "click.warships": "You have as many warships as you may own.",
   "click.noWarship": "None of your warships can sail there.",
   "click.silo": "You need a built silo with a missile loaded.",

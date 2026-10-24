@@ -169,14 +169,28 @@ describe("missiles (R-UNIT-05)", () => {
     expect(bea.troops).toBe(troopsBefore - Math.floor((troopsBefore * hit) / tilesBefore));
   });
 
-  it("fall harmlessly and are paid back when the land became an ally's while they flew", () => {
+  it("cannot reach an ally's land with their blast, but may hit the player's own", () => {
+    const { game, grid, ada, step } = newGame();
+    step([
+      { player: 1, order: { type: "ally", target: 3 } },
+      { player: 3, order: { type: "ally", target: 1 } },
+    ]);
+    // Bea's land at x = 41 is 2 tiles from Cy's: inside a light blast of 3.
+    expect(orderError(game, ada, launch(grid.index(41, 10)))).toBe(MissileError.Near);
+    expect(orderError(game, ada, launch(grid.index(50, 10)))).toBeUndefined();
+    expect(orderError(game, ada, launch(grid.index(10, 10)))).toBeUndefined();
+  });
+
+  it("fall harmlessly and are paid back when land under the blast became an ally's while they flew", () => {
     const { game, grid, ada, step } = newGame();
     const target = grid.index(50, 10);
     step([{ player: 1, order: launch(target) }]);
     const paid = ada.gold;
+    // Not the target itself: a tile of Cy's next to it, then an alliance with Cy.
+    game.territory.setOwner(grid.index(52, 10), 3);
     step([
-      { player: 1, order: { type: "ally", target: 2 } },
-      { player: 2, order: { type: "ally", target: 1 } },
+      { player: 1, order: { type: "ally", target: 3 } },
+      { player: 3, order: { type: "ally", target: 1 } },
     ]);
     while (game.missiles.length > 0) step();
     expect(game.territory.ownerOf(target)).toBe(2);
