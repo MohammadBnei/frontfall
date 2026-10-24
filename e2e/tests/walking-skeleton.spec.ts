@@ -15,6 +15,34 @@ const clockOf = async (page: Page): Promise<number> => {
   return (minutes ?? 0) * 60 + (seconds ?? 0);
 };
 
+/**
+ * Pixels in the second player colour (#E69F00, give or take the relief's
+ * shading) in the middle of the map, away from the HUD and its swatches.
+ */
+async function amberPixels(page: Page): Promise<number> {
+  const size = page.viewportSize() ?? { width: 1280, height: 720 };
+  const clip = { x: size.width / 2 - 200, y: size.height / 2 - 150, width: 400, height: 300 };
+  const png = (await page.screenshot({ scale: "css", clip })).toString("base64");
+  // The suite has no DOM types: the counting runs in the page, as a string.
+  return page.evaluate<number>(`(async (png) => {
+    const image = new Image();
+    image.src = "data:image/png;base64," + png;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const data = context.getImageData(0, 0, image.width, image.height).data;
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
+      if (r > 170 && g > 105 && g < 200 && b < 60 && r - g > 40) count++;
+    }
+    return count;
+  })("${png}")`);
+}
+
 test("two players meet in a private game without leaving the base path", async ({
   browser,
   baseURL,
@@ -50,6 +78,14 @@ test("two players meet in a private game without leaving the base path", async (
     await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
     await expect(page.locator(".leaderboard")).toContainText("Host");
   }
+  // The guest picks a start, and their map closes in on it, drawn in their
+  // colour: amber, the second of the palette, as for any player after the first.
+  await guest.locator("#map").click({ position: { x: 300, y: 300 } });
+  await expect(guest.locator(".stats .stat-value").nth(2)).not.toHaveText("0%", {
+    timeout: 10_000,
+  });
+  await expect.poll(() => amberPixels(guest), { timeout: 15_000 }).toBeGreaterThan(100);
+
   // Both clocks run on the server's turns.
   const start = await clockOf(guest);
   await expect.poll(() => clockOf(guest), { timeout: 10_000 }).toBeGreaterThan(start);

@@ -122,7 +122,7 @@ export class GameScreen {
       map,
       {
         onStart: (info) => {
-          this.showMap(info.map, info.you);
+          this.showMap(info.map, info.you, info.maxPlayer);
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
           this.hud.setRules(info.rules);
@@ -211,7 +211,7 @@ export class GameScreen {
     this.element.remove();
   }
 
-  private showMap(map: MapData, you: number): void {
+  private showMap(map: MapData, you: number, maxPlayer: number): void {
     this.owners = new Uint16Array(map.width * map.height);
     this.wrapsX = map.wrapsX;
     let view: Renderer;
@@ -223,7 +223,7 @@ export class GameScreen {
         wrapsX: map.wrapsX,
         relief: map.relief,
         owners: this.owners,
-        maxOwner: this.options.bots + 1,
+        maxOwner: maxPlayer,
       });
     } catch (error) {
       // Most likely the WebGL context, lost or refused after the check of the menu.
@@ -231,7 +231,7 @@ export class GameScreen {
       this.actions.onFailure("webgl.missing");
       return;
     }
-    for (let id = 1; id <= this.options.bots + 1; id++) {
+    for (let id = 1; id <= maxPlayer; id++) {
       view.setPlayerColor(id, playerColor(id - 1).hex);
     }
     view.setHighlight(you);

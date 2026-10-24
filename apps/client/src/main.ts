@@ -160,6 +160,10 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
           room.outdated();
           if (game) showNotice("status.outdated");
         }
+        if (state === "rejected") {
+          room.rejected();
+          if (game) showNotice("online.rejected");
+        }
       },
       lobby(state) {
         // A private game is joined again from its link, after a reload too.
@@ -203,7 +207,9 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
 function startOnline(start: GameStart, client: OnlineClient): void {
   const map = maps.find((candidate) => candidate.id === start.map);
   if (!map) {
-    lobby?.refused("not_found", start.map);
+    // A map this page does not list: leave the seat rather than hold it unplayed.
+    client.leave();
+    lobby?.unknownMap();
     return;
   }
   lobby?.dispose();
@@ -218,8 +224,8 @@ function startOnline(start: GameStart, client: OnlineClient): void {
       map: start.map,
       seed: start.seed,
       bots: start.bots,
-      // The same for every client of the game, which all run the same bots.
-      difficulty: "normal",
+      // Chosen by the host; every client runs the same bots.
+      difficulty: start.difficulty,
       playerName: "",
       players: start.players,
       you: start.you,

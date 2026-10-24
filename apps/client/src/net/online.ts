@@ -1,9 +1,9 @@
 import {
+  ClientMessage,
   CloseCode,
   encodeClientMessage,
   parseServerMessage,
   PROTOCOL_VERSION,
-  type ClientMessage,
   type ErrorCode,
   type GameOptions,
   type Order,
@@ -37,7 +37,12 @@ export type ConnectionStatus =
   /** The connection dropped; a new attempt starts after `retryInMs`. */
   | "offline"
   /** The server speaks another protocol version: the page must be reloaded. */
-  | "outdated";
+  | "outdated"
+  /**
+   * The server closed the connection over a message it refused or too many
+   * messages: trying again would end the same way.
+   */
+  | "rejected";
 
 export interface OnlineEvents {
   status?(status: ConnectionStatus, retryInMs?: number): void;
@@ -109,7 +114,12 @@ export class OnlineClient {
     this.enter({ type: "create" });
   }
 
+  /** Joins a game by id; an id the protocol cannot carry is refused here, as not found. */
   join(game: string): void {
+    if (!ClientMessage.safeParse({ type: "join", game }).success) {
+      this.options.events.error?.("not_found", "no game has this id");
+      return;
+    }
     this.enter({ type: "join", game });
   }
 
@@ -185,10 +195,16 @@ export class OnlineClient {
         return;
       }
       if (this.closedByUser) return;
+      if (code === CloseCode.invalidMessage || code === CloseCode.rateLimited) {
+        this.closedByUser = true;
+        this.options.events.status?.("rejected");
+        return;
+      }
       const delay = retryDelay(this.attempt++);
       this.options.events.status?.("offline", delay);
       this.setTimer(() => {
-        this.open();
+        // Closed by the page during the wait: no new connection.
+        if (!this.closedByUser) this.open();
       }, delay);
     });
   }

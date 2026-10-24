@@ -257,7 +257,9 @@ export class Menu {
     const refresh = async (): Promise<void> => {
       try {
         const response = await fetch(new URL("api/games", location.href));
-        if (response.ok) show(((await response.json()) as { games: PublicGame[] }).games);
+        const body: unknown = response.ok ? await response.json() : undefined;
+        // The menu may have closed while the request ran.
+        if (!stopped) show(publicGames(body));
       } catch {
         // No server next to the page, as in a static preview: the buttons stay.
       }
@@ -298,6 +300,21 @@ export class Menu {
     );
     return element;
   }
+}
+
+/** The games of a `/api/games` answer, leaving out anything malformed. */
+function publicGames(body: unknown): PublicGame[] {
+  const games = (body as { games?: unknown } | undefined)?.games;
+  if (!Array.isArray(games)) return [];
+  return games.filter(
+    (game): game is PublicGame =>
+      typeof game === "object" &&
+      game !== null &&
+      typeof (game as PublicGame).id === "string" &&
+      typeof (game as PublicGame).map === "string" &&
+      Number.isInteger((game as PublicGame).players) &&
+      Number.isInteger((game as PublicGame).capacity),
+  );
 }
 
 /** Small picture of a map: the published thumbnail, or drawn from a generated terrain. */

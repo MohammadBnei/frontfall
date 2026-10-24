@@ -102,5 +102,11 @@
   "online.error.game_started": "Cette partie a déjà commencé.",
   "online.error.too_many_games": "Le serveur est plein. Réessayez dans quelques minutes.",
   "online.error.invalid_name": "Le serveur a refusé ce nom. Choisissez-en un autre dans le menu.",
-  "online.desync": "Votre partie ne correspond plus à celle des autres joueurs. Rechargez la page pour la rejoindre."
+  "online.desync": "Votre partie ne correspond plus à celle des autres joueurs. Rechargez la page pour la rejoindre.",
+  "online.rejected": "Le serveur a fermé la connexion. Rechargez la page pour réessayer.",
+  "online.unknownMap": "Cette partie se joue sur une carte que cette page ne connaît pas. Rechargez la page pour avoir la dernière version.",
+  "online.error.already_in_game": "Vous êtes déjà dans une partie. Quittez-la d'abord.",
+  "online.error.not_in_game": "Vous n'êtes plus dans une partie.",
+  "online.error.not_host": "Seul l'hôte peut faire cela.",
+  "online.error.invalid_settings": "Le serveur a refusé ces réglages."
 }

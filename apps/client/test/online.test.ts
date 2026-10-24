@@ -328,4 +328,32 @@ describe("OnlineClient", () => {
     online.order({ type: "spawn", tile: 1 });
     expect(socket.sent).toHaveLength(1);
   });
+
+  it("does not open a new connection when closed while waiting to retry", () => {
+    const online = client();
+    welcomed().drop();
+    expect(timers).toHaveLength(1);
+    online.close();
+    timers.shift()?.callback();
+    expect(sockets).toHaveLength(1);
+  });
+
+  it("stops for good when the server refuses its messages", () => {
+    for (const code of [CloseCode.invalidMessage, CloseCode.rateLimited]) {
+      log = [];
+      timers = [];
+      client();
+      welcomed().drop(code);
+      expect(log.at(-1)).toBe("rejected");
+      expect(timers).toEqual([]);
+    }
+  });
+
+  it("refuses an invitation id the protocol cannot carry, without sending it", () => {
+    const online = client();
+    const socket = welcomed();
+    online.join("not a game id!");
+    expect(log.at(-1)).toBe("error:not_found");
+    expect(socket.sent).toHaveLength(1);
+  });
 });

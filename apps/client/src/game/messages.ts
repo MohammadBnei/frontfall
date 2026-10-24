@@ -1,5 +1,6 @@
 import type { Order, Turn } from "@frontfall/engine";
-import type { MapData, MapInfo } from "./maps.ts";
+import type { MapInfo } from "./maps.ts";
+import type { StartInfo } from "./session.ts";
 import type { ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
 
 /** What became of a click: the order it sent, or why it sent none. */
@@ -32,7 +33,7 @@ export type WorkerRequest =
 
 /** From the simulation worker to the page. */
 export type WorkerReply =
-  | { type: "started"; map: MapData; rules: GameRules; you: number }
+  | ({ type: "started" } & StartInfo)
   | { type: "update"; update: GameUpdate }
   /** Online, `order` is what the page must send to the server; solo, the worker queued it. */
   | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order }

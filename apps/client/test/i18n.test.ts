@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
+import { ErrorCode } from "@frontfall/protocol";
 import indexHtml from "../index.html?raw";
 import en from "../src/i18n/en.json" with { type: "json" };
 import fr from "../src/i18n/fr.json" with { type: "json" };
@@ -64,6 +65,15 @@ describe("catalogues", () => {
     // Every message key has a section: "menu.play", not a word from a comment.
     for (const key of keys.filter((candidate) => candidate?.includes(".")))
       expect(Object.keys(en)).toContain(key);
+  });
+});
+
+describe("online errors", () => {
+  it("has a message for every error the server can send the lobby", () => {
+    const handled = ["token_invalid", "token_in_use"];
+    for (const code of ErrorCode.options.filter((code) => !handled.includes(code))) {
+      expect(Object.keys(en)).toContain(`online.error.${code}`);
+    }
   });
 });
 

@@ -52,6 +52,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
       type: "started",
       map: view,
       you: game.you,
+      maxPlayer: Math.max(...game.game.players().map((player) => player.id)),
       rules: {
         ownableTiles: game.ownableTiles,
         ticksPerSecond,

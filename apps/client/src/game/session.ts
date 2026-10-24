@@ -3,9 +3,19 @@ import type { MapData } from "./maps.ts";
 import type { ClickOutcome, GameRules } from "./messages.ts";
 import type { GameUpdate } from "./solo-game.ts";
 
+/** What the page needs to draw a game, once its map is loaded. */
+export interface StartInfo {
+  map: MapData;
+  rules: GameRules;
+  /** The player at this screen. */
+  you: number;
+  /** Highest player id, humans and bots: every id up to it needs a colour. */
+  maxPlayer: number;
+}
+
 export interface SessionEvents {
   /** The map is loaded and the first tick is coming. */
-  onStart(info: { map: MapData; rules: GameRules; you: number }): void;
+  onStart(info: StartInfo): void;
   /** Once per tick, in order. The game is over when `update.winner` is set. */
   onUpdate(update: GameUpdate): void;
   /** What a click sent through `click` turned into. */

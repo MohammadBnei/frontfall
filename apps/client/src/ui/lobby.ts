@@ -137,6 +137,16 @@ export class LobbyScreen {
     this.reload.hidden = false;
   }
 
+  /** The server refused this page's messages and closed the connection. */
+  rejected(): void {
+    this.stopped("online.rejected");
+  }
+
+  /** The game started on a map this page does not have. */
+  unknownMap(): void {
+    this.stopped("online.unknownMap");
+  }
+
   lobby(lobby: LobbyState, inviteLink: string): void {
     this.lastLobby = lobby;
     this.startsAt = lobby.startsIn === null ? undefined : performance.now() + lobby.startsIn;
@@ -167,10 +177,7 @@ export class LobbyScreen {
 
   /** The game ended before it started, or the player left it. */
   ended(reason: EndReason): void {
-    this.lastLobby = undefined;
-    this.startsAt = undefined;
-    this.start.hidden = true;
-    this.show(`online.ended.${reason}`);
+    this.stopped(`online.ended.${reason}`);
   }
 
   /** A request was refused: no such game, full, already started... */
@@ -190,6 +197,14 @@ export class LobbyScreen {
   dispose(): void {
     clearInterval(this.timer);
     this.element.remove();
+  }
+
+  /** Nothing more will happen here but leaving: says why. */
+  private stopped(key: MessageKey): void {
+    this.lastLobby = undefined;
+    this.startsAt = undefined;
+    this.start.hidden = true;
+    this.show(key);
   }
 
   private showLobbyStatus(lobby: LobbyState): void {

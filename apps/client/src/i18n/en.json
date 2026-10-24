@@ -102,5 +102,11 @@
   "online.error.game_started": "This game has already started.",
   "online.error.too_many_games": "The server is full. Try again in a few minutes.",
   "online.error.invalid_name": "The server refused this name. Choose another one in the menu.",
-  "online.desync": "Your game no longer matches the other players'. Reload the page to rejoin."
+  "online.desync": "Your game no longer matches the other players'. Reload the page to rejoin.",
+  "online.rejected": "The server closed the connection. Reload the page to try again.",
+  "online.unknownMap": "This game is played on a map this page does not have. Reload the page to get the latest version.",
+  "online.error.already_in_game": "You are already in a game. Leave it first.",
+  "online.error.not_in_game": "You are not in a game any more.",
+  "online.error.not_host": "Only the host can do this.",
+  "online.error.invalid_settings": "The server refused these settings."
 }
