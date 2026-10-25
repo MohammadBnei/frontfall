@@ -29,6 +29,20 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Known advisories in the dependencies warn without failing: a fix may wait for upstream.
+      - name: Audit the dependencies
+        run: |
+          if pnpm audit > "$RUNNER_TEMP/audit.txt" 2>&1; then
+            echo "No known advisory in the dependencies." >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Dependency audit"
+              echo '```'
+              cat "$RUNNER_TEMP/audit.txt"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning title=Dependency audit::pnpm audit reports advisories, listed in the job summary"
+          fi
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
