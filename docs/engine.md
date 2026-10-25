@@ -146,6 +146,57 @@ A `GameRecord` (format version `GAME_RECORD_VERSION`, now 1) keeps a finished ga
 
 Bots and nations are not in the turns: they decide again, from the same state, as they did in the game. `readGameRecord(json)` checks a parsed record and `replayGameRecord(record, terrain)` plays it to its last tick and returns the hash it reaches; `recreateGame(record, terrain)` sets up the game before its first tick, for a viewer that plays it at its own pace. Both readers refuse turns out of order or past `ticks`, and a `you` that is not one of the players.
 
+## Snapshots
+
+A snapshot is the whole state of a game between two ticks, in a compact binary form (#39): a client that joins late, or comes back, loads one and plays only the turns after it instead of every turn from the start. `saveSnapshot(game, build)` writes one, where `build` names the simulation, the page's `BUILD`. `loadSnapshot(bytes, build, create)` loads one into the new game `create()` returns, set up like the original: same setup, same rules, same bots and nations, before its first tick (`recreateGame` gives one). It never throws: a snapshot it cannot load comes back as `{ ok: false, reason }`, and the caller plays the turns from the start in a game of its own. `readSnapshotHeader(bytes)` reads the header alone.
+
+The checks come in this order, and nothing of the state is read before the first five pass:
+
+1. at most `SNAPSHOT_MAX_BYTES` (1 MiB);
+2. the four magic bytes and format `SNAPSHOT_FORMAT`, now 1;
+3. the same `build` as the reader's;
+4. the game from `create()` has not started, and its `game.setupDigest()` matches: seed, balance, map, players, teams and what the game leaves out;
+5. the checksum of the state's bytes;
+6. the same rule parts, by name, in the same order;
+7. every value in range, and the border lists consistent with the owners;
+8. once loaded, `game.hash()` equal to the hash in the header.
+
+### Format
+
+Numbers are variable-length: seven bits a byte, low bits first, the high bit set on every byte but the last. Signed numbers fold their sign into the lowest bit first (`n ≥ 0` gives `2n`, `n < 0` gives `−2n − 1`), and every number is a safe integer. A word is four bytes, low byte first. Text is a count of UTF-16 code units, then each unit as a number. A path is its length, then each tile as a signed step from the one before, the first from 0. An optional value is a signed number, `−1` for none. A list is its count, then its entries.
+
+The header:
+
+| Field    | Encoding                                             |
+| -------- | ---------------------------------------------------- |
+| magic    | `70 70 83 78` (`FFSN`), each as a number             |
+| format   | number, `1`                                          |
+| build    | text                                                 |
+| setup    | word: `setupDigest()` of the game                    |
+| tick     | number: ticks run; the next turn to play is this one |
+| hash     | word: `game.hash()` at that tick                     |
+| checksum | word: 32-bit FNV-1a of every byte after it           |
+
+The state follows, to the last byte:
+
+| Part        | Content                                                                                                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| random      | the four words of `game.random`, each as a signed number, as the generator holds them                                                                                                                                                                  |
+| players     | in id order: `troops`, `gold`, `goldRemainder` (signed), `alive` (0 or 1), `start` (optional), `traitorUntil`                                                                                                                                          |
+| owners      | the owner of every tile, as runs: a count, then `owner, length` for each run                                                                                                                                                                           |
+| borders     | for each player id from 1 to the highest: the border list, its count then its tiles, in list order                                                                                                                                                     |
+| fallout map | `falloutUntil` of every tile, as runs like the owners                                                                                                                                                                                                  |
+| units       | for attacks, boats, structures, trade ships, warships and missiles: the next id, then the list, each entry its fields in the order of its type; boats, trade ships and warships end with their path, missiles with the list of air defenses that tried |
+| lists       | fallout, fights, alliances (`renewA` and `renewB` as 0 or 1), alliance requests, request cooldowns, embargoes, quick cooldowns                                                                                                                         |
+| outcome     | `winner`, `winningTeam`, `decidedAt` (optional)                                                                                                                                                                                                        |
+| rule parts  | a count, then for each part registered with `game.persist`: its name (text), then its bytes, a count then the bytes                                                                                                                                    |
+
+The rule parts today are `trade` (the open ports in the order they opened: opened again in that order, they find the same routes), `bots <difficulty> <ids>` and `nations <difficulty> <grace seconds> <ids>` (the tick each player may search again for a coast, a city site, a port site, and for nations a silo site, by player id). Diplomacy events, the change log of the territory and every cache of the map are not part of a snapshot: a loaded game starts with no events and tells its renderer to redraw everything.
+
+On World with 16 hard bots, a snapshot weighs at most 107 KB (87 KB once compressed) over a whole game; with the 64 nations of the map added, 162 KB. Saving takes under 90 ms and loading under 200 ms. The size follows the map and how divided it is, not how long the game has lasted.
+
+A change to what the state holds changes the format: a new field, a new list or a new rule part means a new `SNAPSHOT_FORMAT`, and the tests of `test/snapshot.test.ts` and `bench/test/snapshots.test.ts` load and play on from snapshots at many ticks to the same hashes as the game that never stopped.
+
 ## Helpers
 
 - `Random`: the seeded generator. Anything random in a game comes from `game.random`.
@@ -154,4 +205,4 @@ Bots and nations are not in the turns: they decide again, from the same state, a
 
 ## Extending the engine
 
-A new rule is a function `installX(game)` that registers order handlers (`game.onOrder`) and tick systems (`game.onTick`), cites its rule identifiers, and is added to `createGame` in the right place. Its state lives on `Game` or `Player`, never in a closure, so that `game.hash()` covers it and a game can later be saved and restored; a cache that the state and the map fully determine may live in a closure, like the routes between ports, which follow from the map and the order the ports opened in. It draws randomness from `game.random`, or, for a new rule that should leave every other draw of the game as it was, from `derivedRandom(game.seed, tick, id, usage)` with a usage of its own in `DrawUsage` and comes with tests that name the rules they cover. A change to any outcome changes the pinned hash in `test/hash.test.ts` and the golden replays: update them on purpose (`pnpm golden`), and record the change in the changelog.
+A new rule is a function `installX(game)` that registers order handlers (`game.onOrder`) and tick systems (`game.onTick`), cites its rule identifiers, and is added to `createGame` in the right place. Its state lives on `Game` or `Player`, so that `game.hash()` covers it and snapshots carry it; state that must stay in a closure, like the cooldowns of computer players or the order the ports opened in, is registered with `game.persist(name, { save, load })` so that snapshots carry it too. A cache that the state and the map fully determine may live in a closure without either. It draws randomness from `game.random`, or, for a new rule that should leave every other draw of the game as it was, from `derivedRandom(game.seed, tick, id, usage)` with a usage of its own in `DrawUsage` and comes with tests that name the rules they cover. A change to any outcome changes the pinned hash in `test/hash.test.ts` and the golden replays: update them on purpose (`pnpm golden`), and record the change in the changelog.

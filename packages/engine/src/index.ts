@@ -76,6 +76,7 @@ export {
   type GameSetup,
   type Order,
   type OrderHandler,
+  type PersistedPart,
   type Phase,
   type Player,
   type PlayerSetup,
@@ -158,3 +159,12 @@ export {
   type MapFile,
 } from "./map/map-file.ts";
 export { sha256Hex } from "./map/sha256.ts";
+export {
+  SNAPSHOT_FORMAT,
+  SNAPSHOT_MAX_BYTES,
+  loadSnapshot,
+  readSnapshotHeader,
+  saveSnapshot,
+  type LoadedSnapshot,
+  type SnapshotHeader,
+} from "./snapshot.ts";
