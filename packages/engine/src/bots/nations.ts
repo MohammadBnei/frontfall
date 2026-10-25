@@ -22,6 +22,7 @@ import {
   inlandSite,
   sail,
   scanBorder,
+  persistCooldowns,
   type Cooldowns,
   type OwnerFilter,
 } from "./shared.ts";
@@ -92,6 +93,12 @@ export function installNations(
   const cityCooldowns: Cooldowns = new Map();
   const portCooldowns: Cooldowns = new Map();
   const armCooldowns: Cooldowns = new Map();
+  persistCooldowns(game, `nations ${difficulty} ${String(graceSeconds)} ${nations.join(",")}`, [
+    seaCooldowns,
+    cityCooldowns,
+    portCooldowns,
+    armCooldowns,
+  ]);
 
   game.onTick(() => {
     if (game.phase !== "play") return;

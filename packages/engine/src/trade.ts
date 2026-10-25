@@ -59,6 +59,19 @@ export function installTrade(game: Game): void {
   /** Ready ports by tile, rebuilt every tick. */
   const ports = new Map<number, Structure>();
 
+  // Routes follow from the order ports opened in: opened again in that order, they are the same.
+  game.persist("trade", {
+    save(out) {
+      const open = routes.openPorts();
+      out.uint(open.length);
+      for (const tile of open) out.uint(tile);
+    },
+    load(from) {
+      const size = game.terrain.topology.size;
+      for (let n = from.count(); n > 0; n--) routes.open(from.below(size, "port"));
+    },
+  });
+
   game.onTick(() => {
     ports.clear();
     for (const structure of game.structures) {

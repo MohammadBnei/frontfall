@@ -99,6 +99,52 @@ export class TerritoryMap {
     for (let i = 0; i < count; i++) this.refreshBorder(around[i] as number);
   }
 
+  /**
+   * Takes the owners and border lists of a snapshot, in a map where nobody
+   * holds a tile yet. The lists keep their order, which picks by index
+   * follow, and must hold exactly the border tiles of each player, listed
+   * by player id from 1. Consumers of the change log are told to redraw.
+   */
+  restore(owners: Uint16Array, borders: readonly Int32Array[]): void {
+    if (this.tileCounts[NEUTRAL] !== this.grid.size) throw new RangeError("map already in use");
+    if (owners.length !== this.grid.size) throw new RangeError("owners do not fit the map");
+    if (borders.length !== this.maxPlayers) throw new RangeError("border lists do not fit");
+    for (let tile = 0; tile < owners.length; tile++) {
+      const owner = this.checkPlayer(owners[tile] as number);
+      this.owners[tile] = owner;
+      this.tileCounts[NEUTRAL] = this.tileCounts[NEUTRAL] - 1;
+      this.tileCounts[owner] = (this.tileCounts[owner] as number) + 1;
+    }
+    let listed = 0;
+    for (let player = 1; player <= this.maxPlayers; player++) {
+      const tiles = borders[player - 1] as Int32Array;
+      let list = this.borderLists[player] as Int32Array;
+      if (list.length < tiles.length) {
+        let size = list.length;
+        while (size < tiles.length) size *= 2;
+        this.borderLists[player] = list = new Int32Array(size);
+      }
+      for (let i = 0; i < tiles.length; i++) {
+        const tile = this.checkTile(tiles[i] as number);
+        if (this.owners[tile] !== player || this.borderSlots[tile] !== NOT_A_BORDER) {
+          throw new RangeError(`tile ${String(tile)} is not a border of player ${String(player)}`);
+        }
+        list[i] = tile;
+        this.borderSlots[tile] = i;
+      }
+      this.borderSizes[player] = tiles.length;
+      listed += tiles.length;
+    }
+    let expected = 0;
+    for (let tile = 0; tile < owners.length; tile++) {
+      const owner = this.owners[tile] as number;
+      if (owner !== NEUTRAL && this.touchesOtherOwner(tile, owner)) expected++;
+    }
+    if (expected !== listed) throw new RangeError("border lists miss border tiles");
+    this.changeCount = 0;
+    this.overflowed = true;
+  }
+
   /** Tiles changed since the last clearChanges(), possibly repeated. */
   changes(): Int32Array {
     return this.changeLog.subarray(0, this.changeCount);

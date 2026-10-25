@@ -9,6 +9,7 @@ import {
   buildPort,
   sail,
   scanBorder,
+  persistCooldowns,
   type Cooldowns,
 } from "./shared.ts";
 
@@ -50,6 +51,11 @@ export function installBots(game: Game, ids: readonly number[], difficulty: BotD
   const seaCooldowns: Cooldowns = new Map();
   const cityCooldowns: Cooldowns = new Map();
   const portCooldowns: Cooldowns = new Map();
+  persistCooldowns(game, `bots ${difficulty} ${bots.join(",")}`, [
+    seaCooldowns,
+    cityCooldowns,
+    portCooldowns,
+  ]);
 
   game.onTick(() => {
     if (game.phase !== "play") return;

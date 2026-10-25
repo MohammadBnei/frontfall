@@ -11,6 +11,7 @@ import type {
 import type { Fallout, Missile } from "./missiles.ts";
 import { orderError } from "./orders.ts";
 import { Random } from "./random.ts";
+import type { SnapshotReader, SnapshotWriter } from "./snapshot-bytes.ts";
 import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
 import type { TradeShip } from "./trade.ts";
@@ -124,6 +125,16 @@ export type OrderHandler = (game: Game, player: Player, order: Order) => boolean
 export type TickSystem = (game: Game) => void;
 
 /**
+ * State a rule keeps outside the game's own fields, which a snapshot must
+ * carry too (docs/engine.md). `load` reads what `save` wrote, into a game
+ * just created with the same setup and rules.
+ */
+export interface PersistedPart {
+  save(out: SnapshotWriter): void;
+  load(from: SnapshotReader): void;
+}
+
+/**
  * The whole state of one game and the loop that advances it. Given the same
  * setup and the same turns, every runtime reaches the same state (ADR 0001).
  */
@@ -192,7 +203,9 @@ export class Game {
   private readonly sortedPlayers: readonly Player[];
   private readonly handlers: OrderHandler[] = [];
   private readonly systems: TickSystem[] = [];
+  private readonly persisted: { readonly name: string; readonly part: PersistedPart }[] = [];
   private currentTick = 0;
+  private setup: number | undefined;
   /** The balance values, folded once into the state hash: clients that disagree on them part at once. */
   private readonly balanceDigest: number;
 
@@ -383,6 +396,69 @@ export class Game {
       if (this.currentTick < c.until) for (const value of [c.player, c.until]) mix(value);
     }
     mix(this.decidedAt ?? -1);
+    return hash >>> 0;
+  }
+
+  /**
+   * Registers state a rule keeps outside the game, for snapshots. The name
+   * says which rule, and with what: a snapshot loads only into a game whose
+   * parts have the same names in the same order.
+   */
+  persist(name: string, part: PersistedPart): void {
+    if (this.persisted.some((entry) => entry.name === name)) {
+      throw new RangeError(`part ${name} is already registered`);
+    }
+    this.persisted.push({ name, part });
+  }
+
+  /** Parts registered with `persist`, in registration order. */
+  persistedParts(): readonly { readonly name: string; readonly part: PersistedPart }[] {
+    return this.persisted;
+  }
+
+  /** Moves a new game to the tick of the snapshot it loads; snapshots only. */
+  restoreTick(tick: number): void {
+    if (this.currentTick !== 0) throw new RangeError("only a new game can be restored");
+    if (!Number.isSafeInteger(tick) || tick < 0) throw new RangeError("invalid tick");
+    this.currentTick = tick;
+  }
+
+  /**
+   * FNV-1a over what the game was created with and never changes: seed,
+   * balance, map, players, teams and what it leaves out. A snapshot loads
+   * only into a game of the same setup.
+   */
+  setupDigest(): number {
+    this.setup ??= this.digestSetup();
+    return this.setup;
+  }
+
+  private digestSetup(): number {
+    let hash = 0x811c9dc5;
+    const mix = (value: number): void => {
+      for (const word of [value >>> 0, Math.floor(value / 2 ** 32) >>> 0]) {
+        for (let shift = 0; shift < 32; shift += 8) {
+          hash = Math.imul(hash ^ ((word >>> shift) & 0xff), 0x01000193);
+        }
+      }
+    };
+    mix(this.seed);
+    mix(this.balanceDigest);
+    const { topology, kinds } = this.terrain;
+    mix(topology.width);
+    mix(topology.height);
+    for (let tile = 0; tile < kinds.length; tile++) {
+      hash = Math.imul(hash ^ (kinds[tile] as number), 0x01000193);
+    }
+    for (const p of this.sortedPlayers) {
+      mix(p.id);
+      mix(p.home ?? -1);
+      mix(p.team);
+      mix(p.name.length);
+      for (let i = 0; i < p.name.length; i++) mix(p.name.charCodeAt(i));
+    }
+    mix(this.teams);
+    mix(this.disabled);
     return hash >>> 0;
   }
 

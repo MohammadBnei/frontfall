@@ -30,6 +30,11 @@ export class Random {
     return random;
   }
 
+  /** Takes the state of another generator, for a game loaded from a snapshot. */
+  restore(state: RandomState): void {
+    [this.s0, this.s1, this.s2, this.s3] = state;
+  }
+
   state(): RandomState {
     return [this.s0, this.s1, this.s2, this.s3];
   }

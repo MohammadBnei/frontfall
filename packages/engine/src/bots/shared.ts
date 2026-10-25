@@ -93,6 +93,27 @@ export function scanBorder(game: Game, bot: Player, accept: OwnerFilter = anyone
  */
 export type Cooldowns = Map<number, number>;
 
+/** Keeps cooldowns in snapshots, by player id, so that the order they were set in does not matter. */
+export function persistCooldowns(game: Game, name: string, kinds: readonly Cooldowns[]): void {
+  game.persist(name, {
+    save(out) {
+      for (const cooldowns of kinds) {
+        const entries = [...cooldowns].sort(([a], [b]) => a - b);
+        out.uint(entries.length);
+        for (const [player, until] of entries) {
+          out.uint(player);
+          out.uint(until);
+        }
+      }
+    },
+    load(from) {
+      for (const cooldowns of kinds) {
+        for (let n = from.count(); n > 0; n--) cooldowns.set(from.uint(), from.uint());
+      }
+    },
+  });
+}
+
 /** R-BOT-06: a city on the closest free inland tile to the player's start, or to a border tile once the start is lost. */
 export function buildCity(game: Game, bot: Player, cooldowns: Cooldowns, retryTicks: number): void {
   const { territory, random } = game;
