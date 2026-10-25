@@ -210,6 +210,46 @@ describe("SoloGame clicks", () => {
     expect(territory.ownerOf(target)).toBe(0);
   });
 
+  it("says why a missile or a warship click sends nothing (R-UNIT-04, R-UNIT-05)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory } = solo.game;
+    const water = [...terrain.kinds.keys()].find((tile) => terrain.kind(tile) === TileKind.Water);
+    const coast = [...terrain.kinds.keys()].find((tile) => terrain.isCoast(tile)) ?? -1;
+    if (water === undefined) throw new Error("no water");
+    // Nothing is bought or launched in the spawn phase.
+    expect(solo.orderForClick(coast, 30, "missile")).toEqual({ refused: "early" });
+    expect(solo.orderForClick(coast, 30, "warship")).toEqual({ refused: "early" });
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 10_000_000;
+    for (const tile of terrain.topology.tilesWithin(coast, 4)) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    expect(solo.orderForClick(water, 30, "missile")).toEqual({ refused: "terrain" });
+    expect(solo.orderForClick(water, 30, "warship")).toEqual({ refused: "noWarship" });
+    // A silo on a patch of land of the player's own, away from the port.
+    const home = [...terrain.kinds.keys()].find(
+      (tile) => terrain.isOwnable(tile) && terrain.topology.distance(tile, coast) > 30,
+    );
+    if (home === undefined) throw new Error("no land away from the coast");
+    for (const tile of terrain.topology.tilesWithin(home, 4)) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    solo.step([
+      { type: "build", structure: 2, tile: coast },
+      { type: "build", structure: 3, tile: home },
+    ]);
+    for (let i = 0; i < solo.game.balance.longBuildTicks; i++) solo.step([]);
+    human.gold = 0;
+    expect(solo.orderForClick(coast, 30, "warship")).toEqual({ refused: "gold" });
+    const bot = solo.game.player(2);
+    const target = [...terrain.kinds.keys()].find((tile) => territory.ownerOf(tile) === bot?.id);
+    if (target === undefined) throw new Error("the bot holds no land");
+    expect(solo.orderForClick(target, 30, "missile")).toEqual({ refused: "gold" });
+  });
+
   it("tells the player when an air defense stops their missile (R-BUILD-05)", () => {
     const solo = newGame({ ...options, bots: 1 });
     const { terrain, territory, structures } = solo.game;
