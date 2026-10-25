@@ -329,7 +329,7 @@ export class Room {
         this.compareLateHashes();
         this.expireSeats(now);
         return;
-      default:
+      case "finished":
         return;
     }
   }

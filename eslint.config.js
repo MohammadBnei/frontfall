@@ -62,6 +62,15 @@ export default tseslint.config(
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
   },
+  {
+    rules: {
+      // A new order, structure or state must be handled wherever its kind is switched on.
+      "@typescript-eslint/switch-exhaustiveness-check": [
+        "error",
+        { considerDefaultExhaustiveForUnions: false, requireDefaultForNonUnion: false },
+      ],
+    },
+  },
   determinism,
   prettier,
 );
