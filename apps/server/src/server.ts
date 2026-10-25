@@ -585,13 +585,14 @@ export function createGameServer(options: ServerOptions): GameServer {
   }, 1000 / TICK_RATE);
 
   /**
-   * Games a restart would cut short: started, with a player still connected.
-   * A deployment waits for none to be left; lobbies are told and closed.
+   * Games a restart would cut short: started, with a player connected or
+   * still holding a seat to come back to. A deployment waits for none to be
+   * left; lobbies are told and closed.
    */
   function running(): number {
     let count = 0;
     for (const room of games.all()) {
-      if (room.state === "running" && room.connectedCount > 0) count++;
+      if (room.state === "running" && room.playerCount > 0) count++;
     }
     return count;
   }

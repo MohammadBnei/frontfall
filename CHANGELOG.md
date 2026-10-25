@@ -9,6 +9,9 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **How to play.** The ? button, H or ? open a help that lists the controls in four short sections, and every building with its key, what it costs you now and where it goes. On a phone it gives the gestures instead.
 - **First steps.** Your first solo game shows four steps that move on as you play: pick a start, expand, build a city, open another player's menu. Next skips one, Hide puts the guide away, and the help brings it back.
 - **Keys on the build buttons.** Each button shows its key; on a phone, a long press on a button says what it does.
+- **Updates no longer cut games short without a word.** When the server is about to restart for an update, a band at the top of the page counts the minutes down, and the update waits for running games to end. A game the update still has to stop ends with a message that says so.
+- **Server status page** at [/status](https://nclsmgr.com/frontfall/status): players online, games running, lobbies, and any update on its way.
+- For self-hosters and contributors: on `SIGTERM` the server stops opening games and lets running ones play on for `FRONTFALL_DRAIN_SECONDS` (20 s by default); `POST /admin/maintenance?minutes=N`, from inside the container only, announces a restart; `/api/status` gives the status page as JSON and `/api/games` the number of games running. Pushes to `next` can deploy a preview at `/frontfall-next/` ([server](docs/server.md#shutdown)).
 - For contributors: `pnpm balance` plays many headless games of one setup, bots, nations and a scripted player, and prints how long they last, who wins against their fair share, income from troops and trade, and missiles ([balance](docs/balance.md)).
 
 ### Fixed
@@ -26,6 +29,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Fixed
 
 - **Keys on AZERTY keyboards.** M did nothing and ? picked the missile mode. Command letters now follow the letter printed on the key, whatever the layout.
+- **A dropped connection in a lobby keeps your place.** A phone that sleeps or a network that blinks gets 30 seconds to come back, with the host role if you had it, and lands in the game if it started meanwhile. In a running game, your seat now waits 5 minutes instead of 2, and up to 16 players can share one home or mobile network.
+- **Reloading after a desync helps.** The page that says your game no longer matches the others asks for a reload; the reload now rebuilds the game from the start and clears the warning, instead of showing it again.
 - **Ports are easy to place.** On a large map the coast is under a pixel wide, so a port almost never found it. A click by the water, on your land or just off it at sea, now puts the port on your closest coast tile that can take one, and a warship is bought with a click as close to the port. A build mode also stays on through a refused click, so a second quick click builds instead of attacking.
 
 ## [0.4.0] - 2026-10-25

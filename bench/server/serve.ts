@@ -22,6 +22,8 @@ const server = createGameServer({
   // The run never requests a page.
   staticRoot: tmpdir(),
   version: "load",
+  // Stopping the bench ends its games at once.
+  drainMs: 0,
   publicGame: { capacity: players, countdownMs: 1000 },
 });
 

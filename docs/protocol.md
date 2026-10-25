@@ -337,10 +337,10 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## HTTP endpoints
 
-| Path         | Answer                                                                                                                                                            |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/healthz`   | `ok`, with the running build in the `X-Frontfall-Version` header                                                                                                  |
-| `/api/games` | Public games that have not started, and the games running with a player connected: `{ "games": [{ "id", "map", "players", "capacity", "startsIn" }], "running" }` |
+| Path         | Answer                                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/healthz`   | `ok`, with the running build in the `X-Frontfall-Version` header                                                                                                         |
+| `/api/games` | Public games that have not started, and the games running with a player who holds a seat: `{ "games": [{ "id", "map", "players", "capacity", "startsIn" }], "running" }` |
 
 ## Versioning
 

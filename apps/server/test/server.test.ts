@@ -34,7 +34,7 @@ afterEach(async () => {
 });
 
 async function start(options: Partial<ServerOptions> = {}): Promise<string> {
-  server = createGameServer({ staticRoot, version: "abc123", ...options });
+  server = createGameServer({ staticRoot, version: "abc123", drainMs: 0, ...options });
   const http = server.http;
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
   return `127.0.0.1:${String((http.address() as AddressInfo).port)}`;
@@ -754,6 +754,15 @@ describe("WebSocket", () => {
     bob.send({ type: "leave" });
     await closing;
     expect(done).toBe(true);
+  });
+
+  it("counts a game as running while its players may still come back", async () => {
+    const host = await start();
+    const { alice, bob } = await runningGame(host);
+    alice.socket.terminate();
+    bob.socket.terminate();
+    await Promise.all([closed(alice.socket), closed(bob.socket)]);
+    expect(await (await fetch(`http://${host}/api/games`)).json()).toMatchObject({ running: 1 });
   });
 
   it("stops the games still running when the drain runs out, saying why", async () => {

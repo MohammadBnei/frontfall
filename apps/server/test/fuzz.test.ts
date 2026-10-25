@@ -257,7 +257,12 @@ describe("server under fuzzed connections", () => {
 
   beforeAll(async () => {
     staticRoot = mkdtempSync(join(tmpdir(), "frontfall-fuzz-"));
-    server = createGameServer({ staticRoot, version: "fuzz", maxConnectionsPerAddress: 10_000 });
+    server = createGameServer({
+      staticRoot,
+      version: "fuzz",
+      maxConnectionsPerAddress: 10_000,
+      drainMs: 0,
+    });
     await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
     host = `127.0.0.1:${String((server.http.address() as AddressInfo).port)}`;
   });
