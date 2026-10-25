@@ -67,7 +67,7 @@ A replay that fails after a change not meant to alter games, a refactor or a spe
 1. Branch from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`.
 2. Keep the change focused; split unrelated work into separate pull requests.
 3. Title in [Conventional Commits](https://www.conventionalcommits.org/) form, for example `feat(engine): add troop growth`. CI checks it.
-4. Make sure `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:coverage` and `pnpm build` pass. CI runs the same commands, plus the end-to-end tests (`pnpm build && pnpm test:e2e`, after a one-time `pnpm --filter @frontfall/e2e exec playwright install chromium firefox`; Firefox runs headed, so without a display `--project root --project prefix` runs Chromium alone) and the clean-room scan. A pre-commit hook formats and lints the files you stage.
+4. Make sure `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:coverage` and `pnpm build` pass. CI runs the same commands, plus the end-to-end tests (`pnpm build && pnpm test:e2e`, after a one-time `pnpm --filter @frontfall/e2e exec playwright install chromium firefox`; Firefox runs headed, so without a display `--project root --project prefix` runs Chromium alone; CI splits the suite over two runners with `--shard=1/2` and `--shard=2/2`, which work locally too) and the clean-room scan. A pre-commit hook formats and lints the files you stage.
 5. Fill in the template. Say how you checked the change, and separate what you **verified** (a test, a measurement, something you saw in game) from what is a **hypothesis** (a reasoned guess you could not confirm). Reviewers rely on that distinction.
 
 Pull requests are squash-merged once CI is green and a maintainer has approved.
