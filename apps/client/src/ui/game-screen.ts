@@ -109,10 +109,8 @@ export class GameScreen {
   private frontsOffAt = 0;
   /** What a click on the map does, picked in the HUD. */
   private mode: ClickMode = "attack";
-  /** Build mode of the last click sent, picked again if the click is refused. */
-  private modeSent: ClickMode | undefined;
-  /** Clicks the worker has not answered yet; it answers each one, in order. */
-  private clicksInFlight = 0;
+  /** Mode of each click the worker has not answered yet, oldest first: it answers each one, in order. */
+  private readonly clicksInFlight: ClickMode[] = [];
   /** The structures last drawn, as a key that changes when any of them does. */
   private drawnStructures = "";
   /** Flat map or globe; G switches when the globe was asked for and the map allows it. */
@@ -234,7 +232,7 @@ export class GameScreen {
         },
         onClick: (tile, outcome) => {
           this.marks.show(tile, outcome, performance.now(), link !== undefined);
-          this.afterBuildClick(outcome);
+          this.afterClick(outcome);
         },
         onError: (message) => {
           console.error(message);
@@ -556,28 +554,20 @@ export class GameScreen {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
     this.session.click(tile, this.hud.ratio, this.mode);
-    this.clicksInFlight++;
-    // One structure per pick of the button: the next click attacks again,
-    // unless the worker refuses this one (afterBuildClick).
-    const sent = this.mode === "attack" ? undefined : this.mode;
-    if (sent) this.setMode("attack");
-    this.modeSent = sent;
+    // A build mode stays on until a structure goes up (afterClick): a click
+    // made while the worker answers the one before is still a build click.
+    this.clicksInFlight.push(this.mode);
   }
 
-  /** A refused build gives its mode back, if the player has not picked another since. */
-  private afterBuildClick(outcome: ClickOutcome): void {
-    this.clicksInFlight = Math.max(0, this.clicksInFlight - 1);
-    // An answer to an older click says nothing about the latest one.
-    if (this.clicksInFlight > 0) return;
-    const sent = this.modeSent;
-    this.modeSent = undefined;
-    if (!sent || outcome === "build" || outcome === "demolish" || outcome === "missile") return;
-    if (this.mode === "attack") this.setMode(sent);
+  /** One structure per pick of the button: once a build click goes through, clicks attack again. */
+  private afterClick(outcome: ClickOutcome): void {
+    const sent = this.clicksInFlight.shift();
+    const built = outcome === "build" || outcome === "demolish" || outcome === "missile";
+    if (built && sent !== undefined && sent === this.mode) this.setMode("attack");
   }
 
   /** Picking the current mode again goes back to attacking. */
   private setMode(mode: ClickMode): void {
-    this.modeSent = undefined;
     this.mode = mode === this.mode ? "attack" : mode;
     this.hud.setMode(this.mode);
     this.surface.dataset.mode = this.mode;

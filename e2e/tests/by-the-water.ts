@@ -53,9 +53,8 @@ export async function startByTheWater(
  * `button` changes: the structure went up on a tile of the player's.
  * Returns the point that took it.
  *
- * Each click is answered before the next one: a refusal picks the mode
- * again, a build raises the cost. Clicking on before the answer would let a
- * late build be followed by a refused click, which leaves the mode on.
+ * Each click is answered before the next one: a build raises the cost, a
+ * refusal shows its reason. The mode stays on until a structure goes up.
  */
 export async function buildAround(
   page: Page,
@@ -65,17 +64,17 @@ export async function buildAround(
 ): Promise<{ x: number; y: number }> {
   const mode = page.locator(button);
   const cost = mode.locator(".build-cost");
+  const note = page.locator(".click-note");
   const first = await cost.textContent();
   for (const point of spiral(start, 8, 4)) {
     if ((await mode.getAttribute("aria-pressed")) !== "true") await page.keyboard.press(key);
     await expect(mode).toHaveAttribute("aria-pressed", "true");
     await page.mouse.click(point.x, point.y);
-    // The click turns the mode off at once; it comes back if the click is refused.
     await expect
       .poll(
         async () => {
           if ((await cost.textContent()) !== first) return "built";
-          return (await mode.getAttribute("aria-pressed")) === "true" ? "refused" : "waiting";
+          return (await note.isVisible()) ? "refused" : "waiting";
         },
         { timeout: 10_000, intervals: [50] },
       )

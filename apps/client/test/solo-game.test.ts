@@ -272,10 +272,15 @@ describe("SoloGame clicks", () => {
     for (let tile = 0; tile < terrain.topology.size; tile++) {
       if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
     }
+    const topology = terrain.topology;
     const coast = [...terrain.kinds.keys()].find((tile) => terrain.isCoast(tile)) ?? -1;
+    // Further than a click reaches from any coast.
     const inland =
-      [...terrain.kinds.keys()].find((tile) => terrain.isOwnable(tile) && !terrain.isCoast(tile)) ??
-      -1;
+      [...terrain.kinds.keys()].find(
+        (tile) =>
+          terrain.isOwnable(tile) && !topology.tilesWithin(tile, 8).some((t) => terrain.isCoast(t)),
+      ) ?? -1;
+    expect(inland).toBeGreaterThanOrEqual(0);
     expect(solo.orderForClick(inland, 30, "port")).toEqual({ refused: "coast" });
     expect(solo.orderForClick(coast, 30, "port")).toEqual({
       order: { type: "build", structure: 2, tile: coast },
@@ -284,6 +289,58 @@ describe("SoloGame clicks", () => {
     expect(update.diplomacy.embargoes).toEqual([2]);
     expect(update.events).toContainEqual({ type: "embargo", a: HUMAN_ID, b: 2 });
     expect(update.tradeShips).toEqual([]);
+  });
+
+  it("puts a port on the coast closest to a click by the water, land or sea (R-BUILD-02)", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory } = solo.game;
+    const topology = terrain.topology;
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 1_000_000;
+    for (let tile = 0; tile < topology.size; tile++) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    // A coast tile with the sea to its north or south and land on the other side.
+    const coast = [...terrain.kinds.keys()].find((tile) => {
+      if (!terrain.isCoast(tile)) return false;
+      const x = topology.x(tile);
+      const y = topology.y(tile);
+      if (y < 2 || y > topology.height - 3) return false;
+      const north = topology.index(x, y - 1);
+      const south = topology.index(x, y + 1);
+      return (
+        terrain.kind(north) === TileKind.Water &&
+        terrain.isOwnable(south) &&
+        !terrain.isCoast(south)
+      );
+    });
+    if (coast === undefined) throw new Error("no coast with the sea to the north");
+    const sea = topology.index(topology.x(coast), topology.y(coast) - 1);
+    const land = topology.index(topology.x(coast), topology.y(coast) + 1);
+    const port = { order: { type: "build", structure: 2, tile: coast } };
+    // A click on the sea or on the land just behind finds the coast between them.
+    expect(solo.orderForClick(sea, 30, "port")).toEqual(port);
+    expect(solo.orderForClick(land, 30, "port")).toEqual(port);
+
+    // Next to a structure, every coast in reach is too close: the refusal says so.
+    // (Stepping would end the game: the player holds all the land.)
+    solo.game.structures.push({
+      id: 99,
+      player: HUMAN_ID,
+      kind: 0,
+      tile: coast,
+      readyAt: 0,
+      reloadAt: 0,
+    });
+    expect(solo.orderForClick(sea, 30, "port")).toEqual({ refused: "crowded" });
+    solo.game.structures.pop();
+
+    // Without the gold, the closest coast says so.
+    human.gold = 0;
+    expect(solo.orderForClick(sea, 30, "port")).toEqual({ refused: "gold" });
   });
 
   it("sends gifts, shows who is at war, and keeps the game's left-out options in its record (R-DIPLO-06, R-MODE-03)", () => {

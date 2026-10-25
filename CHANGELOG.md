@@ -12,6 +12,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - A self-hosted server reports its release in the `X-Frontfall-Release` header of `/healthz`, next to the build. The release number has one home, the version of the root `package.json`, read by the client and the server alike.
 
+### Fixed
+
+- **Ports are easy to place.** On a large map the coast is under a pixel wide, so a port almost never found it. A click by the water, on your land or just off it at sea, now puts the port on your closest coast tile that can take one, and a warship is bought with a click as close to the port. A build mode also stays on through a refused click, so a second quick click builds instead of attacking.
+
 ## [0.4.0] - 2026-10-25
 
 Deeper game, then sea and missiles, released together: build cities and forts, ally and betray, face named nations, trade by sea, fight at sea, launch missiles, play in teams and watch your games again. Every rule of the [rulebook](docs/rules.md) is now in the game. There is no 0.3.0: both versions were checked and released as one.

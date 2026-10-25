@@ -66,6 +66,12 @@ export type ClickMode =
 
 /** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
 const DEMOLISH_REACH = 3;
+/**
+ * Tiles around a click within which a port finds the player's coast: on a
+ * large map the coast is a line under a pixel wide, so a click by the water,
+ * on the land or the sea, picks the closest coast tile that takes a port.
+ */
+const PORT_REACH = 8;
 
 export interface SoloOptions {
   map: string;
@@ -531,6 +537,7 @@ export class SoloGame {
     if (mode === "missile" || mode === "heavyMissile") {
       return this.missileAt(tile, mode === "heavyMissile");
     }
+    if (mode === "port") return this.portNear(tile);
     if (!terrain.isOwnable(tile)) return { refused: "terrain" };
     if (
       game.phase === "play" &&
@@ -539,13 +546,7 @@ export class SoloGame {
     ) {
       return { refused: sameTeam(game, this.you, territory.ownerOf(tile)) ? "teammate" : "ally" };
     }
-    if (
-      mode === "city" ||
-      mode === "fort" ||
-      mode === "port" ||
-      mode === "silo" ||
-      mode === "airDefense"
-    ) {
+    if (mode === "city" || mode === "fort" || mode === "silo" || mode === "airDefense") {
       const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };
       const error = orderError(game, human, order);
       if (error === undefined) return { order };
@@ -581,6 +582,47 @@ export class SoloGame {
       return { order: { type: "embark", target: tile, troops } };
     }
     return { refused: "unreachable" };
+  }
+
+  /**
+   * In port mode: a port on the player's coast tile closest to the click,
+   * within PORT_REACH, among those that take one. When none does, the refusal
+   * is the one of the closest coast tile, or "coast" when the player holds
+   * no coast there.
+   */
+  private portNear(tile: number): ClickResult {
+    const { game } = this;
+    const { terrain, territory } = game;
+    const human = game.player(this.you);
+    if (!human) return { refused: "over" };
+    const topology = terrain.topology;
+    let refusal: { error: string; distance: number } | undefined;
+    let best: { tile: number; distance: number } | undefined;
+    for (const near of topology.tilesWithin(tile, PORT_REACH)) {
+      if (territory.ownerOf(near) !== this.you || !terrain.isCoast(near)) continue;
+      const distance = topology.squaredDistance(near, tile);
+      const order: Order = { type: "build", structure: StructureKind.Port, tile: near };
+      const error = orderError(game, human, order);
+      if (error === undefined) {
+        if (!best || distance < best.distance) best = { tile: near, distance };
+      } else if (!refusal || distance < refusal.distance) {
+        refusal = { error, distance };
+      }
+    }
+    if (best) return { order: { type: "build", structure: StructureKind.Port, tile: best.tile } };
+    if (!refusal) {
+      // No coast of the player's near: the click itself says why (the phase,
+      // a left-out port, someone else's land), and on the sea, "coast".
+      const error = orderError(game, human, {
+        type: "build",
+        structure: StructureKind.Port,
+        tile,
+      });
+      return {
+        refused: error !== undefined && isBuildError(error) ? BUILD_REFUSALS[error] : "coast",
+      };
+    }
+    return { refused: isBuildError(refusal.error) ? BUILD_REFUSALS[refusal.error] : "terrain" };
   }
 
   /** In a missile mode: a launch at the tile clicked, land or not, from the closest loaded silo. */
@@ -629,8 +671,8 @@ export class SoloGame {
       }
       return { refused: "noWarship" };
     }
-    // A click near the port finds it, like a demolition.
-    const port = this.structureNear(tile, (s) => s.kind === StructureKind.Port);
+    // A click near the port finds it, as far as a click that built it reaches.
+    const port = this.structureNear(tile, (s) => s.kind === StructureKind.Port, PORT_REACH);
     if (!port) return { refused: "port" };
     const order: Order = { type: "warship", port: port.tile };
     const error = orderError(game, human, order);
@@ -649,10 +691,11 @@ export class SoloGame {
       : { refused: "nothing" };
   }
 
-  /** The player's structure closest to the click and passing `accept`, within a few tiles. */
+  /** The player's structure closest to the click and passing `accept`, within `reach` tiles. */
   private structureNear(
     tile: number,
     accept: (structure: Structure) => boolean,
+    reach = DEMOLISH_REACH,
   ): Structure | undefined {
     const topology = this.game.terrain.topology;
     let best: Structure | undefined;
@@ -660,7 +703,7 @@ export class SoloGame {
     for (const structure of this.game.structures) {
       if (structure.player !== this.you || !accept(structure)) continue;
       const distance = topology.distance(structure.tile, tile);
-      if (distance <= DEMOLISH_REACH && (!best || distance < bestDistance)) {
+      if (distance <= reach && (!best || distance < bestDistance)) {
         best = structure;
         bestDistance = distance;
       }
