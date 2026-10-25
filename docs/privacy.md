@@ -4,7 +4,7 @@ Frontfall counts how it is played, to know which maps and modes people use, wher
 
 ## Nothing that points to you
 
-- No account, no cookie, no advertising or analytics service: reports go to the game's own server and nowhere else.
+- No account, no cookie, no advertising service: the game's reports go to the game's own server and nowhere else. The public server at nclsmgr.com sits behind Cloudflare, whose Web Analytics counts page views without cookies; that is the site's, not the game's, and a self-hosted server has none of it.
 - No player name, no address, no identifier that outlives a game. The page draws a random number for each game, only so that the same game is not counted twice; it is never stored in the browser.
 - The server reads each report, adds one to a few counters, and forgets the report. Only the counters are kept: how many games were played on a phone yesterday, not who played them.
 - Your network address is held in memory for a few minutes to limit how often one address can report, and is never written down. The server's logs follow the rules in [server.md](server.md#logs).
