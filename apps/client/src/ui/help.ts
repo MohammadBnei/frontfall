@@ -1,3 +1,4 @@
+import "./help.css";
 import { DEFAULT_BALANCE } from "@frontfall/engine";
 import type { BuildView } from "../game/solo-game.ts";
 import { applyTranslations, type MessageKey } from "../i18n/index.ts";

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { advance, guideDone, setGuideDone, type GuideState } from "../src/ui/guide.ts";
+import { advance, type GuideState } from "../src/ui/guide.ts";
+import { guideDone, setGuideDone } from "../src/ui/guide-state.ts";
 
 const spawn: GuideState = {
   phase: "spawn",

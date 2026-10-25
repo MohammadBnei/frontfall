@@ -1,0 +1,71 @@
+/* First steps of a first solo game (ui/guide.ts): under the stats, out of the
+   way of the map's middle. */
+.guide {
+  top: 96px;
+  left: 12px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  border-color: var(--ff-ember);
+}
+
+.guide-title {
+  margin: 0 0 4px;
+  color: var(--ff-ember-bright);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guide-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.guide-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.guide-actions button.secondary {
+  padding: 4px 14px;
+}
+
+.guide-hide {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--ff-slate-300);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.guide-hide:hover,
+.guide-hide:focus-visible {
+  color: var(--ff-text);
+}
+
+/* Phones and short windows: under the banner, across the screen; a refused
+   click's reason then shows at the bottom instead of over it. */
+@media (width < 720px), (height < 560px) {
+  /* Clear of a banner of three lines. */
+  .guide {
+    top: 272px;
+    right: 12px;
+    width: auto;
+  }
+
+  .game:has(.guide) .click-note {
+    top: auto;
+    bottom: 76px;
+    z-index: 2;
+    background: var(--ff-night-800);
+  }
+}

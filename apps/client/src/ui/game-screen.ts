@@ -20,8 +20,9 @@ import {
   type ViewKind,
 } from "../render/renderer.ts";
 import { endScreen } from "./end-screen.ts";
-import { Guide, guideDone, setGuideDone } from "./guide.ts";
-import { helpPanel } from "./help.ts";
+// The help and the guide load when first shown, out of the first download.
+import type { Guide } from "./guide.ts";
+import { guideDone, setGuideDone } from "./guide-state.ts";
 import { safeStorage } from "./setup.ts";
 import { ReplayBar } from "./replay-bar.ts";
 import { REPLAY_MAP_CHANGED } from "../game/replay-file.ts";
@@ -235,6 +236,8 @@ export class GameScreen {
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
           this.hud.setRules(info.rules);
+          // Fetched while the game starts, so H opens the help at once.
+          void import("./help.ts");
           this.diplomacy.setRules(info.rules);
         },
         onUpdate: (update) => {
@@ -794,12 +797,15 @@ export class GameScreen {
   }
 
   private startGuide(): void {
-    this.guide?.element.remove();
-    this.guide = new Guide(this.coarsePointer.matches, () => {
-      setGuideDone(safeStorage(), true);
+    void import("./guide.ts").then(({ Guide }) => {
+      this.guide?.element.remove();
+      this.guide = new Guide(this.coarsePointer.matches, () => {
+        setGuideDone(safeStorage(), true);
+      });
+      this.hud.element.append(this.guide.element);
+      const human = this.latest?.players.find((player) => player.id === this.latest?.you);
+      if (this.latest) this.followGuide(this.latest, human?.tiles ?? 0);
     });
-    this.hud.element.append(this.guide.element);
-    if (this.latest) this.followGuide(this.latest, 0);
   }
 
   private followGuide(update: GameUpdate, tiles: number): void {
@@ -824,6 +830,12 @@ export class GameScreen {
   }
 
   private showHelp(): void {
+    void import("./help.ts").then(({ helpPanel }) => {
+      this.openHelp(helpPanel);
+    });
+  }
+
+  private openHelp(helpPanel: typeof import("./help.ts").helpPanel): void {
     if (!this.link) {
       this.paused = true;
       this.session.setPaused(true);

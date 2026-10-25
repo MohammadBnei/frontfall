@@ -1,3 +1,4 @@
+import "./guide.css";
 import { applyTranslations, type MessageKey } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 import { formatCount } from "./format.ts";
@@ -32,26 +33,6 @@ export function advance(step: Step, state: GuideState): Step {
   // A player who already did a later step is not asked for it: it is skipped too.
   while (done[STEPS[index] as Step] && index < STEPS.length - 1) index++;
   return STEPS[index] as Step;
-}
-
-/** Remembered once the player is through the guide or hid it; read with care, storage may throw. */
-export const GUIDE_KEY = "frontfall.guide";
-
-export function guideDone(storage: Storage | undefined): boolean {
-  try {
-    return storage?.getItem(GUIDE_KEY) === "done";
-  } catch {
-    return false;
-  }
-}
-
-export function setGuideDone(storage: Storage | undefined, done: boolean): void {
-  try {
-    if (done) storage?.setItem(GUIDE_KEY, "done");
-    else storage?.removeItem(GUIDE_KEY);
-  } catch {
-    // Without storage the guide simply shows again next game.
-  }
 }
 
 const TEXTS: Readonly<Record<Step, { mouse: MessageKey; touch: MessageKey }>> = {

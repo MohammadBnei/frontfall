@@ -216,7 +216,9 @@ none`): a pinch must reach the map, not the browser.
 ## Help and first steps
 
 The `?` button, `H` or `?` open "How to play" (`ui/help.ts`), which pauses a
-solo game. It has four short sections: expanding, building, other players and
+solo game. The help and the guide below, with their styles, are chunks of their
+own, out of the first download: the help is fetched as a game starts, the guide
+only when it shows. It has four short sections: expanding, building, other players and
 the map. The building rows come from `BUILD_MODES` in `ui/hud.ts`, the list
 the build panel is made from, so a new building shows in both: icon, name,
 key, the player's current cost (from the last update, so the rise of each
