@@ -2,25 +2,19 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import {
   CloseCode,
   encodeServerMessage,
-  normalizeGameName,
-  normalizeName,
   parseClientMessage,
-  PROTOCOL_VERSION,
   TICK_RATE,
-  type ClientMessage,
-  type ErrorCode,
   type Frame,
-  type GameOptions,
 } from "@frontfall/protocol";
-import { WebSocketServer, type RawData, type WebSocket } from "ws";
-import { loadMapLimits, type MapLimits } from "./catalog.ts";
+import { WebSocketServer, type WebSocket } from "ws";
+import { loadMapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
 import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { TokenBucket } from "./rate-limit.ts";
-import type { Peer, Room, RoomObserver, Seat } from "./room.ts";
+import type { RoomObserver } from "./room.ts";
 import { SECURITY_HEADERS, sendCachedJson, sendJson, serveStatic } from "./http-replies.ts";
 import {
   DEFAULT_GAME,
@@ -28,96 +22,18 @@ import {
   DRAIN_CHECK_MS,
   type ServerOptions,
 } from "./server-options.ts";
+import { messageHandler, toFrame, type Session } from "./client-messages.ts";
 import { gamesDirectory, loadGames, saveGame } from "./saved-games.ts";
 import { statusPage, type ServerStatus } from "./status-page.ts";
 import { usageInbox } from "./usage-http.ts";
 import { loadUsage, saveUsage, usageFile, UsageStats, usageTable } from "./usage.ts";
 
+export { closeReason } from "./client-messages.ts";
 export { DEFAULT_GAME, type ServerOptions } from "./server-options.ts";
 export { statusPage, type ServerStatus } from "./status-page.ts";
 
 /** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
 const MAX_PAYLOAD_BYTES = 1024;
-
-/** WebSocket close reasons are capped at 123 bytes of UTF-8; ws throws on longer ones. */
-const MAX_CLOSE_REASON_BYTES = 123;
-
-/**
- * Cuts a reason to fit a close frame, on a character boundary. Decoding errors
- * quote what the client sent, which may be anything.
- */
-export function closeReason(text: string): string {
-  let reason = "";
-  let bytes = 0;
-  for (const char of text) {
-    bytes += Buffer.byteLength(char);
-    if (bytes > MAX_CLOSE_REASON_BYTES) break;
-    reason += char;
-  }
-  return reason;
-}
-
-function toFrame(data: RawData, isBinary: boolean): Frame {
-  const bytes = Array.isArray(data)
-    ? Buffer.concat(data)
-    : Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : data);
-  return isBinary
-    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-    : bytes.toString("utf8");
-}
-
-const ERROR_TEXT: Record<ErrorCode, string> = {
-  invalid_name: "the name is not allowed",
-  not_found: "no such game",
-  game_full: "the game is full",
-  game_started: "the game has already started",
-  already_in_game: "leave the current game first",
-  not_in_game: "you are not in a game",
-  not_host: "only the host can change or start the game",
-  too_many_games: "too many games in progress",
-  token_invalid: "this game is over or the seat was given up",
-  token_in_use: "the seat is still connected",
-  invalid_settings: "no such map, or too many bots or seats for it",
-  restarting: "the server is about to restart; try again in a few minutes",
-  invalid_game_name: "the game name is not allowed",
-  not_enough_players: "wait for more players before starting",
-  too_many_lobbies: "you already have three games waiting to start",
-};
-
-/**
- * Seats a game keeps with these options: those the host asked for, fewer on a
- * small map or with many bots, never fewer than the players already in. Bots
- * beyond the server's cap or that leave no seat for them give undefined.
- */
-function seatsFor(
-  options: GameOptions,
-  maps: MapLimits,
-  maxBots: number,
-  players: number,
-): number | undefined {
-  const maxPlayers = maps.get(options.map)?.max;
-  if (maxPlayers === undefined || options.bots > maxBots) return undefined;
-  const seats = Math.min(options.capacity, maxPlayers - options.bots);
-  return seats >= Math.max(players, 1) ? seats : undefined;
-}
-
-/** What one WebSocket connection has done so far. */
-interface Session {
-  readonly socket: WebSocket;
-  readonly peer: Peer;
-  /** Address of the player, for per-address limits. Never logged. */
-  readonly address: string;
-  /** Pseudonym of the client address, for the logs. */
-  readonly client: string;
-  readonly messages: TokenBucket;
-  name: string | undefined;
-  room: Room | undefined;
-  seat: Seat | undefined;
-  /** Since when the connection has been in no game. */
-  idleSince: number | undefined;
-  /** Rejected: whatever else it sends is dropped. */
-  closing: boolean;
-}
 
 export interface GameServer {
   readonly http: Server;
@@ -357,203 +273,19 @@ export function createGameServer(options: ServerOptions): GameServer {
     });
   });
 
-  function reply(session: Session, code: ErrorCode, message = ERROR_TEXT[code]): void {
-    session.peer.send(encodeServerMessage({ type: "error", code, message }));
-  }
-
-  /** Closes a connection that broke the rules, and records why. */
-  function reject(session: Session, code: number, reason: string, label: string): void {
-    if (session.closing) return;
-    session.closing = true;
-    metrics.rejected.inc({ reason: label });
-    logger.warn("connection_rejected", { client: session.client, reason: label });
-    session.socket.close(code, closeReason(reason));
-  }
-
-  /** The seat of this connection, if it still holds one in a game. */
-  function seatOf(session: Session): { room: Room; seat: Seat } | undefined {
-    const { room, seat } = session;
-    if (!room || !seat || !room.holds(seat) || seat.peer !== session.peer) return undefined;
-    return { room, seat };
-  }
-
-  function enter(session: Session, room: Room | undefined, missing: ErrorCode): void {
-    if (!room) {
-      reply(session, missing);
-      return;
-    }
-    const seat = room.join(session.name ?? "", session.peer, Date.now());
-    if (typeof seat === "string") {
-      reply(session, seat);
-      return;
-    }
-    session.room = room;
-    session.seat = seat;
-    session.idleSince = undefined;
-  }
-
-  function handle(session: Session, message: ClientMessage): void {
-    if (message.type === "hello") {
-      if (session.name !== undefined) {
-        reject(session, CloseCode.invalidMessage, "hello was already sent", "invalid");
-        return;
-      }
-      if (message.build && !sameBuild(message.build, simulation)) {
-        session.socket.close(CloseCode.versionMismatch, `build ${simulation} required`);
-        return;
-      }
-      if (message.version !== PROTOCOL_VERSION) {
-        session.socket.close(
-          CloseCode.versionMismatch,
-          `protocol ${String(PROTOCOL_VERSION)} required`,
-        );
-        return;
-      }
-      const name = normalizeName(message.name);
-      if (!name.ok) {
-        reply(session, "invalid_name", name.error);
-        return;
-      }
-      session.name = name.name;
-      session.idleSince = Date.now();
-      session.peer.send(encodeServerMessage({ type: "welcome", version: PROTOCOL_VERSION }));
-      const now = Date.now();
-      if (maintenanceAt !== undefined && maintenanceAt > now) {
-        session.peer.send(maintenanceMessage(maintenanceAt - now));
-      }
-      return;
-    }
-    if (session.name === undefined) {
-      reject(session, CloseCode.invalidMessage, "hello must come first", "invalid");
-      return;
-    }
-
-    const current = seatOf(session);
-    if (current) current.room.touch(current.seat, Date.now());
-    switch (message.type) {
-      case "play":
-      case "create":
-      case "join":
-      case "rejoin":
-        if (current) {
-          reply(session, "already_in_game");
-          return;
-        }
-        // Players of a running game may still come back while the server drains.
-        if (stopping && message.type !== "rejoin") {
-          reply(session, "restarting");
-          return;
-        }
-        if (message.type === "play") {
-          const name = gameName(message.name, session.name);
-          enter(session, games.quickMatch(session.address, name), "too_many_games");
-        } else if (message.type === "create") {
-          const visibility = message.visibility ?? "private";
-          let name: string | null = null;
-          if (visibility === "public") {
-            // Without a name of their own, the player gets one that is always valid, as with play.
-            if (message.name === undefined) name = gameName(undefined, session.name);
-            else {
-              const checked = normalizeGameName(message.name);
-              if (!checked.ok) {
-                reply(session, "invalid_game_name", checked.error);
-                return;
-              }
-              name = checked.name;
-            }
-          }
-          if (games.atLobbyLimit(session.address)) {
-            reply(session, "too_many_lobbies");
-            return;
-          }
-          const room = games.create({ kind: "hosted", visibility, name }, session.address);
-          enter(session, room, "too_many_games");
-        } else if (message.type === "join") enter(session, games.find(message.game), "not_found");
-        else rejoin(session, message.token, message.from);
-        return;
-      case "configure": {
-        if (!current) {
-          reply(session, "not_in_game");
-          return;
-        }
-        // A host's form runs ahead of the answers: a refusal sends the settings that hold.
-        const refuse = (code: ErrorCode, text?: string): void => {
-          reply(session, code, text);
-          if (message.seq !== undefined) {
-            current.room.refusedConfigure(current.seat, message.seq, Date.now());
-          }
-        };
-        const seats = seatsFor(message.options, maps, maxBots, current.room.playerCount);
-        if (seats === undefined) {
-          refuse("invalid_settings");
-          return;
-        }
-        let name: string | undefined;
-        if (message.name !== undefined && current.room.settings.visibility === "public") {
-          const checked = normalizeGameName(message.name);
-          if (!checked.ok) {
-            refuse("invalid_game_name", checked.error);
-            return;
-          }
-          name = games.uniqueName(checked.name, current.room);
-        }
-        // A quick game keeps filling in with the new map's bots.
-        const soloBots =
-          current.room.settings.soloBots > 0 ? (maps.get(message.options.map)?.bots ?? 0) : 0;
-        const error = current.room.configure(
-          current.seat,
-          { ...message.options, capacity: seats, soloBots, ...(name !== undefined && { name }) },
-          Date.now(),
-          message.seq,
-        );
-        if (error) refuse(error);
-        return;
-      }
-      case "start": {
-        const error = current ? current.room.requestStart(current.seat, Date.now()) : "not_in_game";
-        if (error) reply(session, error);
-        return;
-      }
-      case "hold": {
-        const error = current ? current.room.hold(current.seat, Date.now()) : "not_in_game";
-        if (error) reply(session, error);
-        return;
-      }
-      case "active":
-        return;
-      case "leave":
-        if (!current) return;
-        current.room.leave(current.seat, Date.now());
-        session.room = undefined;
-        session.seat = undefined;
-        session.idleSince = Date.now();
-        session.peer.send(encodeServerMessage({ type: "ended", reason: "left" }));
-        games.sweep();
-        return;
-      case "hash":
-        current?.room.reportHash(current.seat, message.tick, message.hash);
-        return;
-      case "order":
-        current?.room.submit(current.seat, message.order);
-        return;
-    }
-  }
-
-  function rejoin(session: Session, token: string, from: number): void {
-    const found = games.findSeat(token);
-    const error = found
-      ? found.room.rejoin(found.seat, session.peer, from, Date.now())
-      : "token_invalid";
-    if (error || !found) {
-      reply(session, error ?? "token_invalid");
-      return;
-    }
-    session.room = found.room;
-    session.seat = found.seat;
-    session.idleSince = undefined;
-    metrics.rejoins.inc();
-    logger.info("player_rejoined", { game: found.room.id, player: found.seat.id, from });
-  }
+  const { handle, reject, seatOf } = messageHandler({
+    games,
+    maps,
+    maxBots,
+    simulation,
+    metrics,
+    logger,
+    stopping: () => stopping,
+    maintenance: (now) =>
+      maintenanceAt !== undefined && maintenanceAt > now
+        ? maintenanceMessage(maintenanceAt - now)
+        : undefined,
+  });
 
   const sessions = new Set<Session>();
 
@@ -769,24 +501,4 @@ export function createGameServer(options: ServerOptions): GameServer {
       return closing;
     },
   };
-}
-
-/** Builds match, or one side is a development build. */
-function sameBuild(client: string, server: string): boolean {
-  return client === server || client === "dev" || server === "dev";
-}
-
-/** What a public game opened without a name is listed as. */
-function defaultGameName(player: string | undefined): string {
-  return player ? `${player}'s game` : "Frontfall game";
-}
-
-/** The name asked for a game "play" may open, or a default when it is missing or refused. */
-function gameName(asked: string | undefined, player: string | undefined): string {
-  for (const candidate of [asked, defaultGameName(player)]) {
-    if (candidate === undefined) continue;
-    const checked = normalizeGameName(candidate);
-    if (checked.ok) return checked.name;
-  }
-  return defaultGameName(undefined);
 }
