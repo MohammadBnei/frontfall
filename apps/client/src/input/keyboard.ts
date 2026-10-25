@@ -94,3 +94,15 @@ export function isTextEntry(target: unknown): boolean {
     tagName === "SELECT"
   );
 }
+
+/**
+ * The command a key stands for, as a `KeyX` code for letters: the letter the
+ * layout prints on the key, so M is the key marked M on AZERTY too. A layout
+ * without Latin letters falls back to the physical key. Any other character
+ * stays itself, so "?" (Shift and the M position on AZERTY) is never M.
+ */
+export function commandCode(key: string, code: string): string {
+  if (/^[a-z]$/i.test(key)) return `Key${key.toUpperCase()}`;
+  if (/^[^\p{L}]$/u.test(key)) return key;
+  return code;
+}

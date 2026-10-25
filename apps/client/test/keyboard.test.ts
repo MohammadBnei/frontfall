@@ -3,6 +3,7 @@ import {
   KEY_PAN_SPEED,
   KEY_ZOOM_STEP,
   KeyboardCamera,
+  commandCode,
   isTextEntry,
 } from "../src/input/keyboard.ts";
 import { FlatCamera } from "../src/render/camera.ts";
@@ -93,5 +94,25 @@ describe("isTextEntry", () => {
     expect(isTextEntry({ tagName: "CANVAS", isContentEditable: false })).toBe(false);
     expect(isTextEntry(null)).toBe(false);
     expect(isTextEntry("INPUT")).toBe(false);
+  });
+});
+
+describe("commandCode", () => {
+  it("follows the letter the layout prints, so M on AZERTY is M", () => {
+    // On AZERTY, the key marked M sits where QWERTY has the semicolon.
+    expect(commandCode("m", "Semicolon")).toBe("KeyM");
+    expect(commandCode("C", "KeyC")).toBe("KeyC");
+  });
+
+  it("falls back to the physical key on layouts without Latin letters", () => {
+    expect(commandCode("с", "KeyC")).toBe("KeyC");
+    expect(commandCode("Dead", "KeyC")).toBe("KeyC");
+  });
+
+  it("keeps other characters, so ? on AZERTY is not the M position", () => {
+    // AZERTY: Shift and the key at the QWERTY M position type "?".
+    expect(commandCode("?", "KeyM")).toBe("?");
+    expect(commandCode(",", "KeyM")).toBe(",");
+    expect(commandCode("?", "Slash")).toBe("?");
   });
 });

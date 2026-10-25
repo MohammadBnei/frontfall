@@ -205,7 +205,10 @@ that sends nothing (water, own land, too few troops, out of reach, every ship
 at sea) gets a red ring and one line saying why; one that sends an order gets
 a ring of its own. A press that moves more than 6 pixels is a drag, never a
 click. WASD is read by
-physical key, so it stays under the same fingers on AZERTY keyboards. The page
+physical key, so it stays under the same fingers on AZERTY keyboards. Command letters
+(C, F, O, L, K, V, M, N, X, P, G, H) are read by the letter the layout prints
+on the key, so M is M and `?` opens the help on AZERTY too; a layout without
+Latin letters falls back to the physical key. The page
 itself never zooms or scrolls during a game (`user-scalable=no`, `touch-action:
 none`): a pinch must reach the map, not the browser.
 

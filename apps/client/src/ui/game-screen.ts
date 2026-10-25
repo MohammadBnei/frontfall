@@ -6,6 +6,7 @@ import type { MapData, MapInfo } from "../game/maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
+import { commandCode } from "../input/keyboard.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import type { CameraView, ViewCamera } from "../render/camera.ts";
@@ -704,7 +705,8 @@ export class GameScreen {
       KeyN: "heavyMissile",
       KeyX: "demolish",
     };
-    const mode = this.replayBar ? undefined : modes[event.code];
+    const command = commandCode(event.key, event.code);
+    const mode = this.replayBar ? undefined : modes[command];
     if (mode && offers(mode, this.disabled)) {
       this.setMode(mode);
       event.preventDefault();
@@ -714,13 +716,13 @@ export class GameScreen {
       const digit = Number(event.code.slice(5));
       this.hud.setRatio(digit === 0 ? 100 : digit * 10);
       event.preventDefault();
-    } else if (event.code === "KeyP" || event.code === "Escape") {
+    } else if (command === "KeyP" || event.code === "Escape") {
       this.togglePause();
       event.preventDefault();
-    } else if (event.code === "KeyG" && this.globeAllowed) {
+    } else if (command === "KeyG" && this.globeAllowed) {
       this.switchView();
       event.preventDefault();
-    } else if (event.code === "KeyH" || event.key === "?") {
+    } else if (command === "KeyH" || command === "?") {
       this.showHelp();
       event.preventDefault();
     }
