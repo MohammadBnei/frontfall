@@ -37,8 +37,12 @@ function tick(): void {
   }
   const orders = pending;
   pending = [];
+  const decided = game.winner !== undefined;
   const update = game.step(orders);
-  // The game goes on once decided, for a player who keeps watching (R-WIN-03).
+  // The game goes on once decided, for a player who keeps watching (R-WIN-03),
+  // but waits behind the end screen until then: the record ends with the game,
+  // even when the beat that decided it had more ticks to run.
+  if (!decided && update.winner !== undefined && !online) paused = true;
   scope.postMessage({ type: "update", update }, transferables(update));
 }
 
