@@ -52,6 +52,10 @@ export async function startByTheWater(
  * Clicks around `start` with `key`'s build mode on until the cost in
  * `button` changes: the structure went up on a tile of the player's.
  * Returns the point that took it.
+ *
+ * Each click is answered before the next one: a refusal picks the mode
+ * again, a build raises the cost. Clicking on before the answer would let a
+ * late build be followed by a refused click, which leaves the mode on.
  */
 export async function buildAround(
   page: Page,
@@ -66,7 +70,17 @@ export async function buildAround(
     if ((await mode.getAttribute("aria-pressed")) !== "true") await page.keyboard.press(key);
     await expect(mode).toHaveAttribute("aria-pressed", "true");
     await page.mouse.click(point.x, point.y);
-    await page.waitForTimeout(250);
+    // The click turns the mode off at once; it comes back if the click is refused.
+    await expect
+      .poll(
+        async () => {
+          if ((await cost.textContent()) !== first) return "built";
+          return (await mode.getAttribute("aria-pressed")) === "true" ? "refused" : "waiting";
+        },
+        { timeout: 10_000, intervals: [50] },
+      )
+      .not.toBe("waiting")
+      .catch(() => undefined);
     if ((await cost.textContent()) !== first) return point;
   }
   throw new Error(`nothing built with ${key} around the start`);
