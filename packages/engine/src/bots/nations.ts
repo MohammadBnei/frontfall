@@ -36,6 +36,12 @@ export const NATION_FULL_PERCENT = 90; // B-NATION-FULL
 /** Seconds of play during which a nation opens no front against a player: it settles its land first. */
 export const NATION_GRACE_SECONDS = 150; // B-NATION-GRACE
 
+/** Seconds of play during which a nation opens no front against a player already under attack by `NATION_PILE_MAX` nations, unless that player leads. */
+export const NATION_PILE_SECONDS = 600; // B-NATION-PILE-TIME
+
+/** Nations that may attack the same player at once during `NATION_PILE_SECONDS`; the leader is not protected. */
+export const NATION_PILE_MAX = 2; // B-NATION-PILE
+
 /** An attack counts as a threat to a nation from this share of the nation's troops: smaller ones do not stop it. */
 export const NATION_THREAT_PERCENT = 10; // B-NATION-THREAT
 
@@ -84,8 +90,10 @@ export function installNations(
   const interval = Math.max(1, params.intervalSeconds * balance.ticksPerSecond);
   const retryTicks = RETRY_DECISIONS * interval;
   const graceTicks = graceSeconds * balance.ticksPerSecond;
+  const pileTicks = NATION_PILE_SECONDS * balance.ticksPerSecond;
   const reservePercent = Math.min(100, params.reservePercent + NATION_EXTRA_RESERVE);
   const nations = [...new Set(ids)].sort((a, b) => a - b);
+  const nationSet = new Set(nations);
   for (const id of nations) {
     if (!game.player(id)) throw new RangeError(`unknown player ${String(id)}`);
   }
@@ -109,6 +117,32 @@ export function installNations(
       if (nation.alive) decide(nation);
     }
   });
+
+  /**
+   * R-BOT-13: whether a nation may open a front against `owner` early on:
+   * fewer than `NATION_PILE_MAX` nations are attacking them, or they lead.
+   */
+  function spared(owner: number): boolean {
+    let attackers = 0;
+    for (const attack of game.attacks) {
+      if (attack.target === owner && nationSet.has(attack.player)) attackers++;
+    }
+    return attackers < NATION_PILE_MAX || owner === leader();
+  }
+
+  /** The player with the most land, the lowest number among equals. */
+  function leader(): number {
+    let best = NEUTRAL;
+    let most = -1;
+    for (const player of game.players()) {
+      const tiles = territory.tileCount(player.id);
+      if (tiles > most) {
+        most = tiles;
+        best = player.id;
+      }
+    }
+    return best;
+  }
 
   function decide(nation: Player): void {
     const tiles = territory.tileCount(nation.id);
@@ -146,11 +180,13 @@ export function installNations(
     // R-BOT-09: early on, free land only; an attacker is still answered above (R-BOT-08).
     // So is a nation whose attacker holds no land along its border yet, as when a ship has not landed.
     const settling = game.tick < balance.spawnPhaseTicks + graceTicks || attacker !== NEUTRAL;
+    const open: OwnerFilter | undefined =
+      enemies.size === 0 ? undefined : (owner) => enemies.has(owner);
     const accept: OwnerFilter | undefined = settling
       ? () => false
-      : enemies.size === 0
-        ? undefined
-        : (owner) => enemies.has(owner);
+      : game.tick < pileTicks
+        ? (owner) => (open?.(owner) ?? true) && (enemies.has(owner) || spared(owner))
+        : open;
     const { neutral, enemy, enemyDensity } = scanBorder(game, nation, accept);
     const ownDensity = divFloor(nation.troops, tiles);
     // Troops past the cap would be wasted: a full army takes the odds a bot would.

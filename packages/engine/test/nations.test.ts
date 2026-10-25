@@ -219,6 +219,46 @@ describe("nations", () => {
     expect(apply.mock.calls.some(([id]) => id === 1)).toBe(true);
   });
 
+  it("do not pile a third nation on a player who does not lead, early on (B-NATION-PILE)", () => {
+    // Ada (4) holds the middle row of the left half, nations 2 and 3 the rows
+    // above and below, and nation 1 the right half: it leads, Ada does not.
+    const play = (first: number[]) => {
+      const grid = new WorldGrid(60, 3, { wrapsX: false });
+      const game = new Game({
+        terrain: new Terrain(grid, new Uint8Array(grid.size).fill(TileKind.Plains)),
+        seed: 5,
+        players: [
+          { id: 1, name: "Norland" },
+          { id: 2, name: "Sudland" },
+          { id: 3, name: "Westland" },
+          { id: 4, name: "Ada" },
+        ],
+        balance: { ...balance, spawnPhaseTicks: 0, attackSpeedDivisor: 1000, encircleMaxTiles: 1 },
+      });
+      installAttacks(game);
+      installNations(game, [1, 2, 3], "hard", 0);
+      for (let tile = 0; tile < grid.size; tile++) {
+        const x = grid.x(tile);
+        const y = Math.floor(tile / 60);
+        game.territory.setOwner(tile, x >= 30 ? 1 : y === 0 ? 2 : y === 2 ? 3 : 4);
+      }
+      // Nation 1, the leader, is too dense for the others to attack.
+      for (const id of [1, 2, 3]) (game.player(id) as Player).troops = id === 1 ? 90_000 : 9000;
+      (game.player(4) as Player).troops = 10;
+      const orders: { player: number; order: Order }[] = first.map((player) => ({
+        player,
+        order: { type: "attack", target: grid.index(29, 1), troops: 4000 },
+      }));
+      game.step({ tick: game.tick, orders });
+      // Every nation decides once; the attacks on Ada are still under way.
+      for (let i = 0; i < interval; i++) game.step({ tick: game.tick, orders: [] });
+      return game.attacks.filter((attack) => attack.player === 3 && attack.target === 4);
+    };
+    // Nation 1 alone: nation 3 joins in. With nations 1 and 2 already on Ada, it does not.
+    expect(play([1]).length).toBeGreaterThan(0);
+    expect(play([1, 2])).toEqual([]);
+  });
+
   it("refuse unknown players", () => {
     const { game } = strip();
     expect(() => {
