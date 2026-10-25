@@ -1,4 +1,4 @@
-import { encodeTurnBody, encodeTurnsFrame, type Turn } from "@frontfall/protocol";
+import { decodeFrame, encodeTurnBody, encodeTurnsFrame, type Turn } from "@frontfall/protocol";
 
 /**
  * Every turn of one game, encoded once and kept back to back in one buffer. A
@@ -31,6 +31,44 @@ export class TurnLog {
     this.used += body.length;
     this.offsets[++this.count] = this.used;
     return body;
+  }
+
+  /** The bodies back to back, and where each turn ends: what a restart needs to keep the log. */
+  export(): { bodies: Uint8Array; ends: Uint32Array } {
+    return {
+      bodies: this.bytes.slice(0, this.used),
+      ends: this.offsets.slice(1, this.count + 1),
+    };
+  }
+
+  /**
+   * Fills an empty log with turns from `export`. Returns false, leaving the
+   * log empty, unless the ends rise to the end of the bodies and every turn
+   * decodes: a broken log would reach every client of the game.
+   */
+  load(bodies: Uint8Array, ends: Uint32Array): boolean {
+    if (this.count > 0) return false;
+    let previous = 0;
+    for (const end of ends) {
+      if (end < previous) return false;
+      previous = end;
+    }
+    if (previous !== bodies.length) return false;
+    this.bytes = bodies.length > 0 ? bodies.slice() : new Uint8Array(4096);
+    this.used = bodies.length;
+    this.offsets = new Uint32Array(Math.max(1024, ends.length + 2));
+    this.offsets.set(ends, 1);
+    this.count = ends.length;
+    try {
+      for (const frame of this.frames(0)) decodeFrame(frame);
+    } catch {
+      this.bytes = new Uint8Array(4096);
+      this.used = 0;
+      this.offsets = new Uint32Array(1024);
+      this.count = 0;
+      return false;
+    }
+    return true;
   }
 
   /** Frames carrying every turn from `from` on, at most `perFrame` turns each. */

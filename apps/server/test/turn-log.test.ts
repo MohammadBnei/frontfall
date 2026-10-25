@@ -35,4 +35,39 @@ describe("TurnLog", () => {
     for (let tick = 0; tick < 36_000; tick++) log.append([]);
     expect(log.byteLength).toBeLessThan(400_000);
   });
+
+  it("loads what it exported into an empty log, which then grows as before", () => {
+    const log = new TurnLog();
+    for (let tick = 0; tick < 3_000; tick++) {
+      log.append(tick % 5 === 0 ? [{ player: 2, order: { type: "spawn", tile: tick } }] : []);
+    }
+    const { bodies, ends } = log.export();
+    const copy = new TurnLog();
+    expect(copy.load(bodies, ends)).toBe(true);
+    expect(copy.length).toBe(3_000);
+    expect(copy.byteLength).toBeGreaterThan(0);
+    expect([...copy.frames(0)]).toEqual([...log.frames(0)]);
+    copy.append([{ player: 1, order: { type: "spawn", tile: 9 } }]);
+    const last = decodeFrame([...copy.frames(3_000)][0] ?? new Uint8Array());
+    expect(last).toEqual({
+      kind: "turns",
+      turns: [{ tick: 3_000, orders: [{ player: 1, order: { type: "spawn", tile: 9 } }] }],
+    });
+    expect(copy.load(bodies, ends)).toBe(false);
+  });
+
+  it("refuses a log whose ends do not fit its bodies, or whose turns do not decode", () => {
+    const log = new TurnLog();
+    log.append([{ player: 1, order: { type: "spawn", tile: 3 } }]);
+    log.append([]);
+    const { bodies, ends } = log.export();
+    expect(new TurnLog().load(bodies, Uint32Array.from([2, 1]))).toBe(false);
+    expect(new TurnLog().load(bodies, Uint32Array.from([1]))).toBe(false);
+    const broken = bodies.slice();
+    broken[2] = 200;
+    const refused = new TurnLog();
+    expect(refused.load(broken, ends)).toBe(false);
+    expect(refused.length).toBe(0);
+    expect(new TurnLog().load(new Uint8Array(), new Uint32Array())).toBe(true);
+  });
 });
