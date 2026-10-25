@@ -78,3 +78,20 @@ describe("normalizeGameName", () => {
     }
   });
 });
+
+describe("names shown to strangers", () => {
+  it("catch plurals, look-alike letters and stems split by spaces", () => {
+    for (const name of ["niggers", "fuckers", "sales putes", "f u ck", "fuсk you", "Encul3s"]) {
+      expect(normalizeGameName(name).ok, name).toBe(false);
+    }
+  });
+
+  it("apply to player names too, which the public list shows as hosts", () => {
+    for (const name of ["casino.com", "www.spam.xyz", "nigger", "Putain"]) {
+      expect(normalizeName(name).ok, name).toBe(false);
+    }
+    for (const name of ["Nico", "Léa", "Мария", "a.b-c", "Cassie"]) {
+      expect(normalizeName(name).ok, name).toBe(true);
+    }
+  });
+});

@@ -53,6 +53,7 @@ export const ErrorCode = z.enum([
   "restarting",
   "invalid_game_name",
   "not_enough_players",
+  "too_many_lobbies",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

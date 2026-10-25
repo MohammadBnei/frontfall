@@ -163,6 +163,7 @@
   "online.soloStarting": "Seul pour l’instant : des bots vous rejoignent et la partie démarre dans {seconds} s.",
   "online.error.invalid_game_name": "Ce nom de partie n’est pas accepté : 3 à 32 caractères, sans adresse web ni grossièreté.",
   "online.error.not_enough_players": "Attendez au moins un autre joueur avant de lancer.",
+  "online.error.too_many_lobbies": "Vous avez déjà trois parties en attente de départ. Lancez-en ou quittez-en une d'abord.",
   "menu.maps.world": "Cartes du monde",
   "menu.maps.quick": "Parties rapides",
   "hud.build": "Construire",

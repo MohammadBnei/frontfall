@@ -38,7 +38,8 @@ const server = createGameServer({
   dataDir: process.env.FRONTFALL_DATA || undefined,
   publicGame:
     optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
-      countdownMs: seconds * 1000,
+      // A quick game must count down: without it, a lone player would wait for nothing.
+      countdownMs: Math.max(1, seconds) * 1000,
     })) ?? {},
   ...optionalNumber("FRONTFALL_MAX_GAMES", (maxRooms) => ({ maxRooms })),
   ...optionalNumber("FRONTFALL_MAX_CONNECTIONS", (maxConnections) => ({ maxConnections })),

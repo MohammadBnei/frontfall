@@ -828,6 +828,21 @@ describe("WebSocket", () => {
     expect((await second.next("error")).code).toBe("too_many_games");
   });
 
+  it("caps the lobbies of one address, but not Play now", async () => {
+    const host = await start();
+    const players = await Promise.all(["A", "B", "C", "D"].map((name) => player(host, name)));
+    for (const one of players.slice(0, 3)) {
+      one.send({ type: "create" });
+      await one.next("lobby");
+    }
+    const [, , , last] = players;
+    if (!last) throw new Error("no fourth player");
+    last.send({ type: "create", visibility: "public", name: "One more" });
+    expect((await last.next("error")).code).toBe("too_many_lobbies");
+    last.send({ type: "play" });
+    expect((await last.next("lobby")).visibility).toBe("public");
+  });
+
   it("drops a client that stops answering pings", async () => {
     const host = await start({ pingIntervalMs: 30 });
     const silent = open(host, {}, false);

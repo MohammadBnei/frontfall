@@ -697,3 +697,40 @@ describe("desync detection", () => {
     expect(a.peer.inbox.filter((message) => message.type === "desync")).toHaveLength(1);
   });
 });
+
+describe("host handover with dropped connections (R-MODE-04)", () => {
+  const KEPT: RoomSettings = { ...HOSTED, lobbyGraceMs: 30_000 };
+
+  it("never hands the role to a player whose connection dropped", () => {
+    const room = new Room("game0000", KEPT, 1);
+    const host = seated(room, "Host", 0);
+    const quiet = seated(room, "Quiet", 0);
+    const dropped = seated(room, "Dropped", 0);
+    room.touch(dropped.seat, 100_000);
+    room.disconnect(dropped.seat, 100_000);
+    room.update(120_000);
+    expect(quiet.peer.last("lobby").host).toBe(2);
+    room.leave(quiet.seat, 121_000);
+    expect(room.requestStart(host.seat, 121_000)).toBeUndefined();
+  });
+
+  it("keeps the role of a host whose seat waits for them", () => {
+    const room = new Room("game0000", KEPT, 1);
+    const host = seated(room, "Host", 0);
+    const guest = seated(room, "Guest", 0);
+    room.touch(guest.seat, 100_000);
+    room.disconnect(host.seat, 110_000);
+    room.update(125_000);
+    expect(guest.peer.last("lobby").host).toBe(1);
+  });
+
+  it("gives the role of a host who leaves to a connected player first", () => {
+    const room = new Room("game0000", KEPT, 1);
+    const host = seated(room, "Host", 0);
+    const away = seated(room, "Away", 0);
+    const here = seated(room, "Here", 0);
+    room.disconnect(away.seat, 1_000);
+    room.leave(host.seat, 2_000);
+    expect(here.peer.last("lobby").host).toBe(here.seat.id);
+  });
+});

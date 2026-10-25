@@ -163,6 +163,7 @@
   "online.soloStarting": "Alone for now: bots join you and the game starts in {seconds} s.",
   "online.error.invalid_game_name": "This game name is not accepted: 3 to 32 characters, no web address or coarse words.",
   "online.error.not_enough_players": "Wait for at least one more player before starting.",
+  "online.error.too_many_lobbies": "You already have three games waiting to start. Start or leave one first.",
   "menu.maps.world": "World maps",
   "menu.maps.quick": "Quick games",
   "hud.build": "Build",

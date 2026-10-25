@@ -171,6 +171,7 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   restarting: "the server is about to restart; try again in a few minutes",
   invalid_game_name: "the game name is not allowed",
   not_enough_players: "wait for more players before starting",
+  too_many_lobbies: "you already have three games waiting to start",
 };
 
 /**
@@ -528,6 +529,10 @@ export function createGameServer(options: ServerOptions): GameServer {
               return;
             }
             name = checked.name;
+          }
+          if (games.atLobbyLimit(session.address)) {
+            reply(session, "too_many_lobbies");
+            return;
           }
           const room = games.create({ kind: "hosted", visibility, name }, session.address);
           enter(session, room, "too_many_games");

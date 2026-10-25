@@ -225,7 +225,7 @@ export class Room {
     this.seats.splice(this.seats.indexOf(seat), 1);
     seat.gone = true;
     seat.peer = undefined;
-    if (this.host === seat) this.host = this.seats[0];
+    if (this.host === seat) this.host = this.nextHost();
     if (this.seats.length === 0) {
       this.finish("empty");
       return;
@@ -413,15 +413,32 @@ export class Room {
     return (
       host !== undefined &&
       this.seats.length >= 2 &&
+      // A dropped host keeps the role while their seat waits for them.
+      host.awaySince === undefined &&
       now - host.activeAt >= this.settings.hostIdleMs
     );
   }
 
-  /** The role goes to the player at the screen most recently. */
-  private passHost(now: number): void {
+  /**
+   * Who takes the role from the host: a player still connected, the one at
+   * the screen most recently; anyone left when nobody else is connected.
+   */
+  private nextHost(): Seat | undefined {
     const others = this.seats.filter((seat) => seat !== this.host);
-    this.host = others.reduce((best, seat) => (seat.activeAt > best.activeAt ? seat : best));
-    this.host.activeAt = now;
+    const connected = others.filter((seat) => seat.peer && seat.awaySince === undefined);
+    const pool = connected.length > 0 ? connected : others;
+    return pool.reduce<Seat | undefined>(
+      (best, seat) => (!best || seat.activeAt > best.activeAt ? seat : best),
+      undefined,
+    );
+  }
+
+  /** The host walked away: the role goes on, unless nobody else is connected. */
+  private passHost(now: number): void {
+    const next = this.nextHost();
+    if (!next?.peer) return;
+    this.host = next;
+    next.activeAt = now;
     this.lobbyChanged(now);
   }
 

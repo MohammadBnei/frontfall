@@ -51,7 +51,8 @@ export class Directory {
 
   /**
    * The fullest public game still waiting with a seat free, or a new one
-   * under `name`; undefined when the server or the owner is at the limit.
+   * under `name`; undefined when the server is full. The lobbies an owner
+   * holds do not count here: a second "play" joins the game the first opened.
    */
   quickMatch(owner: string | undefined, name: string): Room | undefined {
     let best: Room | undefined;
@@ -60,18 +61,18 @@ export class Directory {
       if (room.playerCount >= room.settings.capacity) continue;
       if (!best || room.playerCount > best.playerCount) best = room;
     }
-    return best ?? this.create({ kind: "quick", name }, owner);
+    return best ?? this.create({ kind: "quick", name }, owner, false);
+  }
+
+  /** Whether `owner` already holds as many games not yet started as one address may. */
+  atLobbyLimit(owner: string): boolean {
+    return this.lobbiesOf(owner) >= (this.options.maxLobbiesPerOwner ?? Infinity);
   }
 
   /** Opens a game. `owner`, the creator's address, caps the lobbies one person holds. */
-  create(opening: Opening, owner?: string): Room | undefined {
+  create(opening: Opening, owner?: string, limited = true): Room | undefined {
     if (this.rooms.size >= this.options.maxRooms) return undefined;
-    if (
-      owner !== undefined &&
-      this.lobbiesOf(owner) >= (this.options.maxLobbiesPerOwner ?? Infinity)
-    ) {
-      return undefined;
-    }
+    if (limited && owner !== undefined && this.atLobbyLimit(owner)) return undefined;
     const settings: RoomSettings =
       opening.kind === "quick"
         ? { ...this.options.publicGame, visibility: "public", name: this.uniqueName(opening.name) }

@@ -118,7 +118,9 @@ describe("Directory", () => {
     const first = games.create(PRIVATE, "203.0.113.9");
     expect(games.create(hosted("Mine"), "203.0.113.9")).toBeDefined();
     expect(games.create(PRIVATE, "203.0.113.9")).toBeUndefined();
-    expect(games.create({ kind: "quick", name: "Quick" }, "203.0.113.9")).toBeUndefined();
+    expect(games.atLobbyLimit("203.0.113.9")).toBe(true);
+    // "Play now" still opens a game when none waits: it is not one more lobby to spam.
+    expect(games.quickMatch("203.0.113.9", "Quick")).toBeDefined();
     expect(games.create(PRIVATE, "198.51.100.4")).toBeDefined();
     first?.requestStart(seat(first, "A"), 0);
     expect(games.create(PRIVATE, "203.0.113.9")?.owner).toBe("203.0.113.9");

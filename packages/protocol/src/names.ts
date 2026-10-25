@@ -34,7 +34,8 @@ export function normalizeName(raw: string): NameResult {
     return { ok: false, error: "the name contains characters that are not allowed" };
   const bare = name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
   if (RESERVED.has(bare)) return { ok: false, error: "this name is reserved" };
-  return { ok: true, name };
+  // A host's name shows in the public list, to everyone in the menu.
+  return listable(name);
 }
 
 export const MIN_GAME_NAME_LENGTH = 3;
@@ -98,6 +99,12 @@ const COARSE = new Set([
   "viol",
 ]);
 
+/**
+ * Stems that are never innocent, caught inside longer words and across
+ * spacing, as in "fuckers" or "f u ck".
+ */
+const COARSE_STEMS = ["nigg", "fagg", "fuck", "encul", "salop", "connard"];
+
 const STAND_INS: Record<string, string> = {
   "0": "o",
   "1": "i",
@@ -105,18 +112,74 @@ const STAND_INS: Record<string, string> = {
   "4": "a",
   "5": "s",
   "7": "t",
+  "@": "a",
+  $: "s",
 };
 
-function hasCoarseWord(name: string): boolean {
-  const folded = name
+/** Cyrillic and Greek letters that look like Latin ones, as typed to slip past a list. */
+const LOOK_ALIKES: Record<string, string> = {
+  а: "a",
+  в: "b",
+  е: "e",
+  к: "k",
+  м: "m",
+  н: "h",
+  о: "o",
+  р: "p",
+  с: "c",
+  т: "t",
+  у: "y",
+  х: "x",
+  і: "i",
+  ј: "j",
+  ѕ: "s",
+  α: "a",
+  β: "b",
+  ε: "e",
+  ι: "i",
+  κ: "k",
+  ν: "v",
+  ο: "o",
+  ρ: "p",
+  τ: "t",
+  υ: "u",
+  χ: "x",
+};
+
+/** The text as it is compared: lowercase Latin letters, accents and disguises removed. */
+function fold(text: string): string {
+  return text
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
-    .replace(/[013457]/g, (digit) => STAND_INS[digit] ?? digit);
-  const words = folded.split(/[^\p{L}]+/u).filter(Boolean);
+    .replace(/./gu, (char) => LOOK_ALIKES[char] ?? STAND_INS[char] ?? char);
+}
+
+/** The word and its singular, roughly, for French and English plurals. */
+function forms(word: string): string[] {
+  return [word, word.replace(/s$/u, ""), word.replace(/(es|x)$/u, "")];
+}
+
+function hasCoarseWord(name: string): boolean {
+  const words = fold(name)
+    .split(/[^\p{L}]+/u)
+    .filter(Boolean);
+  if (words.some((word) => forms(word).some((form) => COARSE.has(form)))) return true;
+  const joined = words.join("");
   // Spelled out with separators, as in "f.u.c.k" or "p u t e".
-  const joined = words.every((word) => word.length === 1) ? [words.join("")] : [];
-  return [...words, ...joined].some((word) => COARSE.has(word));
+  if (words.length > 1 && words.every((word) => word.length <= 2) && COARSE.has(joined)) {
+    return true;
+  }
+  return COARSE_STEMS.some((stem) => joined.includes(stem));
+}
+
+/** Names others see in the public list: no web address, no coarse word. */
+function listable(name: string): NameResult {
+  if (ADDRESS.test(name)) return { ok: false, error: "the name may not contain a web address" };
+  if (hasCoarseWord(name)) {
+    return { ok: false, error: "the name contains a word that is not allowed" };
+  }
+  return { ok: true, name };
 }
 
 /**
@@ -142,8 +205,5 @@ export function normalizeGameName(raw: string): NameResult {
   if (!GAME_NAME_ALLOWED.test(name)) {
     return { ok: false, error: "the name contains characters that are not allowed" };
   }
-  if (ADDRESS.test(name)) return { ok: false, error: "the name may not contain a web address" };
-  if (hasCoarseWord(name))
-    return { ok: false, error: "the name contains a word that is not allowed" };
-  return { ok: true, name };
+  return listable(name);
 }

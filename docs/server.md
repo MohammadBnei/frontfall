@@ -13,7 +13,7 @@
 | `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                                             |
 | `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                                        |
 | `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                      |
-| `FRONTFALL_COUNTDOWN_SECONDS` | `60`                                    | Countdown of a game opened by "Play now", from its first player                                                           |
+| `FRONTFALL_COUNTDOWN_SECONDS` | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                               |
 | `FRONTFALL_DRAIN_SECONDS`     | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                        |
 | `FRONTFALL_DATA`              | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`; the usage counts go in `usage/`. Unset keeps them in memory |
 
@@ -31,7 +31,7 @@
 | Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                    |
 | Bots in a game                 | 25                         | Seats shrink to fit the map's `players.max`, never below the players present |
 | Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                     |
-| Lobbies per address            | 3 not yet started          | Public and private; further ones get `too_many_games`                        |
+| Lobbies per address            | 3 not yet started          | Public and private; further `create` requests get `too_many_lobbies`         |
 | Public games listed            | 100                        | Waiting ones first, the fewest free seats first, then the oldest             |
 
 A connection that drops without a close frame, as when a phone goes to sleep or the network fails, keeps its seat in a lobby for 30 seconds: the client takes it back with the token of the `lobby` message, or lands in the game if it started meanwhile. A page that closes its socket itself, on a reload or when the tab closes, gives its lobby seat up at once.

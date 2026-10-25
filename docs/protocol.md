@@ -62,7 +62,7 @@ First message of every connection. `version` is `PROTOCOL_VERSION`. A server run
 
 `build`, optional, is the commit the page was built from. The server also closes the connection with `4000` when it runs another build, since the engine or the balance may differ and the game would desynchronise. `dev` builds, on either side, are always accepted.
 
-The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must then hold 1 to 20 characters: letters and digits of any script, spaces, `.`, `_`, `'` and `-`, starting with a letter or a digit. Names that pass for the people running the game, such as `admin` or `Frontfall`, are refused. A refused name gets an `invalid_name` error and the client may send `hello` again. Once accepted, a second `hello` closes the connection. Two players never share a name in a game: one who joins under a name already there, ignoring case, gets it with a number, `Léa 2`, shortened to stay within 20 characters.
+The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must then hold 1 to 20 characters: letters and digits of any script, spaces, `.`, `_`, `'` and `-`, starting with a letter or a digit. Names that pass for the people running the game, such as `admin` or `Frontfall`, are refused, and so are web addresses and coarse words, as for game names: a host's name shows in the public list. A refused name gets an `invalid_name` error and the client may send `hello` again. Once accepted, a second `hello` closes the connection. Two players never share a name in a game: one who joins under a name already there, ignoring case, gets it with a number, `Léa 2`, shortened to stay within 20 characters.
 
 ### `play`
 
@@ -80,7 +80,7 @@ Joins the public game still waiting with the most players and a free seat, whoev
 
 Opens a game whose host is the creator and which starts only when the host says so, or when it is full if the host asks for that. `visibility` is `private` when left out. A public game is listed at [`/api/games`](#http-endpoints) under `name`; a private one is only reached by its link. The game id in the next `lobby` message is the invitation: the client shares it as a link, `https://nclsmgr.com/frontfall/?game=<id>`. Game ids hold 72 random bits.
 
-A game name is cleaned like a player name, then must hold 3 to 32 characters: letters and digits of any script, spaces and `. _ ' ! ? # & ( ) + : , -`, starting with a letter or a digit. Web addresses and a short list of coarse words, French and English, are refused with `invalid_game_name`. When a waiting public game already has the name, the server adds ` (2)`, ` (3)`... One address holds at most three games that have not started, public and private together.
+A game name is cleaned like a player name, then must hold 3 to 32 characters: letters and digits of any script, spaces and `. _ ' ! ? # & ( ) + : , -`, starting with a letter or a digit. Web addresses and a short list of coarse words, French and English, are refused with `invalid_game_name`. When a waiting public game already has the name, the server adds ` (2)`, ` (3)`... One address holds at most three games that have not started, public and private together; `play` is not counted, as it joins a waiting game whenever one has a seat.
 
 ### `join`
 
@@ -291,22 +291,23 @@ The game is over for this connection. Reasons: `abandoned` (every player is gone
 
 A request was refused; the connection stays open. `message` is for people, `code` for programs:
 
-| Code                 | Answer to                            | Meaning                                                                       |
-| -------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
-| `invalid_name`       | `hello`                              | The name breaks the name rules                                                |
-| `invalid_game_name`  | `create`, `configure`                | The game name breaks the game name rules                                      |
-| `not_found`          | `join`                               | No game has this id                                                           |
-| `game_full`          | `join`                               | The game has no free seat                                                     |
-| `game_started`       | `join`, `configure`, `start`, `hold` | The game has already started                                                  |
-| `already_in_game`    | `play`, `create`, `join`             | Leave the current game first                                                  |
-| `not_in_game`        | `configure`, `start`, `hold`         | The connection is not in a game                                               |
-| `not_host`           | `configure`, `start`, `hold`         | Only the host can change, start or hold the game                              |
-| `not_enough_players` | `start`                              | A public game needs a second player                                           |
-| `invalid_settings`   | `configure`                          | No published map has this id, or too many bots or seats for it                |
-| `too_many_games`     | `play`, `create`                     | The server holds as many games as it can, or this address holds three lobbies |
-| `token_invalid`      | `rejoin`                             | The game is over or the seat was given up                                     |
-| `token_in_use`       | `rejoin`                             | Another connection holds the seat; retry in 1 s                               |
-| `restarting`         | `play`, `create`, `join`             | The server is about to restart; try again in a minute                         |
+| Code                 | Answer to                            | Meaning                                                        |
+| -------------------- | ------------------------------------ | -------------------------------------------------------------- |
+| `invalid_name`       | `hello`                              | The name breaks the name rules                                 |
+| `invalid_game_name`  | `create`, `configure`                | The game name breaks the game name rules                       |
+| `not_found`          | `join`                               | No game has this id                                            |
+| `game_full`          | `join`                               | The game has no free seat                                      |
+| `game_started`       | `join`, `configure`, `start`, `hold` | The game has already started                                   |
+| `already_in_game`    | `play`, `create`, `join`             | Leave the current game first                                   |
+| `not_in_game`        | `configure`, `start`, `hold`         | The connection is not in a game                                |
+| `not_host`           | `configure`, `start`, `hold`         | Only the host can change, start or hold the game               |
+| `not_enough_players` | `start`                              | A public game needs a second player                            |
+| `invalid_settings`   | `configure`                          | No published map has this id, or too many bots or seats for it |
+| `too_many_games`     | `play`, `create`                     | The server holds as many games as it can                       |
+| `too_many_lobbies`   | `create`                             | This address already holds three games that have not started   |
+| `token_invalid`      | `rejoin`                             | The game is over or the seat was given up                      |
+| `token_in_use`       | `rejoin`                             | Another connection holds the seat; retry in 1 s                |
+| `restarting`         | `play`, `create`, `join`             | The server is about to restart; try again in a minute          |
 
 ### `maintenance`
 
