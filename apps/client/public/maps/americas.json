@@ -5,7 +5,7 @@
     "en": "Americas",
     "fr": "Amériques"
   },
-  "version": 2,
+  "version": 3,
   "width": 960,
   "height": 1024,
   "topology": "flat",
@@ -28,6 +28,36 @@
     "max": 22
   },
   "nations": [
+    {
+      "name": "Greenland",
+      "capital": "Nuuk",
+      "tile": 79530
+    },
+    {
+      "name": "Nunavut",
+      "capital": "Iqaluit",
+      "tile": 83255
+    },
+    {
+      "name": "Northwest Territories",
+      "capital": "Yellowknife",
+      "tile": 93501
+    },
+    {
+      "name": "Yukon",
+      "capital": "Whitehorse",
+      "tile": 105839
+    },
+    {
+      "name": "Alaska",
+      "capital": "Anchorage",
+      "tile": 101897
+    },
+    {
+      "name": "Chubut",
+      "capital": "Rawson",
+      "tile": 881039
+    },
     {
       "name": "United States of America",
       "capital": "Washington,  D.C.",

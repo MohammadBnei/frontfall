@@ -8,9 +8,9 @@ game. The file layout is specified in
 
 | Map      | Size        | Topology                              | Nations | Players (min / recommended / max) |
 | -------- | ----------- | ------------------------------------- | ------- | --------------------------------- |
-| World    | 2048 × 1024 | Cylinder, wraps east to west          | 64      | 2 / 24 / 64                       |
+| World    | 2048 × 1024 | Cylinder, wraps east to west          | 70      | 2 / 24 / 64                       |
 | Europe   | 1280 × 1080 | Flat, 25° W to 45° E, 33° to 72° N    | 40      | 2 / 12 / 32                       |
-| Americas | 960 × 1024  | Flat, 170° W to 30° W, 57° S to 75° N | 22      | 2 / 10 / 22                       |
+| Americas | 960 × 1024  | Flat, 170° W to 30° W, 57° S to 75° N | 28      | 2 / 10 / 22                       |
 | Africa   | 1024 × 1024 | Flat, 20° W to 56° E, 36° S to 38° N  | 32      | 2 / 12 / 32                       |
 | Asia     | 1280 × 1088 | Flat, 25° E to 150° E, 12° S to 78° N | 40      | 2 / 14 / 40                       |
 | Island   | 256 × 192   | Flat, drawn                           | 6       | 2 / 4 / 8                         |
@@ -114,6 +114,18 @@ The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
    gives way to an emptier one once it holds a few nations. The manifest
    lists nations in pick order, so its first n nations are spread as well as
    n can be.
+
+   A definition can also list `nations.seats`: places of Natural Earth, by
+   name and country code, that always hold a nation and are placed before
+   the countries are picked. A seat is named after its region (`"region":
+true`, Natural Earth's first-level division) or after its country. Seats
+   share out land that one country would otherwise have to itself: with
+   Ottawa as the only start north of the United States, Canada won 15 games
+   of nations out of 24 on World, with the whole Arctic free to take. World
+   and Americas therefore seat Greenland (Nuuk), Nunavut (Iqaluit), the
+   Northwest Territories (Yellowknife), Yukon (Whitehorse) and Alaska
+   (Anchorage), World also Iceland, and Americas Chubut (Rawson), whose
+   Patagonia Argentina had to itself once Canada was held back.
 
    On a continent map, `nations.continents` limits nations to the countries
    Natural Earth places on those continents, and `nations.alsoCountries`

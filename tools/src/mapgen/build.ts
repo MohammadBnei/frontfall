@@ -54,6 +54,12 @@ export const MapDefinition = z.object({
     alsoCountries: z.array(z.string()).default([]),
     /** No nation starts closer than this many tiles to an edge of the map. */
     edgeMargin: z.number().int().nonnegative().default(0),
+    /** Starts the map always has, placed before the countries are picked (Seat). */
+    seats: z
+      .array(
+        z.object({ place: z.string(), country: z.string(), region: z.boolean().default(false) }),
+      )
+      .default([]),
   }),
   /**
    * A test map drawn by hand instead of taken from Natural Earth: land and

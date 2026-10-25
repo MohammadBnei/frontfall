@@ -56,8 +56,8 @@ export function playerColor(index: number): PlayerColor {
   return PLAYER_COLORS[((index % count) + count) % count] as PlayerColor;
 }
 
-/** Nations a map may have, at most: World's 64 each get a colour of their own. */
-export const NATION_COLOR_COUNT = 64;
+/** Nations a map may have, at most: World's 70 each get a colour of their own. */
+export const NATION_COLOR_COUNT = 70;
 
 /**
  * Colours of a map's nations. Nations are many, so they take muted tones of

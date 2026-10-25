@@ -242,6 +242,12 @@ describe("nations", () => {
     }
   });
 
+  it("shares the far north of America between several nations", () => {
+    const north = ["Greenland", "Nunavut", "Northwest Territories", "Yukon", "Alaska"];
+    expect(names("world")).toEqual(expect.arrayContaining([...north, "Iceland"]));
+    expect(names("americas")).toEqual(expect.arrayContaining([...north, "Chubut"]));
+  });
+
   it("reaches the north of Europe", () => {
     expect(names("europe")).toEqual(expect.arrayContaining(["Norway", "Sweden", "Finland"]));
   });

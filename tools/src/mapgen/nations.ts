@@ -21,6 +21,20 @@ const SNAP_RADIUS = 12;
 const isOwnable = (tile: number): boolean =>
   (tile & TILE_LAND) !== 0 && (tile & TILE_MAGNITUDE) !== MAGNITUDE_IMPASSABLE;
 
+/**
+ * A start the map always has, at a place that is not a country's capital: the
+ * seat of a region, such as a territory of a large country, or of a land that
+ * belongs to another country. It takes the region's name when `region` is
+ * set, the country's otherwise.
+ */
+export interface Seat {
+  /** The place's Natural Earth name. */
+  place: string;
+  /** Its country's ADM0_A3 code. */
+  country: string;
+  region?: boolean;
+}
+
 /** Distance, in multiples of `minDistance`, beyond which being far from other nations stops counting. */
 const SPREAD = 3;
 
@@ -45,7 +59,12 @@ export function pickNations(
   tiles: Uint8Array,
   places: readonly Place[],
   countries: ReadonlyMap<string, Country>,
-  options: { count: number; minDistance: number; edgeMargin?: number },
+  options: {
+    count: number;
+    minDistance: number;
+    edgeMargin?: number;
+    seats?: readonly Seat[];
+  },
 ): Nation[] {
   const margin = options.edgeMargin ?? 0;
   const nearEdge = (tile: number): boolean => {
@@ -83,6 +102,28 @@ export function pickNations(
   const spread = SPREAD * options.minDistance;
   const chosen: Nation[] = [];
   const nearest = candidates.map(() => spread);
+  const take = (nation: Nation): void => {
+    chosen.push(nation);
+    candidates.forEach((candidate, i) => {
+      const distance = topology.distance(candidate.nation.tile, nation.tile);
+      if (distance < (nearest[i] as number)) nearest[i] = distance;
+    });
+  };
+  // Seats come first, in the order given, so the countries around them are
+  // spaced from them like from any other nation.
+  for (const seat of options.seats ?? []) {
+    const nation = seatNation(grid, topology, tiles, places, seat);
+    const crowded = chosen.find(
+      (other) => topology.distance(other.tile, nation.tile) < options.minDistance,
+    );
+    if (crowded) {
+      throw new Error(
+        `seat ${seat.place} is closer than nations.minDistance to ${crowded.capital}`,
+      );
+    }
+    if (nearEdge(nation.tile)) throw new Error(`seat ${seat.place} is too close to an edge`);
+    take(nation);
+  }
   while (chosen.length < options.count) {
     let best = -1;
     let bestScore = 0;
@@ -97,13 +138,27 @@ export function pickNations(
     });
     const pick = candidates[best];
     if (!pick) break;
-    chosen.push(pick.nation);
-    candidates.forEach((candidate, i) => {
-      const distance = topology.distance(candidate.nation.tile, pick.nation.tile);
-      if (distance < (nearest[i] as number)) nearest[i] = distance;
-    });
+    take(pick.nation);
   }
   return chosen;
+}
+
+function seatNation(
+  grid: GridSpec,
+  topology: Topology,
+  tiles: Uint8Array,
+  places: readonly Place[],
+  seat: Seat,
+): Nation {
+  const place = places.find(
+    (p) => p.properties.name === seat.place && p.properties.adm0_a3 === seat.country,
+  );
+  if (!place) throw new Error(`seat ${seat.place} (${seat.country}) is not a Natural Earth place`);
+  const at = tileAt(grid, place.lon, place.lat);
+  const tile = at === undefined ? undefined : nearestOwnable(topology, tiles, at);
+  if (tile === undefined) throw new Error(`seat ${seat.place} has no land a player can own nearby`);
+  const name = seat.region ? place.properties.adm1name : place.properties.adm0name;
+  return { name: String(name), capital: seat.place, tile };
 }
 
 /** Nearest ownable tile by grid distance, lowest index first on a tie. */

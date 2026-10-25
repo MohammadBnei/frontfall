@@ -5,7 +5,7 @@
     "en": "World",
     "fr": "Monde"
   },
-  "version": 3,
+  "version": 4,
   "width": 2048,
   "height": 1024,
   "topology": "cylinder",
@@ -28,6 +28,36 @@
     "max": 64
   },
   "nations": [
+    {
+      "name": "Greenland",
+      "capital": "Nuuk",
+      "tile": 297689
+    },
+    {
+      "name": "Iceland",
+      "capital": "Reykjavík",
+      "tile": 301955
+    },
+    {
+      "name": "Nunavut",
+      "capital": "Iqaluit",
+      "tile": 303738
+    },
+    {
+      "name": "Northwest Territories",
+      "capital": "Yellowknife",
+      "tile": 319861
+    },
+    {
+      "name": "Yukon",
+      "capital": "Whitehorse",
+      "tile": 340223
+    },
+    {
+      "name": "Alaska",
+      "capital": "Anchorage",
+      "tile": 333995
+    },
     {
       "name": "China",
       "capital": "Beijing",

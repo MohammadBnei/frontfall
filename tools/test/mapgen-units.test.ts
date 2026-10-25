@@ -224,6 +224,76 @@ describe("pickNations", () => {
     expect(nations.map((nation) => nation.capital)).toEqual(["Inland"]);
   });
 
+  it("places the seats first, named after their region or their country", () => {
+    const town = (name: string, code: string, lon: number, region: string) => ({
+      lon,
+      lat: 2.5,
+      properties: { adm0cap: 0, name, adm0name: `Land ${code}`, adm0_a3: code, adm1name: region },
+    });
+    const nations = pickNations(
+      wide,
+      topology,
+      tiles,
+      [
+        capital("Big", "AAA", 0.5, 2.5, 100),
+        capital("Near", "BBB", 9.5, 2.5),
+        town("North", "AAA", 7.5, "Territory"),
+        town("Isle", "GGG", 14.5, "Unused"),
+      ],
+      new Map([
+        ["AAA", country(1e9)],
+        ["BBB", country(1e9)],
+      ]),
+      {
+        count: 3,
+        minDistance: 3,
+        seats: [
+          { place: "North", country: "AAA", region: true },
+          { place: "Isle", country: "GGG" },
+        ],
+      },
+    );
+    expect(nations).toEqual([
+      { name: "Territory", capital: "North", tile: 23 },
+      { name: "Land GGG", capital: "Isle", tile: 30 },
+      // Near is two tiles from North: only Big is far enough from the seats.
+      { name: "Country AAA", capital: "Big", tile: 16 },
+    ]);
+  });
+
+  it("refuses a seat that is missing or too close to another", () => {
+    const options = (seats: { place: string; country: string }[]) => ({
+      count: 2,
+      minDistance: 3,
+      seats,
+    });
+    const town = { lon: 4.5, lat: 2.5, properties: { name: "A", adm0_a3: "AAA" } };
+    const twin = { lon: 5.5, lat: 2.5, properties: { name: "B", adm0_a3: "AAA" } };
+    expect(() =>
+      pickNations(
+        wide,
+        topology,
+        tiles,
+        [town],
+        new Map(),
+        options([{ place: "Z", country: "AAA" }]),
+      ),
+    ).toThrow(/not a Natural Earth place/);
+    expect(() =>
+      pickNations(
+        wide,
+        topology,
+        tiles,
+        [town, twin],
+        new Map(),
+        options([
+          { place: "A", country: "AAA" },
+          { place: "B", country: "AAA" },
+        ]),
+      ),
+    ).toThrow(/closer than nations.minDistance/);
+  });
+
   it("weighs a country by its land on the map as well as its people", () => {
     const nations = pickNations(
       wide,

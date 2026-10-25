@@ -2,9 +2,9 @@
   "id": "americas",
   "name": {
     "en": "Americas",
-    "fr": "Am\u00e9riques"
+    "fr": "Amériques"
   },
-  "version": 2,
+  "version": 3,
   "width": 960,
   "height": 1024,
   "topology": "flat",
@@ -27,9 +27,40 @@
   },
   "group": "world",
   "nations": {
-    "count": 22,
+    "count": 28,
     "minDistance": 30,
     "continents": ["North America", "South America"],
-    "edgeMargin": 12
+    "edgeMargin": 12,
+    "seats": [
+      {
+        "place": "Nuuk",
+        "country": "GRL"
+      },
+      {
+        "place": "Iqaluit",
+        "country": "CAN",
+        "region": true
+      },
+      {
+        "place": "Yellowknife",
+        "country": "CAN",
+        "region": true
+      },
+      {
+        "place": "Whitehorse",
+        "country": "CAN",
+        "region": true
+      },
+      {
+        "place": "Anchorage",
+        "country": "USA",
+        "region": true
+      },
+      {
+        "place": "Rawson",
+        "country": "ARG",
+        "region": true
+      }
+    ]
   }
 }
