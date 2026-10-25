@@ -51,6 +51,8 @@ export const ErrorCode = z.enum([
   "token_in_use",
   "invalid_settings",
   "restarting",
+  "invalid_game_name",
+  "not_enough_players",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
@@ -71,7 +73,17 @@ export type Teams = z.infer<typeof Teams>;
 /** What a private game leaves out (R-MODE-03): the engine's `Disable` bits, 0 for nothing. */
 export const Disabled = z.number().int().min(0).max(0x3f);
 
-/** What the host of a private game chooses before the start. */
+/** Seats a host may open for human players, before the map and bots narrow them. */
+export const MIN_SEATS = 2;
+export const MAX_SEATS = 16;
+
+export const Visibility = z.enum(["public", "private"]);
+export type Visibility = z.infer<typeof Visibility>;
+
+/** Name of a public game as typed, before `normalizeGameName` checks it. */
+const rawGameName = z.string().max(64);
+
+/** What the host of a game chooses before the start. */
 export const GameOptions = z
   .object({
     /** Id of a map in `maps/index.json`. */
@@ -85,6 +97,10 @@ export const GameOptions = z
     nations: z.boolean(),
     teams: Teams,
     disabled: Disabled,
+    /** Seats for human players; the server gives fewer when the map and bots leave fewer. */
+    capacity: z.number().int().min(MIN_SEATS).max(MAX_SEATS),
+    /** Start as soon as every seat is taken. */
+    autoStart: z.boolean(),
   })
   .strict();
 export type GameOptions = z.infer<typeof GameOptions>;
@@ -98,10 +114,19 @@ export const ClientMessage = z.discriminatedUnion("type", [
     /** Build of the page; the server turns away other builds, except "dev". */
     build: z.string().max(64).optional(),
   }),
-  /** Join the public game that starts soonest, or open a new one. */
-  z.object({ type: z.literal("play") }).strict(),
-  /** Open a private game; the creator is its host. */
-  z.object({ type: z.literal("create") }).strict(),
+  /**
+   * Join the fullest public game still waiting, or open a new one under
+   * `name`, which starts on its own a while after the second player arrives.
+   */
+  z.object({ type: z.literal("play"), name: rawGameName.optional() }).strict(),
+  /** Open a game; the creator is its host. A public one is listed under `name`. */
+  z
+    .object({
+      type: z.literal("create"),
+      visibility: Visibility.optional(),
+      name: rawGameName.optional(),
+    })
+    .strict(),
   /** Join a game by id, from the public list or an invite link. */
   z.object({ type: z.literal("join"), game: gameId }).strict(),
   /**
@@ -109,10 +134,16 @@ export const ClientMessage = z.discriminatedUnion("type", [
    * every turn from `from`; before the start, back in the lobby.
    */
   z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
-  /** Host only: change the options of a private game before it starts. */
-  z.object({ type: z.literal("configure"), options: GameOptions }).strict(),
-  /** Host only: start a private game now. */
+  /** Host only: change the options, and the name of a public game, before the start. */
+  z
+    .object({ type: z.literal("configure"), options: GameOptions, name: rawGameName.optional() })
+    .strict(),
+  /** Host only: start now, with at least the game's minimum of players. */
   z.object({ type: z.literal("start") }).strict(),
+  /** Host only, once per game: stop the countdown; the game then waits for the host. */
+  z.object({ type: z.literal("hold") }).strict(),
+  /** The player is at the screen: keeps the host's role while the lobby waits. */
+  z.object({ type: z.literal("active") }).strict(),
   /** Leave the current game for good. */
   z.object({ type: z.literal("leave") }).strict(),
   /** Hash of the client's game state after running `tick`. */
@@ -125,8 +156,6 @@ export type ClientMessage = z.infer<typeof ClientMessage>;
 const PlayerInfo = z.object({ id: PlayerNumber, name: z.string() });
 export type PlayerInfo = z.infer<typeof PlayerInfo>;
 
-const Visibility = z.enum(["public", "private"]);
-
 export const ServerMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("welcome"), version: z.number().int() }),
   /** State of the game being filled. Sent again after every change. */
@@ -134,6 +163,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     type: z.literal("lobby"),
     game: gameId,
     visibility: Visibility,
+    /** Name of a public game, as listed; null for a private one. */
+    name: z.string().nullable(),
     map: z.string(),
     bots: z.number().int().nonnegative(),
     difficulty: Difficulty,
@@ -141,14 +172,19 @@ export const ServerMessage = z.discriminatedUnion("type", [
     teams: Teams,
     disabled: Disabled,
     capacity: z.number().int().positive(),
+    autoStart: z.boolean(),
+    /** Players the host needs before starting. */
+    minPlayers: z.number().int().positive(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
-    /** Only private games have a host. */
-    host: PlayerNumber.nullable(),
+    /** The player who sets the options and starts the game. */
+    host: PlayerNumber,
     /** Milliseconds before the game starts, when a countdown runs. */
     startsIn: z.number().int().nonnegative().nullable(),
     /** Secret that takes this seat back after a dropped connection, before the start and after. */
     token,
+    /** Whether the host can still stop the countdown. */
+    holdable: z.boolean(),
   }),
   /** The game starts, or the player rejoined it. Player numbers are final from here. */
   z.object({
@@ -193,6 +229,27 @@ export const ServerMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("maintenance"), inMs: z.number().int().nonnegative().nullable() }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;
+
+/**
+ * One game of the public list, served as `{ games: [...] }` at `/api/games`.
+ * Only what the menu shows: no seat, token or address.
+ */
+export const PublicGame = z.object({
+  id: gameId,
+  name: z.string(),
+  /** Name of the host, who starts the game. */
+  host: z.string(),
+  map: z.string(),
+  bots: z.number().int().nonnegative(),
+  nations: z.boolean(),
+  teams: Teams,
+  disabled: Disabled,
+  players: z.number().int().nonnegative(),
+  capacity: z.number().int().positive(),
+  /** Waiting for players, or already running and closed to newcomers. */
+  state: z.enum(["waiting", "running"]),
+});
+export type PublicGame = z.infer<typeof PublicGame>;
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
 

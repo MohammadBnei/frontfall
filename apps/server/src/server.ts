@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   CloseCode,
   encodeServerMessage,
+  normalizeGameName,
   normalizeName,
   parseClientMessage,
   PROTOCOL_VERSION,
@@ -24,7 +26,7 @@ import { loadStaticFile } from "./static-files.ts";
 import { usageInbox } from "./usage-http.ts";
 import { loadUsage, saveUsage, usageFile, UsageStats, usageTable } from "./usage.ts";
 
-type GameSettings = Omit<RoomSettings, "visibility">;
+type GameSettings = Omit<RoomSettings, "visibility" | "name">;
 
 export interface ServerOptions {
   /** Directory of the built client. */
@@ -39,8 +41,8 @@ export interface ServerOptions {
   maxConnectionsPerAddress?: number;
   /** Open WebSockets the whole server accepts. */
   maxConnections?: number;
-  /** Private games not yet started that one address may hold. */
-  maxPrivateGamesPerAddress?: number;
+  /** Games not yet started, public or private, that one address may hold. */
+  maxLobbiesPerAddress?: number;
   maxRooms?: number;
   /** Bots the host of a private game may add, within the map's player count. */
   maxBots?: number;
@@ -58,7 +60,9 @@ export interface ServerOptions {
   statusSections?: () => string;
   /** Messages a connection may send per second on average, and at once. */
   messageRate?: { perSecond: number; burst: number };
+  /** Public games opened by "play", which start on their own after a countdown. */
   publicGame?: Partial<GameSettings>;
+  /** Games a host creates, public or private, and starts themselves. */
   privateGame?: Partial<GameSettings>;
   logger?: Logger;
   /**
@@ -107,13 +111,15 @@ const MAX_PAYLOAD_BYTES = 1024;
 export const DEFAULT_GAME: GameSettings = {
   map: "world",
   capacity: 16,
+  autoStart: true,
   bots: 0,
   difficulty: "normal",
   nations: true,
   teams: 0,
   disabled: 0,
   minPlayers: 2,
-  countdownMs: 30_000,
+  countdownMs: 60_000,
+  hostIdleMs: 2 * 60_000,
   reconnectGraceMs: 5 * 60_000,
   lobbyGraceMs: 30_000,
   maxDurationMs: 4 * 60 * 60 * 1000,
@@ -160,12 +166,14 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   too_many_games: "too many games in progress",
   token_invalid: "this game is over or the seat was given up",
   token_in_use: "the seat is still connected",
-  invalid_settings: "no such map, or too many bots for it",
+  invalid_settings: "no such map, or too many bots or seats for it",
   restarting: "the server is about to restart; try again in a few minutes",
+  invalid_game_name: "the game name is not allowed",
+  not_enough_players: "wait for more players before starting",
 };
 
 /**
- * Seats a private game keeps with these options: the usual number, fewer on a
+ * Seats a game keeps with these options: those the host asked for, fewer on a
  * small map or with many bots, never fewer than the players already in. Bots
  * beyond the server's cap or that leave no seat for them give undefined.
  */
@@ -173,12 +181,11 @@ function seatsFor(
   options: GameOptions,
   maps: MapLimits,
   maxBots: number,
-  usualSeats: number,
   players: number,
 ): number | undefined {
   const maxPlayers = maps.get(options.map);
   if (maxPlayers === undefined || options.bots > maxBots) return undefined;
-  const seats = Math.min(usualSeats, maxPlayers - options.bots);
+  const seats = Math.min(options.capacity, maxPlayers - options.bots);
   return seats >= Math.max(players, 1) ? seats : undefined;
 }
 
@@ -244,12 +251,12 @@ export function createGameServer(options: ServerOptions): GameServer {
       logger.warn("desync", { game: room.id, tick, hash, expected: expected ?? null });
     },
   };
-  const privateGame = { ...DEFAULT_GAME, ...options.privateGame };
+  const privateGame = { ...DEFAULT_GAME, minPlayers: 1, countdownMs: 0, ...options.privateGame };
   const maps = loadMapLimits(options.staticRoot, privateGame.map);
   const maxBots = options.maxBots ?? 25;
   const games = new Directory({
     maxRooms: options.maxRooms ?? 500,
-    maxPrivatePerOwner: options.maxPrivateGamesPerAddress ?? 3,
+    maxLobbiesPerOwner: options.maxLobbiesPerAddress ?? 3,
     publicGame: { ...DEFAULT_GAME, ...options.publicGame },
     privateGame,
     observer,
@@ -317,7 +324,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (path === "/api/games") {
-      sendJson(response, { games: games.publicGames(Date.now()), running: running() });
+      sendCachedJson(request, response, { games: games.publicGames(), running: running() });
       return;
     }
     if (path === "/api/status") {
@@ -486,6 +493,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
 
     const current = seatOf(session);
+    if (current) current.room.touch(current.seat, Date.now());
     switch (message.type) {
       case "play":
       case "create":
@@ -500,25 +508,49 @@ export function createGameServer(options: ServerOptions): GameServer {
           reply(session, "restarting");
           return;
         }
-        if (message.type === "play") enter(session, games.quickMatch(), "too_many_games");
-        else if (message.type === "create")
-          enter(session, games.create("private", session.address), "too_many_games");
-        else if (message.type === "join") enter(session, games.find(message.game), "not_found");
+        if (message.type === "play") {
+          const name = gameName(message.name, session.name);
+          enter(session, games.quickMatch(session.address, name), "too_many_games");
+        } else if (message.type === "create") {
+          const visibility = message.visibility ?? "private";
+          let name: string | null = null;
+          if (visibility === "public") {
+            const checked = normalizeGameName(message.name ?? defaultGameName(session.name));
+            if (!checked.ok) {
+              reply(session, "invalid_game_name", checked.error);
+              return;
+            }
+            name = checked.name;
+          }
+          const room = games.create({ kind: "hosted", visibility, name }, session.address);
+          enter(session, room, "too_many_games");
+        } else if (message.type === "join") enter(session, games.find(message.game), "not_found");
         else rejoin(session, message.token, message.from);
         return;
       case "configure": {
-        const seats =
-          current &&
-          seatsFor(message.options, maps, maxBots, privateGame.capacity, current.room.playerCount);
-        const error = !current
-          ? "not_in_game"
-          : seats === undefined
-            ? "invalid_settings"
-            : current.room.configure(
-                current.seat,
-                { ...message.options, capacity: seats },
-                Date.now(),
-              );
+        if (!current) {
+          reply(session, "not_in_game");
+          return;
+        }
+        const seats = seatsFor(message.options, maps, maxBots, current.room.playerCount);
+        if (seats === undefined) {
+          reply(session, "invalid_settings");
+          return;
+        }
+        let name: string | undefined;
+        if (message.name !== undefined && current.room.settings.visibility === "public") {
+          const checked = normalizeGameName(message.name);
+          if (!checked.ok) {
+            reply(session, "invalid_game_name", checked.error);
+            return;
+          }
+          name = games.uniqueName(checked.name, current.room);
+        }
+        const error = current.room.configure(
+          current.seat,
+          { ...message.options, capacity: seats, ...(name !== undefined && { name }) },
+          Date.now(),
+        );
         if (error) reply(session, error);
         return;
       }
@@ -527,6 +559,13 @@ export function createGameServer(options: ServerOptions): GameServer {
         if (error) reply(session, error);
         return;
       }
+      case "hold": {
+        const error = current ? current.room.hold(current.seat, Date.now()) : "not_in_game";
+        if (error) reply(session, error);
+        return;
+      }
+      case "active":
+        return;
       case "leave":
         if (!current) return;
         current.room.leave(current.seat, Date.now());
@@ -841,4 +880,34 @@ function sendJson(response: ServerResponse, body: unknown, caching = "no-store")
   response
     .writeHead(200, { "content-type": "application/json", "cache-control": caching })
     .end(JSON.stringify(body));
+}
+
+/**
+ * A JSON answer with an ETag, so that a menu asking every few seconds gets
+ * an empty 304 while nothing changed.
+ */
+function sendCachedJson(request: IncomingMessage, response: ServerResponse, body: unknown): void {
+  const text = JSON.stringify(body);
+  const etag = `"${createHash("sha1").update(text).digest("base64url").slice(0, 16)}"`;
+  const headers = { etag, "cache-control": "no-cache" };
+  if (matchesEtag(request.headers["if-none-match"], etag)) {
+    response.writeHead(304, headers).end();
+    return;
+  }
+  response.writeHead(200, { ...headers, "content-type": "application/json" }).end(text);
+}
+
+/** What a public game opened without a name is listed as. */
+function defaultGameName(player: string | undefined): string {
+  return player ? `${player}'s game` : "Frontfall game";
+}
+
+/** The name asked for a game "play" may open, or a default when it is missing or refused. */
+function gameName(asked: string | undefined, player: string | undefined): string {
+  for (const candidate of [asked, defaultGameName(player)]) {
+    if (candidate === undefined) continue;
+    const checked = normalizeGameName(candidate);
+    if (checked.ok) return checked.name;
+  }
+  return defaultGameName(undefined);
 }

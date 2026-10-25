@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import { MAX_GAME_NAME_LENGTH, type PublicGame } from "@frontfall/protocol";
 import { newGameId } from "./ids.ts";
 import {
   Room,
@@ -8,26 +9,31 @@ import {
   type Seat,
 } from "./room.ts";
 
-export interface PublicGame {
-  id: string;
-  map: string;
-  players: number;
-  capacity: number;
-  startsIn: number | null;
-}
+/** Games the public list shows at most. */
+export const MAX_LISTED_GAMES = 100;
 
 export interface DirectoryOptions {
   maxRooms: number;
-  /** Private games not yet started that one owner may hold. */
-  maxPrivatePerOwner?: number;
-  publicGame: Omit<RoomSettings, "visibility">;
-  privateGame: Omit<RoomSettings, "visibility">;
+  /** Games not yet started, public or private, that one owner may hold. */
+  maxLobbiesPerOwner?: number;
+  /** Public games opened by "play": they start on their own after a countdown. */
+  publicGame: Omit<RoomSettings, "visibility" | "name">;
+  /** Games a player creates and starts themselves; public ones are listed. */
+  privateGame: Omit<RoomSettings, "visibility" | "name">;
   observer?: RoomObserver;
 }
+
+/** How a game is opened: from "play", or created by a host who starts it. */
+export type Opening =
+  | { kind: "quick"; name: string }
+  | { kind: "hosted"; visibility: RoomSettings["visibility"]; name: string | null };
 
 /** Every game of the server, by id, from creation until it finishes. */
 export class Directory {
   private readonly rooms = new Map<string, Room>();
+  /** When each room opened, to list older games first among equals. */
+  private readonly openedAt = new WeakMap<Room, number>();
+  private opened = 0;
 
   constructor(private readonly options: DirectoryOptions) {}
 
@@ -43,43 +49,75 @@ export class Directory {
     return this.rooms.get(id);
   }
 
-  /** The public game that will start soonest, or a new one; undefined when the server is full. */
-  quickMatch(): Room | undefined {
+  /**
+   * The fullest public game still waiting with a seat free, or a new one
+   * under `name`; undefined when the server or the owner is at the limit.
+   */
+  quickMatch(owner: string | undefined, name: string): Room | undefined {
     let best: Room | undefined;
     for (const room of this.rooms.values()) {
-      if (room.settings.visibility !== "public") continue;
-      if (room.state !== "open" && room.state !== "starting") continue;
+      if (!waiting(room) || room.settings.visibility !== "public") continue;
       if (room.playerCount >= room.settings.capacity) continue;
       if (!best || room.playerCount > best.playerCount) best = room;
     }
-    return best ?? this.create("public");
+    return best ?? this.create({ kind: "quick", name }, owner);
   }
 
-  /** Opens a game. `owner`, the creator's address, caps the private lobbies one person holds. */
-  create(visibility: RoomSettings["visibility"], owner?: string): Room | undefined {
+  /** Opens a game. `owner`, the creator's address, caps the lobbies one person holds. */
+  create(opening: Opening, owner?: string): Room | undefined {
     if (this.rooms.size >= this.options.maxRooms) return undefined;
     if (
       owner !== undefined &&
-      this.lobbiesOf(owner) >= (this.options.maxPrivatePerOwner ?? Infinity)
+      this.lobbiesOf(owner) >= (this.options.maxLobbiesPerOwner ?? Infinity)
     ) {
       return undefined;
     }
-    const base = visibility === "public" ? this.options.publicGame : this.options.privateGame;
-    const room = new Room(
-      newGameId(),
-      { ...base, visibility },
-      randomInt(2 ** 31),
-      this.options.observer,
-      owner,
-    );
+    const settings: RoomSettings =
+      opening.kind === "quick"
+        ? { ...this.options.publicGame, visibility: "public", name: this.uniqueName(opening.name) }
+        : {
+            ...this.options.privateGame,
+            visibility: opening.visibility,
+            name:
+              opening.visibility === "public" ? this.uniqueName(opening.name ?? "Frontfall") : null,
+            // A public game waits for at least one opponent.
+            minPlayers:
+              opening.visibility === "public"
+                ? this.options.publicGame.minPlayers
+                : this.options.privateGame.minPlayers,
+          };
+    const room = new Room(newGameId(), settings, randomInt(2 ** 31), this.options.observer, owner);
     this.rooms.set(room.id, room);
+    this.openedAt.set(room, this.opened++);
     return room;
+  }
+
+  /**
+   * `name`, or `name (2)`, `name (3)`... so that two public games still
+   * waiting never share a name. `except` is the game being renamed.
+   */
+  uniqueName(name: string, except?: Room): string {
+    const taken = new Set<string>();
+    for (const room of this.rooms.values()) {
+      if (room === except || !waiting(room) || room.settings.name === null) continue;
+      taken.add(room.settings.name.toLowerCase());
+    }
+    if (!taken.has(name.toLowerCase())) return name;
+    for (let n = 2; ; n++) {
+      const suffix = ` (${String(n)})`;
+      const base = Array.from(name)
+        .slice(0, MAX_GAME_NAME_LENGTH - suffix.length)
+        .join("")
+        .trimEnd();
+      const candidate = base + suffix;
+      if (!taken.has(candidate.toLowerCase())) return candidate;
+    }
   }
 
   private lobbiesOf(owner: string): number {
     let count = 0;
     for (const room of this.rooms.values()) {
-      if (room.owner === owner && room.state !== "running" && room.state !== "finished") count++;
+      if (room.owner === owner && waiting(room)) count++;
     }
     return count;
   }
@@ -109,24 +147,46 @@ export class Directory {
     }
   }
 
-  publicGames(now: number): PublicGame[] {
-    const games: PublicGame[] = [];
-    for (const room of this.rooms.values()) {
-      if (room.settings.visibility !== "public") continue;
-      if (room.state !== "open" && room.state !== "starting") continue;
-      games.push({
-        id: room.id,
-        map: room.settings.map,
-        players: room.playerCount,
-        capacity: room.settings.capacity,
-        startsIn: room.startsIn(now),
-      });
-    }
-    return games;
+  /**
+   * The public list: games waiting first, those with the fewest seats left
+   * first, then the oldest; running games after them. At most
+   * `MAX_LISTED_GAMES`, and nothing that would let anyone take a seat.
+   */
+  publicGames(): PublicGame[] {
+    const rooms = [...this.rooms.values()].filter(
+      (room) => room.settings.visibility === "public" && room.state !== "finished",
+    );
+    const rank = (room: Room): [number, number, number] => [
+      waiting(room) ? 0 : 1,
+      room.settings.capacity - room.playerCount,
+      this.openedAt.get(room) ?? 0,
+    ];
+    rooms.sort((a, b) => {
+      const [x, y] = [rank(a), rank(b)];
+      return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+    });
+    return rooms.slice(0, MAX_LISTED_GAMES).map((room) => ({
+      id: room.id,
+      name: room.settings.name ?? "",
+      host: room.hostName,
+      map: room.settings.map,
+      bots: room.settings.bots,
+      nations: room.settings.nations,
+      teams: room.settings.teams,
+      disabled: room.settings.disabled,
+      players: room.playerCount,
+      capacity: room.settings.capacity,
+      state: waiting(room) ? "waiting" : "running",
+    }));
   }
 
   stopAll(reason?: FinishReason): void {
     for (const room of this.rooms.values()) room.stop(reason);
     this.rooms.clear();
   }
+}
+
+/** Still in its lobby: open, or counting down. */
+function waiting(room: Room): boolean {
+  return room.state === "open" || room.state === "starting";
 }

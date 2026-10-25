@@ -12,14 +12,28 @@ const CLIENT_MESSAGES: ClientMessage[] = [
   { type: "hello", version: 1, name: "Nico" },
   { type: "hello", version: 1, name: "Nico", build: "0d25e267bbae" },
   { type: "play" },
+  { type: "play", name: "Partie de Nico" },
   { type: "create" },
+  { type: "create", visibility: "public", name: "4v4 Europe" },
+  { type: "hold" },
+  { type: "active" },
   { type: "join", game: "Xk3_9aB-q2Lm" },
   { type: "rejoin", token: "0123456789abcdefABCDEF", from: 1200 },
   { type: "start" },
   { type: "leave" },
   {
     type: "configure",
-    options: { map: "europe", bots: 6, difficulty: "easy", nations: true, teams: 2, disabled: 9 },
+    options: {
+      map: "europe",
+      bots: 6,
+      difficulty: "easy",
+      nations: true,
+      teams: 2,
+      disabled: 9,
+      capacity: 8,
+      autoStart: false,
+    },
+    name: "Europe en équipes",
   },
   { type: "hash", tick: 50, hash: 0xdeadbeef },
   { type: "order", order: { type: "spawn", tile: 4096 } },
@@ -32,6 +46,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     type: "lobby",
     game: "Xk3_9aB-q2Lm",
     visibility: "public",
+    name: "Partie de Nico",
     map: "world",
     bots: 3,
     difficulty: "normal",
@@ -39,14 +54,17 @@ const SERVER_MESSAGES: ServerMessage[] = [
     teams: 0,
     disabled: 0,
     capacity: 16,
+    autoStart: true,
+    minPlayers: 2,
     players: [
       { id: 1, name: "Nico" },
       { id: 2, name: "Léa" },
     ],
     you: 2,
-    host: null,
+    host: 1,
     startsIn: 12_000,
     token: "q8Vb1aV9mN3x0WcY2tLk4Q",
+    holdable: true,
   },
   {
     type: "started",
@@ -117,12 +135,45 @@ describe("client messages", () => {
   });
 
   it("rejects left-out options outside the six known bits", () => {
-    const options = { map: "world", bots: 0, difficulty: "easy", nations: true, teams: 0 };
+    const options = {
+      map: "world",
+      bots: 0,
+      difficulty: "easy",
+      nations: true,
+      teams: 0,
+      capacity: 16,
+      autoStart: true,
+    };
     const configure = (disabled: number) =>
       parseClientMessage(JSON.stringify({ type: "configure", options: { ...options, disabled } }));
     expect(configure(63).ok).toBe(true);
     expect(configure(64).ok).toBe(false);
     expect(configure(-1).ok).toBe(false);
+  });
+
+  it("keeps seats between 2 and 16 and names of a sane size", () => {
+    const options = {
+      map: "world",
+      bots: 0,
+      difficulty: "easy",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      autoStart: true,
+    };
+    const configure = (capacity: number) =>
+      parseClientMessage(JSON.stringify({ type: "configure", options: { ...options, capacity } }));
+    expect(configure(2).ok).toBe(true);
+    expect(configure(16).ok).toBe(true);
+    expect(configure(1).ok).toBe(false);
+    expect(configure(17).ok).toBe(false);
+    const create = (name: string) =>
+      parseClientMessage(JSON.stringify({ type: "create", visibility: "public", name }));
+    expect(create("x".repeat(64)).ok).toBe(true);
+    expect(create("x".repeat(65)).ok).toBe(false);
+    expect(parseClientMessage(JSON.stringify({ type: "create", visibility: "secret" })).ok).toBe(
+      false,
+    );
   });
 
   it("rejects game ids that could not come from the server", () => {

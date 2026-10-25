@@ -26,8 +26,12 @@ export interface Peer {
 
 export interface RoomSettings {
   visibility: "public" | "private";
+  /** Name of a public game in the list; null for a private one. */
+  name: string | null;
   map: string;
   capacity: number;
+  /** Start as soon as every seat is taken. */
+  autoStart: boolean;
   /** Bots added by every client at the start; the server never sees their orders. */
   bots: number;
   difficulty: Difficulty;
@@ -37,10 +41,12 @@ export interface RoomSettings {
   teams: Teams;
   /** What every client leaves out of the game (R-MODE-03). */
   disabled: number;
-  /** Public games: players needed before the countdown starts. */
+  /** Players needed before the host can start, and before the countdown runs. */
   minPlayers: number;
-  /** Public games: wait after reaching minPlayers, unless the game fills up first. */
+  /** Wait after reaching minPlayers before starting on its own; 0 waits for the host. */
   countdownMs: number;
+  /** A host who has not been at the screen for this long hands the role on. */
+  hostIdleMs: number;
   /** How long a seat stays reserved for a player whose connection dropped. */
   reconnectGraceMs: number;
   /** The same before the start: a phone that sleeps a moment keeps its place, and the host its role. */
@@ -71,6 +77,8 @@ export interface Seat {
   gone: boolean;
   /** Orders added to the turn being filled. */
   orders: number;
+  /** Last message from the player, to tell a host who walked away. */
+  activeAt: number;
 }
 
 /** Receives what happens in a room, for logs and metrics. */
@@ -98,6 +106,8 @@ export class Room {
   private nextLobbyId = 1;
   private host: Seat | undefined;
   private startsAt: number | undefined;
+  /** The host stopped the countdown; the game now waits for them. */
+  private held = false;
   private openedAt: number | undefined;
   private startedAt = 0;
   private pending: Turn["orders"] = [];
@@ -115,7 +125,7 @@ export class Room {
     /** Address of the player who opened the game, for per-address limits. */
     readonly owner?: string,
   ) {
-    // Copied: the host of a private game changes its own map and bots.
+    // Copied: the host changes the map, the bots and the name of their own game.
     this.settings = { ...settings };
   }
 
@@ -162,10 +172,11 @@ export class Room {
       awaySince: undefined,
       gone: false,
       orders: 0,
+      activeAt: now,
     };
     this.seats.push(seat);
     this.openedAt ??= now;
-    if (this.settings.visibility === "private") this.host ??= seat;
+    this.host ??= seat;
     this.lobbyChanged(now);
     return seat;
   }
@@ -186,6 +197,15 @@ export class Room {
       const candidate = base + suffix;
       if (!taken.has(candidate.toLowerCase())) return candidate;
     }
+  }
+
+  get hostName(): string {
+    return this.host?.name ?? "";
+  }
+
+  /** The player sent something: they are at the screen. */
+  touch(seat: Seat, now: number): void {
+    seat.activeAt = now;
   }
 
   /** The player leaves for good. Before the start, their seat is freed. */
@@ -234,6 +254,7 @@ export class Room {
     }
     seat.peer = peer;
     seat.awaySince = undefined;
+    seat.activeAt = now;
     if (this.stateValue !== "running") {
       this.lobbyChanged(now);
       return undefined;
@@ -248,26 +269,44 @@ export class Room {
     return undefined;
   }
 
-  /** Host of a private game: map, bots, difficulty and seats, until the start. */
+  /** Host: map, bots, difficulty, seats and, for a public game, its name, until the start. */
   configure(
     seat: Seat,
-    options: GameOptions & { capacity: number },
+    options: GameOptions & { name?: string },
     now: number,
   ): ErrorCode | undefined {
-    if (!this.holds(seat)) return "not_in_game";
-    if (this.stateValue === "running") return "game_started";
-    if (this.host !== seat) return "not_host";
-    Object.assign(this.settings, options);
+    const refused = this.hostOnly(seat);
+    if (refused) return refused;
+    const { name, ...rest } = options;
+    Object.assign(this.settings, rest);
+    if (name !== undefined && this.settings.visibility === "public") this.settings.name = name;
     this.lobbyChanged(now);
     return undefined;
   }
 
-  /** Host of a private game: start now, whoever has joined. */
+  /** Host: start now, with at least the game's minimum of players. */
   requestStart(seat: Seat, now: number): ErrorCode | undefined {
+    const refused = this.hostOnly(seat);
+    if (refused) return refused;
+    if (this.seats.length < this.settings.minPlayers) return "not_enough_players";
+    this.start(now);
+    return undefined;
+  }
+
+  /** Host, once: stop the countdown. The game then waits for the host to start it. */
+  hold(seat: Seat, now: number): ErrorCode | undefined {
+    const refused = this.hostOnly(seat);
+    if (refused) return refused;
+    if (this.startsAt === undefined || this.held) return undefined;
+    this.held = true;
+    this.lobbyChanged(now);
+    return undefined;
+  }
+
+  private hostOnly(seat: Seat): ErrorCode | undefined {
     if (!this.holds(seat)) return "not_in_game";
     if (this.stateValue === "running") return "game_started";
     if (this.host !== seat) return "not_host";
-    this.start(now);
     return undefined;
   }
 
@@ -336,6 +375,7 @@ export class Room {
         this.expireLobbySeats(now);
         if (this.state === "finished") return;
         if (this.startsAt !== undefined && now >= this.startsAt) this.start(now);
+        else if (this.hostWalkedAway(now)) this.passHost(now);
         else if (
           this.openedAt !== undefined &&
           now - this.openedAt >= this.settings.lobbyTimeoutMs
@@ -356,6 +396,27 @@ export class Room {
   /** Stops the game at once, for example when the server shuts down. */
   stop(reason: FinishReason = "abandoned"): void {
     if (this.stateValue !== "finished") this.finish(reason);
+  }
+
+  /**
+   * The host has sent nothing for a while and others wait: they would be
+   * stuck until the lobby expires. A host alone keeps the role.
+   */
+  private hostWalkedAway(now: number): boolean {
+    const { host } = this;
+    return (
+      host !== undefined &&
+      this.seats.length >= 2 &&
+      now - host.activeAt >= this.settings.hostIdleMs
+    );
+  }
+
+  /** The role goes to the player at the screen most recently. */
+  private passHost(now: number): void {
+    const others = this.seats.filter((seat) => seat !== this.host);
+    this.host = others.reduce((best, seat) => (seat.activeAt > best.activeAt ? seat : best));
+    this.host.activeAt = now;
+    this.lobbyChanged(now);
   }
 
   private start(now: number): void {
@@ -420,24 +481,26 @@ export class Room {
   }
 
   private lobbyChanged(now: number): void {
-    if (this.settings.visibility === "public") {
-      const count = this.seats.length;
-      if (count >= this.settings.capacity) {
-        this.start(now);
-        return;
-      }
-      if (count >= this.settings.minPlayers) this.startsAt ??= now + this.settings.countdownMs;
-      else this.startsAt = undefined;
-      this.stateValue = this.startsAt === undefined ? "open" : "starting";
+    const count = this.seats.length;
+    if (this.settings.autoStart && count >= this.settings.capacity) {
+      this.start(now);
+      return;
     }
+    const counting = this.settings.countdownMs > 0 && !this.held;
+    if (counting && count >= this.settings.minPlayers) {
+      this.startsAt ??= now + this.settings.countdownMs;
+    } else this.startsAt = undefined;
+    this.stateValue = this.startsAt === undefined ? "open" : "starting";
     const players = this.players();
     const startsIn = this.startsIn(now);
+    const host = this.host?.id ?? 0;
     for (const seat of this.seats) {
       seat.peer?.send(
         encodeServerMessage({
           type: "lobby",
           game: this.id,
           visibility: this.settings.visibility,
+          name: this.settings.name,
           map: this.settings.map,
           bots: this.settings.bots,
           difficulty: this.settings.difficulty,
@@ -445,11 +508,14 @@ export class Room {
           teams: this.settings.teams,
           disabled: this.settings.disabled,
           capacity: this.settings.capacity,
+          autoStart: this.settings.autoStart,
+          minPlayers: this.settings.minPlayers,
           players,
           you: seat.id,
-          host: this.host?.id ?? null,
+          host,
           startsIn,
           token: seat.token,
+          holdable: startsIn !== null && !this.held,
         }),
       );
     }

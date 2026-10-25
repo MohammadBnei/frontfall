@@ -241,6 +241,8 @@ describe("HTTP", () => {
 
 describe("WebSocket", () => {
   const fast = { publicGame: { countdownMs: 50 } };
+  /** Seats asked for in `configure`; the map and bots may leave fewer. */
+  const SEATS = { capacity: 4, autoStart: false } as const;
 
   it("plays a public game: lobby, countdown, start, then the same turns for everyone", async () => {
     const host = await start(fast);
@@ -250,7 +252,9 @@ describe("WebSocket", () => {
     alice.send({ type: "play" });
     expect(await alice.next("lobby")).toMatchObject({
       visibility: "public",
+      name: "Alice's game",
       players: [{ id: 1, name: "Alice" }],
+      host: 1,
       startsIn: null,
     });
     bob.send({ type: "play" });
@@ -273,17 +277,106 @@ describe("WebSocket", () => {
     }
   });
 
-  it("lists public games over HTTP", async () => {
+  it("lists public games over HTTP, with an ETag for the menu's polling", async () => {
     const host = await start();
     const alice = await player(host, "Alice");
-    alice.send({ type: "play" });
+    alice.send({ type: "play", name: "Partie de Alice" });
     const { game } = await alice.next("lobby");
     const response = await fetch(`http://${host}/api/games`);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control")).toBe("no-cache");
     expect(await response.json()).toEqual({
-      games: [{ id: game, map: "world", players: 1, capacity: 16, startsIn: null }],
+      games: [
+        {
+          id: game,
+          name: "Partie de Alice",
+          host: "Alice",
+          map: "world",
+          bots: 0,
+          nations: true,
+          teams: 0,
+          disabled: 0,
+          players: 1,
+          capacity: 16,
+          state: "waiting",
+        },
+      ],
       running: 0,
     });
+    const etag = response.headers.get("etag") ?? "";
+    expect(etag).not.toBe("");
+    const again = await fetch(`http://${host}/api/games`, { headers: { "if-none-match": etag } });
+    expect(again.status).toBe(304);
+    const bob = await player(host, "Bob");
+    bob.send({ type: "join", game });
+    await bob.next("lobby");
+    const changed = await fetch(`http://${host}/api/games`, { headers: { "if-none-match": etag } });
+    expect(changed.status).toBe(200);
+  });
+
+  it("opens a named public game that waits for its host to start it", async () => {
+    const host = await start({ publicGame: { countdownMs: 50 } });
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "create", visibility: "public", name: "fuck off" });
+    expect((await alice.next("error")).code).toBe("invalid_game_name");
+    alice.send({ type: "create", visibility: "public", name: "  Europe   4v4 " });
+    const lobby = await alice.next("lobby");
+    expect(lobby).toMatchObject({ visibility: "public", name: "Europe 4v4", host: 1 });
+    alice.send({ type: "start" });
+    expect((await alice.next("error")).code).toBe("not_enough_players");
+
+    // "play" sends Bob into the game waiting, which keeps waiting for its host.
+    bob.send({ type: "play" });
+    expect((await bob.next("lobby")).game).toBe(lobby.game);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect((await alice.next("lobby")).startsIn).toBeNull();
+    expect(server?.games.find(lobby.game)?.state).toBe("open");
+
+    alice.send({
+      type: "configure",
+      options: {
+        map: "world",
+        bots: 0,
+        difficulty: "normal",
+        nations: true,
+        teams: 2,
+        disabled: 0,
+        capacity: 8,
+        autoStart: false,
+      },
+      name: "Équipes du soir",
+    });
+    expect(await bob.next("lobby")).toMatchObject({
+      name: "Équipes du soir",
+      teams: 2,
+      capacity: 8,
+      autoStart: false,
+    });
+    alice.send({ type: "start" });
+    expect((await bob.next("started")).teams).toBe(2);
+    const listed = (await (await fetch(`http://${host}/api/games`)).json()) as {
+      games: { state: string }[];
+    };
+    expect(listed.games.map((game) => game.state)).toEqual(["running"]);
+  });
+
+  it("lets the host of a quick game stop its countdown", async () => {
+    const host = await start({ publicGame: { countdownMs: 300 } });
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "play" });
+    await alice.next("lobby");
+    bob.send({ type: "play" });
+    await bob.next("lobby");
+    expect(await alice.next("lobby")).toMatchObject({ holdable: true });
+    bob.send({ type: "hold" });
+    expect((await bob.next("error")).code).toBe("not_host");
+    alice.send({ type: "hold" });
+    expect(await bob.next("lobby")).toMatchObject({ startsIn: null, holdable: false });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    alice.send({ type: "active" });
+    alice.send({ type: "start" });
+    expect((await bob.next("started")).players).toHaveLength(2);
   });
 
   it("plays a private game by invitation, started by its host", async () => {
@@ -342,17 +435,41 @@ describe("WebSocket", () => {
 
     bob.send({
       type: "configure",
-      options: { map: "europe", bots: 2, difficulty: "hard", nations: true, teams: 0, disabled: 0 },
+      options: {
+        map: "europe",
+        bots: 2,
+        difficulty: "hard",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+        ...SEATS,
+      },
     });
     expect((await bob.next("error")).code).toBe("not_host");
     alice.send({
       type: "configure",
-      options: { map: "mars", bots: 2, difficulty: "hard", nations: true, teams: 0, disabled: 0 },
+      options: {
+        map: "mars",
+        bots: 2,
+        difficulty: "hard",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+        ...SEATS,
+      },
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
     alice.send({
       type: "configure",
-      options: { map: "world", bots: 26, difficulty: "hard", nations: true, teams: 0, disabled: 0 },
+      options: {
+        map: "world",
+        bots: 26,
+        difficulty: "hard",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+        ...SEATS,
+      },
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
     // Europe holds 20: 19 bots would leave one seat for two players.
@@ -365,6 +482,7 @@ describe("WebSocket", () => {
         nations: true,
         teams: 0,
         disabled: 0,
+        ...SEATS,
       },
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
@@ -377,6 +495,7 @@ describe("WebSocket", () => {
         nations: true,
         teams: 0,
         disabled: 0,
+        ...SEATS,
       },
     });
     expect(await bob.next("lobby")).toMatchObject({
@@ -396,6 +515,7 @@ describe("WebSocket", () => {
         nations: false,
         teams: 0,
         disabled: 32,
+        ...SEATS,
       },
     });
     expect(await bob.next("lobby")).toMatchObject({
@@ -416,13 +536,21 @@ describe("WebSocket", () => {
     });
     alice.send({
       type: "configure",
-      options: { map: "world", bots: 0, difficulty: "easy", nations: true, teams: 0, disabled: 0 },
+      options: {
+        map: "world",
+        bots: 0,
+        difficulty: "easy",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+        ...SEATS,
+      },
     });
     expect((await alice.next("error")).code).toBe("game_started");
   });
 
   it("explains why a game cannot be joined", async () => {
-    const host = await start({ privateGame: { capacity: 1 } });
+    const host = await start({ privateGame: { capacity: 1, autoStart: false } });
     const alice = await player(host, "Alice");
     const bob = await player(host, "Bob");
     bob.send({ type: "join", game: "nosuchgame00" });

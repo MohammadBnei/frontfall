@@ -4,8 +4,10 @@ import { Room, type Peer, type RoomObserver, type RoomSettings, type Seat } from
 
 const PUBLIC: RoomSettings = {
   visibility: "public",
+  name: "Quick game",
   map: "world",
   capacity: 4,
+  autoStart: true,
   bots: 0,
   difficulty: "normal",
   nations: true,
@@ -13,6 +15,7 @@ const PUBLIC: RoomSettings = {
   disabled: 0,
   minPlayers: 2,
   countdownMs: 10_000,
+  hostIdleMs: 120_000,
   reconnectGraceMs: 60_000,
   lobbyGraceMs: 30_000,
   maxDurationMs: 3_600_000,
@@ -20,7 +23,17 @@ const PUBLIC: RoomSettings = {
   maxOrdersPerTurn: 3,
   maxLogBytes: 1_000_000,
 };
-const PRIVATE: RoomSettings = { ...PUBLIC, visibility: "private" };
+/** Started by its host; `autoStart` off so that a full lobby still waits. */
+const PRIVATE: RoomSettings = {
+  ...PUBLIC,
+  visibility: "private",
+  name: null,
+  autoStart: false,
+  minPlayers: 1,
+  countdownMs: 0,
+};
+/** A public game created by its host: no countdown, at least two players. */
+const HOSTED: RoomSettings = { ...PUBLIC, name: "Europe 4v4", countdownMs: 0 };
 
 class FakePeer implements Peer {
   readonly inbox: ServerMessage[] = [];
@@ -81,8 +94,9 @@ describe("public lobby", () => {
         { id: 2, name: "Bob" },
       ],
       you: 1,
-      host: null,
+      host: 1,
       startsIn: 10_000,
+      holdable: true,
     });
     expect(room.startsIn(6_000)).toBe(5_000);
 
@@ -209,6 +223,7 @@ describe("private lobby", () => {
       teams: 0,
       disabled: 40,
       capacity: 6,
+      autoStart: false,
     } as const;
     expect(room.configure(guest.seat, options, 0)).toBe("not_host");
     expect(room.configure(host.seat, options, 0)).toBeUndefined();
@@ -290,6 +305,141 @@ describe("private lobby", () => {
     expect(host.peer.last("ended").reason).toBe("restart");
   });
 });
+
+describe("public game created by its host", () => {
+  it("waits for the host, who needs a second player to start", () => {
+    const room = new Room("game0000", HOSTED, 1);
+    const host = seated(room, "Host");
+    expect(room.requestStart(host.seat, 0)).toBe("not_enough_players");
+    const guest = seated(room, "Guest");
+    room.update(100_000);
+    expect(room.state).toBe("open");
+    expect(guest.peer.last("lobby")).toMatchObject({
+      name: "Europe 4v4",
+      host: 1,
+      minPlayers: 2,
+      startsIn: null,
+      holdable: false,
+    });
+    expect(room.requestStart(guest.seat, 0)).toBe("not_host");
+    expect(room.requestStart(host.seat, 0)).toBeUndefined();
+    expect(room.state).toBe("running");
+  });
+
+  it("starts once full when the host asked for it, and waits otherwise", () => {
+    const auto = new Room("game0000", HOSTED, 1);
+    for (const name of ["A", "B", "C", "D"]) seated(auto, name);
+    expect(auto.state).toBe("running");
+
+    const manual = new Room("game0001", { ...HOSTED, autoStart: false }, 1);
+    for (const name of ["A", "B", "C", "D"]) seated(manual, name);
+    expect(manual.state).toBe("open");
+    expect(manual.join("E", new FakePeer(), 0)).toBe("game_full");
+  });
+
+  it("starts at once when the host lowers the seats to the players present", () => {
+    const room = new Room("game0000", HOSTED, 1);
+    const host = seated(room, "Host");
+    const guest = seated(room, "Guest");
+    const options = {
+      map: "world",
+      bots: 0,
+      difficulty: "normal",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      capacity: 2,
+      autoStart: true,
+    } as const;
+    room.configure(host.seat, options, 0);
+    expect(guest.peer.last("started").map).toBe("world");
+  });
+
+  it("lets the host rename a public game, never a private one", () => {
+    const options = {
+      map: "world",
+      bots: 0,
+      difficulty: "normal",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      capacity: 4,
+      autoStart: true,
+    } as const;
+    const listed = new Room("game0000", HOSTED, 1);
+    const host = seated(listed, "Host");
+    listed.configure(host.seat, { ...options, name: "Asia only" }, 0);
+    expect(host.peer.last("lobby").name).toBe("Asia only");
+    const unlisted = new Room("game0001", PRIVATE, 1);
+    const owner = seated(unlisted, "Owner");
+    unlisted.configure(owner.seat, { ...options, name: "Asia only" }, 0);
+    expect(owner.peer.last("lobby").name).toBeNull();
+  });
+});
+
+describe("countdown of a quick game", () => {
+  it("can be stopped once by the host, who then starts the game", () => {
+    const room = new Room("game0000", PUBLIC, 1);
+    const host = seated(room, "Host");
+    const guest = seated(room, "Guest", 1_000);
+    expect(room.hold(guest.seat, 2_000)).toBe("not_host");
+    expect(room.hold(host.seat, 2_000)).toBeUndefined();
+    expect(guest.peer.last("lobby")).toMatchObject({ startsIn: null, holdable: false });
+    room.update(60_000);
+    expect(room.state).toBe("open");
+    // A third player does not start the countdown again.
+    seated(room, "Third", 61_000);
+    expect(room.startsIn(61_000)).toBeNull();
+    expect(room.requestStart(host.seat, 62_000)).toBeUndefined();
+    expect(room.state).toBe("running");
+  });
+
+  it("can be cut short by the host", () => {
+    const room = new Room("game0000", PUBLIC, 1);
+    const host = seated(room, "Host");
+    seated(room, "Guest");
+    expect(room.requestStart(host.seat, 100)).toBeUndefined();
+    expect(room.state).toBe("running");
+  });
+});
+
+describe("host who walked away", () => {
+  it("hands the role to the player at the screen most recently", () => {
+    const room = new Room("game0000", HOSTED, 1);
+    const host = seated(room, "Host", 0);
+    const early = seated(room, "Early", 0);
+    const late = seated(room, "Late", 0);
+    room.touch(early.seat, 30_000);
+    room.touch(late.seat, 90_000);
+    room.update(119_999);
+    expect(late.peer.last("lobby").host).toBe(1);
+    room.update(120_000);
+    expect(late.peer.last("lobby").host).toBe(3);
+    expect(room.requestStart(host.seat, 120_000)).toBe("not_host");
+    expect(room.requestStart(late.seat, 120_000)).toBeUndefined();
+  });
+
+  it("keeps a host who is still there, or alone", () => {
+    const busy = new Room("game0000", HOSTED, 1);
+    const host = seated(busy, "Host", 0);
+    const guest = seated(busy, "Guest", 0);
+    activeUntil(busy, host.seat, 200_000);
+    expect(guest.peer.last("lobby").host).toBe(1);
+
+    const alone = new Room("game0001", HOSTED, 1);
+    const solo = seated(alone, "Solo", 0);
+    alone.update(300_000);
+    expect(solo.peer.last("lobby").host).toBe(1);
+  });
+});
+
+/** Ticks `room` up to `until`, the player sending something every 30 s. */
+function activeUntil(room: Room, seat: Seat, until: number): void {
+  for (let now = 0; now <= until; now += 1_000) {
+    if (now % 30_000 === 0) room.touch(seat, now);
+    room.update(now);
+  }
+}
 
 function running(settings = PRIVATE) {
   const observer = events();
