@@ -522,6 +522,82 @@ function running(settings = PRIVATE) {
   return { room, alice, bob, observer };
 }
 
+describe("saved game", () => {
+  it("comes back with its seats, its turns and its clock", () => {
+    const { room, alice, bob } = running();
+    room.update(100);
+    room.submit(bob.seat, { type: "spawn", tile: 2 });
+    room.update(200);
+    room.leave(bob.seat, 250);
+    const saved = room.save(300);
+    expect(saved).toMatchObject({ id: "game0000", seed: 7, elapsedMs: 300 });
+    room.suspend();
+    expect(room.state).toBe("finished");
+    expect(alice.peer.inbox.some((message) => message.type === "ended")).toBe(false);
+
+    const observer = events();
+    const back = saved && Room.restore(saved, observer, 10_000);
+    if (!back) throw new Error("not restored");
+    expect(back.state).toBe("running");
+    expect(back.connectedCount).toBe(0);
+    expect(back.seatFor(bob.seat.token)).toBeUndefined();
+    const seat = back.seatFor(alice.seat.token);
+    if (!seat) throw new Error("no seat");
+    const peer = new FakePeer();
+    expect(back.rejoin(seat, peer, 1, 10_000)).toBeUndefined();
+    expect(peer.last("started")).toMatchObject({ you: 1, seed: 7, token: alice.seat.token });
+    expect(peer.turns()).toEqual([
+      { tick: 1, orders: [{ player: 2, order: { type: "spawn", tile: 2 } }] },
+    ]);
+    back.update(10_100);
+    expect(peer.turns().at(-1)?.tick).toBe(2);
+    expect(observer.log).toEqual([]);
+  });
+
+  it("frees the seats of players who do not come back, and keeps the time limit", () => {
+    const { room } = running({ ...PRIVATE, maxDurationMs: 60_000 });
+    const saved = room.save(50_000);
+    if (!saved) throw new Error("not saved");
+    const back = Room.restore(saved, events(), 1_000_000);
+    back?.update(1_009_000);
+    expect(back?.state).toBe("running");
+    back?.update(1_011_000);
+    expect(back?.state).toBe("finished");
+    const late = Room.restore(saved, events(), 0);
+    late?.update(PRIVATE.reconnectGraceMs);
+    expect(late?.state).toBe("finished");
+  });
+
+  it("puts the orders not yet in a turn into one more turn", () => {
+    const { room, alice } = running();
+    room.update(100);
+    room.submit(alice.seat, { type: "spawn", tile: 4 });
+    const saved = room.save(150);
+    expect(saved?.log.ends).toHaveLength(2);
+    expect(alice.peer.turns().at(-1)).toEqual({
+      tick: 1,
+      orders: [{ player: 1, order: { type: "spawn", tile: 4 } }],
+    });
+    expect(room.save(160)?.log.ends).toHaveLength(2);
+  });
+
+  it("is only a running game", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    seated(room, "Host");
+    expect(room.save(0)).toBeUndefined();
+  });
+
+  it("is refused with a broken log", () => {
+    const { room } = running();
+    room.update(100);
+    const saved = room.save(100);
+    if (!saved) throw new Error("not saved");
+    expect(
+      Room.restore({ ...saved, log: { ...saved.log, ends: Uint32Array.from([99]) } }, {}, 0),
+    ).toBeUndefined();
+  });
+});
+
 describe("running game", () => {
   it("relays orders in turns numbered from zero, in arrival order", () => {
     const { room, alice, bob } = running();

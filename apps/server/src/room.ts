@@ -89,6 +89,18 @@ export interface Seat {
   configured: number;
 }
 
+/** A running game as a restart keeps it (saved-games.ts). */
+export interface SavedRoom {
+  id: string;
+  seed: number;
+  owner: string | undefined;
+  settings: RoomSettings;
+  /** Time since the start, so that the time limit goes on where it was. */
+  elapsedMs: number;
+  seats: { id: number; name: string; token: string; gone: boolean }[];
+  log: { bodies: Uint8Array; ends: Uint32Array };
+}
+
 /** Receives what happens in a room, for logs and metrics. */
 export interface RoomObserver {
   started?(room: Room): void;
@@ -467,6 +479,61 @@ export class Room {
     this.host = next;
     next.activeAt = now;
     this.lobbyChanged(now);
+  }
+
+  /**
+   * The running game, for the next server to take over; undefined in any
+   * other state. Nothing the clients compute is in it, only their turns,
+   * the orders not yet in a turn included.
+   */
+  save(now: number): SavedRoom | undefined {
+    if (this.stateValue !== "running") return undefined;
+    // Orders sent since the last turn would be lost: they make one more turn.
+    if (this.pending.length > 0) this.closeTurn();
+    return {
+      id: this.id,
+      seed: this.seed,
+      owner: this.owner,
+      settings: { ...this.settings },
+      elapsedMs: Math.max(0, now - this.startedAt),
+      seats: this.seats.map(({ id, name, token, gone }) => ({ id, name, token, gone })),
+      log: this.log.export(),
+    };
+  }
+
+  /**
+   * Ends the game on this server without a word to its players, once it is
+   * saved: they reconnect, and the next server gives them their seats back.
+   */
+  suspend(): void {
+    this.stateValue = "finished";
+    for (const seat of this.seats) seat.peer = undefined;
+    this.pending = [];
+  }
+
+  /**
+   * A saved game, running again from its last turn. Every seat waits for its
+   * player as after a dropped connection. Undefined when the log is broken.
+   */
+  static restore(saved: SavedRoom, observer: RoomObserver, now: number): Room | undefined {
+    const room = new Room(saved.id, saved.settings, saved.seed, observer, saved.owner);
+    if (!room.log.load(saved.log.bodies, saved.log.ends)) return undefined;
+    room.stateValue = "running";
+    room.startedAt = now - saved.elapsedMs;
+    for (const { id, name, token, gone } of saved.seats) {
+      room.seats.push({
+        id,
+        name,
+        token,
+        peer: undefined,
+        awaySince: gone ? undefined : now,
+        gone,
+        orders: 0,
+        activeAt: now,
+        configured: 0,
+      });
+    }
+    return room;
   }
 
   private start(now: number): void {
