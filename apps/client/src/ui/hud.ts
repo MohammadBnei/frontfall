@@ -1,6 +1,6 @@
-import { Disable } from "@frontfall/engine";
+import { DEFAULT_BALANCE, Disable } from "@frontfall/engine";
 import type { GameRules } from "../game/messages.ts";
-import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
+import type { BuildView, ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
@@ -13,6 +13,10 @@ export const DEFAULT_RATIO = 30;
 /** The HUD is redrawn at most this often; the map keeps its own pace. */
 const REFRESH_MS = 250;
 const LEADERBOARD_SIZE = 10;
+/** A press held this long on a build button explains it, as the long press on the map does. */
+const HOLD_MS = 500;
+/** How long that explanation stays up. */
+const TIP_MS = 5000;
 
 export interface HudActions {
   onPause(): void;
@@ -38,8 +42,8 @@ const MODE_BANNERS = {
   demolish: "hud.modeDemolish",
 } as const;
 
-/** The build buttons, with their shortcut keys (game-screen.ts). */
-const BUILD_MODES = [
+/** The build buttons, with their shortcut keys (game-screen.ts), in the order the HUD and the help list them. */
+export const BUILD_MODES = [
   { mode: "city", key: "C" },
   { mode: "fort", key: "F" },
   { mode: "port", key: "O" },
@@ -62,6 +66,21 @@ const MODE_BITS: Partial<Record<ClickMode, number>> = {
   missile: Disable.Silo,
   heavyMissile: Disable.Silo,
 };
+
+/** Gold the next one costs the player; none for demolish. */
+export function costOf(mode: ClickMode, build: BuildView): number | undefined {
+  const costs: Partial<Record<ClickMode, number>> = {
+    city: build.cityCost,
+    fort: build.fortCost,
+    port: build.portCost,
+    silo: build.siloCost,
+    airDefense: build.airDefenseCost,
+    warship: build.warshipCost,
+    missile: build.missileCost,
+    heavyMissile: build.heavyMissileCost,
+  };
+  return costs[mode];
+}
 
 /** Whether a game that leaves out `disabled` has this build mode. */
 export function offers(mode: ClickMode, disabled: number): boolean {
@@ -123,6 +142,14 @@ export class Hud {
   private readonly heavyMissileCost = h("span", { class: "build-cost" });
   private readonly cityCount = h("span", { class: "build-count" });
   private mode: ClickMode = "attack";
+  /** What a build button does, after a long press on it. */
+  private readonly tip = h("p", {
+    class: "build-tip",
+    id: "build-tip",
+    role: "status",
+    hidden: true,
+  });
+  private tipTimer: ReturnType<typeof setTimeout> | undefined;
   private rules: GameRules = {
     ownableTiles: 1,
     ticksPerSecond: 10,
@@ -207,9 +234,41 @@ export class Hud {
           },
           h("span", { class: "build-icon", "aria-hidden": "true" }),
           h("span", { class: "build-name", "data-i18n": `hud.${mode}` }),
+          // The key, for players with a keyboard; hidden on touch screens (styles.css).
+          h("kbd", { class: "build-key", "aria-hidden": "true" }, key),
           ...extra,
         );
+        // A finger has no tooltip: holding the button explains it instead.
+        let hold: ReturnType<typeof setTimeout> | undefined;
+        let explained = false;
+        const release = (): void => {
+          clearTimeout(hold);
+          hold = undefined;
+        };
+        button.addEventListener("pointerdown", (event) => {
+          explained = false;
+          if (event.pointerType === "mouse") return;
+          hold = setTimeout(() => {
+            explained = true;
+            this.explain(
+              t("hud.named", {
+                action: t(`hud.${mode}`),
+                reason: t(`help.place.${mode}`, { spacing: DEFAULT_BALANCE.buildSpacing }),
+              }),
+            );
+          }, HOLD_MS);
+        });
+        for (const type of ["pointerup", "pointercancel", "pointerleave"] as const) {
+          button.addEventListener(type, release);
+        }
+        button.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+        });
         button.addEventListener("click", () => {
+          if (explained) {
+            explained = false;
+            return;
+          }
           actions.onMode(mode);
         });
         this.buildButtons.set(mode, button);
@@ -252,10 +311,21 @@ export class Hud {
       ),
       this.attackPanel,
       buildPanel,
+      this.tip,
       h("div", { class: "toolbar" }, help, ...(pausable ? [pause] : []), menu),
       ...present(betaBadge("beta-hud")),
     );
     applyTranslations(this.element);
+  }
+
+  /** Shows what a build button does for a few seconds. */
+  private explain(text: string): void {
+    this.tip.textContent = text;
+    this.tip.hidden = false;
+    clearTimeout(this.tipTimer);
+    this.tipTimer = setTimeout(() => {
+      this.tip.hidden = true;
+    }, TIP_MS);
   }
 
   /** Share of troops a new attack takes, in percent. */

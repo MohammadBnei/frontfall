@@ -8,8 +8,8 @@ import { h } from "./dom.ts";
 const MARK_MS = 700;
 /** An online order whose turn never came back (refused by the server) stops waiting after this. */
 const PENDING_MS = 3000;
-/** How long the reason for a refused click stays up. */
-const NOTE_MS = 2500;
+/** How long the reason for a refused click stays up: long enough to read twice. */
+const NOTE_MS = 4000;
 
 /** A ring this far outside the view, in CSS pixels, is hidden rather than moved. */
 const OFF_SCREEN = 64;
@@ -53,14 +53,17 @@ interface Mark {
 export class ClickMarks {
   readonly element = h("div", { class: "click-marks", "aria-hidden": "true" });
   /** Reasons are read out by screen readers, unlike the rings. */
-  readonly note = h("p", { class: "click-note", role: "status", hidden: true });
+  readonly note = h("p", { class: "click-note", id: "click-note", role: "status", hidden: true });
   private marks: Mark[] = [];
   /** Online orders sent and not yet back, oldest first. */
   private pending: Mark[] = [];
   private noteUntil = 0;
 
-  /** `waiting`: an online order, shown until `arrived` says its turn is back. */
-  show(tile: number, outcome: ClickOutcome, now: number, waiting = false): void {
+  /**
+   * `waiting`: an online order, shown until `arrived` says its turn is back.
+   * `action`: the name of the build refused, said before the reason.
+   */
+  show(tile: number, outcome: ClickOutcome, now: number, waiting = false, action?: string): void {
     const refusal = REFUSALS[outcome];
     if (outcome === "over") return;
     const held = waiting && !refusal;
@@ -72,7 +75,8 @@ export class ClickMarks {
     this.marks.push(mark);
     if (held) this.pending.push(mark);
     if (refusal) {
-      this.note.textContent = t(refusal);
+      this.note.textContent =
+        action === undefined ? t(refusal) : t("hud.named", { action, reason: t(refusal) });
       this.note.hidden = false;
       this.noteUntil = now + NOTE_MS;
     }

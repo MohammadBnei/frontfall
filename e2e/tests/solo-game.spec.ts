@@ -173,7 +173,7 @@ test("pauses and shows the controls", async ({ page }) => {
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   await page.keyboard.press("KeyH");
-  await expect(page.getByRole("dialog")).toContainText("Controls");
+  await expect(page.getByRole("dialog")).toContainText("How to play");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });

@@ -1,0 +1,117 @@
+import { DEFAULT_BALANCE } from "@frontfall/engine";
+import type { BuildView } from "../game/solo-game.ts";
+import { applyTranslations, type MessageKey } from "../i18n/index.ts";
+import { h } from "./dom.ts";
+import { formatCount } from "./format.ts";
+import { BUILD_MODES, costOf, offers } from "./hud.ts";
+
+export interface HelpOptions {
+  /** The player's current costs, when the game has started. */
+  build?: BuildView | undefined;
+  /** What the game leaves out (R-MODE-03): those rows are not listed. */
+  disabled: number;
+  /** A finger rather than a mouse: gestures replace the keys. */
+  touch: boolean;
+  onClose: () => void;
+  /** Shows the first steps again; left out where there is no guide (online, replays). */
+  onGuide?: (() => void) | undefined;
+}
+
+/** Lines for a mouse and a keyboard, or for a finger. */
+const LINES: Readonly<Record<"mouse" | "touch", Record<string, readonly MessageKey[]>>> = {
+  mouse: {
+    expand: ["help.click", "help.ships", "help.ratio"],
+    diplomacy: ["help.diplomacy"],
+    map: ["help.drag", "help.zoom", "help.keys", "help.pause"],
+  },
+  touch: {
+    expand: ["help.tap", "help.shipsTouch", "help.ratioTouch"],
+    diplomacy: ["help.diplomacyTouch"],
+    map: ["help.dragTouch"],
+  },
+};
+
+/**
+ * How to play, in a dialog the player opens with "?" or H: how to expand,
+ * every building with its key, its current cost and where it goes, how to
+ * reach other players, and how to move the map. On a touch screen the
+ * gestures replace the keys.
+ */
+export function helpPanel(options: HelpOptions): HTMLElement {
+  const lines = LINES[options.touch ? "touch" : "mouse"];
+  const list = (keys: readonly MessageKey[] = []): HTMLElement =>
+    h("ul", { class: "help-lines" }, ...keys.map((key) => h("li", { "data-i18n": key })));
+  const section = (title: MessageKey, ...content: HTMLElement[]): HTMLElement =>
+    h("section", { class: "help-section" }, h("h3", { "data-i18n": title }), ...content);
+
+  const params = JSON.stringify({ spacing: DEFAULT_BALANCE.buildSpacing });
+  const rows = BUILD_MODES.filter(({ mode }) => offers(mode, options.disabled)).map(
+    ({ mode, key }) => {
+      const cost = options.build ? costOf(mode, options.build) : undefined;
+      return h(
+        "li",
+        { class: `help-build build-${mode}` },
+        h("span", { class: "build-icon", "aria-hidden": "true" }),
+        h(
+          "span",
+          { class: "help-build-text" },
+          h("strong", { "data-i18n": `hud.${mode}` }),
+          h("span", { "data-i18n": `help.place.${mode}`, "data-i18n-params": params }),
+        ),
+        ...(options.touch ? [] : [h("kbd", {}, key)]),
+        h("span", { class: "help-cost" }, cost === undefined ? "" : formatCount(cost)),
+      );
+    },
+  );
+
+  const close = h("button", { type: "button", class: "primary", "data-i18n": "help.close" });
+  close.addEventListener("click", options.onClose);
+  const buttons: HTMLElement[] = [close];
+  if (options.onGuide) {
+    const guide = h("button", { type: "button", class: "secondary", "data-i18n": "help.guide" });
+    guide.addEventListener("click", options.onGuide);
+    buttons.unshift(guide);
+  }
+
+  const dialog = h(
+    "section",
+    {
+      class: "help",
+      id: "help-panel",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "help-title",
+    },
+    h("h2", { id: "help-title", "data-i18n": "help.title" }),
+    section("help.expandTitle", list(lines.expand)),
+    section(
+      "help.buildTitle",
+      h("p", { "data-i18n": options.touch ? "help.buildHowTouch" : "help.buildHow" }),
+      h("ul", { class: "help-builds" }, ...rows),
+    ),
+    section("help.diplomacyTitle", list(lines.diplomacy)),
+    section("help.mapTitle", list(lines.map)),
+    h("div", { class: "help-actions" }, ...buttons),
+  );
+  trapFocus(dialog);
+  applyTranslations(dialog);
+  return h("div", { class: "overlay" }, dialog);
+}
+
+/** Tab and Shift+Tab stay among the buttons of a modal dialog. */
+export function trapFocus(dialog: HTMLElement): void {
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    const focusable = [...dialog.querySelectorAll<HTMLElement>("button:not([disabled])")];
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      last.focus();
+      event.preventDefault();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      first.focus();
+      event.preventDefault();
+    }
+  });
+}

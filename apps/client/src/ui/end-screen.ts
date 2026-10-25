@@ -98,30 +98,3 @@ export function endScreen(summary: GameSummary, actions: EndScreenActions): HTML
   applyTranslations(dialog);
   return h("div", { class: "overlay" }, dialog);
 }
-
-const HELP_KEYS = [
-  "help.click",
-  "help.ships",
-  "help.build",
-  "help.diplomacy",
-  "help.drag",
-  "help.zoom",
-  "help.keys",
-  "help.ratio",
-  "help.pause",
-] as const;
-
-/** The controls, in a dialog the player opens with "?" or H. */
-export function helpPanel(onClose: () => void): HTMLElement {
-  const close = h("button", { type: "button", class: "primary", "data-i18n": "help.close" });
-  close.addEventListener("click", onClose);
-  const dialog = h(
-    "section",
-    { class: "help", role: "dialog", "aria-modal": "true", "aria-labelledby": "help-title" },
-    h("h2", { id: "help-title", "data-i18n": "help.title" }),
-    h("ul", {}, ...HELP_KEYS.map((key) => h("li", { "data-i18n": key }))),
-    close,
-  );
-  applyTranslations(dialog);
-  return h("div", { class: "overlay" }, dialog);
-}

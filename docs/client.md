@@ -185,7 +185,7 @@ visuals will still change. Vite passes the version to the page
 | Right click, long press, or a leaderboard row | Open that player's menu: ask for an alliance, accept, renew or betray, embargo their trade, send a gift or a message         |
 | `Esc`                                         | Close the player menu, or leave a build mode                                                                                 |
 | `P` or `Esc`                                  | Pause and resume                                                                                                             |
-| `H` or `?`                                    | Show the controls                                                                                                            |
+| `H` or `?`                                    | How to play: the controls, and every building with its cost                                                                  |
 
 The build panel above the toolbar, in two columns (two rows of icons under the stats on phones and short windows), has the same modes as buttons, with the cost of each, and the cities owned against the most the land supports (`R-BUILD-07`). Structures are drawn as light diamonds (cities), triangles (forts), hexagons (ports), pentagons (silos) and discs (air defenses) on a dark outline, greyed while being built. Trade ships are small dots in their owner's colour, smaller than transport ships; warships are larger triangles. Missiles in flight are bright ember diamonds, larger for a heavy one, above everything else, and land under fallout turns a scorched olive until it clears: the territory layer rewrites the ground colours of those tiles only when the fallout changes. Zoomed out, ships keep a smallest size on screen (`SHIP_SIZES` in `render/map-view.ts`), as structures do.
 
@@ -202,7 +202,8 @@ does, and the menu button of the HUD stays the way out.
 A click on land the player cannot reach by land sends a transport ship when
 it is a coast within sailing range, from the player's nearest coast. A click
 that sends nothing (water, own land, too few troops, out of reach, every ship
-at sea) gets a red ring and one line saying why; one that sends an order gets
+at sea) gets a red ring and one line saying why, for four seconds, naming the
+building first when a build was refused ("Port: …"); one that sends an order gets
 a ring of its own. A press that moves more than 6 pixels is a drag, never a
 click. WASD is read by
 physical key, so it stays under the same fingers on AZERTY keyboards. Command letters
@@ -211,6 +212,35 @@ on the key, so M is M and `?` opens the help on AZERTY too; a layout without
 Latin letters falls back to the physical key. The page
 itself never zooms or scrolls during a game (`user-scalable=no`, `touch-action:
 none`): a pinch must reach the map, not the browser.
+
+## Help and first steps
+
+The `?` button, `H` or `?` open "How to play" (`ui/help.ts`), which pauses a
+solo game. It has four short sections: expanding, building, other players and
+the map. The building rows come from `BUILD_MODES` in `ui/hud.ts`, the list
+the build panel is made from, so a new building shows in both: icon, name,
+key, the player's current cost (from the last update, so the rise of each
+city's price is in it), and what it does and where it goes in half a
+sentence (`help.place.<mode>`, with `B-BUILD-SPACING` as `{spacing}`). Modes
+the game leaves out (`R-MODE-03`) are not listed. On a touch screen
+(`pointer: coarse`) the lines say tap and long press instead of click and
+right click, and keys are left out. The dialog keeps Tab among its buttons,
+opens scrolled to its top, and scrolls by itself on a small screen.
+
+Build buttons show their key in a corner, except on touch screens and in the
+compact layout. Holding a finger on one for 500 ms explains it, the way a
+tooltip does for a mouse, and that press does not pick the mode.
+
+A first solo game shows "First steps" (`ui/guide.ts`), a card under the stats
+(across the screen under the banner on phones), never online and never in a
+replay. It asks for one thing at a time and moves on when the player does it:
+pick a start, expand once the attacks open, build a city (with its current
+cost), open another player's menu. A step already done is skipped. Next moves
+on without doing it, and Hide puts the guide away; reaching the end or hiding
+it sets `frontfall.guide` to `done` in `localStorage`, and "Show the first
+steps again" in the help clears it. The step text sits in a polite live
+region, and the card takes no focus from the map. Without storage the guide
+simply shows again next game.
 
 ## Translations
 

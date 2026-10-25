@@ -752,12 +752,95 @@ input[type="range"] {
   gap: 8px;
 }
 
+/* How to play (ui/help.ts): four short sections; it scrolls on small screens. */
+.help {
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  text-align: left;
+}
+
+.help h2 {
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+.help h3 {
+  margin: 16px 0 6px;
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.help p {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
 .help ul {
-  margin: 12px 0 20px;
+  margin: 0;
   padding: 0;
   list-style: none;
-  text-align: left;
-  line-height: 1.8;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.help-lines li + li {
+  margin-top: 4px;
+}
+
+.help-build {
+  display: grid;
+  grid-template-columns: 16px 1fr auto 56px;
+  column-gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid var(--ff-night-500);
+}
+
+.help-build .build-icon {
+  grid-row: auto;
+}
+
+.help-build-text {
+  display: flex;
+  flex-direction: column;
+  color: var(--ff-slate-300);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.help-build-text strong {
+  color: var(--ff-text);
+  font-size: 14px;
+}
+
+.help-cost {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+kbd {
+  padding: 0 4px;
+  border: 1px solid var(--ff-slate-400);
+  border-radius: 3px;
+  color: var(--ff-text);
+  font-family: var(--ff-font);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 /* Phones: the map keeps the middle of the screen; panels hug the edges. */
@@ -808,6 +891,14 @@ input[type="range"] {
   .game .click-note {
     bottom: auto;
     top: 242px;
+  }
+
+  /* Over the banner, under the build row it explains. */
+  .game .build-tip {
+    bottom: auto;
+    top: 198px;
+    z-index: 3;
+    background: var(--ff-night-800);
   }
 
   .banner {
@@ -1038,7 +1129,8 @@ input[type="range"] {
   }
 }
 
-.click-note {
+.click-note,
+.build-tip {
   position: fixed;
   bottom: 68px;
   left: 50%;
@@ -1049,9 +1141,15 @@ input[type="range"] {
   border: 1px solid var(--ff-danger);
   border-radius: var(--ff-radius);
   background: rgb(10 19 28 / 90%);
-  font-size: 13px;
+  font-size: 14px;
   text-align: center;
   pointer-events: none;
+}
+
+/* What a build button does, after a long press on it (ui/hud.ts). */
+.build-tip {
+  z-index: 1;
+  border-color: var(--ff-slate-400);
 }
 
 /* Player names over their land (ui/labels.ts). */
@@ -1579,5 +1677,111 @@ input[type="range"] {
   .replay-progress {
     flex: 1;
     width: auto;
+  }
+}
+
+/* The key of each build button (ui/hud.ts), for players with a keyboard. */
+.build-button {
+  position: relative;
+  padding-right: 28px;
+}
+
+.build-key {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  color: var(--ff-slate-300);
+}
+
+/* A finger has no keys to learn. */
+@media (pointer: coarse) {
+  .build-key {
+    display: none;
+  }
+
+  .build-button {
+    padding-right: 8px;
+  }
+}
+
+@media (width < 720px), (height < 560px) {
+  .build-key {
+    display: none;
+  }
+
+  .build-button {
+    padding-right: 8px;
+  }
+}
+
+/* First steps of a first solo game (ui/guide.ts): under the stats, out of the
+   way of the map's middle. */
+.guide {
+  top: 96px;
+  left: 12px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  border-color: var(--ff-ember);
+}
+
+.guide-title {
+  margin: 0 0 4px;
+  color: var(--ff-ember-bright);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guide-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.guide-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.guide-actions button.secondary {
+  padding: 4px 14px;
+}
+
+.guide-hide {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--ff-slate-300);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.guide-hide:hover,
+.guide-hide:focus-visible {
+  color: var(--ff-text);
+}
+
+/* Phones and short windows: under the banner, across the screen; a refused
+   click's reason then shows at the bottom instead of over it. */
+@media (width < 720px), (height < 560px) {
+  /* Clear of a banner of three lines. */
+  .guide {
+    top: 272px;
+    right: 12px;
+    width: auto;
+  }
+
+  .game:has(.guide) .click-note {
+    top: auto;
+    bottom: 76px;
+    z-index: 2;
+    background: var(--ff-night-800);
   }
 }

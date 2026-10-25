@@ -19,7 +19,10 @@ import {
   type Renderer,
   type ViewKind,
 } from "../render/renderer.ts";
-import { endScreen, helpPanel } from "./end-screen.ts";
+import { endScreen } from "./end-screen.ts";
+import { Guide, guideDone, setGuideDone } from "./guide.ts";
+import { helpPanel } from "./help.ts";
+import { safeStorage } from "./setup.ts";
 import { ReplayBar } from "./replay-bar.ts";
 import { REPLAY_MAP_CHANGED } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
@@ -127,6 +130,12 @@ export class GameScreen {
   private hoveredOwner = 0;
   /** Players who ask the system for less motion see fronts without their glint. */
   private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  /** First steps of a first solo game, while they show. */
+  private guide: Guide | undefined;
+  /** The player's land when the attacks opened, for the guide. */
+  private tilesAtPlay: number | undefined;
+  /** A finger rather than a mouse: the help shows gestures instead of keys. */
+  private readonly coarsePointer = window.matchMedia("(pointer: coarse)");
 
   constructor(
     readonly options: SoloOptions,
@@ -194,6 +203,7 @@ export class GameScreen {
     });
     this.hud.leaderboard.append(this.diplomacy.menu);
     this.hud.element.append(this.diplomacy.requests, this.diplomacy.feed);
+    if (this.guided && !guideDone(safeStorage())) this.startGuide();
     this.element = document.createElement("div");
     this.element.className = "game";
     this.element.append(
@@ -231,7 +241,11 @@ export class GameScreen {
           this.apply(update);
         },
         onClick: (tile, outcome) => {
-          this.marks.show(tile, outcome, performance.now(), link !== undefined);
+          // A refused build names what was refused: the oldest click in flight is the one answered.
+          const sent = this.clicksInFlight[0];
+          const action =
+            sent !== undefined && sent !== "attack" ? t(`hud.${sent}` as MessageKey) : undefined;
+          this.marks.show(tile, outcome, performance.now(), link !== undefined, action);
           this.afterClick(outcome);
         },
         onError: (message) => {
@@ -287,6 +301,7 @@ export class GameScreen {
         applyTranslations(this.surface);
         this.hud.refresh();
         this.diplomacy.refresh();
+        this.guide?.refresh();
       }),
     );
   }
@@ -521,6 +536,7 @@ export class GameScreen {
     this.lightHovered();
     const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
+    if (human && this.guide) this.followGuide(update, human.tiles);
     if (!this.focused && human && human.tiles > 0) {
       // Once, when the player's start appears, picked or placed by the game:
       // on a large map it is a few pixels wide at the zoom that shows it all.
@@ -772,14 +788,61 @@ export class GameScreen {
     this.showOverlay(banner);
   }
 
+  /** The guide is for a solo game, not online and not in a replay. */
+  private get guided(): boolean {
+    return this.link === undefined && this.options.record === undefined;
+  }
+
+  private startGuide(): void {
+    this.guide?.element.remove();
+    this.guide = new Guide(this.coarsePointer.matches, () => {
+      setGuideDone(safeStorage(), true);
+    });
+    this.hud.element.append(this.guide.element);
+    if (this.latest) this.followGuide(this.latest, 0);
+  }
+
+  private followGuide(update: GameUpdate, tiles: number): void {
+    const guide = this.guide;
+    if (!guide) return;
+    if (!guide.shown) {
+      this.guide = undefined;
+      return;
+    }
+    if (update.phase === "play") this.tilesAtPlay ??= tiles;
+    guide.update(
+      {
+        phase: update.phase,
+        tiles,
+        tilesAtPlay: this.tilesAtPlay ?? 0,
+        cities: update.structures.filter((s) => s.player === update.you && s.type === "city")
+          .length,
+        playerMenu: this.diplomacy.open,
+      },
+      update.build.cityCost,
+    );
+  }
+
   private showHelp(): void {
     if (!this.link) {
       this.paused = true;
       this.session.setPaused(true);
     }
     this.showOverlay(
-      helpPanel(() => {
-        this.closeOverlay();
+      helpPanel({
+        build: this.latest?.build,
+        disabled: this.disabled,
+        touch: this.coarsePointer.matches,
+        onClose: () => {
+          this.closeOverlay();
+        },
+        onGuide: this.guided
+          ? () => {
+              setGuideDone(safeStorage(), false);
+              this.closeOverlay();
+              this.startGuide();
+            }
+          : undefined,
       }),
     );
   }
@@ -788,7 +851,8 @@ export class GameScreen {
     this.overlay?.remove();
     this.overlay = element;
     this.element.append(element);
-    element.querySelector<HTMLElement>("button")?.focus();
+    // A long dialog opens at its top, even when its first button is at the foot.
+    element.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
   }
 
   private closeOverlay(): void {
