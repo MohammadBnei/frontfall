@@ -87,8 +87,13 @@ test("two players meet in a private game without leaving the base path", async (
   await expect(host.locator("#lobby-bots")).toHaveValue("0");
   await host.locator("#lobby-allow-silo").uncheck();
 
+  // The link asks the guest for a name first, and keeps it for next time.
   await guest.goto(link);
+  await guest.locator("#join-name").fill("Guest");
+  await guest.locator("#join-submit").click();
   await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
+  await expect(host.locator("#lobby-players")).toContainText("Guest");
+  expect(await guest.evaluate(() => localStorage.getItem("frontfall.setup"))).toContain("Guest");
   await expect(guest.locator("#lobby-start")).toBeHidden();
   await expect(guest.locator("#lobby-map")).toBeHidden();
   await expect(guest.locator("#lobby-summary")).toHaveText(
@@ -217,6 +222,7 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   // Four rows on the board: the players and the bots, without nations.
   await host.locator("#lobby-nations").uncheck();
   await guest.goto(await invite.inputValue());
+  await guest.locator("#join-submit").click();
   await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
   await host.locator("#lobby-start").click();
   for (const page of [host, guest]) {
@@ -299,6 +305,7 @@ test("two players join a public game from the menu", async ({ browser, baseURL }
 
 test("says when an invitation leads nowhere", async ({ page }) => {
   await page.goto("./?game=AAAAAAAAAAAA");
+  await page.locator("#join-submit").click();
   await expect(page.locator("#lobby-status")).toContainText("No game has this invitation link");
   await page.locator("#lobby-leave").click();
   await expect(page.locator("#menu")).toBeVisible();

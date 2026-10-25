@@ -44,8 +44,10 @@ test("a player whose game drifts apart is told, and can download a report that r
   await host.locator("#lobby-map").selectOption("world");
   await host.locator("#lobby-bots").fill("2");
   const link = await invite.inputValue();
-  await guest.goto(link);
-  await drifting.goto(link);
+  for (const page of [guest, drifting]) {
+    await page.goto(link);
+    await page.locator("#join-submit").click();
+  }
   await expect(host.locator("#lobby-players li")).toHaveCount(3, { timeout: 15_000 });
   await host.locator("#lobby-start").click();
   for (const page of [host, guest, drifting]) {

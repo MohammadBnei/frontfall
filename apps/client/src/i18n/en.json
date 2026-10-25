@@ -281,5 +281,7 @@
   "guide.doneTouch": "You know the basics. The ? button shows every gesture, with the cost of each building.",
   "guide.next": "Next",
   "guide.hide": "Hide the guide",
-  "guide.close": "Close"
+  "guide.close": "Close",
+  "online.joinTitle": "Join a game",
+  "online.joinHint": "You were invited to an online game. Pick the name the other players will see."
 }

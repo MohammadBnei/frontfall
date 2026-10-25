@@ -83,7 +83,10 @@ The menu offers the next public game, a new private game, and the public
 games waiting for players (`/api/games`, fetched every 3 seconds while the
 menu shows). The lobby (`ui/lobby.ts`) shows who is in, the countdown of a
 public game, and for a private one its invitation link, `?game=<id>`, with a
-Copy button; only the host sees "Start the game". The address bar holds the
+Copy button; only the host sees "Start the game". An invitation link first asks for the name
+the other players will see (`ui/join.ts`), filled with the last one and saved
+with the setup, unless the link has `name=` or the tab holds a seat to take
+back. The address bar holds the
 link while the player waits, so a reload joins again. The lobby also says
 when the page is outdated (with a Reload button), when a game expired before
 it started or ended for another reason, and why a request was refused.

@@ -281,5 +281,7 @@
   "guide.doneTouch": "Vous connaissez l’essentiel. Le bouton ? montre tous les gestes, avec le coût de chaque bâtiment.",
   "guide.next": "Suivant",
   "guide.hide": "Masquer le guide",
-  "guide.close": "Fermer"
+  "guide.close": "Fermer",
+  "online.joinTitle": "Rejoindre une partie",
+  "online.joinHint": "Vous êtes invité à une partie en ligne. Choisissez le nom que verront les autres joueurs."
 }

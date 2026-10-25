@@ -8,6 +8,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **How to play.** The ? button, H or ? open a help that lists the controls in four short sections, and every building with its key, what it costs you now and where it goes. On a phone it gives the gestures instead.
 - **First steps.** Your first solo game shows four steps that move on as you play: pick a start, expand, build a city, open another player's menu. Next skips one, Hide puts the guide away, and the help brings it back.
+- **Your name from an invitation link.** A link to a private game first asks for the name the other players will see, filled with the last one you used, and keeps it for next time.
 - **Keys on the build buttons.** Each button shows its key; on a phone, a long press on a button says what it does.
 - **Updates no longer cut games short without a word.** When the server is about to restart for an update, a band at the top of the page counts the minutes down, and the update waits for running games to end. A game the update still has to stop ends with a message that says so.
 - **Server status page** at [/status](https://nclsmgr.com/frontfall/status): players online, games running, lobbies, and any update on its way.

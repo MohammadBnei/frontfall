@@ -17,6 +17,7 @@ import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
+import { JoinScreen } from "./ui/join.ts";
 import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 
@@ -286,6 +287,25 @@ function showMaintenance(inMs: number | null): void {
   document.body.append(band);
 }
 
+/** An invitation link: the player picks their name, kept for next time, then joins. */
+function askName(invited: string): void {
+  const screen = new JoinScreen(setup.playerName, {
+    onJoin: (name) => {
+      screen.dispose();
+      setup = { ...setup, playerName: name };
+      saveSetup(setup, storage);
+      goOnline({ type: "join", game: invited });
+    },
+    onMenu: () => {
+      screen.dispose();
+      history.replaceState(null, "", setupQuery(setup));
+      showMenu();
+    },
+  });
+  document.body.prepend(screen.element);
+  screen.focus();
+}
+
 /** Leaves the online game, if any, and closes the connection. */
 function goOffline(): void {
   showMaintenance(null);
@@ -499,7 +519,10 @@ void ready.then(() => {
   // An invitation link joins its game; ?online, the next public one.
   if (invited) {
     const token = seatIn(invited);
-    goOnline(token ? { type: "resume", game: invited, token } : { type: "join", game: invited });
+    // A seat taken back after a reload, or a name in the link, needs no question.
+    if (token) goOnline({ type: "resume", game: invited, token });
+    else if (query.has("name")) goOnline({ type: "join", game: invited });
+    else askName(invited);
   } else if (query.has("online")) goOnline({ type: "play" });
   else showMenu();
 });
