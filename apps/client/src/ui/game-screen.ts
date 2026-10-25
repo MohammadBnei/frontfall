@@ -833,6 +833,7 @@ export class GameScreen {
         build: this.latest?.build,
         disabled: this.disabled,
         touch: this.coarsePointer.matches,
+        online: this.link !== undefined,
         onClose: () => {
           this.closeOverlay();
         },

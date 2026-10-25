@@ -115,6 +115,14 @@ test("two players meet in a private game without leaving the base path", async (
   await expect.poll(() => clockOf(guest), { timeout: 10_000 }).toBeGreaterThan(start);
   await expect.poll(() => clockOf(host), { timeout: 10_000 }).toBeGreaterThan(start);
 
+  // An online game runs for everyone: no pause, in the HUD or in the help.
+  await expect(host.locator("#pause")).toHaveCount(0);
+  await host.keyboard.press("KeyH");
+  await expect(host.locator(".help")).toContainText("never pauses");
+  await expect(host.locator(".help")).not.toContainText("P: pause");
+  await host.keyboard.press("Escape");
+  await expect(host.locator(".help")).toHaveCount(0);
+
   expect(pageErrors).toEqual([]);
   const socketUrl = new URL("ws", baseURL).href.replace(/^http/, "ws");
   expect(sockets).toEqual([socketUrl, socketUrl]);

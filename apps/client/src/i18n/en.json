@@ -72,6 +72,7 @@
   "help.keys": "Arrows or WASD: move · + and −: zoom",
   "help.ratio": "1 to 9: attack with 10 % to 90 % of your troops, 0: all of them",
   "help.pause": "P: pause · H: this help · Esc: close",
+  "help.online": "H: this help · Esc: close · an online game never pauses",
   "help.close": "Back to the game",
   "hud.cap": "/ {cap}",
   "webgl.missing": "Frontfall needs WebGL 2 to draw the map, and this browser could not provide it. Try updating your browser, or turning on hardware acceleration in its settings.",

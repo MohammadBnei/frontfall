@@ -12,6 +12,8 @@ export interface HelpOptions {
   disabled: number;
   /** A finger rather than a mouse: gestures replace the keys. */
   touch: boolean;
+  /** An online game runs for everyone: no pause to offer. */
+  online?: boolean;
   onClose: () => void;
   /** Shows the first steps again; left out where there is no guide (online, replays). */
   onGuide?: (() => void) | undefined;
@@ -40,7 +42,13 @@ const LINES: Readonly<Record<"mouse" | "touch", Record<string, readonly MessageK
 export function helpPanel(options: HelpOptions): HTMLElement {
   const lines = LINES[options.touch ? "touch" : "mouse"];
   const list = (keys: readonly MessageKey[] = []): HTMLElement =>
-    h("ul", { class: "help-lines" }, ...keys.map((key) => h("li", { "data-i18n": key })));
+    h(
+      "ul",
+      { class: "help-lines" },
+      ...keys.map((key) =>
+        h("li", { "data-i18n": key === "help.pause" && options.online ? "help.online" : key }),
+      ),
+    );
   const section = (title: MessageKey, ...content: HTMLElement[]): HTMLElement =>
     h("section", { class: "help-section" }, h("h3", { "data-i18n": title }), ...content);
 
