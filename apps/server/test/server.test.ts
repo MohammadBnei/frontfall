@@ -432,6 +432,7 @@ describe("WebSocket", () => {
     });
     bob.send({ type: "join", game: lobby.game });
     await bob.next("lobby");
+    await alice.next("lobby");
 
     bob.send({
       type: "configure",
@@ -457,8 +458,11 @@ describe("WebSocket", () => {
         disabled: 0,
         ...SEATS,
       },
+      seq: 7,
     });
     expect((await alice.next("error")).code).toBe("invalid_settings");
+    // Numbered, a refusal comes with the settings that hold, for a form gone ahead.
+    expect(await alice.next("lobby")).toMatchObject({ map: "world", configured: 7 });
     alice.send({
       type: "configure",
       options: {
@@ -497,8 +501,11 @@ describe("WebSocket", () => {
         disabled: 0,
         ...SEATS,
       },
+      seq: 8,
     });
+    expect(await alice.next("lobby")).toMatchObject({ map: "europe", configured: 8 });
     expect(await bob.next("lobby")).toMatchObject({
+      configured: 0,
       map: "europe",
       bots: 18,
       difficulty: "hard",

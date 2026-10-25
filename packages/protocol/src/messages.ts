@@ -137,7 +137,13 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
   /** Host only: change the options, and the name of a public game, before the start. */
   z
-    .object({ type: z.literal("configure"), options: GameOptions, name: rawGameName.optional() })
+    .object({
+      type: z.literal("configure"),
+      options: GameOptions,
+      name: rawGameName.optional(),
+      /** Counts the player's `configure` messages, echoed as `configured` in `lobby`. */
+      seq: z.number().int().nonnegative().optional(),
+    })
     .strict(),
   /** Host only: start now, with at least the game's minimum of players. */
   z.object({ type: z.literal("start") }).strict(),
@@ -186,6 +192,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     token,
     /** Whether the host can still stop the countdown. */
     holdable: z.boolean(),
+    /** `seq` of the last `configure` from this player the server handled, 0 before any. */
+    configured: z.number().int().nonnegative(),
   }),
   /** The game starts, or the player rejoined it. Player numbers are final from here. */
   z.object({

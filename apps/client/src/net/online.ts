@@ -47,7 +47,11 @@ export type ConnectionStatus =
 
 export interface OnlineEvents {
   status?(status: ConnectionStatus, retryInMs?: number): void;
-  lobby?(lobby: LobbyState): void;
+  /**
+   * `behind` when the lobby predates a `configure` still on its way: a form
+   * would show settings the host already changed.
+   */
+  lobby?(lobby: LobbyState, behind: boolean): void;
   /** The game starts, or starts again after a rejoin: reset the simulation, then expect turns. */
   started?(game: GameStart): void;
   /** Consecutive turns, never skipping one, from the tick after the last one delivered. */
@@ -109,6 +113,8 @@ export class OnlineClient {
   private game: GameStart | undefined;
   /** The seat held in a lobby: after a drop, the server keeps it for a while. */
   private lobbySeat: { game: string; token: string } | undefined;
+  /** `configure` messages sent from the seat, numbered for the server to echo. */
+  private configures = { token: "", sent: 0 };
   private nextTick = 0;
   private readonly createSocket: (url: string) => SocketLike;
   private readonly setTimer: (callback: () => void, ms: number) => unknown;
@@ -158,7 +164,15 @@ export class OnlineClient {
 
   /** Host: map, bots, seats and, for a public game, its name, until the start. */
   configure(options: GameOptions, name?: string): void {
-    this.send({ type: "configure", options, ...(name !== undefined && { name }) });
+    const token = this.lobbySeat?.token ?? "";
+    if (this.configures.token !== token) this.configures = { token, sent: 0 };
+    this.configures.sent += 1;
+    this.send({
+      type: "configure",
+      options,
+      ...(name !== undefined && { name }),
+      seq: this.configures.sent,
+    });
   }
 
   /** Host: start now. */
@@ -281,6 +295,8 @@ export class OnlineClient {
     switch (message.type) {
       case "welcome":
         this.attempt = 0;
+        // Whatever went out on the old connection is answered or lost.
+        this.configures.sent = 0;
         events.status?.("online");
         if (this.game) {
           this.send({ type: "rejoin", token: this.game.token, from: this.nextTick });
@@ -295,7 +311,10 @@ export class OnlineClient {
         this.lobbySeat = { game: message.game, token: message.token };
         // Should the seat be lost, joining this game again beats opening another one.
         if (this.entry?.type === "create") this.entry = { type: "join", game: message.game };
-        events.lobby?.(message);
+        events.lobby?.(
+          message,
+          this.configures.token === message.token && message.configured < this.configures.sent,
+        );
         return;
       case "started": {
         // A rejoin resends the start: the simulation keeps its state and only gets the missing turns.

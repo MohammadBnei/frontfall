@@ -544,16 +544,23 @@ export function createGameServer(options: ServerOptions): GameServer {
           reply(session, "not_in_game");
           return;
         }
+        // A host's form runs ahead of the answers: a refusal sends the settings that hold.
+        const refuse = (code: ErrorCode, text?: string): void => {
+          reply(session, code, text);
+          if (message.seq !== undefined) {
+            current.room.refusedConfigure(current.seat, message.seq, Date.now());
+          }
+        };
         const seats = seatsFor(message.options, maps, maxBots, current.room.playerCount);
         if (seats === undefined) {
-          reply(session, "invalid_settings");
+          refuse("invalid_settings");
           return;
         }
         let name: string | undefined;
         if (message.name !== undefined && current.room.settings.visibility === "public") {
           const checked = normalizeGameName(message.name);
           if (!checked.ok) {
-            reply(session, "invalid_game_name", checked.error);
+            refuse("invalid_game_name", checked.error);
             return;
           }
           name = games.uniqueName(checked.name, current.room);
@@ -565,8 +572,9 @@ export function createGameServer(options: ServerOptions): GameServer {
           current.seat,
           { ...message.options, capacity: seats, soloBots, ...(name !== undefined && { name }) },
           Date.now(),
+          message.seq,
         );
-        if (error) reply(session, error);
+        if (error) refuse(error);
         return;
       }
       case "start": {

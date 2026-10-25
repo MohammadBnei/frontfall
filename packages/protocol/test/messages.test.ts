@@ -65,6 +65,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     startsIn: 12_000,
     token: "q8Vb1aV9mN3x0WcY2tLk4Q",
     holdable: true,
+    configured: 0,
   },
   {
     type: "started",

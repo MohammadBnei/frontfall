@@ -422,16 +422,19 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
           if (game) showNotice("online.rejected");
         }
       },
-      lobby(state) {
+      lobby(state, behind) {
         visibility = state.visibility;
         // Any game is joined again from its link, after a reload too.
         history.replaceState(null, "", `?${new URLSearchParams({ game: state.game }).toString()}`);
         if (fromMenu && state.host === state.you) {
           fromMenu = false;
           const options = initialOptions(chosen, playable, state.players.length);
-          if (options) client.configure(options);
+          if (options) {
+            client.configure(options);
+            behind = true;
+          }
         }
-        room.lobby(state, inviteLink(state.game));
+        room.lobby(state, inviteLink(state.game), behind);
       },
       started(start) {
         startOnline(

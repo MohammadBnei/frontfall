@@ -11,7 +11,6 @@ import {
 } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
-import { PendingEdits } from "./lobby-edits.ts";
 import { LEFT_OUT, TEAM_CHOICES } from "./setup.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
@@ -181,7 +180,7 @@ export class LobbyScreen {
   /** Countdown of a public game: when it starts, by this page's clock. */
   private startsAt: number | undefined;
   private lastLobby: LobbyState | undefined;
-  private readonly edits = new PendingEdits();
+  private behind = false;
   private readonly timer: ReturnType<typeof setInterval>;
   private readonly stopWatching: () => void;
 
@@ -224,7 +223,6 @@ export class LobbyScreen {
         capacity: Math.min(Number(this.seats.value), seatLimit(map, bots)),
         autoStart: this.autoStart.checked,
       };
-      this.edits.send(options, performance.now());
       actions.onConfigure(options, name);
     };
     // The name goes out once typed: on Enter or when the field loses focus.
@@ -296,9 +294,6 @@ export class LobbyScreen {
     this.show("status.connecting");
     this.timer = setInterval(() => {
       if (this.startsAt !== undefined && this.lastLobby) this.showLobbyStatus(this.lastLobby);
-      // The server did not take the host's last choices as they were: show what it kept.
-      if (this.edits.expired(performance.now()) && this.lastLobby)
-        this.showSettings(this.lastLobby);
     }, 250);
     // A host who walks away hands the role on: touching the page says otherwise.
     let lastActive = -Infinity;
@@ -342,8 +337,10 @@ export class LobbyScreen {
     this.stopped("online.unknownMap");
   }
 
-  lobby(lobby: LobbyState, inviteLink: string): void {
+  /** `behind`: the host changed settings since; the form keeps them, not these. */
+  lobby(lobby: LobbyState, inviteLink: string, behind = false): void {
     this.lastLobby = lobby;
+    this.behind = behind;
     this.startsAt = lobby.startsIn === null ? undefined : performance.now() + lobby.startsIn;
     const privateGame = lobby.visibility === "private";
     const host = lobby.host === lobby.you;
@@ -401,7 +398,7 @@ export class LobbyScreen {
   refresh(): void {
     applyTranslations(this.element);
     this.show(this.shown.key, this.shown.params);
-    if (this.lastLobby) this.lobby(this.lastLobby, this.invite.value);
+    if (this.lastLobby) this.lobby(this.lastLobby, this.invite.value, this.behind);
   }
 
   dispose(): void {
@@ -450,7 +447,8 @@ export class LobbyScreen {
     const editable = lobby.host === lobby.you && map;
     this.settings.hidden = !editable;
     this.summary.hidden = Boolean(editable);
-    if (!editable || !this.edits.accepts(lobby, performance.now())) return;
+    // An answer to an earlier change would undo the later ones, and the next change would send it back.
+    if (!editable || this.behind) return;
     // Only maps that seat every player already in.
     const fitting = this.maps.filter(
       (candidate) =>

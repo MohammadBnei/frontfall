@@ -205,6 +205,7 @@ describe("OnlineClient", () => {
           autoStart: true,
         },
         name: "Europe 2v2",
+        seq: 1,
       },
       { type: "start" },
       { type: "hold" },
@@ -239,6 +240,7 @@ describe("OnlineClient", () => {
       startsIn: 1000,
       token: START.token,
       holdable: true,
+      configured: 0,
     });
     socket.receive(START);
     socket.receive({ type: "turns", turns: [{ tick: 0, orders: [] }] });
@@ -246,6 +248,50 @@ describe("OnlineClient", () => {
     socket.receive({ type: "desync", tick: 1, hash: 8, expected: 7 });
     expect(log.slice(2)).toEqual(["lobby:2", "started:2", "desync:1:8:7"]);
     expect(turns).toEqual([0, 1]);
+  });
+
+  it("tells a lobby that predates the host's latest change from the answer to it", () => {
+    const behind: boolean[] = [];
+    const online = client({
+      lobby: (_lobby, late) => behind.push(late),
+    });
+    const socket = welcomed();
+    online.create("private");
+    const options = {
+      map: "world",
+      bots: 2,
+      difficulty: "normal",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      capacity: 2,
+      autoStart: true,
+    } as const;
+    const lobby: Extract<ServerMessage, { type: "lobby" }> = {
+      type: "lobby",
+      game: START.game,
+      visibility: "private",
+      name: null,
+      ...options,
+      minPlayers: 1,
+      players: [{ id: 1, name: "Bob" }],
+      you: 1,
+      host: 1,
+      startsIn: null,
+      token: START.token,
+      holdable: false,
+      configured: 0,
+    };
+    socket.receive(lobby);
+    online.configure({ ...options, bots: 0 });
+    online.configure({ ...options, bots: 0, difficulty: "hard" });
+    expect(socket.sent.slice(-2).map((message) => (message as { seq?: number }).seq)).toEqual([
+      1, 2,
+    ]);
+    // Answers in order: only the last one shows the form as the host left it.
+    socket.receive({ ...lobby, bots: 0, configured: 1 });
+    socket.receive({ ...lobby, bots: 0, difficulty: "hard", configured: 2 });
+    expect(behind).toEqual([false, true, false]);
   });
 
   it("takes its seat back after a drop and asks only for the missing turns", () => {
@@ -337,6 +383,7 @@ describe("OnlineClient", () => {
       host: 1,
       startsIn: null,
       holdable: false,
+      configured: 0,
       token: START.token,
     });
 
@@ -373,6 +420,7 @@ describe("OnlineClient", () => {
       host: 1,
       startsIn: 1000,
       holdable: true,
+      configured: 0,
       token: START.token,
     });
     socket.drop();

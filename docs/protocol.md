@@ -113,11 +113,14 @@ Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting).
     "capacity": 8,
     "autoStart": true
   },
-  "name": "Europe 2v2"
+  "name": "Europe 2v2",
+  "seq": 3
 }
 ```
 
 The host sets the game's map, its number of bots, how hard computer players play and whether the map's nations play, and `teams`: 0 for a free-for-all, or 2, 3 or 4 teams, and `disabled`: what the game leaves out (`R-MODE-03`), as a sum of 1 for cities, 2 forts, 4 ports, 8 missile silos, 16 air defenses and 32 warships, 0 for nothing, until the game starts. `capacity`, the seats for human players, from 2 to 16, and `autoStart`, whether the game starts as soon as they are all taken. Every option is sent each time; `name`, optional, renames a public game and is ignored for a private one. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps the seats asked for when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. Nations come on top of the players and bots. A new game starts on World, without bots, with nations, at `normal`, with 16 seats, set to start when full.
+
+`seq`, optional, numbers the player's `configure` messages, from 1 for each seat and again from 1 after a reconnection. The server echoes the last one it handled as `configured` in `lobby`, so that a host who changes several settings in a row can tell an answer to an earlier change from the answer to the latest one, and keeps the form as filled until then. A refused `configure` that carries `seq` is followed by `lobby` to that player alone, with the settings that hold and `configured` set to that `seq`.
 
 ### `start`
 
@@ -217,11 +220,12 @@ The hello was accepted.
   "host": 1,
   "startsIn": 30000,
   "holdable": true,
-  "token": "q8Vb1aV9mN3x0WcY2tLk4Q"
+  "token": "q8Vb1aV9mN3x0WcY2tLk4Q",
+  "configured": 0
 }
 ```
 
-The game being filled, sent after every change, the host's `configure` included. `name` is the listed name of a public game, `null` for a private one. `host` is the number of the player who sets the options and starts the game. `minPlayers` is how many players `start` needs. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs; `holdable` says whether the host can still stop it. `token` takes this seat back after a dropped connection, before the start and after; it is the same as in `started`.
+The game being filled, sent after every change, the host's `configure` included. `name` is the listed name of a public game, `null` for a private one. `host` is the number of the player who sets the options and starts the game. `minPlayers` is how many players `start` needs. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs; `holdable` says whether the host can still stop it. `token` takes this seat back after a dropped connection, before the start and after; it is the same as in `started`. `configured` is the `seq` of the last `configure` from this player the server handled, applied or refused, 0 before any.
 
 ### `started`
 
@@ -374,4 +378,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`, version 16 `visibility` and `name` in `create` for public games of one's own, `name` in `play` and `configure`, `capacity` and `autoStart` in the game options, `hold` and `active`, and `name`, `autoStart`, `minPlayers`, `holdable` and a host for every game in `lobby`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`, version 16 `visibility` and `name` in `create` for public games of one's own, `name` in `play` and `configure`, `capacity` and `autoStart` in the game options, `hold` and `active`, and `seq` in `configure`, and `name`, `autoStart`, `minPlayers`, `holdable`, `configured` and a host for every game in `lobby`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

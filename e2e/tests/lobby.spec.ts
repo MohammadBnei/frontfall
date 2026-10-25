@@ -39,7 +39,7 @@ test("keeps the host's choices when the lobby answers late", async ({ browser, b
   const guest = await browser.newPage();
   await guest.goto(link.href);
   await expect(guest.locator("#lobby-summary")).toHaveText(
-    "World · 0 bots · nations · Hard · left out: Silo",
+    "World · 0 bots · nations · Hard · starts when full · left out: Silo",
     { timeout: 15_000 },
   );
 });

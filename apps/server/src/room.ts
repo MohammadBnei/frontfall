@@ -85,6 +85,8 @@ export interface Seat {
   orders: number;
   /** Last message from the player, to tell a host who walked away. */
   activeAt: number;
+  /** Last `configure` handled for this player, applied or refused, echoed in `lobby`. */
+  configured: number;
 }
 
 /** Receives what happens in a room, for logs and metrics. */
@@ -179,6 +181,7 @@ export class Room {
       gone: false,
       orders: 0,
       activeAt: now,
+      configured: 0,
     };
     this.seats.push(seat);
     this.openedAt ??= now;
@@ -284,14 +287,27 @@ export class Room {
     seat: Seat,
     options: GameOptions & { name?: string; soloBots?: number },
     now: number,
+    seq?: number,
   ): ErrorCode | undefined {
     const refused = this.hostOnly(seat);
     if (refused) return refused;
+    if (seq !== undefined) seat.configured = seq;
     const { name, ...rest } = options;
     Object.assign(this.settings, rest);
     if (name !== undefined && this.settings.visibility === "public") this.settings.name = name;
     this.lobbyChanged(now);
     return undefined;
+  }
+
+  /**
+   * A `configure` was refused: the lobby goes back to the player alone, so
+   * that a form filled ahead of the server's answers shows the settings
+   * that hold again.
+   */
+  refusedConfigure(seat: Seat, seq: number, now: number): void {
+    if (!this.holds(seat) || this.stateValue === "running") return;
+    seat.configured = seq;
+    seat.peer?.send(this.lobbyMessage(seat, this.players(), this.startsIn(now)));
   }
 
   /** Host: start now, with at least the game's minimum of players. */
@@ -525,32 +541,32 @@ export class Room {
     this.stateValue = this.startsAt === undefined ? "open" : "starting";
     const players = this.players();
     const startsIn = this.startsIn(now);
-    const host = this.host?.id ?? 0;
-    for (const seat of this.seats) {
-      seat.peer?.send(
-        encodeServerMessage({
-          type: "lobby",
-          game: this.id,
-          visibility: this.settings.visibility,
-          name: this.settings.name,
-          map: this.settings.map,
-          bots: this.settings.bots,
-          difficulty: this.settings.difficulty,
-          nations: this.settings.nations,
-          teams: this.settings.teams,
-          disabled: this.settings.disabled,
-          capacity: this.settings.capacity,
-          autoStart: this.settings.autoStart,
-          minPlayers: this.settings.minPlayers,
-          players,
-          you: seat.id,
-          host,
-          startsIn,
-          token: seat.token,
-          holdable: startsIn !== null && !this.held,
-        }),
-      );
-    }
+    for (const seat of this.seats) seat.peer?.send(this.lobbyMessage(seat, players, startsIn));
+  }
+
+  private lobbyMessage(seat: Seat, players: PlayerInfo[], startsIn: number | null): Frame {
+    return encodeServerMessage({
+      type: "lobby",
+      game: this.id,
+      visibility: this.settings.visibility,
+      name: this.settings.name,
+      map: this.settings.map,
+      bots: this.settings.bots,
+      difficulty: this.settings.difficulty,
+      nations: this.settings.nations,
+      teams: this.settings.teams,
+      disabled: this.settings.disabled,
+      capacity: this.settings.capacity,
+      autoStart: this.settings.autoStart,
+      minPlayers: this.settings.minPlayers,
+      players,
+      you: seat.id,
+      host: this.host?.id ?? 0,
+      startsIn,
+      token: seat.token,
+      holdable: startsIn !== null && !this.held,
+      configured: seat.configured,
+    });
   }
 
   private startedMessage(seat: Seat): Frame {
