@@ -22,6 +22,7 @@ import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import type { Peer, Room, RoomObserver, RoomSettings, Seat } from "./room.ts";
+import { gamesDirectory, loadGames, saveGame } from "./saved-games.ts";
 import { loadStaticFile } from "./static-files.ts";
 import { usageInbox } from "./usage-http.ts";
 import { loadUsage, saveUsage, usageFile, UsageStats, usageTable } from "./usage.ts";
@@ -71,8 +72,10 @@ export interface ServerOptions {
   privateGame?: Partial<GameSettings>;
   logger?: Logger;
   /**
-   * Directory the server keeps data in between restarts, such as the usage
-   * counts in `usage/`. Unset keeps them in memory only.
+   * Directory the server keeps data in between restarts: the usage counts in
+   * `usage/`, and in `games/` the games running when it stopped, which the
+   * next run of the same simulation build takes back. Unset keeps the counts
+   * in memory only, and running games end with the server.
    */
   dataDir?: string | undefined;
   /** How often the usage counts are written to the data directory. */
@@ -274,6 +277,38 @@ export function createGameServer(options: ServerOptions): GameServer {
     privateGame,
     observer,
   });
+  const simulation = options.simulation ?? options.version;
+  const savedGames = options.dataDir === undefined ? undefined : gamesDirectory(options.dataDir);
+  if (savedGames !== undefined) {
+    const { games: saved, refused } = loadGames(savedGames, simulation);
+    const now = Date.now();
+    for (const game of saved) {
+      if (games.restore(game, now))
+        logger.info("game_restored", { game: game.id, ticks: game.log.ends.length });
+      else refused.push({ file: game.id, reason: "unreadable" });
+    }
+    for (const { file, reason } of refused) logger.warn("game_not_restored", { file, reason });
+  }
+  /**
+   * Saves the running games for the next run, which takes them back if it has
+   * the same simulation build. Their players are not told the game ended:
+   * their pages reconnect until the server is back.
+   */
+  const keepGames = (): void => {
+    if (savedGames === undefined) return;
+    const now = Date.now();
+    for (const room of games.all()) {
+      const saved = room.playerCount > 0 ? room.save(now) : undefined;
+      if (!saved) continue;
+      try {
+        saveGame(savedGames, simulation, saved);
+        room.suspend();
+        logger.info("game_saved", { game: room.id, ticks: room.log.length });
+      } catch (error) {
+        logger.warn("game_not_saved", { game: room.id, error: (error as Error).message });
+      }
+    }
+  };
   const usage = new UsageStats({ release: options.release ?? "dev", maps: new Set(maps.keys()) });
   const usageAt = options.dataDir === undefined ? undefined : usageFile(options.dataDir);
   if (usageAt === undefined) {
@@ -475,7 +510,6 @@ export function createGameServer(options: ServerOptions): GameServer {
         reject(session, CloseCode.invalidMessage, "hello was already sent", "invalid");
         return;
       }
-      const simulation = options.simulation ?? options.version;
       if (message.build && !sameBuild(message.build, simulation)) {
         session.socket.close(CloseCode.versionMismatch, `build ${simulation} required`);
         return;
@@ -828,6 +862,7 @@ export function createGameServer(options: ServerOptions): GameServer {
           keepUsage();
           clearInterval(heartbeat);
           clearInterval(ticker);
+          keepGames();
           games.stopAll("restart");
           for (const socket of sockets.clients) socket.close(1012, "server restarting");
           http.close(() => {

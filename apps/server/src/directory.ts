@@ -8,6 +8,7 @@ import {
   type RoomSettings,
   type Seat,
 } from "./room.ts";
+import type { LoadedGame } from "./saved-games.ts";
 
 /** Games the public list shows at most. */
 export const MAX_LISTED_GAMES = 100;
@@ -117,6 +118,23 @@ export class Directory {
       const candidate = base + suffix;
       if (!taken.has(candidate.toLowerCase())) return candidate;
     }
+  }
+
+  /**
+   * Takes back a game saved by an earlier run, under this run's limits;
+   * undefined when it cannot.
+   */
+  restore(saved: LoadedGame, now: number): Room | undefined {
+    if (this.rooms.size >= this.options.maxRooms || this.rooms.has(saved.id)) return undefined;
+    const { visibility } = saved.settings;
+    const base = visibility === "public" ? this.options.publicGame : this.options.privateGame;
+    const room = Room.restore(
+      { ...saved, settings: { ...base, ...saved.settings } },
+      this.options.observer ?? {},
+      now,
+    );
+    if (room) this.rooms.set(room.id, room);
+    return room;
   }
 
   private lobbiesOf(owner: string): number {

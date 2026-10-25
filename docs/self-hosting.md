@@ -21,14 +21,14 @@ docker compose ps          # "healthy" after a few seconds
 
 What it sets, and why:
 
-| Line                            | Why                                                                                                                                                                     |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `image`                         | `latest` follows each release of `main`. To choose when to update, pin a commit tag such as `ghcr.io/nic0lasm/frontfall:0d25e267bbae`, or a release tag such as `0.4.0` |
-| `FRONTFALL_DATA` and the volume | The usage counts survive restarts in the `frontfall-data` volume. Games in progress live in memory and end on a restart                                                 |
-| `FRONTFALL_ORIGINE`             | The address players open, such as `https://games.example.org`: other sites then cannot open games on your server from their pages                                       |
-| `read_only` and `tmpfs`         | The server writes only to its data volume and `/tmp`                                                                                                                    |
-| `stop_grace_period`             | On a stop, running games get 20 seconds to end, and players are told why                                                                                                |
-| `restart` and `mem_limit`       | Back after a crash or a reboot; the image keeps its heap at 512 MB, well inside 1 GB                                                                                    |
+| Line                            | Why                                                                                                                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `image`                         | `latest` follows each release of `main`. To choose when to update, pin a commit tag such as `ghcr.io/nic0lasm/frontfall:0d25e267bbae`, or a release tag such as `0.4.0`              |
+| `FRONTFALL_DATA` and the volume | The usage counts survive restarts in the `frontfall-data` volume, and so do the games in progress, unless the new image changes the [simulation build](protocol.md#simulation-build) |
+| `FRONTFALL_ORIGINE`             | The address players open, such as `https://games.example.org`: other sites then cannot open games on your server from their pages                                                    |
+| `read_only` and `tmpfs`         | The server writes only to its data volume and `/tmp`                                                                                                                                 |
+| `stop_grace_period`             | On a stop, running games get 20 seconds to end, and players are told why                                                                                                             |
+| `restart` and `mem_limit`       | Back after a crash or a reboot; the image keeps its heap at 512 MB, well inside 1 GB                                                                                                 |
 
 Every setting the server reads is listed in [server.md](server.md#configuration).
 

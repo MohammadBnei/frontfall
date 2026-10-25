@@ -1,4 +1,13 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { connect, type AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { get } from "node:http";
@@ -942,6 +951,76 @@ describe("WebSocket", () => {
     expect((await alice.next("ended")).reason).toBe("restart");
     expect(await code).toBe(1012);
     await closing;
+  });
+
+  describe("with a data directory", () => {
+    let dataDir: string;
+    beforeEach(() => {
+      dataDir = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    });
+    afterEach(() => {
+      rmSync(dataDir, { recursive: true, force: true });
+    });
+
+    /** A running game with turns, stopped by the end of the drain; the token and the last tick. */
+    async function savedGame(simulation: string) {
+      const host = await start({ drainMs: 0, dataDir, simulation });
+      const alice = await player(host, "Alice");
+      const bob = await player(host, "Bob");
+      alice.send({ type: "create" });
+      const { game } = await alice.next("lobby");
+      bob.send({ type: "join", game });
+      await bob.next("lobby");
+      alice.send({ type: "start" });
+      const [started] = await Promise.all([alice.next("started"), bob.next("started")]);
+      alice.send({ type: "order", order: { type: "spawn", tile: 5 } });
+      let tick = 0;
+      while (tick < 3) tick = (await alice.next("turns")).turns.at(-1)?.tick ?? 0;
+      const code = closed(alice.socket);
+      await server?.close();
+      server = undefined;
+      expect(await code).toBe(1012);
+      return { game, token: started.token, tick };
+    }
+
+    it("keeps the games still running for the next run, which gives the seats back", async () => {
+      const { game, token, tick } = await savedGame("5e5e5e5e5e5e");
+      const file = join(dataDir, "games", `${game}.json`);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      expect(readFileSync(file, "utf8")).not.toContain("127.0.0.1");
+
+      const host = await start({ dataDir, simulation: "5e5e5e5e5e5e" });
+      expect(existsSync(file)).toBe(false);
+      const back = await player(host, "Alice");
+      back.send({ type: "rejoin", token, from: 0 });
+      expect(await back.next("started")).toMatchObject({ game, you: 1, token });
+      const turns = [];
+      while (turns.length <= tick) turns.push(...(await back.next("turns")).turns);
+      expect(turns.slice(0, tick + 1).map((turn) => turn.tick)).toEqual(
+        Array.from({ length: tick + 1 }, (_, index) => index),
+      );
+      expect(turns.flatMap((turn) => turn.orders)).toEqual([
+        { player: 1, order: { type: "spawn", tile: 5 } },
+      ]);
+      expect(await (await fetch(`http://${host}/api/games`)).json()).toMatchObject({ running: 1 });
+    });
+
+    it("drops the games of another simulation build", async () => {
+      const { game, token } = await savedGame("5e5e5e5e5e5e");
+      const host = await start({ dataDir, simulation: "a1a1a1a1a1a1" });
+      expect(existsSync(join(dataDir, "games", `${game}.json`))).toBe(false);
+      const back = await player(host, "Alice");
+      back.send({ type: "rejoin", token, from: 0 });
+      expect((await back.next("error")).code).toBe("token_invalid");
+    });
+
+    it("starts despite a broken file, which it removes", async () => {
+      mkdirSync(join(dataDir, "games"));
+      writeFileSync(join(dataDir, "games", "broken.json"), "{");
+      writeFileSync(join(dataDir, "games", "cut.json.tmp"), "{");
+      await start({ dataDir });
+      expect(readdirSync(join(dataDir, "games"))).toEqual([]);
+    });
   });
 
   it("keeps a lobby seat across a dropped connection, host role included", async () => {

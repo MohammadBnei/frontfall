@@ -319,19 +319,19 @@ A request was refused; the connection stays open. `message` is for people, `code
 { "type": "maintenance", "inMs": 600000 }
 ```
 
-The server restarts for an update in `inMs` milliseconds; games still running then end with reason `restart`. Sent to every connection that has said `hello`, right after `welcome` to those that arrive later, and again when the server starts to drain. `inMs` is `null` when the restart was called off.
+The server restarts for an update in `inMs` milliseconds. A server with a data directory keeps the games still running then and takes them back when it is up again, unless the update changes the [simulation build](#simulation-build): their pages reconnect and rejoin as after any drop. On another simulation build, the pages are sent away to reload and find the game over. Without a data directory, those games end with reason `restart`. Sent to every connection that has said `hello`, right after `welcome` to those that arrive later, and again when the server starts to drain. `inMs` is `null` when the restart was called off.
 
 ## Close codes
 
-| Code   | Meaning                                                                 |
-| ------ | ----------------------------------------------------------------------- |
-| `1009` | A frame was larger than 1 KiB                                           |
-| `1012` | The server restarted; games still in progress were ended with `restart` |
-| `4000` | Another protocol version or build: reload the page                      |
-| `4001` | A frame could not be decoded or broke a rule                            |
-| `4002` | More than 20 messages per second on average, or bursts above 40         |
-| `4003` | No `hello` within 10 seconds, or out of any game for 5 minutes          |
-| `4004` | Another connection took over this player (reserved)                     |
+| Code   | Meaning                                                          |
+| ------ | ---------------------------------------------------------------- |
+| `1009` | A frame was larger than 1 KiB                                    |
+| `1012` | The server restarted: reconnect, and rejoin a game that was kept |
+| `4000` | Another protocol version or build: reload the page               |
+| `4001` | A frame could not be decoded or broke a rule                     |
+| `4002` | More than 20 messages per second on average, or bursts above 40  |
+| `4003` | No `hello` within 10 seconds, or out of any game for 5 minutes   |
+| `4004` | Another connection took over this player (reserved)              |
 
 ## Binary frames
 
