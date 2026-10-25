@@ -6,7 +6,7 @@ The game is in beta until v1.0, and its page says so. v1.0 is the first version 
 
 The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
-**Where it stands.** v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. v0.5, the balance pass, is under way. The review of 24 October 2026, after the owner's playtest, moved a few issues; it is summarised under [Changes after v0.2](#changes-after-v02).
+**Where it stands.** v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. v0.5, the balance pass, is under way. After my first playtest I moved a few issues; [Changes after v0.2](#changes-after-v02) says which and why.
 
 ## Overview
 
@@ -65,9 +65,9 @@ Gameplay issues implement the rules of [`docs/rules.md`](rules.md) by identifier
 
 **Outcome.** Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.
 
-**Playable when**
+Shipped as `v0.1.0`. Check 6 moved to v0.3: I played it, but the round with three outside players is still to run.
 
-Shipped as `v0.1.0`. Check 6 moved to v0.3: the owner played it, but the round with three outside players is still to run.
+**Playable when**
 
 1. From the public server, a player starts a solo game on the World map with 8 or more bots in two clicks, picks a start tile, expands, attacks and reaches the end screen, by winning (`R-WIN-01`) or by being eliminated.
 2. On the World map, a player sends troops by sea from their coast to another continent and takes land there; bots do the same.
@@ -141,13 +141,13 @@ Shipped as `v0.2.0`.
 
 **Outcome.** Build cities, ports and defence posts, ally and betray, face named nations, and play on a server that is watched and measured.
 
-**Playable when**
-
 Shipped with v0.4 as `v0.4.0`. Check 6, the round with three outside players, is still to run.
+
+**Playable when**
 
 1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-04` and `R-BOT-02` is implemented and covered by a test that names it.
 2. A player who reloads the page 20 minutes into a game is back in sync in under 10 seconds.
-3. An external check alerts the owner within 5 minutes when the public server stops answering.
+3. An external check alerts me within 5 minutes when the public server stops answering.
 4. A World game with 64 players, nations and structures keeps the tick p95 under 8 ms, and CI fails on a regression of more than 20 %.
 5. A casual scripted player survives 10 minutes against normal bots in most seeds, and loses most games against hard bots.
 6. Three people outside the project each finish a solo game and an online game without help; what blocked them is filed as issues.
@@ -177,9 +177,9 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 
 **Outcome.** Sail from ports, fight at sea, launch missiles, play in teams and watch a game again.
 
-**Playable when**
-
 Shipped as `v0.4.0`. Check 2, a team game of 4 against 4 on the public server, is still to be played.
+
+**Playable when**
 
 1. Every rule of `docs/rules.md` v1 is implemented and covered by a test that names it.
 2. A team game of 4 against 4 is played to the end on the public server.
@@ -298,18 +298,18 @@ Shipped as `v0.4.0`. Check 2, a team game of 4 against 4 on the public server, i
 
 ## Changes after v0.2
 
-Reviewed on 24 October 2026, once v0.1 and v0.2 were live and played. The order of the versions stays; what moved, and why:
+Once v0.1 and v0.2 were live and I had played them, I moved a few things. The order of the versions stays; what moved, and why:
 
 | Change                                             | Why                                                                                                                                                                           |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | #20, #31, #40, #41 and #42 closed as done          | Map manifests and thumbnails, the French interface, server abuse limits, metrics and logs, the load test and the fuzzing shipped with v0.1 and v0.2.                          |
 | #18 and #39 cut to what is left                    | Relief costs and polar ice already apply; a seat is already taken back after a drop or a reload, but catching up late in a game is too slow.                                  |
 | #24 and #82 closed, the rest in a new v0.3 issue   | The data texture and smooth fronts are done; the hover highlight and the animated attack edge gate nothing. The 16 ms frame measurement goes to the performance budget (#60). |
-| #51 uptime monitoring from v0.5 to v0.3            | The game is public. An outage should page the owner, not wait for a player to say so.                                                                                         |
+| #51 uptime monitoring from v0.5 to v0.3            | The game is public. An outage should page me, not wait for a player to say so.                                                                                                |
 | #60 and #61 from v0.7 to v0.3                      | Nations and structures add work to every tick. Measuring 64 players now is cheaper than finding a slow hot path after the globe is built.                                     |
 | Stronger bots, new in v0.3                         | A scripted player that sails beats seven normal bots in seven seeds out of eight. Nations are tuned on top of bots, so bots come first.                                       |
 | Globe spike during v0.3                            | The 3D globe is the main risk for v1.0 and the Renderer contract has one implementation. Three days now can save a rework of the 2D view later.                               |
-| Outside playtest (#33) from v0.1 to v0.3           | v0.1 and v0.2 are tagged after the owner's playtest; three outside players are a check of v0.3.                                                                               |
+| Outside playtest (#33) from v0.1 to v0.3           | v0.1 and v0.2 are tagged after my own playtest; three outside players are a check of v0.3.                                                                                    |
 | #44 from L to M                                    | Ships, sea routes across the seam and bots that sail came with v0.1 (#81).                                                                                                    |
 | Embargoes (`R-DIPLO-05`) from v0.3 to v0.4         | An embargo stops trade, and trade comes with ports in v0.4. Until then it would be a button that does nothing.                                                                |
 | v0.5 renamed "Balanced"                            | Monitoring moved out; the balance pass is what is left.                                                                                                                       |
