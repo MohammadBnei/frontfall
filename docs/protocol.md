@@ -1,6 +1,6 @@
 # Network protocol
 
-Version 15. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 16. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 15, name } ----------> |
+  | -- hello { version: 16, name } ----------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -33,8 +33,8 @@ client                                   server
 ```
 
 1. **Hello.** The first message of every connection. The server checks the protocol version and the player name, then answers `welcome`. A connection that sends nothing within 10 seconds is closed with `4003`.
-2. **Lobby.** The player joins a public game (`play`), opens a private one (`create`) or joins one by id (`join`). The server sends `lobby` to everyone in the game each time a player arrives or leaves.
-3. **Start.** A public game counts down 30 seconds once it has two players, and starts at once when it is full. The host of a private game may change its map, bots and difficulty with `configure`, then starts it with `start`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
+2. **Lobby.** The player plays now (`play`), opens a game of their own, public and named or private (`create`), or joins one by id (`join`). Every game has a host, its first player, who sets its options with `configure`. The server sends `lobby` to everyone in the game each time something changes.
+3. **Start.** The host starts the game with `start`; a game set to start when full starts as soon as its last seat is taken. A game opened by `play` also counts down 60 seconds from its first player: if that player is still alone at the end, bots stand in for opponents. Its host may stop the countdown once with `hold`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
 4. **Turns.** From tick 0, the server sends one turn every 100 ms, with or without orders. A client runs tick `n` only after receiving turn `n`.
 5. **End.** The server sends `ended` when every player is gone, when the game reaches four hours, or when a game has not started ten minutes after it opened. A client that leaves earlier sends `leave`. Either way, the connection can join another game.
 
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection keeps its seat for 30 seconds, unless
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 15, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 16, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -67,18 +67,20 @@ The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must
 ### `play`
 
 ```json
-{ "type": "play" }
+{ "type": "play", "name": "Partie de Nico" }
 ```
 
-Joins the public game with the most players that has not started, or opens a new one.
+Joins the public game still waiting with the most players and a free seat, whoever opened it, or opens a new one under `name` (optional; a name the rules below refuse falls back to "<player>'s game"). A game opened this way counts down 60 seconds from its first player, and starts with the map's default bots if that player is still alone (the catalog's recommended players minus one, 24 at most).
 
 ### `create`
 
 ```json
-{ "type": "create" }
+{ "type": "create", "visibility": "public", "name": "Europe 4v4" }
 ```
 
-Opens a private game. The creator is its host. The game id in the next `lobby` message is the invitation: the client shares it as a link, `https://nclsmgr.com/frontfall/?game=<id>`. Game ids hold 72 random bits.
+Opens a game whose host is the creator and which starts only when the host says so, or when it is full if the host asks for that. `visibility` is `private` when left out. A public game is listed at [`/api/games`](#http-endpoints) under `name`; a private one is only reached by its link. The game id in the next `lobby` message is the invitation: the client shares it as a link, `https://nclsmgr.com/frontfall/?game=<id>`. Game ids hold 72 random bits.
+
+A game name is cleaned like a player name, then must hold 3 to 32 characters: letters and digits of any script, spaces and `. _ ' ! ? # & ( ) + : , -`, starting with a letter or a digit. Web addresses and a short list of coarse words, French and English, are refused with `invalid_game_name`. When a waiting public game already has the name, the server adds ` (2)`, ` (3)`... One address holds at most three games that have not started, public and private together.
 
 ### `join`
 
@@ -107,12 +109,15 @@ Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting).
     "difficulty": "hard",
     "nations": true,
     "teams": 0,
-    "disabled": 0
-  }
+    "disabled": 0,
+    "capacity": 8,
+    "autoStart": true
+  },
+  "name": "Europe 2v2"
 }
 ```
 
-The host of a private game sets its map, its number of bots, how hard computer players play and whether the map's nations play, and `teams`: 0 for a free-for-all, or 2, 3 or 4 teams, and `disabled`: what the game leaves out (`R-MODE-03`), as a sum of 1 for cities, 2 forts, 4 ports, 8 missile silos, 16 air defenses and 32 warships, 0 for nothing, until the game starts. Every option is sent each time. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps its 16 seats when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. Nations come on top of the players and bots. A new private game starts on World, without bots, with nations, at `normal`.
+The host sets the game's map, its number of bots, how hard computer players play and whether the map's nations play, and `teams`: 0 for a free-for-all, or 2, 3 or 4 teams, and `disabled`: what the game leaves out (`R-MODE-03`), as a sum of 1 for cities, 2 forts, 4 ports, 8 missile silos, 16 air defenses and 32 warships, 0 for nothing, until the game starts. `capacity`, the seats for human players, from 2 to 16, and `autoStart`, whether the game starts as soon as they are all taken. Every option is sent each time; `name`, optional, renames a public game and is ignored for a private one. `map` is the id of a map in `maps/index.json`; `difficulty` is `easy`, `normal` or `hard`. The server adds at most 25 bots. Bots and seats share the most players the map allows (`players.max` in the catalog): the game keeps the seats asked for when they fit and fewer otherwise, but never fewer than the players already in. Every player receives the new options and `capacity` in `lobby`. Nations come on top of the players and bots. A new game starts on World, without bots, with nations, at `normal`, with 16 seats, set to start when full.
 
 ### `start`
 
@@ -120,7 +125,23 @@ The host of a private game sets its map, its number of bots, how hard computer p
 { "type": "start" }
 ```
 
-The host of a private game starts it with the players present.
+The host starts the game with the players present: at least two in a public game, any number in a private one.
+
+### `hold`
+
+```json
+{ "type": "hold" }
+```
+
+The host of a game opened by `play` stops its countdown, once. The game then waits for the host's `start`, or for its last seat to be taken when it starts when full.
+
+### `active`
+
+```json
+{ "type": "active" }
+```
+
+The player is at the screen. A host who has sent nothing for two minutes while other players wait hands the role to the player seen most recently, so a lobby never hangs on someone who walked away. The client of this repository sends it at most every 30 seconds while the player touches the page.
 
 ### `leave`
 
@@ -166,7 +187,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 15 }
+{ "type": "welcome", "version": 16 }
 ```
 
 The hello was accepted.
@@ -178,6 +199,7 @@ The hello was accepted.
   "type": "lobby",
   "game": "Xk3_9aB-q2Lm",
   "visibility": "public",
+  "name": "Partie de Nico",
   "map": "world",
   "bots": 0,
   "difficulty": "normal",
@@ -185,18 +207,21 @@ The hello was accepted.
   "teams": 0,
   "disabled": 0,
   "capacity": 16,
+  "autoStart": true,
+  "minPlayers": 2,
   "players": [
     { "id": 1, "name": "Nico" },
     { "id": 2, "name": "Léa" }
   ],
   "you": 2,
-  "host": null,
+  "host": 1,
   "startsIn": 30000,
+  "holdable": true,
   "token": "q8Vb1aV9mN3x0WcY2tLk4Q"
 }
 ```
 
-The game being filled, sent after every change, the host's `configure` included. `host` is the host's number in a private game and `null` in a public one. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs. `token` takes this seat back after a dropped connection, before the start and after; it is the same as in `started`.
+The game being filled, sent after every change, the host's `configure` included. `name` is the listed name of a public game, `null` for a private one. `host` is the number of the player who sets the options and starts the game. `minPlayers` is how many players `start` needs. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs; `holdable` says whether the host can still stop it. `token` takes this seat back after a dropped connection, before the start and after; it is the same as in `started`.
 
 ### `started`
 
@@ -266,20 +291,22 @@ The game is over for this connection. Reasons: `abandoned` (every player is gone
 
 A request was refused; the connection stays open. `message` is for people, `code` for programs:
 
-| Code               | Answer to                    | Meaning                                                |
-| ------------------ | ---------------------------- | ------------------------------------------------------ |
-| `invalid_name`     | `hello`                      | The name breaks the name rules                         |
-| `not_found`        | `join`                       | No game has this id                                    |
-| `game_full`        | `join`                       | The game has no free seat                              |
-| `game_started`     | `join`, `configure`, `start` | The game has already started                           |
-| `already_in_game`  | `play`, `create`, `join`     | Leave the current game first                           |
-| `not_in_game`      | `configure`, `start`         | The connection is not in a game                        |
-| `not_host`         | `configure`, `start`         | Only the host of a private game can change or start it |
-| `invalid_settings` | `configure`                  | No published map has this id, or too many bots for it  |
-| `too_many_games`   | `play`, `create`             | The server holds as many games as it can               |
-| `token_invalid`    | `rejoin`                     | The game is over or the seat was given up              |
-| `token_in_use`     | `rejoin`                     | Another connection holds the seat; retry in 1 s        |
-| `restarting`       | `play`, `create`, `join`     | The server is about to restart; try again in a minute  |
+| Code                 | Answer to                            | Meaning                                                                       |
+| -------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
+| `invalid_name`       | `hello`                              | The name breaks the name rules                                                |
+| `invalid_game_name`  | `create`, `configure`                | The game name breaks the game name rules                                      |
+| `not_found`          | `join`                               | No game has this id                                                           |
+| `game_full`          | `join`                               | The game has no free seat                                                     |
+| `game_started`       | `join`, `configure`, `start`, `hold` | The game has already started                                                  |
+| `already_in_game`    | `play`, `create`, `join`             | Leave the current game first                                                  |
+| `not_in_game`        | `configure`, `start`, `hold`         | The connection is not in a game                                               |
+| `not_host`           | `configure`, `start`, `hold`         | Only the host can change, start or hold the game                              |
+| `not_enough_players` | `start`                              | A public game needs a second player                                           |
+| `invalid_settings`   | `configure`                          | No published map has this id, or too many bots or seats for it                |
+| `too_many_games`     | `play`, `create`                     | The server holds as many games as it can, or this address holds three lobbies |
+| `token_invalid`      | `rejoin`                             | The game is over or the seat was given up                                     |
+| `token_in_use`       | `rejoin`                             | Another connection holds the seat; retry in 1 s                               |
+| `restarting`         | `play`, `create`, `join`             | The server is about to restart; try again in a minute                         |
 
 ### `maintenance`
 
@@ -337,11 +364,13 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## HTTP endpoints
 
-| Path         | Answer                                                                                                                                                                   |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/healthz`   | `ok`, with the running build in the `X-Frontfall-Version` header                                                                                                         |
-| `/api/games` | Public games that have not started, and the games running with a player who holds a seat: `{ "games": [{ "id", "map", "players", "capacity", "startsIn" }], "running" }` |
+| Path         | Answer                                                           |
+| ------------ | ---------------------------------------------------------------- |
+| `/healthz`   | `ok`, with the running build in the `X-Frontfall-Version` header |
+| `/api/games` | The public games, see below                                      |
+
+`/api/games` answers `{ "games": [...], "running": n }`, where `running` counts the games under way with a player who holds a seat, which a deployment waits for. `games` lists at most 100 public games: those waiting first, the fewest free seats first, then the oldest, then those running, which cannot be joined. Each holds `id`, `name`, `host` (the host's name), `map`, `bots`, `nations`, `teams`, `disabled`, `players`, `capacity` and `state` (`waiting` or `running`), and nothing that lets anyone take a seat. The answer carries an `ETag`: a client asking again with `If-None-Match` gets an empty `304` while nothing changed.
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`, version 16 `visibility` and `name` in `create` for public games of one's own, `name` in `play` and `configure`, `capacity` and `autoStart` in the game options, `hold` and `active`, and `name`, `autoStart`, `minPlayers`, `holdable` and a host for every game in `lobby`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

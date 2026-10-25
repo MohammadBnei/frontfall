@@ -13,7 +13,7 @@
 | `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                                             |
 | `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                                        |
 | `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                      |
-| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                                    | Countdown of a public game once it has two players                                                                        |
+| `FRONTFALL_COUNTDOWN_SECONDS` | `60`                                    | Countdown of a game opened by "Play now", from its first player                                                           |
 | `FRONTFALL_DRAIN_SECONDS`     | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                        |
 | `FRONTFALL_DATA`              | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`; the usage counts go in `usage/`. Unset keeps them in memory |
 
@@ -21,15 +21,18 @@
 
 | Setting                        | Value                      | Notes                                                                        |
 | ------------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
-| Players per game               | 16                         | A public game starts at once when full                                       |
-| Players to start a public game | 2                          | Then the countdown runs; it stops if a player leaves below 2                 |
+| Players per game               | 2 to 16, set by the host   | A game set to start when full (the default) starts as its last seat is taken |
+| Players to start a public game | 2                          | The host starts it; any number for a private game                            |
+| "Play now" countdown           | 60 seconds                 | From the first player; alone at the end, the map's default bots fill in      |
+| Host away                      | 2 minutes                  | With other players waiting, the role goes to the one seen most recently      |
 | Seat kept after a drop         | 5 minutes                  | The player rejoins with their token and every missed turn                    |
 | Lobby seat kept after a drop   | 30 seconds                 | The player gets their place back, and the host keeps the role (see below)    |
 | Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                     |
 | Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                    |
-| Bots in a private game         | 25                         | Seats shrink to fit the map's `players.max`, never below the players present |
+| Bots in a game                 | 25                         | Seats shrink to fit the map's `players.max`, never below the players present |
 | Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                     |
-| Private games per address      | 3 not yet started          | Further `create` requests get `too_many_games`                               |
+| Lobbies per address            | 3 not yet started          | Public and private; further ones get `too_many_games`                        |
+| Public games listed            | 100                        | Waiting ones first, the fewest free seats first, then the oldest             |
 
 A connection that drops without a close frame, as when a phone goes to sleep or the network fails, keeps its seat in a lobby for 30 seconds: the client takes it back with the token of the `lobby` message, or lands in the game if it started meanwhile. A page that closes its socket itself, on a reload or when the tab closes, gives its lobby seat up at once.
 
@@ -37,7 +40,7 @@ A game is freed as soon as it ends: when its last player leaves before the start
 
 All running games share one timer that closes a turn every 100 ms. The `frontfall_turn_duration_seconds` histogram measures how long one pass over every game takes.
 
-Private games offer the maps listed in `maps/index.json` of the built client, read once at start. Without that file, only the default map, World, can be picked.
+Games offer the maps listed in `maps/index.json` of the built client, read once at start. Without that file, only the default map, World, can be picked.
 
 ## Limits
 

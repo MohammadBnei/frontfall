@@ -79,11 +79,19 @@ the win when the player kept watching before saving it.
 
 ## Playing online
 
-The menu offers the next public game, a new private game, and the public
-games waiting for players (`/api/games`, fetched every 3 seconds while the
-menu shows). The lobby (`ui/lobby.ts`) shows who is in, the countdown of a
-public game, and for a private one its invitation link, `?game=<id>`, with a
-Copy button; only the host sees "Start the game". An invitation link first asks for the name
+The menu offers "Play now", which joins the fullest public game waiting or
+opens one that starts by itself after 60 seconds, a public game of one's own
+under a name the player types, a private game, and the list of public games
+(`/api/games`, fetched every 3 seconds while the menu shows, with
+`If-None-Match`): name, map, mode, host, seats taken, and whether it is
+waiting or already running, with a Join button for those that can be joined.
+The lobby (`ui/lobby.ts`) shows the game's name, who is in and who hosts it,
+the countdown of a "Play now" game, and its invitation link, `?game=<id>`,
+with a Copy button. Only the host sees the settings and "Start the game",
+which waits for a second player in a public game, and, during a countdown,
+the button that stops it. While the player touches the page, the lobby tells
+the server at most every 30 seconds, so that a host who walked away hands the
+role on. An invitation link first asks for the name
 the other players will see (`ui/join.ts`), filled with the last one and saved
 with the setup, unless the link has `name=` or the tab holds a seat to take
 back. The address bar holds the
@@ -103,8 +111,8 @@ Once the server sends `started`, the page builds the same game as every
 other client: the map, the seed, the humans in the server's numbering,
 `bots` bots of the game's difficulty numbered after them, and the map's
 nations after the bots when `nations` is set, dealt into `teams` teams when
-it is not 0. The host of a private game
-picks the map, bots, difficulty, nations and teams in the lobby (`configure`), and unticks what the game leaves out (`R-MODE-03`), whose buttons and keys then disappear from the game;
+it is not 0. The host of a game names it, if it is public, sets its seats and
+whether it starts when full, and picks the map, bots, difficulty, nations and teams in the lobby (`configure`), and unticks what the game leaves out (`R-MODE-03`), whose buttons and keys then disappear from the game;
 starting from the menu's choices; maps come from the published catalogue
 only, grouped like the menu's "World maps" and "Quick games" (`group` in
 `maps/index.json`, generated maps counting as quick), and only those that

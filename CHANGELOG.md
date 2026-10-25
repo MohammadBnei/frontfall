@@ -6,6 +6,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Added
 
+- **Public games of your own.** "Create a public game" opens a game under the name you choose (3 to 32 characters). You are its host: pick the map, the mode, bots, nations, what the game leaves out and the number of seats, from 2 to 16, then start it when you are ready, as soon as a second player is in. Tick "Start as soon as the game is full" to let it go by itself. Other players see it in the list until it starts.
+- **A list of public games** in the menu, refreshed every few seconds: each game's name, map, mode, host and seats taken, and whether it is waiting or already in progress. Waiting games have a Join button.
 - **Micho Palace** (`R-BUILD-08`): B, then a click on your land, builds a palace worth two cities on one tile. It costs what your next two cities would, counts as two cities towards the cities your land supports and the price of later ones, and once ready raises the troop cap as two cities do. It is captured and demolished like a city, and a game that leaves out cities leaves it out too. Bots and nations do not build it, though nations aim missiles at it as at a city. Protocol version 15 carries it as a `build` structure: pages loaded before the update are sent away to reload once it is deployed.
 - **How to play.** The ? button, H or ? open a help that lists the controls in four short sections, and every building with its key, what it costs you now and where it goes. On a phone it gives the gestures instead.
 - **First steps.** Your first solo game shows four steps that move on as you play: pick a start, expand, build a city, open another player's menu. Next skips one, Hide puts the guide away, and the help brings it back.
@@ -32,6 +34,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **"Play now"** replaces "Join a public game". It sends you to the fullest public game waiting, or opens one in your name that starts by itself 60 seconds after you arrive. If nobody else came by then, bots join you so you are never left waiting. Its host can start it sooner, or stop the countdown once and start it by hand.
+- Every online game now shows who hosts it. If the host leaves, or does nothing for two minutes while others wait, another player becomes the host, so a lobby never hangs.
+- Every lobby has an invitation link, public games included.
+- One player can have at most three games waiting to start at once, public and private together.
 - Nations leave newcomers alone for 2.5 minutes instead of 2. A player who expanded fast was often the thinnest on the map when the grace ended, and eight to ten nations attacked them within the same minute.
 - The reason a click was refused stays up for four seconds and names the building, as in "Port: …".
 - Trade reaches farther on large maps: 500 tiles of sea, as before, on a map of 2^19 tiles, and 1,000 on World, where ports were often too far apart to trade at all. A long route pays more: up to 22,000 gold to each side on World.
