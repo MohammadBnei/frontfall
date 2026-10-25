@@ -50,6 +50,8 @@ export interface ServerOptions {
   probeTimeoutMs?: number;
   /** A connection that is in no game for this long is closed. */
   idleTimeoutMs?: number;
+  /** On close, how long running games may go on before they are stopped. */
+  drainMs?: number;
   /** Messages a connection may send per second on average, and at once. */
   messageRate?: { perSecond: number; burst: number };
   publicGame?: Partial<GameSettings>;
@@ -61,12 +63,18 @@ export interface GameServer {
   readonly http: Server;
   readonly games: Directory;
   readonly metrics: Metrics;
-  /** Tells every player the server is restarting, then stops accepting requests. */
+  /**
+   * Stops opening games and lets the running ones go on, for `drainMs` at
+   * most, then tells every player the server is restarting and stops.
+   */
   close(): Promise<void>;
 }
 
 /** Cloudflare drops a WebSocket that stays silent for 100 s. */
 const DEFAULT_PING_INTERVAL_MS = 25_000;
+
+/** How often a draining server looks for games still running. */
+const DRAIN_CHECK_MS = 250;
 
 /** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
 const MAX_PAYLOAD_BYTES = 1024;
@@ -81,7 +89,8 @@ export const DEFAULT_GAME: GameSettings = {
   disabled: 0,
   minPlayers: 2,
   countdownMs: 30_000,
-  reconnectGraceMs: 120_000,
+  reconnectGraceMs: 5 * 60_000,
+  lobbyGraceMs: 30_000,
   maxDurationMs: 4 * 60 * 60 * 1000,
   lobbyTimeoutMs: 10 * 60 * 1000,
   maxOrdersPerTurn: 10,
@@ -127,6 +136,7 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   token_invalid: "this game is over or the seat was given up",
   token_in_use: "the seat is still connected",
   invalid_settings: "no such map, or too many bots for it",
+  restarting: "the server is about to restart; try again in a few minutes",
 };
 
 /**
@@ -167,16 +177,19 @@ interface Session {
 
 export function createGameServer(options: ServerOptions): GameServer {
   const pingIntervalMs = options.pingIntervalMs ?? DEFAULT_PING_INTERVAL_MS;
-  const maxConnectionsPerAddress = options.maxConnectionsPerAddress ?? 8;
+  // Players behind one home router or a mobile carrier share an address.
+  const maxConnectionsPerAddress = options.maxConnectionsPerAddress ?? 16;
   const maxConnections = options.maxConnections ?? 5_000;
   const helloTimeoutMs = options.helloTimeoutMs ?? 10_000;
   const probeTimeoutMs = options.probeTimeoutMs ?? 5_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60_000;
   const messageRate = options.messageRate ?? { perSecond: 20, burst: 40 };
   const stallAfterMs = options.stallAfterMs ?? 5000;
+  const drainMs = options.drainMs ?? 20_000;
   /** End of the last pass of the turn timer, and whether close() has begun. */
   let lastTurnAt = performance.now();
   let stopping = false;
+  let closing: Promise<void> | undefined;
   const logger = options.logger ?? silentLogger;
   const pseudonym = addressPseudonym();
   const metrics = new Metrics();
@@ -242,7 +255,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (path === "/api/games") {
-      sendJson(response, { games: games.publicGames(Date.now()) });
+      sendJson(response, { games: games.publicGames(Date.now()), running: running() });
       return;
     }
     if (path === "/metrics" && isLocalRequest(request)) {
@@ -390,6 +403,11 @@ export function createGameServer(options: ServerOptions): GameServer {
           reply(session, "already_in_game");
           return;
         }
+        // Players of a running game may still come back while the server drains.
+        if (stopping && message.type !== "rejoin") {
+          reply(session, "restarting");
+          return;
+        }
         if (message.type === "play") enter(session, games.quickMatch(), "too_many_games");
         else if (message.type === "create")
           enter(session, games.create("private", session.address), "too_many_games");
@@ -437,7 +455,9 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   function rejoin(session: Session, token: string, from: number): void {
     const found = games.findSeat(token);
-    const error = found ? found.room.rejoin(found.seat, session.peer, from) : "token_invalid";
+    const error = found
+      ? found.room.rejoin(found.seat, session.peer, from, Date.now())
+      : "token_invalid";
     if (error || !found) {
       reply(session, error ?? "token_invalid");
       return;
@@ -505,11 +525,14 @@ export function createGameServer(options: ServerOptions): GameServer {
       handle(session, parsed.value);
     });
 
-    socket.on("close", () => {
+    socket.on("close", (code) => {
       clearTimeout(helloTimer);
       sessions.delete(session);
       const current = seatOf(session);
-      if (current) current.room.disconnect(current.seat, Date.now());
+      // 1000 and 1001 come from a page that closed the socket itself; a lost
+      // network or a phone gone to sleep closes it without a code (1006).
+      if (current)
+        current.room.disconnect(current.seat, Date.now(), code === 1000 || code === 1001);
       games.sweep();
     });
   });
@@ -520,6 +543,18 @@ export function createGameServer(options: ServerOptions): GameServer {
     lastTurnAt = performance.now();
     metrics.turnDuration.observe((lastTurnAt - started) / 1000);
   }, 1000 / TICK_RATE);
+
+  /**
+   * Games a restart would cut short: started, with a player still connected.
+   * A deployment waits for none to be left; lobbies are told and closed.
+   */
+  function running(): number {
+    let count = 0;
+    for (const room of games.all()) {
+      if (room.state === "running" && room.connectedCount > 0) count++;
+    }
+    return count;
+  }
 
   function snapshot(): Snapshot {
     const counts = { open: 0, starting: 0, running: 0 };
@@ -563,16 +598,29 @@ export function createGameServer(options: ServerOptions): GameServer {
     games,
     metrics,
     close() {
+      if (closing) return closing;
       stopping = true;
-      clearInterval(heartbeat);
-      clearInterval(ticker);
-      games.stopAll();
-      for (const socket of sockets.clients) socket.close(1012, "server restarting");
-      return new Promise((resolve) => {
-        http.close(() => {
-          resolve();
-        });
+      // Lobbies would never start: they end now. Running games play on.
+      for (const room of games.all()) if (room.state !== "running") room.stop("restart");
+      games.sweep();
+      const deadline = performance.now() + drainMs;
+      closing = new Promise<void>((resolve) => {
+        const finish = (): void => {
+          clearInterval(heartbeat);
+          clearInterval(ticker);
+          games.stopAll("restart");
+          for (const socket of sockets.clients) socket.close(1012, "server restarting");
+          http.close(() => {
+            resolve();
+          });
+        };
+        const check = (): void => {
+          if (running() > 0 && performance.now() < deadline) setTimeout(check, DRAIN_CHECK_MS);
+          else finish();
+        };
+        check();
       });
+      return closing;
     },
   };
 }

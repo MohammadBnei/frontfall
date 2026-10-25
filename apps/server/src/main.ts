@@ -2,8 +2,14 @@ import { fileURLToPath } from "node:url";
 import { jsonLogger } from "./log.ts";
 import { createGameServer } from "./server.ts";
 
-/** Leave sockets time to close cleanly, well inside the stop grace period of the container. */
-const SHUTDOWN_GRACE_MS = 5_000;
+/**
+ * Running games may go on this long after SIGTERM. The container's stop
+ * grace period must be longer, or Docker kills the games without a word.
+ */
+const DEFAULT_DRAIN_SECONDS = 20;
+
+/** Past the drain, sockets get this long to close before the process exits anyway. */
+const EXIT_GRACE_MS = 5_000;
 
 const port = Number(process.env.PORT ?? 8080);
 const logger = jsonLogger();
@@ -19,6 +25,9 @@ function optionalNumber<T>(name: string, use: (value: number) => T): T | undefin
   return process.env[name] && Number.isFinite(value) && value >= 0 ? use(value) : undefined;
 }
 
+const drainSeconds =
+  optionalNumber("FRONTFALL_DRAIN_SECONDS", (seconds) => seconds) ?? DEFAULT_DRAIN_SECONDS;
+
 const server = createGameServer({
   staticRoot:
     process.env.FRONTFALL_STATIC ?? fileURLToPath(new URL("../../client/dist", import.meta.url)),
@@ -32,11 +41,17 @@ const server = createGameServer({
     })) ?? {},
   ...optionalNumber("FRONTFALL_MAX_GAMES", (maxRooms) => ({ maxRooms })),
   ...optionalNumber("FRONTFALL_MAX_CONNECTIONS", (maxConnections) => ({ maxConnections })),
+  drainMs: drainSeconds * 1000,
 });
 
+let stopping = false;
+
 function shutdown(): void {
-  logger.info("server_stopping");
-  setTimeout(() => process.exit(0), SHUTDOWN_GRACE_MS).unref();
+  // A second signal, such as Ctrl+C pressed again, does not wait for the games.
+  if (stopping) process.exit(0);
+  stopping = true;
+  logger.info("server_stopping", { drainSeconds });
+  setTimeout(() => process.exit(0), drainSeconds * 1000 + EXIT_GRACE_MS).unref();
   void server.close().then(() => process.exit(0));
 }
 

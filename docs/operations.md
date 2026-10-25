@@ -51,7 +51,7 @@ journalctl -t frontfall-frontfall-1 -o cat --since today | jq -c 'select(.level 
 docker restart frontfall-frontfall-1
 ```
 
-Games in progress live in memory and are lost: players get close code `1012` and land back on the menu. Prefer a quiet moment: the `frontfall_players` metric tells how many people are playing.
+Games in progress live in memory. On a restart the server drains first (see [server.md](server.md#shutdown)): it stops opening games, lets running ones go on for `FRONTFALL_DRAIN_SECONDS`, then ends them with reason `restart` and the page tells players why. Prefer a quiet moment: `curl -s https://nclsmgr.com/frontfall/api/games` gives `running`, the games a restart would stop. Deployments from main wait for it to reach 0, for 20 minutes at most.
 
 ## Roll back
 

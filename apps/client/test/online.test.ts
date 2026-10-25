@@ -218,6 +218,7 @@ describe("OnlineClient", () => {
       you: 2,
       host: null,
       startsIn: 1000,
+      token: START.token,
     });
     socket.receive(START);
     socket.receive({ type: "turns", turns: [{ tick: 0, orders: [] }] });
@@ -291,6 +292,68 @@ describe("OnlineClient", () => {
     timers.shift()?.callback();
     socket = welcomed();
     expect(socket.sent.at(-1)).toEqual({ type: "join", game: "Xk3_9aB-q2Lm" });
+  });
+
+  it("takes its lobby seat back after a drop, or joins the game again once it is gone", () => {
+    const online = client();
+    let socket = welcomed();
+    online.create();
+    socket.receive({
+      type: "lobby",
+      game: START.game,
+      visibility: "private",
+      map: "world",
+      bots: 0,
+      difficulty: "normal",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      capacity: 16,
+      players: START.players,
+      you: 1,
+      host: 1,
+      startsIn: null,
+      token: START.token,
+    });
+
+    socket.drop();
+    timers.shift()?.callback();
+    socket = welcomed();
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 0 });
+    socket.receive({ type: "error", code: "token_invalid", message: "" });
+    // The host's request was to open a game: once inside one, it joins that one again.
+    expect(socket.sent.at(-1)).toEqual({ type: "join", game: START.game });
+    expect(log).not.toContain("error:token_invalid");
+  });
+
+  it("starts a game that began while it was away from the lobby", () => {
+    const online = client();
+    let socket = welcomed();
+    online.play();
+    socket.receive({
+      type: "lobby",
+      game: START.game,
+      visibility: "public",
+      map: "world",
+      bots: 0,
+      difficulty: "normal",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      capacity: 16,
+      players: START.players,
+      you: 2,
+      host: null,
+      startsIn: 1000,
+      token: START.token,
+    });
+    socket.drop();
+    timers.shift()?.callback();
+    socket = welcomed();
+    socket.receive(START);
+    socket.receive({ type: "turns", turns: [0, 1].map((tick) => ({ tick, orders: [] })) });
+    expect(log.filter((entry) => entry.startsWith("started"))).toEqual(["started:2"]);
+    expect(turns).toEqual([0, 1]);
   });
 
   it("passes other errors and the end of the game on", () => {

@@ -102,6 +102,8 @@ export class OnlineClient {
   /** What the player asked for, replayed if the connection drops before the game starts. */
   private entry: Entry | undefined;
   private game: GameStart | undefined;
+  /** The seat held in a lobby: after a drop, the server keeps it for a while. */
+  private lobbySeat: { game: string; token: string } | undefined;
   private nextTick = 0;
   private readonly createSocket: (url: string) => SocketLike;
   private readonly setTimer: (callback: () => void, ms: number) => unknown;
@@ -149,6 +151,7 @@ export class OnlineClient {
   leave(): void {
     this.entry = undefined;
     this.game = undefined;
+    this.lobbySeat = undefined;
     this.send({ type: "leave" });
   }
 
@@ -169,6 +172,7 @@ export class OnlineClient {
   private enter(entry: Entry): void {
     this.entry = entry;
     this.game = undefined;
+    this.lobbySeat = undefined;
     this.sendEntry(entry);
   }
 
@@ -179,7 +183,11 @@ export class OnlineClient {
 
   /** The token of the seat being taken back, in a game or after a reload. */
   private get token(): string | undefined {
-    return this.game?.token ?? (this.entry?.type === "resume" ? this.entry.token : undefined);
+    return (
+      this.game?.token ??
+      this.lobbySeat?.token ??
+      (this.entry?.type === "resume" ? this.entry.token : undefined)
+    );
   }
 
   private send(message: ClientMessage): void {
@@ -247,17 +255,24 @@ export class OnlineClient {
         events.status?.("online");
         if (this.game) {
           this.send({ type: "rejoin", token: this.game.token, from: this.nextTick });
+        } else if (this.lobbySeat) {
+          // Back to the lobby, or into the game if it started meanwhile.
+          this.send({ type: "rejoin", token: this.lobbySeat.token, from: 0 });
         } else if (this.entry) {
           this.sendEntry(this.entry);
         }
         return;
       case "lobby":
+        this.lobbySeat = { game: message.game, token: message.token };
+        // Should the seat be lost, joining this game again beats opening another one.
+        if (this.entry?.type === "create") this.entry = { type: "join", game: message.game };
         events.lobby?.(message);
         return;
       case "started": {
         // A rejoin resends the start: the simulation keeps its state and only gets the missing turns.
         const rejoined = this.game?.game === message.game;
         this.game = message;
+        this.lobbySeat = undefined;
         if (!rejoined) {
           this.nextTick = 0;
           events.started?.(message);
@@ -282,9 +297,18 @@ export class OnlineClient {
       case "ended":
         this.entry = undefined;
         this.game = undefined;
+        this.lobbySeat = undefined;
         events.ended?.(message.reason);
         return;
       case "error":
+        if (message.code === "token_invalid" && this.lobbySeat && !this.game) {
+          // The lobby gave the seat away: join again with the same request.
+          this.lobbySeat = undefined;
+          if (this.entry && this.entry.type !== "resume") {
+            this.sendEntry(this.entry);
+            return;
+          }
+        }
         if (message.code === "token_invalid" && this.game) {
           // The seat is gone: the game went on without this player.
           this.game = undefined;
@@ -297,7 +321,7 @@ export class OnlineClient {
           const token = this.token;
           this.setTimer(() => {
             if (this.token === token) {
-              this.send({ type: "rejoin", token, from: this.nextTick });
+              this.send({ type: "rejoin", token, from: this.game ? this.nextTick : 0 });
             }
           }, 1_000);
           return;

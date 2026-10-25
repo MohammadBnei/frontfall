@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -50,6 +50,7 @@ export const ErrorCode = z.enum([
   "token_invalid",
   "token_in_use",
   "invalid_settings",
+  "restarting",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
@@ -103,7 +104,10 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("create") }).strict(),
   /** Join a game by id, from the public list or an invite link. */
   z.object({ type: z.literal("join"), game: gameId }).strict(),
-  /** Take back a seat after a dropped connection, receiving every turn from `from`. */
+  /**
+   * Take back a seat after a dropped connection: in a running game, receiving
+   * every turn from `from`; before the start, back in the lobby.
+   */
   z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
   /** Host only: change the options of a private game before it starts. */
   z.object({ type: z.literal("configure"), options: GameOptions }).strict(),
@@ -143,6 +147,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     host: PlayerNumber.nullable(),
     /** Milliseconds before the game starts, when a countdown runs. */
     startsIn: z.number().int().nonnegative().nullable(),
+    /** Secret that takes this seat back after a dropped connection, before the start and after. */
+    token,
   }),
   /** The game starts, or the player rejoined it. Player numbers are final from here. */
   z.object({
@@ -177,7 +183,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
   /** The game is over for this connection, which may join another one. */
   z.object({
     type: z.literal("ended"),
-    reason: z.enum(["abandoned", "timeout", "expired", "left"]),
+    reason: z.enum(["abandoned", "timeout", "expired", "left", "restart"]),
   }),
   z.object({ type: z.literal("error"), code: ErrorCode, message: z.string() }),
 ]);

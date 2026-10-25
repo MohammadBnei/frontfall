@@ -278,6 +278,7 @@ describe("WebSocket", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({
       games: [{ id: game, map: "world", players: 1, capacity: 16, startsIn: null }],
+      running: 0,
     });
   });
 
@@ -290,6 +291,7 @@ describe("WebSocket", () => {
     expect(hostId).toBe(1);
     expect(await (await fetch(`http://${host}/api/games`)).json()).toEqual({
       games: [],
+      running: 0,
     });
 
     bob.send({ type: "join", game });
@@ -701,6 +703,86 @@ describe("WebSocket", () => {
     await Promise.all([opened(silent.socket), opened(healthy.socket)]);
     expect(await closed(silent.socket)).toBe(1006);
     expect(healthy.socket.readyState).toBe(WebSocket.OPEN);
+  });
+
+  /** Alice hosts a private game that Bob joined; it runs once both have `started`. */
+  async function runningGame(host: string) {
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "create" });
+    const { game } = await alice.next("lobby");
+    bob.send({ type: "join", game });
+    await bob.next("lobby");
+    alice.send({ type: "start" });
+    await Promise.all([alice.next("started"), bob.next("started")]);
+    return { alice, bob };
+  }
+
+  it("lets running games play on while it drains, and refuses new ones", async () => {
+    const host = await start({ drainMs: 60_000 });
+    const { alice, bob } = await runningGame(host);
+    const waiting = await player(host, "Carol");
+    waiting.send({ type: "create" });
+    await waiting.next("lobby");
+    const late = await player(host, "Dave");
+
+    let done = false;
+    const closing = server?.close().then(() => {
+      done = true;
+    });
+    server = undefined;
+    expect((await waiting.next("ended")).reason).toBe("restart");
+    late.send({ type: "play" });
+    expect((await late.next("error")).code).toBe("restarting");
+    expect(await (await fetch(`http://${host}/healthz`)).text()).toBe("stopping");
+    expect(await (await fetch(`http://${host}/api/games`)).json()).toEqual({
+      games: [],
+      running: 1,
+    });
+
+    const before = (await alice.next("turns")).turns.at(-1)?.tick ?? 0;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    let after = before;
+    while (after < before + 2) after = (await alice.next("turns")).turns.at(-1)?.tick ?? 0;
+    expect(done).toBe(false);
+
+    alice.send({ type: "leave" });
+    bob.send({ type: "leave" });
+    await closing;
+    expect(done).toBe(true);
+  });
+
+  it("stops the games still running when the drain runs out, saying why", async () => {
+    const host = await start({ drainMs: 200 });
+    const { alice } = await runningGame(host);
+    const code = closed(alice.socket);
+    const closing = server?.close();
+    server = undefined;
+    expect((await alice.next("ended")).reason).toBe("restart");
+    expect(await code).toBe(1012);
+    await closing;
+  });
+
+  it("keeps a lobby seat across a dropped connection, host role included", async () => {
+    const host = await start();
+    const alice = await player(host, "Alice");
+    const bob = await player(host, "Bob");
+    alice.send({ type: "create" });
+    const { game, token } = await alice.next("lobby");
+    bob.send({ type: "join", game });
+    await bob.next("lobby");
+
+    // No close frame, as when a phone goes to sleep.
+    alice.socket.terminate();
+    const back = await player(host, "Alice");
+    back.send({ type: "rejoin", token, from: 0 });
+    const lobby = await back.next("lobby");
+    expect(lobby).toMatchObject({ game, you: 1, host: 1 });
+    expect(lobby.players).toHaveLength(2);
+
+    // A page that closes its socket, as on a reload, gives the seat up at once.
+    bob.socket.close(1000);
+    expect((await back.next("lobby")).players).toEqual([{ id: 1, name: "Alice" }]);
   });
 
   it("tells players the server is restarting when it closes", async () => {

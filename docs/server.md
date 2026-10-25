@@ -4,16 +4,17 @@
 
 ## Configuration
 
-| Variable                      | Default                                 | Meaning                                                                                           |
-| ----------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `PORT`                        | `8080`                                  | HTTP and WebSocket port                                                                           |
-| `FRONTFALL_STATIC`            | `../../client/dist`                     | Directory of the built client                                                                     |
-| `FRONTFALL_ORIGINE`           | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any |
-| `FRONTFALL_VERSION`           | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                          |
-| `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                     |
-| `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                |
-| `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                              |
-| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                                    | Countdown of a public game once it has two players                                                |
+| Variable                      | Default                                 | Meaning                                                                                            |
+| ----------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `PORT`                        | `8080`                                  | HTTP and WebSocket port                                                                            |
+| `FRONTFALL_STATIC`            | `../../client/dist`                     | Directory of the built client                                                                      |
+| `FRONTFALL_ORIGINE`           | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any  |
+| `FRONTFALL_VERSION`           | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                           |
+| `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                      |
+| `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                 |
+| `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                               |
+| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                                    | Countdown of a public game once it has two players                                                 |
+| `FRONTFALL_DRAIN_SECONDS`     | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period |
 
 ## Games
 
@@ -21,14 +22,17 @@
 | ------------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
 | Players per game               | 16                         | A public game starts at once when full                                       |
 | Players to start a public game | 2                          | Then the countdown runs; it stops if a player leaves below 2                 |
-| Seat kept after a drop         | 2 minutes                  | The player rejoins with their token and every missed turn                    |
+| Seat kept after a drop         | 5 minutes                  | The player rejoins with their token and every missed turn                    |
+| Lobby seat kept after a drop   | 30 seconds                 | The player gets their place back, and the host keeps the role (see below)    |
 | Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                     |
 | Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                    |
 | Bots in a private game         | 25                         | Seats shrink to fit the map's `players.max`, never below the players present |
 | Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                     |
 | Private games per address      | 3 not yet started          | Further `create` requests get `too_many_games`                               |
 
-A game is freed as soon as it ends: when its last player leaves before the start, when it has not started ten minutes after it opened, when every player has been gone for two minutes, or at the time limit. Its turn log, about one byte per quiet tick, goes with it.
+A connection that drops without a close frame, as when a phone goes to sleep or the network fails, keeps its seat in a lobby for 30 seconds: the client takes it back with the token of the `lobby` message, or lands in the game if it started meanwhile. A page that closes its socket itself, on a reload or when the tab closes, gives its lobby seat up at once.
+
+A game is freed as soon as it ends: when its last player leaves before the start, when it has not started ten minutes after it opened, when every player has been gone for five minutes, or at the time limit. Its turn log, about one byte per quiet tick, goes with it.
 
 All running games share one timer that closes a turn every 100 ms. The `frontfall_turn_duration_seconds` histogram measures how long one pass over every game takes.
 
@@ -41,7 +45,7 @@ One bad client must not spoil a game or the server. Each limit closes the offend
 | Limit                   | Value                                                         | On breach                              |
 | ----------------------- | ------------------------------------------------------------- | -------------------------------------- |
 | Connections in all      | 5000                                                          | Upgrade refused with `503`             |
-| Connections per address | 8                                                             | Upgrade refused with `429`             |
+| Connections per address | 16, for players behind one router or mobile carrier           | Upgrade refused with `429`             |
 | Frame size              | 1 KiB                                                         | Closed with `1009`                     |
 | Messages per connection | 20 per second, bursts of 40                                   | Closed with `4002`                     |
 | Invalid frame           | any frame that fails decoding or checks                       | Closed with `4001`                     |
@@ -108,7 +112,7 @@ curl -s localhost:8080/metrics
 | Path          | Answer                                                                                                                  |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `/healthz`    | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release` |
-| `/api/games`  | Public games that have not started, as JSON                                                                             |
+| `/api/games`  | Public games that have not started, and the number of games running, as JSON                                            |
 | `/metrics`    | Metrics, from the host only                                                                                             |
 | `/ws`         | WebSocket upgrade                                                                                                       |
 | anything else | Files of the built client                                                                                               |
@@ -121,4 +125,10 @@ HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sen
 
 ## Shutdown
 
-On `SIGTERM` the server closes every WebSocket with code `1012` and stops listening; it exits within 5 seconds, before Docker's default 10-second limit and well within the 30 seconds the production host allows. Games in progress are lost: they live in memory only.
+Games live in memory only, so a restart would cut them short. Three things keep that from happening:
+
+1. **The deployment waits.** Before rolling out a new image, the Publish workflow polls `/api/games` until `running`, the games started with a player still connected, is 0. It gives up after 20 minutes and deploys anyway. Run the workflow by hand with `now` ticked to deploy at once.
+2. **The server drains.** On `SIGTERM` it stops opening games: `play`, `create` and `join` get the error `restarting`, while players of a running game can still `rejoin`. Lobbies end at once with reason `restart`. Running games play on until their players leave, for `FRONTFALL_DRAIN_SECONDS` at most; `/healthz` answers `503 stopping` meanwhile.
+3. **Players are told.** When the drain ends, every game still running ends with reason `restart`, and every WebSocket closes with code `1012`. The page says the game was stopped for an update; reconnecting then finds the new build and asks for a reload.
+
+The process exits 5 seconds after the drain at the latest. A second `SIGTERM` or `SIGINT` exits at once. With the default 20 seconds, a drain fits within the 30-second stop grace period of the production host; a longer drain needs a longer grace period, or Docker kills the process before players are told.

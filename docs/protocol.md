@@ -44,11 +44,11 @@ Players are numbered from 1 in the order they joined. Numbers in `lobby` message
 
 ### Reconnecting
 
-If the connection drops during a game, the seat stays reserved for two minutes. The client opens a new connection, says `hello`, then sends `rejoin` with its token and the first tick it has not run. The server answers with `started` again, then every turn from that tick, in frames of up to 2,000 turns, then the live turns. While the player is away, the game goes on without their orders.
+If the connection drops during a game, the seat stays reserved for five minutes. The client opens a new connection, says `hello`, then sends `rejoin` with its token and the first tick it has not run. The server answers with `started` again, then every turn from that tick, in frames of up to 2,000 turns, then the live turns. While the player is away, the game goes on without their orders.
 
 A token works for one connection at a time. If the server still holds a connection for the seat, it answers `token_in_use` and checks that connection with a ping: a connection that does not answer within 5 seconds is dropped, and the next `rejoin` succeeds.
 
-Before a game starts, a dropped connection gives its seat up. The client joins again with the same request.
+Before a game starts, a dropped connection keeps its seat for 30 seconds, unless the page closed it with code 1000 or 1001. The client sends `rejoin` with the token of its last `lobby` message and `from` 0: it is back in the lobby, with the host role if it had it, or receives `started` and every turn if the game began meanwhile. If the seat is gone (`token_invalid`), the client joins again with the same request, or by id once it was in a private game.
 
 ## Client messages
 
@@ -94,7 +94,7 @@ Joins a game by id, public or private, before it starts.
 { "type": "rejoin", "token": "q8Vb1aV9mN3x0WcY2tLk4Q", "from": 1200 }
 ```
 
-Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting). `from` is the first tick the client has not received.
+Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting). `from` is the first tick the client has not received. A rejoin with `from` 0 rebuilds the game from the first turn, so it clears a [`desync`](#desync) flag: the hashes the client sends next decide afresh.
 
 ### `configure`
 
@@ -191,11 +191,12 @@ The hello was accepted.
   ],
   "you": 2,
   "host": null,
-  "startsIn": 30000
+  "startsIn": 30000,
+  "token": "q8Vb1aV9mN3x0WcY2tLk4Q"
 }
 ```
 
-The game being filled, sent after every change, the host's `configure` included. `host` is the host's number in a private game and `null` in a public one. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs.
+The game being filled, sent after every change, the host's `configure` included. `host` is the host's number in a private game and `null` in a public one. `startsIn` is the time left before the start in milliseconds, or `null` while no countdown runs. `token` takes this seat back after a dropped connection, before the start and after; it is the same as in `started`.
 
 ### `started`
 
@@ -247,7 +248,7 @@ Live play sends one turn per frame. Within a turn, orders are listed in the orde
 { "type": "desync", "tick": 1250, "hash": 3735928559, "expected": 305419896 }
 ```
 
-This player's hash for `tick` differed from the majority's: its game no longer matches the others. `hash` is the one this player sent, `expected` the majority's, or `null` when no majority exists. With the seed, the options and the turns the client already holds, they make a complete report of the desync. Sent once per player, and again when that player rejoins.
+This player's hash for `tick` differed from the majority's: its game no longer matches the others. `hash` is the one this player sent, `expected` the majority's, or `null` when no majority exists. With the seed, the options and the turns the client already holds, they make a complete report of the desync. Sent once per player, and again when that player rejoins without replaying the game from the first turn.
 
 ### `ended`
 
@@ -255,7 +256,7 @@ This player's hash for `tick` differed from the majority's: its game no longer m
 { "type": "ended", "reason": "abandoned" }
 ```
 
-The game is over for this connection. Reasons: `abandoned` (every player is gone), `timeout` (four hours, or a turn log grown past its size limit), `expired` (not started ten minutes after it opened), `left` (answer to `leave`).
+The game is over for this connection. Reasons: `abandoned` (every player is gone), `timeout` (four hours, or a turn log grown past its size limit), `expired` (not started ten minutes after it opened), `left` (answer to `leave`), `restart` (the server restarted for an update; see [server.md](server.md#shutdown)).
 
 ### `error`
 
@@ -278,18 +279,19 @@ A request was refused; the connection stays open. `message` is for people, `code
 | `too_many_games`   | `play`, `create`             | The server holds as many games as it can               |
 | `token_invalid`    | `rejoin`                     | The game is over or the seat was given up              |
 | `token_in_use`     | `rejoin`                     | Another connection holds the seat; retry in 1 s        |
+| `restarting`       | `play`, `create`, `join`     | The server is about to restart; try again in a minute  |
 
 ## Close codes
 
-| Code   | Meaning                                                         |
-| ------ | --------------------------------------------------------------- |
-| `1009` | A frame was larger than 1 KiB                                   |
-| `1012` | The server is restarting; games in progress are lost            |
-| `4000` | Another protocol version or build: reload the page              |
-| `4001` | A frame could not be decoded or broke a rule                    |
-| `4002` | More than 20 messages per second on average, or bursts above 40 |
-| `4003` | No `hello` within 10 seconds, or out of any game for 5 minutes  |
-| `4004` | Another connection took over this player (reserved)             |
+| Code   | Meaning                                                                 |
+| ------ | ----------------------------------------------------------------------- |
+| `1009` | A frame was larger than 1 KiB                                           |
+| `1012` | The server restarted; games still in progress were ended with `restart` |
+| `4000` | Another protocol version or build: reload the page                      |
+| `4001` | A frame could not be decoded or broke a rule                            |
+| `4002` | More than 20 messages per second on average, or bursts above 40         |
+| `4003` | No `hello` within 10 seconds, or out of any game for 5 minutes          |
+| `4004` | Another connection took over this player (reserved)                     |
 
 ## Binary frames
 
@@ -327,11 +329,11 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## HTTP endpoints
 
-| Path         | Answer                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------- |
-| `/healthz`   | `ok`, with the running build in the `X-Frontfall-Version` header                                        |
-| `/api/games` | Public games that have not started: `{ "games": [{ "id", "map", "players", "capacity", "startsIn" }] }` |
+| Path         | Answer                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/healthz`   | `ok`, with the running build in the `X-Frontfall-Version` header                                                                                                  |
+| `/api/games` | Public games that have not started, and the games running with a player connected: `{ "games": [{ "id", "map", "players", "capacity", "startsIn" }], "running" }` |
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended` and the `restarting` error. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

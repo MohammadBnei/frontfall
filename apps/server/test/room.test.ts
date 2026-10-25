@@ -14,6 +14,7 @@ const PUBLIC: RoomSettings = {
   minPlayers: 2,
   countdownMs: 10_000,
   reconnectGraceMs: 60_000,
+  lobbyGraceMs: 30_000,
   maxDurationMs: 3_600_000,
   lobbyTimeoutMs: 600_000,
   maxOrdersPerTurn: 3,
@@ -223,6 +224,60 @@ describe("private lobby", () => {
     expect(room.requestStart(host.seat, 0)).toBe("not_in_game");
     expect(room.requestStart(guest.seat, 0)).toBeUndefined();
   });
+
+  it("keeps the seat and the host role of a player whose connection drops", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    const host = seated(room, "Host");
+    const guest = seated(room, "Guest");
+    room.disconnect(host.seat, 1_000);
+    room.update(1_000 + PRIVATE.lobbyGraceMs - 1);
+    expect(room.playerCount).toBe(2);
+
+    const back = new FakePeer();
+    expect(room.rejoin(host.seat, back, 0, 2_000)).toBeUndefined();
+    expect(back.last("lobby")).toMatchObject({ you: 1, host: 1, token: host.seat.token });
+    expect(guest.peer.last("lobby").players).toHaveLength(2);
+    expect(room.requestStart(host.seat, 2_000)).toBeUndefined();
+  });
+
+  it("frees the seat of a player who does not come back in time", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    const host = seated(room, "Host");
+    const guest = seated(room, "Guest");
+    room.disconnect(host.seat, 0);
+    room.update(PRIVATE.lobbyGraceMs);
+    expect(room.playerCount).toBe(1);
+    expect(guest.peer.last("lobby").host).toBe(2);
+    expect(room.rejoin(host.seat, new FakePeer(), 0, PRIVATE.lobbyGraceMs)).toBe("token_invalid");
+  });
+
+  it("frees the seat at once when the page closed its connection", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    seated(room, "Host");
+    const guest = seated(room, "Guest");
+    room.disconnect(guest.seat, 0, true);
+    expect(room.playerCount).toBe(1);
+  });
+
+  it("starts with an absent player, who rejoins the running game", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    const host = seated(room, "Host");
+    const guest = seated(room, "Guest");
+    room.disconnect(guest.seat, 0);
+    room.requestStart(host.seat, 100);
+    room.update(200);
+    const back = new FakePeer();
+    expect(room.rejoin(guest.seat, back, 0, 300)).toBeUndefined();
+    expect(back.last("started")).toMatchObject({ you: 2, token: guest.seat.token });
+    expect(back.turns()).toHaveLength(1);
+  });
+
+  it("ends with a restart reason when the server stops", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    const host = seated(room, "Host");
+    room.stop("restart");
+    expect(host.peer.last("ended").reason).toBe("restart");
+  });
 });
 
 function running(settings = PRIVATE) {
@@ -296,7 +351,7 @@ describe("running game", () => {
     room.update(300);
 
     const back = new FakePeer();
-    expect(room.rejoin(bob.seat, back, 1)).toBeUndefined();
+    expect(room.rejoin(bob.seat, back, 1, 0)).toBeUndefined();
     expect(back.last("started")).toMatchObject({ you: 2, token: bob.seat.token });
     expect(back.turns()).toEqual([
       { tick: 1, orders: [{ player: 1, order: { type: "spawn", tile: 5 } }] },
@@ -308,7 +363,7 @@ describe("running game", () => {
 
   it("refuses a token whose seat is still connected, and checks that connection", () => {
     const { room, bob } = running();
-    expect(room.rejoin(bob.seat, new FakePeer(), 0)).toBe("token_in_use");
+    expect(room.rejoin(bob.seat, new FakePeer(), 0, 0)).toBe("token_in_use");
     expect(bob.peer.probes).toBe(1);
   });
 
@@ -316,7 +371,7 @@ describe("running game", () => {
     const { room, alice, bob } = running();
     room.disconnect(bob.seat, 0);
     room.update(PRIVATE.reconnectGraceMs);
-    expect(room.rejoin(bob.seat, new FakePeer(), 0)).toBe("token_invalid");
+    expect(room.rejoin(bob.seat, new FakePeer(), 0, 0)).toBe("token_invalid");
     expect(room.seatFor(bob.seat.token)).toBeUndefined();
     expect(room.seatFor(alice.seat.token)).toBe(alice.seat);
   });
@@ -382,8 +437,19 @@ describe("desync detection", () => {
 
     room.disconnect(c.seat, 20_000);
     const back = new FakePeer();
-    room.rejoin(c.seat, back, 150);
+    room.rejoin(c.seat, back, 150, 0);
     expect(back.last("desync")).toMatchObject({ tick: 100, hash: 8, expected: 7 });
+
+    // A reload replays the game from the first turn: the flag goes, and the next hashes decide.
+    room.disconnect(c.seat, 20_000);
+    const reloaded = new FakePeer();
+    room.rejoin(c.seat, reloaded, 0, 0);
+    expect(reloaded.inbox.some((message) => message.type === "desync")).toBe(false);
+    expect(room.desynced).toBe(false);
+    room.reportHash(a.seat, 150, 9);
+    room.reportHash(b.seat, 150, 9);
+    room.reportHash(c.seat, 150, 9);
+    expect(room.desynced).toBe(false);
   });
 
   it("cannot be used by one client to flag the others", () => {

@@ -1,6 +1,12 @@
 import { randomInt } from "node:crypto";
 import { newGameId } from "./ids.ts";
-import { Room, type RoomObserver, type RoomSettings, type Seat } from "./room.ts";
+import {
+  Room,
+  type FinishReason,
+  type RoomObserver,
+  type RoomSettings,
+  type Seat,
+} from "./room.ts";
 
 export interface PublicGame {
   id: string;
@@ -78,10 +84,10 @@ export class Directory {
     return count;
   }
 
-  /** The running game and seat a reconnect token belongs to. */
+  /** The game and seat a reconnect token belongs to, before the start or after. */
   findSeat(token: string): { room: Room; seat: Seat } | undefined {
     for (const room of this.rooms.values()) {
-      if (room.state !== "running") continue;
+      if (room.state === "finished") continue;
       const seat = room.seatFor(token);
       if (seat) return { room, seat };
     }
@@ -119,8 +125,8 @@ export class Directory {
     return games;
   }
 
-  stopAll(): void {
-    for (const room of this.rooms.values()) room.stop();
+  stopAll(reason?: FinishReason): void {
+    for (const room of this.rooms.values()) room.stop(reason);
     this.rooms.clear();
   }
 }

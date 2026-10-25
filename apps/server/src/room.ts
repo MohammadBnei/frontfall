@@ -42,6 +42,8 @@ export interface RoomSettings {
   countdownMs: number;
   /** How long a seat stays reserved for a player whose connection dropped. */
   reconnectGraceMs: number;
+  /** The same before the start: a phone that sleeps a moment keeps its place, and the host its role. */
+  lobbyGraceMs: number;
   /** A game still running after this long is stopped. */
   maxDurationMs: number;
   /** A game that has not started this long after it opened is closed. */
@@ -54,7 +56,7 @@ export interface RoomSettings {
 
 export type RoomState = "open" | "starting" | "running" | "finished";
 
-export type FinishReason = "abandoned" | "timeout" | "expired" | "empty";
+export type FinishReason = "abandoned" | "timeout" | "expired" | "empty" | "restart";
 
 export interface Seat {
   /** Number shown in the lobby, replaced by the final player number at start. */
@@ -62,7 +64,7 @@ export interface Seat {
   readonly name: string;
   readonly token: string;
   peer: Peer | undefined;
-  /** When the connection dropped, while the game runs. */
+  /** When the connection dropped, while the seat waits for the player to come back. */
   awaySince: number | undefined;
   /** Left for good: the seat cannot be taken back. */
   gone: boolean;
@@ -186,28 +188,42 @@ export class Room {
     this.lobbyChanged(now);
   }
 
-  /** The connection dropped. In a running game, the seat waits for the player to rejoin. */
-  disconnect(seat: Seat, now: number): void {
-    if (this.stateValue !== "running") {
+  /**
+   * The connection dropped: the seat waits for the player to rejoin. Before
+   * the start, a connection the page closed itself, as on a reload or when
+   * the tab closes, gives the seat up at once.
+   */
+  disconnect(seat: Seat, now: number, closedByPage = false): void {
+    if (!this.holds(seat)) return;
+    if (this.stateValue !== "running" && (closedByPage || this.settings.lobbyGraceMs <= 0)) {
       this.leave(seat, now);
       return;
     }
-    if (!this.holds(seat)) return;
     seat.peer = undefined;
     seat.awaySince = now;
   }
 
-  /** Gives the seat to a new connection and sends every turn from `from` on. */
-  rejoin(seat: Seat, peer: Peer, from: number): ErrorCode | undefined {
-    if (this.stateValue !== "running" || !this.holds(seat)) return "token_invalid";
+  /**
+   * Gives the seat to a new connection. Before the start, the player is back
+   * in the lobby; in a running game, they receive every turn from `from` on.
+   */
+  rejoin(seat: Seat, peer: Peer, from: number, now: number): ErrorCode | undefined {
+    if (!this.holds(seat)) return "token_invalid";
     if (seat.peer) {
       seat.peer.probe();
       return "token_in_use";
     }
     seat.peer = peer;
     seat.awaySince = undefined;
+    if (this.stateValue !== "running") {
+      this.lobbyChanged(now);
+      return undefined;
+    }
     peer.send(this.startedMessage(seat));
     for (const frame of this.log.frames(Math.min(from, this.log.length))) peer.send(frame);
+    // Replaying from the first turn rebuilds the game from scratch: the hashes
+    // it reports next decide afresh. Otherwise the client keeps its old state.
+    if (from === 0) this.desyncs.delete(seat);
     const desync = this.desyncs.get(seat);
     if (desync !== undefined) peer.send(desync);
     return undefined;
@@ -298,6 +314,8 @@ export class Room {
     switch (this.stateValue) {
       case "open":
       case "starting":
+        this.expireLobbySeats(now);
+        if (this.state === "finished") return;
         if (this.startsAt !== undefined && now >= this.startsAt) this.start(now);
         else if (
           this.openedAt !== undefined &&
@@ -317,8 +335,8 @@ export class Room {
   }
 
   /** Stops the game at once, for example when the server shuts down. */
-  stop(): void {
-    if (this.stateValue !== "finished") this.finish("abandoned");
+  stop(reason: FinishReason = "abandoned"): void {
+    if (this.stateValue !== "finished") this.finish(reason);
   }
 
   private start(now: number): void {
@@ -344,6 +362,17 @@ export class Room {
     for (const tick of this.hashes.keys()) {
       if (tick >= this.log.length - HASH_WINDOW_TICKS) continue;
       this.compare(tick);
+    }
+  }
+
+  /** Frees the lobby seats of players who did not come back in time. */
+  private expireLobbySeats(now: number): void {
+    for (const seat of [...this.seats]) {
+      if (seat.awaySince !== undefined && now - seat.awaySince >= this.settings.lobbyGraceMs) {
+        seat.awaySince = undefined;
+        this.leave(seat, now);
+        if (this.stateValue === "finished") return;
+      }
     }
   }
 
@@ -401,6 +430,7 @@ export class Room {
           you: seat.id,
           host: this.host?.id ?? null,
           startsIn,
+          token: seat.token,
         }),
       );
     }

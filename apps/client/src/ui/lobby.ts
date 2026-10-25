@@ -31,7 +31,7 @@ export interface LobbyActions {
 }
 
 /** Why a game ended before or instead of starting, as the server says it. */
-export type EndReason = "abandoned" | "timeout" | "expired" | "left";
+export type EndReason = "abandoned" | "timeout" | "expired" | "left" | "restart";
 
 /**
  * The room before an online game: who is in, the countdown of a public

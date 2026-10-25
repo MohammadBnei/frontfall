@@ -46,6 +46,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     you: 2,
     host: null,
     startsIn: 12_000,
+    token: "q8Vb1aV9mN3x0WcY2tLk4Q",
   },
   {
     type: "started",
