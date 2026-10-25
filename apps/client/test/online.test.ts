@@ -356,6 +356,15 @@ describe("OnlineClient", () => {
     expect(turns).toEqual([0, 1]);
   });
 
+  it("passes an announced restart on", () => {
+    const seen: (number | null)[] = [];
+    client({ maintenance: (inMs) => seen.push(inMs) });
+    const socket = welcomed();
+    socket.receive({ type: "maintenance", inMs: 60_000 });
+    socket.receive({ type: "maintenance", inMs: null });
+    expect(seen).toEqual([60_000, null]);
+  });
+
   it("passes other errors and the end of the game on", () => {
     const online = client();
     const socket = welcomed();

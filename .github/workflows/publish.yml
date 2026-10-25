@@ -2,12 +2,13 @@ name: Publish
 
 on:
   push:
-    branches: [main]
+    # main goes to production, next to the preview at /frontfall-next/.
+    branches: [main, next]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
       now:
-        description: Deploy without waiting for the games in progress to end
+        description: Deploy without announcing the update or waiting for the games in progress
         type: boolean
         default: false
 
@@ -15,12 +16,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish
+  group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
-  SITE: https://nclsmgr.com/frontfall/
+  SITE: ${{ github.ref == 'refs/heads/next' && 'https://nclsmgr.com/frontfall-next/' || 'https://nclsmgr.com/frontfall/' }}
+  # Word the server's deploy command reads before the tag: none for production.
+  TARGET: ${{ github.ref == 'refs/heads/next' && 'next' || '' }}
 
 jobs:
   # Each architecture builds on a native runner, then is scanned before any tag is set.
@@ -107,10 +110,12 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         working-directory: digests
-        # Every build is tagged with its commit; main also moves latest, a v1.2.3 tag adds 1.2.3.
+        # Every build is tagged with its commit; main also moves latest, next moves next,
+        # a v1.2.3 tag adds 1.2.3.
         run: |
           tags=(-t "$IMAGE:$TAG")
           if [ "$GITHUB_REF" = refs/heads/main ]; then tags+=(-t "$IMAGE:latest"); fi
+          if [ "$GITHUB_REF" = refs/heads/next ]; then tags+=(-t "$IMAGE:next"); fi
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then tags+=(-t "$IMAGE:${GITHUB_REF_NAME#v}"); fi
           docker buildx imagetools create "${tags[@]}" $(printf "$IMAGE@sha256:%s " *)
           docker buildx imagetools inspect "$IMAGE:$TAG"
@@ -118,8 +123,11 @@ jobs:
   deploy:
     name: Deploy
     needs: manifest
-    # Releases are tagged from commits already deployed from main.
-    if: vars.DEPLOIEMENT_ACTIF == 'true' && github.ref == 'refs/heads/main'
+    # Releases are tagged from commits already deployed from main. The preview needs its own
+    # switch, set once the server has a second Compose project for it.
+    if: >-
+      (vars.DEPLOIEMENT_ACTIF == 'true' && github.ref == 'refs/heads/main') ||
+      (vars.PREPROD_ACTIVE == 'true' && github.ref == 'refs/heads/next')
     runs-on: ubuntu-24.04
     environment: production
     steps:
@@ -132,29 +140,42 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-      # A restart stops the games in progress. Wait for them to end, up to 20 minutes.
-      - name: Wait for the games in progress
+      # A restart stops the games in progress. When some are running, every player is told
+      # the update is coming, then the games get that long to end.
+      - name: Announce the update and wait for the games in progress
         if: ${{ !inputs.now }}
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          MINUTES: ${{ vars.ANNONCE_MINUTES || '10' }}
         run: |
-          deadline=$((SECONDS + 20 * 60))
+          running() { curl -fsS "${SITE}api/games" | jq -r '.running // 0' || echo 0; }
+          if [ "$(running)" = 0 ]; then
+            echo "No game in progress"
+            exit 0
+          fi
+          ssh -i "$HOME/.ssh/deploy" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "frontfall@${HOST}" $TARGET annonce "$MINUTES" < /dev/null \
+            || echo "::warning::The server could not announce the update; waiting anyway"
+          deadline=$((SECONDS + MINUTES * 60))
           while [ "$SECONDS" -lt "$deadline" ]; do
-            running=$(curl -fsS "${SITE}api/games" | jq -r '.running // 0') || running=0
-            if [ "$running" = 0 ]; then
-              echo "No game in progress"
+            count=$(running)
+            if [ "$count" = 0 ]; then
+              echo "The games in progress have ended"
               exit 0
             fi
-            echo "$running game(s) in progress, waiting"
+            echo "$count game(s) in progress, waiting"
             sleep 30
           done
-          echo "::warning::Games still in progress after 20 minutes; deploying anyway"
+          echo "::warning::Games still in progress after $MINUTES minutes; deploying anyway"
       - name: Roll out the new image
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
           TAG: ${{ needs.manifest.outputs.tag }}
-        # The key only allows a forced command on the server, which reads the tag and nothing else.
+        # The key only allows a forced command on the server, which reads a target, a tag and
+        # nothing else.
         run: |
           ssh -i "$HOME/.ssh/deploy" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            "frontfall@${HOST}" "$TAG" < /dev/null
+            "frontfall@${HOST}" $TARGET "$TAG" < /dev/null
       - name: Clean up
         if: always()
         run: rm -f ~/.ssh/deploy
@@ -175,7 +196,7 @@ jobs:
           exit 1
 
   smoke:
-    name: Smoke test in production
+    name: Smoke test of the deployed site
     needs: deploy
     runs-on: ubuntu-24.04
     timeout-minutes: 10

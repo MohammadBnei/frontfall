@@ -49,3 +49,13 @@ export function isLocalRequest(request: IncomingMessage): boolean {
     !PROXY_HEADERS.some((name) => name in request.headers)
   );
 }
+
+/** A request from inside the container itself, as `docker exec` sends: for admin routes. */
+export function isLoopbackRequest(request: IncomingMessage): boolean {
+  const address = request.socket.remoteAddress ?? "";
+  const ip = address.startsWith("::ffff:") ? address.slice(7) : address;
+  return (
+    (ip === "::1" || ip.startsWith("127.")) &&
+    !PROXY_HEADERS.some((name) => name in request.headers)
+  );
+}

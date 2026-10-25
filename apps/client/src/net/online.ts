@@ -55,6 +55,8 @@ export interface OnlineEvents {
   desync?(tick: number, hash: number, expected: number | null): void;
   ended?(reason: Extract<ServerMessage, { type: "ended" }>["reason"]): void;
   error?(code: ErrorCode, message: string): void;
+  /** The server restarts for an update in `inMs` milliseconds, or no longer does (`null`). */
+  maintenance?(inMs: number | null): void;
 }
 
 /** The subset of the browser WebSocket this module needs, so tests can supply their own. */
@@ -293,6 +295,9 @@ export class OnlineClient {
       }
       case "desync":
         events.desync?.(message.tick, message.hash, message.expected);
+        return;
+      case "maintenance":
+        events.maintenance?.(message.inMs);
         return;
       case "ended":
         this.entry = undefined;

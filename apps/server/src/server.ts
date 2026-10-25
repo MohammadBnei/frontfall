@@ -16,7 +16,7 @@ import { loadMapLimits, type MapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger, type Logger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
-import { clientAddress, isLocalRequest } from "./address.ts";
+import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import type { Peer, Room, RoomObserver, RoomSettings, Seat } from "./room.ts";
@@ -52,6 +52,8 @@ export interface ServerOptions {
   idleTimeoutMs?: number;
   /** On close, how long running games may go on before they are stopped. */
   drainMs?: number;
+  /** More of /status, as HTML that is already escaped, such as usage figures. */
+  statusSections?: () => string;
   /** Messages a connection may send per second on average, and at once. */
   messageRate?: { perSecond: number; burst: number };
   publicGame?: Partial<GameSettings>;
@@ -190,6 +192,8 @@ export function createGameServer(options: ServerOptions): GameServer {
   let lastTurnAt = performance.now();
   let stopping = false;
   let closing: Promise<void> | undefined;
+  /** When an announced restart is due, as `Date.now()` time. */
+  let maintenanceAt: number | undefined;
   const logger = options.logger ?? silentLogger;
   const pseudonym = addressPseudonym();
   const metrics = new Metrics();
@@ -250,12 +254,32 @@ export function createGameServer(options: ServerOptions): GameServer {
         .end(status);
       return;
     }
+    if (path === "/admin/maintenance" && isLoopbackRequest(request)) {
+      announce(request, response);
+      return;
+    }
     if (request.method !== "GET" && request.method !== "HEAD") {
       response.writeHead(405, { allow: "GET, HEAD" }).end();
       return;
     }
     if (path === "/api/games") {
       sendJson(response, { games: games.publicGames(Date.now()), running: running() });
+      return;
+    }
+    if (path === "/api/status") {
+      sendJson(response, status());
+      return;
+    }
+    if (path === "/status") {
+      response
+        .writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+        })
+        .end(
+          request.method === "HEAD" ? undefined : statusPage(status(), options.statusSections?.()),
+        );
       return;
     }
     if (path === "/metrics" && isLocalRequest(request)) {
@@ -386,6 +410,10 @@ export function createGameServer(options: ServerOptions): GameServer {
       session.name = name.name;
       session.idleSince = Date.now();
       session.peer.send(encodeServerMessage({ type: "welcome", version: PROTOCOL_VERSION }));
+      const now = Date.now();
+      if (maintenanceAt !== undefined && maintenanceAt > now) {
+        session.peer.send(maintenanceMessage(maintenanceAt - now));
+      }
       return;
     }
     if (session.name === undefined) {
@@ -556,6 +584,56 @@ export function createGameServer(options: ServerOptions): GameServer {
     return count;
   }
 
+  function maintenanceMessage(inMs: number | null): Frame {
+    return encodeServerMessage({
+      type: "maintenance",
+      inMs: inMs === null ? null : Math.max(0, Math.round(inMs)),
+    });
+  }
+
+  /** Tells every connection that has said hello. */
+  function broadcastAll(frame: Frame): void {
+    for (const session of sessions) if (session.name !== undefined) session.peer.send(frame);
+  }
+
+  /**
+   * POST /admin/maintenance?minutes=N, from inside the container: tells every
+   * player the server restarts in N minutes; 0 calls it off. The answer gives
+   * the games running, which the restart would stop.
+   */
+  function announce(request: IncomingMessage, response: ServerResponse): void {
+    const minutes = Number(
+      new URL(request.url ?? "/", "http://localhost").searchParams.get("minutes"),
+    );
+    if (request.method !== "POST" || !Number.isFinite(minutes) || minutes < 0 || minutes > 120) {
+      response.writeHead(400, { "content-type": "text/plain" }).end("POST ?minutes=0 to 120");
+      return;
+    }
+    maintenanceAt = minutes > 0 ? Date.now() + minutes * 60_000 : undefined;
+    broadcastAll(maintenanceMessage(minutes > 0 ? minutes * 60_000 : null));
+    logger.info("maintenance_announced", { minutes });
+    sendJson(response, { minutes, running: running() });
+  }
+
+  function status(): ServerStatus {
+    const now = Date.now();
+    let lobbies = 0;
+    let players = 0;
+    for (const room of games.all()) {
+      if (room.state === "open" || room.state === "starting") lobbies++;
+      players += room.connectedCount;
+    }
+    return {
+      version: options.version,
+      release: options.release ?? "dev",
+      state: stopping ? "stopping" : "ok",
+      players,
+      running: running(),
+      lobbies,
+      restartInMs: maintenanceAt !== undefined && maintenanceAt > now ? maintenanceAt - now : null,
+    };
+  }
+
   function snapshot(): Snapshot {
     const counts = { open: 0, starting: 0, running: 0 };
     let players = 0;
@@ -604,6 +682,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       for (const room of games.all()) if (room.state !== "running") room.stop("restart");
       games.sweep();
       const deadline = performance.now() + drainMs;
+      if (running() > 0) broadcastAll(maintenanceMessage(drainMs));
       closing = new Promise<void>((resolve) => {
         const finish = (): void => {
           clearInterval(heartbeat);
@@ -623,6 +702,54 @@ export function createGameServer(options: ServerOptions): GameServer {
       return closing;
     },
   };
+}
+
+/** What /api/status and /status tell anyone who asks. */
+export interface ServerStatus {
+  version: string;
+  release: string;
+  state: "ok" | "stopping";
+  /** Players seated in a game, lobbies included, with an open connection. */
+  players: number;
+  /** Games started, with a player still connected. */
+  running: number;
+  lobbies: number;
+  /** Time before an announced restart, if any. */
+  restartInMs: number | null;
+}
+
+/** A page for people, in both languages of the game. Plain HTML: the site's policy forbids inline styles. */
+export function statusPage(status: ServerStatus, sections = ""): string {
+  const restart =
+    status.restartInMs === null
+      ? "none planned / aucun prévu"
+      : `in ${String(Math.ceil(status.restartInMs / 60_000))} min / dans ${String(Math.ceil(status.restartInMs / 60_000))} min`;
+  const rows: [string, string][] = [
+    ["Server / Serveur", status.state === "ok" ? "up / en ligne" : "restarting / redémarre"],
+    ["Players online / Joueurs en ligne", String(status.players)],
+    ["Games running / Parties en cours", String(status.running)],
+    ["Lobbies / Salons", String(status.lobbies)],
+    ["Restart / Redémarrage", restart],
+    ["Release / Version", status.release],
+    ["Build", status.version],
+  ];
+  const escape = (text: string) =>
+    text.replace(/[&<>"]/g, (char) => `&#${String(char.charCodeAt(0))};`);
+  return `<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frontfall status</title>
+<body>
+<h1>Frontfall</h1>
+<table>
+${rows.map(([name, value]) => `<tr><th align="left">${escape(name)}</th><td>${escape(value)}</td></tr>`).join("\n")}
+</table>
+${sections}
+<p><a href="./">Play / Jouer</a></p>
+</body>
+</html>
+`;
 }
 
 /** If-None-Match lists tags, which proxies may have weakened; any match will do. */

@@ -1,6 +1,6 @@
 import type { GameRecord } from "@frontfall/engine";
 import type { GameOptions, Teams } from "@frontfall/protocol";
-import { applyTranslations, onLanguageChange, t, type MessageKey } from "./i18n/index.ts";
+import { applyTranslations, onLanguageChange, plural, t, type MessageKey } from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
 import { BUILD } from "./net/build.ts";
@@ -236,8 +236,33 @@ function inviteLink(game: string): string {
   return url.href;
 }
 
+/** When the announced restart of the server is due, by the page's clock. */
+let maintenanceTimer: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * A band at the top of the page, over the lobby and the game alike, that
+ * counts the minutes to an announced restart; `null` takes it away.
+ */
+function showMaintenance(inMs: number | null): void {
+  clearInterval(maintenanceTimer);
+  document.querySelector(".maintenance")?.remove();
+  if (inMs === null) return;
+  const due = Date.now() + inMs;
+  const band = h("p", { class: "maintenance", role: "status" });
+  const update = (): void => {
+    band.textContent = plural(
+      "online.maintenance",
+      Math.max(1, Math.ceil((due - Date.now()) / 60_000)),
+    );
+  };
+  update();
+  maintenanceTimer = setInterval(update, 15_000);
+  document.body.append(band);
+}
+
 /** Leaves the online game, if any, and closes the connection. */
 function goOffline(): void {
+  showMaintenance(null);
   // Leaving on purpose gives up the seat; closing the tab keeps it for a reload.
   if (online) forgetSeat();
   online?.leave();
@@ -322,6 +347,9 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
       },
       turns(turns) {
         game?.pushTurns(turns);
+      },
+      maintenance(inMs) {
+        showMaintenance(inMs);
       },
       desync(tick, _hash, expected) {
         game?.desync(tick, expected);

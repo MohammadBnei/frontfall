@@ -186,6 +186,11 @@ export const ServerMessage = z.discriminatedUnion("type", [
     reason: z.enum(["abandoned", "timeout", "expired", "left", "restart"]),
   }),
   z.object({ type: z.literal("error"), code: ErrorCode, message: z.string() }),
+  /**
+   * The server restarts for an update in `inMs` milliseconds, stopping the
+   * games still running then; `null` when the restart was called off.
+   */
+  z.object({ type: z.literal("maintenance"), inMs: z.number().int().nonnegative().nullable() }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;
 

@@ -785,6 +785,47 @@ describe("WebSocket", () => {
     expect((await back.next("lobby")).players).toEqual([{ id: 1, name: "Alice" }]);
   });
 
+  it("announces a restart to every player, from inside the container only", async () => {
+    const host = await start();
+    const alice = await player(host, "Alice");
+    const url = `http://${host}/admin/maintenance?minutes=5`;
+    expect(
+      (await fetch(url, { method: "POST", headers: { "x-client-ip": "1.2.3.4" } })).status,
+    ).toBe(405);
+    expect((await fetch(url)).status).toBe(400);
+    const answer = await fetch(url, { method: "POST" });
+    expect(await answer.json()).toEqual({ minutes: 5, running: 0 });
+    expect((await alice.next("maintenance")).inMs).toBe(300_000);
+
+    // Players who arrive later are told too.
+    const bob = await player(host, "Bob");
+    expect((await bob.next("maintenance")).inMs).toBeGreaterThan(290_000);
+    const status = (await (await fetch(`http://${host}/api/status`)).json()) as Record<
+      string,
+      unknown
+    >;
+    expect(status).toMatchObject({ version: "abc123", state: "ok", running: 0, lobbies: 0 });
+    expect(status.restartInMs).toBeGreaterThan(290_000);
+    const page = await (await fetch(`http://${host}/status`)).text();
+    expect(page).toContain("Players online / Joueurs en ligne");
+    expect(page).toContain("dans 5 min");
+
+    await fetch(`http://${host}/admin/maintenance?minutes=0`, { method: "POST" });
+    expect((await alice.next("maintenance")).inMs).toBeNull();
+    expect(await (await fetch(`http://${host}/api/status`)).json()).toMatchObject({
+      restartInMs: null,
+    });
+  });
+
+  it("warns the players of running games when it starts to drain", async () => {
+    const host = await start({ drainMs: 200 });
+    const { alice } = await runningGame(host);
+    const closing = server?.close();
+    server = undefined;
+    expect((await alice.next("maintenance")).inMs).toBe(200);
+    await closing;
+  });
+
   it("tells players the server is restarting when it closes", async () => {
     const host = await start();
     const client = await player(host, "X");

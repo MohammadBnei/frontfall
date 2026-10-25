@@ -109,13 +109,16 @@ curl -s localhost:8080/metrics
 
 ## HTTP routes
 
-| Path          | Answer                                                                                                                  |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `/healthz`    | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release` |
-| `/api/games`  | Public games that have not started, and the number of games running, as JSON                                            |
-| `/metrics`    | Metrics, from the host only                                                                                             |
-| `/ws`         | WebSocket upgrade                                                                                                       |
-| anything else | Files of the built client                                                                                               |
+| Path                 | Answer                                                                                                                  |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `/healthz`           | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release` |
+| `/api/games`         | Public games that have not started, and the number of games running, as JSON                                            |
+| `/status`            | A page for people: players online, games running, lobbies, an announced restart, release and build                      |
+| `/api/status`        | The same as JSON: `version`, `release`, `state`, `players`, `running`, `lobbies`, `restartInMs`                         |
+| `/admin/maintenance` | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only    |
+| `/metrics`           | Metrics, from the host only                                                                                             |
+| `/ws`                | WebSocket upgrade                                                                                                       |
+| anything else        | Files of the built client                                                                                               |
 
 HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Every file carries an `ETag` drawn from its content; maps and other files without a hashed name are sent with `no-cache`, so browsers revalidate them and get `304 Not Modified` until they change. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
 
@@ -127,8 +130,8 @@ HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sen
 
 Games live in memory only, so a restart would cut them short. Three things keep that from happening:
 
-1. **The deployment waits.** Before rolling out a new image, the Publish workflow polls `/api/games` until `running`, the games started with a player still connected, is 0. It gives up after 20 minutes and deploys anyway. Run the workflow by hand with `now` ticked to deploy at once.
-2. **The server drains.** On `SIGTERM` it stops opening games: `play`, `create` and `join` get the error `restarting`, while players of a running game can still `rejoin`. Lobbies end at once with reason `restart`. Running games play on until their players leave, for `FRONTFALL_DRAIN_SECONDS` at most; `/healthz` answers `503 stopping` meanwhile.
+1. **The deployment announces the update, then waits.** Before rolling out a new image, the Publish workflow reads `running` from `/api/games`, the games started with a player still connected. If some are running, it asks the server, through its deploy command, to announce the update in 10 minutes (`ANNONCE_MINUTES`): every page shows a band counting the minutes down, players who arrive meanwhile included. Then it waits for `running` to reach 0, for those 10 minutes at most. Run the workflow by hand with `now` ticked to deploy at once.
+2. **The server drains.** On `SIGTERM` it stops opening games: `play`, `create` and `join` get the error `restarting`, while players of a running game can still `rejoin`. Lobbies end at once with reason `restart`. Running games play on until their players leave, for `FRONTFALL_DRAIN_SECONDS` at most, and their players see the band with the time left; `/healthz` answers `503 stopping` meanwhile.
 3. **Players are told.** When the drain ends, every game still running ends with reason `restart`, and every WebSocket closes with code `1012`. The page says the game was stopped for an update; reconnecting then finds the new build and asks for a reload.
 
 The process exits 5 seconds after the drain at the latest. A second `SIGTERM` or `SIGINT` exits at once. With the default 20 seconds, a drain fits within the 30-second stop grace period of the production host; a longer drain needs a longer grace period, or Docker kills the process before players are told.

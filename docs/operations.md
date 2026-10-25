@@ -51,7 +51,7 @@ journalctl -t frontfall-frontfall-1 -o cat --since today | jq -c 'select(.level 
 docker restart frontfall-frontfall-1
 ```
 
-Games in progress live in memory. On a restart the server drains first (see [server.md](server.md#shutdown)): it stops opening games, lets running ones go on for `FRONTFALL_DRAIN_SECONDS`, then ends them with reason `restart` and the page tells players why. Prefer a quiet moment: `curl -s https://nclsmgr.com/frontfall/api/games` gives `running`, the games a restart would stop. Deployments from main wait for it to reach 0, for 20 minutes at most.
+Games in progress live in memory. On a restart the server drains first (see [server.md](server.md#shutdown)): it stops opening games, lets running ones go on for `FRONTFALL_DRAIN_SECONDS`, then ends them with reason `restart` and the page tells players why. Prefer a quiet moment: `curl -s https://nclsmgr.com/frontfall/api/games` gives `running`, the games a restart would stop. Deployments from main announce the update to players and wait for it to reach 0, for 10 minutes at most. To warn players before a manual restart: `docker exec frontfall-frontfall-1 node -e "fetch('http://127.0.0.1:8080/admin/maintenance?minutes=5', { method: 'POST' }).then((r) => r.text()).then(console.log)"`.
 
 ## Roll back
 
