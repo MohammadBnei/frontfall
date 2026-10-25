@@ -2,7 +2,12 @@ import { expect, test, type Page } from "@playwright/test";
 
 /** Cloudflare Web Analytics, injected by the proxy in front of the public server. */
 const PROXY_INJECTED = process.env.E2E_BASE_URL
-  ? ["https://static.cloudflareinsights.com/", "https://cloudflareinsights.com/"]
+  ? [
+      "https://static.cloudflareinsights.com/",
+      "https://cloudflareinsights.com/",
+      // Its beacon, at the root of the site rather than under the game's path.
+      new URL("/cdn-cgi/", process.env.E2E_BASE_URL).href,
+    ]
   : [];
 
 /** The map loads, then the server starts the game. */
