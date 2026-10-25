@@ -13,6 +13,7 @@ import {
 import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
+import { feedbackLinks } from "./feedback.ts";
 import { h, present } from "./dom.ts";
 import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
 
@@ -243,6 +244,7 @@ export class Menu {
       form,
       online,
       h("footer", { class: "menu-footer" }, replayPicker(onReplay), language),
+      feedbackLinks(),
     );
     applyTranslations(this.element);
   }

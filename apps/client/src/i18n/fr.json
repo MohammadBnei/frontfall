@@ -287,5 +287,17 @@
   "guide.hide": "Masquer le guide",
   "guide.close": "Fermer",
   "online.joinTitle": "Rejoindre une partie",
-  "online.joinHint": "Vous êtes invité à une partie en ligne. Choisissez le nom que verront les autres joueurs."
+  "online.joinHint": "Vous êtes invité à une partie en ligne. Choisissez le nom que verront les autres joueurs.",
+  "feedback.question": "Cette partie vous a plu ?",
+  "feedback.up": "Elle m’a plu",
+  "feedback.down": "Elle ne m’a pas plu",
+  "feedback.why": "Qu’est-ce qui a le plus gâché la partie ?",
+  "feedback.reason.too_hard": "Trop difficile",
+  "feedback.reason.too_long": "Trop long ou ennuyeux",
+  "feedback.reason.unclear": "Je ne savais pas quoi faire",
+  "feedback.reason.slow_or_buggy": "Lent ou buggé",
+  "feedback.noReason": "Envoyer sans raison",
+  "feedback.thanks": "Merci ! C’est compté, sans votre nom.",
+  "feedback.idea": "Proposer une idée",
+  "feedback.bug": "Signaler un bug"
 }

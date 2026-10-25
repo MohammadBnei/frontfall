@@ -147,6 +147,10 @@ Les failles de sécurité se signalent en privé, comme l'explique [SECURITY.md]
 
 Si la direction vous plaît, une étoile aide d'autres joueurs à trouver le projet.
 
+## Ce que le jeu enregistre
+
+Le jeu compte la façon dont on y joue, jamais qui y joue : quelles cartes et quels modes, la durée des parties et leur issue, téléphone ou ordinateur, la langue, les erreurs qui ont gâché une partie, et le pouce levé ou baissé que vous pouvez donner à la fin. Ni pseudo, ni adresse, ni cookie, ni service extérieur : votre navigateur prévient le serveur du jeu lui-même, qui ne garde que des totaux par jour, publiés sur [`/api/stats`](https://nclsmgr.com/frontfall/api/stats). Un navigateur réglé sur « Ne pas me pister » n'envoie rien. Chaque champ est détaillé dans [docs/privacy.md](docs/privacy.md) (en anglais).
+
 ## Inspiration et mentions légales
 
 Frontfall est un jeu indépendant inspiré d'OpenFront. Il n'est ni affilié à OpenFront ni approuvé par OpenFront. Il ne contient aucun code ni aucun asset d'OpenFront. Les règles du jeu sont écrites de zéro dans [docs/rules.md](docs/rules.md) (en anglais), selon une [politique de salle blanche](docs/clean-room.md) vérifiée par la CI, et chaque bibliothèque ou jeu de données tiers est listé dans [CREDITS.md](CREDITS.md) avec sa licence.

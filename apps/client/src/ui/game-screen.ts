@@ -30,6 +30,7 @@ import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
 import { Hud, offers } from "./hud.ts";
 import { PlayerLabels } from "./labels.ts";
+import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
 /** Matches the fade of the territory layer, with a frame to spare. */
 const FADE_MS = 200;
@@ -137,6 +138,8 @@ export class GameScreen {
   private tilesAtPlay: number | undefined;
   /** A finger rather than a mouse: the help shows gestures instead of keys. */
   private readonly coarsePointer = window.matchMedia("(pointer: coarse)");
+  /** Reports the game once it ends for the player; none for a replay (docs/privacy.md). */
+  private readonly tracker: GameTracker | undefined;
 
   constructor(
     readonly options: SoloOptions,
@@ -146,9 +149,15 @@ export class GameScreen {
     private readonly link?: ServerLink,
     /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
     view: ViewKind = "flat",
+    /** What the usage report says about the game; a game without it is not reported. */
+    facts?: Omit<GameFacts, "view">,
   ) {
     this.globeAllowed = view === "globe" && fitsGlobe(map) && globeLoaded();
     this.viewKind = this.globeAllowed ? "globe" : "flat";
+    this.tracker =
+      facts && !options.record
+        ? usage().track({ ...facts, view: this.viewKind }, Date.now())
+        : undefined;
     this.mapSize = { width: map.width, height: map.height };
     this.published = map.manifest !== undefined;
     this.camera = createCamera(map, this.viewKind);
@@ -253,6 +262,7 @@ export class GameScreen {
         },
         onError: (message) => {
           console.error(message);
+          if (message !== REPLAY_MAP_CHANGED) usage().error("worker", message);
           this.actions.onFailure(
             message === REPLAY_MAP_CHANGED ? "replay.unknownMap" : "game.failed",
           );
@@ -269,6 +279,11 @@ export class GameScreen {
       this.resize();
     };
     window.addEventListener("resize", resize);
+    // The tab closes or the page goes away in the middle of the game.
+    const hide = (): void => {
+      this.tracker?.end("closed", Date.now());
+    };
+    window.addEventListener("pagehide", hide);
     const motion = (): void => {
       this.view?.setMotion(!this.reducedMotion.matches);
     };
@@ -296,6 +311,9 @@ export class GameScreen {
       },
       () => {
         window.removeEventListener("resize", resize);
+      },
+      () => {
+        window.removeEventListener("pagehide", hide);
       },
       () => {
         this.reducedMotion.removeEventListener("change", motion);
@@ -345,6 +363,8 @@ export class GameScreen {
   }
 
   dispose(): void {
+    // Leaving for the menu or a new game without an ending of its own.
+    this.tracker?.end(this.out() ? "defeat" : "left", Date.now());
     cancelAnimationFrame(this.frameHandle);
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.session.dispose();
@@ -405,6 +425,7 @@ export class GameScreen {
     } catch (error) {
       // Most likely the WebGL context, lost or refused after the check of the menu.
       console.error(error);
+      usage().error("webgl");
       this.actions.onFailure("webgl.missing");
       return undefined;
     }
@@ -415,6 +436,9 @@ export class GameScreen {
     view.setHovered(this.hoveredOwner);
     view.setMotion(!this.reducedMotion.matches);
     this.drawnAllies = "";
+    view.canvas.addEventListener("webglcontextlost", () => {
+      usage().error("context_lost");
+    });
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
@@ -565,6 +589,10 @@ export class GameScreen {
     if (update.winner !== undefined && !this.ended && !this.replayBar) {
       this.ended = true;
       this.hud.update(update, performance.now(), true);
+      const team = update.winningTeam;
+      const won =
+        team === undefined ? update.winner === update.you : this.teams[update.you] === team;
+      this.tracker?.end(won ? "victory" : "defeat", Date.now());
       this.showEnd(update);
     }
   }
@@ -747,8 +775,21 @@ export class GameScreen {
     this.actions.onMenu();
   }
 
+  /** Whether the player has been wiped out of the game. */
+  private out(): boolean {
+    const latest = this.latest;
+    const human = latest?.players.find((player) => player.id === latest.you);
+    return human !== undefined && (!human.alive || human.tiles === 0) && this.focused;
+  }
+
+  /** Online: the game was lost to the connection, or stopped by the server. */
+  disconnected(): void {
+    this.tracker?.end(this.out() ? "defeat" : "disconnected", Date.now());
+  }
+
   /** Online: the server flagged this client's state hash after `tick`. */
   desync(tick: number, expected: number | null): void {
+    usage().error("desync");
     this.session.desync(tick, expected);
   }
 
@@ -865,8 +906,11 @@ export class GameScreen {
     this.overlay?.remove();
     this.overlay = element;
     this.element.append(element);
-    // A long dialog opens at its top, even when its first button is at the foot.
-    element.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+    // The main action, so that Enter never casts a vote by accident; a long
+    // dialog still opens at its top, even when that button is at the foot.
+    (
+      element.querySelector<HTMLElement>("button.primary") ?? element.querySelector("button")
+    )?.focus({ preventScroll: true });
   }
 
   private closeOverlay(): void {
@@ -895,7 +939,9 @@ export class GameScreen {
           // Only a published map can be pinned in a record.
           canRecord: this.published,
           teams: this.teams,
+          details: `${this.options.map}, ${usage().device().device}`,
         },
+        this.tracker,
         {
           onNewGame: () => {
             this.actions.onNewGame();

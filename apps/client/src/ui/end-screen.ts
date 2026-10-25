@@ -1,6 +1,8 @@
 import type { GameUpdate } from "../game/solo-game.ts";
 import { applyTranslations, t, type MessageKey } from "../i18n/index.ts";
+import type { GameTracker } from "../usage.ts";
 import { h } from "./dom.ts";
+import { feedbackBlock } from "./feedback.ts";
 import { formatDuration, formatPercent } from "./format.ts";
 
 export interface EndScreenActions {
@@ -21,10 +23,16 @@ export interface GameSummary {
   canRecord: boolean;
   /** Team of each player by id, in a team game. */
   teams: readonly number[];
+  /** The map and the device, for a bug report. */
+  details: string;
 }
 
 /** Who won, how long it took, how far the player got, and a way to play again. */
-export function endScreen(summary: GameSummary, actions: EndScreenActions): HTMLElement {
+export function endScreen(
+  summary: GameSummary,
+  tracker: GameTracker | undefined,
+  actions: EndScreenActions,
+): HTMLElement {
   const { update } = summary;
   const winner = update.players.find((player) => player.id === update.winner);
   const team = update.winningTeam;
@@ -70,6 +78,8 @@ export function endScreen(summary: GameSummary, actions: EndScreenActions): HTML
       ...row("end.duration", formatDuration(seconds)),
       ...row("end.peak", formatPercent(summary.peakTiles / Math.max(1, summary.ownableTiles))),
     ),
+    // A thumbs up or down, once per game played (not for a replay).
+    ...(tracker ? [feedbackBlock(tracker, summary.details)] : []),
     h(
       "div",
       { class: "end-actions" },

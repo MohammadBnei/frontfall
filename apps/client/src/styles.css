@@ -753,6 +753,59 @@ input[type="range"] {
   gap: 8px;
 }
 
+.feedback {
+  margin: 0 0 16px;
+}
+
+.feedback-question,
+.feedback-thanks {
+  margin: 0 0 8px;
+  color: var(--ff-slate-300);
+}
+
+.feedback-thumbs {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.feedback-thumbs button {
+  min-width: 64px;
+  font-size: 20px;
+}
+
+.feedback-reasons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.feedback-reasons[hidden],
+.feedback-thumbs[hidden] {
+  display: none;
+}
+
+button.link {
+  grid-column: 1 / -1;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--ff-slate-300);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.feedback-links {
+  margin: 12px 0 0;
+  color: var(--ff-slate-400);
+  font-size: 13px;
+  text-align: center;
+}
+
+.feedback-links a {
+  color: var(--ff-slate-300);
+}
+
 kbd {
   padding: 0 4px;
   border: 1px solid var(--ff-slate-400);

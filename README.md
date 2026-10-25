@@ -147,6 +147,10 @@ Security issues are reported privately, as described in [SECURITY.md](SECURITY.m
 
 If you like where this is going, a star helps other players find the project.
 
+## What the game records
+
+The game counts how it is played, never who plays: which maps and modes, how long games last and how they end, phone or computer, which language, errors that broke a game, and the thumbs up or down you can give at the end. No name, no address, no cookie, no outside service: your browser tells the game's own server, which only keeps totals per day, published at [`/api/stats`](https://nclsmgr.com/frontfall/api/stats). A browser set to Do Not Track sends nothing. Every field is listed in [docs/privacy.md](docs/privacy.md).
+
 ## Inspiration and legal
 
 Frontfall is an independent game inspired by OpenFront. It is not affiliated with or endorsed by OpenFront. It contains no code or assets from OpenFront. Game rules are written from scratch in [docs/rules.md](docs/rules.md) under a [clean-room policy](docs/clean-room.md) that CI enforces, and every third-party library or dataset is listed in [CREDITS.md](CREDITS.md) with its license.

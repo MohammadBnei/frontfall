@@ -20,6 +20,7 @@ import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
 import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
+import { usage } from "./usage.ts";
 
 const storage = safeStorage();
 let maps: readonly MapInfo[] = [];
@@ -28,6 +29,15 @@ let game: GameScreen | undefined;
 let setup: GameSetup;
 let lobby: LobbyScreen | undefined;
 let online: OnlineClient | undefined;
+
+// Errors the game did not catch, counted to find the ones players run into (docs/privacy.md).
+window.addEventListener("error", (event) => {
+  usage().error("exception", event.message, event.filename);
+});
+window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+  const reason: unknown = event.reason;
+  usage().error("rejection", reason instanceof Error ? reason.message : undefined);
+});
 
 function showMenu(): void {
   goOffline();
@@ -87,6 +97,7 @@ function play(chosen: GameSetup): void {
   // Share the setup through the address bar, relative so it works under any prefix.
   history.replaceState(null, "", setupQuery(setup));
   if (!hasWebGL2()) {
+    usage().error("webgl");
     showNotice("webgl.missing");
     return;
   }
@@ -110,6 +121,17 @@ function play(chosen: GameSetup): void {
     },
     undefined,
     startView,
+    {
+      mode: "solo",
+      // A generated map has no published id to count it by.
+      map: map.manifest ? map.id : "generated",
+      teams: (setup.teams ?? 0) as Teams,
+      nations: setup.nations ?? true,
+      bots: setup.bots,
+      humans: 1,
+      difficulty: setup.difficulty,
+      disabled: setup.disabled ?? 0,
+    },
   );
   menu?.dispose();
   menu = undefined;
@@ -155,6 +177,7 @@ async function watch(file: File): Promise<void> {
     return;
   }
   if (!hasWebGL2()) {
+    usage().error("webgl");
     showNotice("webgl.missing");
     return;
   }
@@ -327,6 +350,7 @@ function goOffline(): void {
  */
 function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   if (!hasWebGL2()) {
+    usage().error("webgl");
     showNotice("webgl.missing");
     return;
   }
@@ -337,6 +361,8 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   goOffline();
   document.querySelector(".notice")?.remove();
   const playable = onlineMaps(maps);
+  /** Public unless a lobby said otherwise: a seat taken back after a reload sees no lobby. */
+  let visibility: "public" | "private" = entry.type === "create" ? "private" : "public";
   // A new private game starts with the map, bots and difficulty of the menu, when it can.
   let fromMenu = entry.type === "create";
   const room = new LobbyScreen(
@@ -369,14 +395,17 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         if (game) showConnection(state, retryInMs);
         if (state === "outdated") {
           room.outdated();
+          game?.disconnected();
           if (game) showNotice("status.outdated");
         }
         if (state === "rejected") {
           room.rejected();
+          game?.disconnected();
           if (game) showNotice("online.rejected");
         }
       },
       lobby(state) {
+        visibility = state.visibility;
         // A private game is joined again from its link, after a reload too.
         if (state.visibility === "private") {
           history.replaceState(
@@ -393,7 +422,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         room.lobby(state, inviteLink(state.game));
       },
       started(start) {
-        startOnline(start, client);
+        startOnline(start, client, visibility);
       },
       turns(turns) {
         game?.pushTurns(turns);
@@ -408,6 +437,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
       ended(reason) {
         forgetSeat();
         if (game) {
+          if (reason !== "left") game.disconnected();
           if (reason !== "left") showNotice(`online.ended.${reason}`);
           return;
         }
@@ -446,7 +476,11 @@ function initialOptions(
 }
 
 /** The game starts: the lobby gives way to the map, and the turns go to the worker. */
-function startOnline(start: GameStart, client: OnlineClient): void {
+function startOnline(
+  start: GameStart,
+  client: OnlineClient,
+  visibility: "public" | "private",
+): void {
   const map = maps.find((candidate) => candidate.id === start.map);
   if (!map) {
     // A map this page does not list: leave the seat rather than hold it unplayed.
@@ -497,6 +531,16 @@ function startOnline(start: GameStart, client: OnlineClient): void {
       },
     },
     startView,
+    {
+      mode: visibility,
+      map: map.manifest ? map.id : "generated",
+      teams: start.teams,
+      nations: start.nations,
+      bots: start.bots,
+      humans: Math.max(1, start.players.length),
+      difficulty: start.difficulty,
+      disabled: start.disabled,
+    },
   );
   document.body.classList.add("playing");
   document.body.prepend(game.element);

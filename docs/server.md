@@ -4,17 +4,18 @@
 
 ## Configuration
 
-| Variable                      | Default                                 | Meaning                                                                                            |
-| ----------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `PORT`                        | `8080`                                  | HTTP and WebSocket port                                                                            |
-| `FRONTFALL_STATIC`            | `../../client/dist`                     | Directory of the built client                                                                      |
-| `FRONTFALL_ORIGINE`           | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any  |
-| `FRONTFALL_VERSION`           | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                           |
-| `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                      |
-| `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                 |
-| `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                               |
-| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                                    | Countdown of a public game once it has two players                                                 |
-| `FRONTFALL_DRAIN_SECONDS`     | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period |
+| Variable                      | Default                                 | Meaning                                                                                                                   |
+| ----------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                        | `8080`                                  | HTTP and WebSocket port                                                                                                   |
+| `FRONTFALL_STATIC`            | `../../client/dist`                     | Directory of the built client                                                                                             |
+| `FRONTFALL_ORIGINE`           | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                         |
+| `FRONTFALL_VERSION`           | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                  |
+| `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                                             |
+| `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                                        |
+| `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                      |
+| `FRONTFALL_COUNTDOWN_SECONDS` | `30`                                    | Countdown of a public game once it has two players                                                                        |
+| `FRONTFALL_DRAIN_SECONDS`     | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                        |
+| `FRONTFALL_DATA`              | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`; the usage counts go in `usage/`. Unset keeps them in memory |
 
 ## Games
 
@@ -72,15 +73,19 @@ The server writes one JSON object per line on standard output, read with `docker
 }
 ```
 
-| Event                 | Level | Fields                                                                                  |
-| --------------------- | ----- | --------------------------------------------------------------------------------------- |
-| `server_started`      | info  | `port`, `version`                                                                       |
-| `server_stopping`     | info  |                                                                                         |
-| `game_started`        | info  | `game`, `visibility`, `players`                                                         |
-| `game_finished`       | info  | `game`, `reason`, `ticks`                                                               |
-| `player_rejoined`     | info  | `game`, `player`, `from`                                                                |
-| `desync`              | warn  | `game`, `tick`, `hash` (the player out of step), `expected` (the majority's, or `null`) |
-| `connection_rejected` | warn  | `client`, `reason`                                                                      |
+| Event                 | Level | Fields                                                                                    |
+| --------------------- | ----- | ----------------------------------------------------------------------------------------- |
+| `server_started`      | info  | `port`, `version`                                                                         |
+| `server_stopping`     | info  |                                                                                           |
+| `game_started`        | info  | `game`, `visibility`, `players`                                                           |
+| `game_finished`       | info  | `game`, `reason`, `ticks`                                                                 |
+| `player_rejoined`     | info  | `game`, `player`, `from`                                                                  |
+| `desync`              | warn  | `game`, `tick`, `hash` (the player out of step), `expected` (the majority's, or `null`)   |
+| `connection_rejected` | warn  | `client`, `reason`                                                                        |
+| `client_error`        | warn  | `type`, `release`, `message` (scrubbed, see [privacy.md](privacy.md)); 60 an hour at most |
+| `usage_in_memory`     | warn  | `reason`: no data directory, the usage counts are lost at the next restart                |
+| `usage_not_loaded`    | warn  | `error`: the counts kept by the last run could not be read                                |
+| `usage_not_saved`     | warn  | `error`                                                                                   |
 
 Client addresses never appear in clear. `client` is a keyed hash of the address: stable while the process runs, so repeated abuse from one address can be spotted, and impossible to link to the address or across restarts, because the key is drawn at random on start. Player names are not logged.
 
@@ -92,20 +97,22 @@ Client addresses never appear in clear. `client` is a keyed hash of the address:
 curl -s localhost:8080/metrics
 ```
 
-| Metric                                      | Type      | Meaning                                                            |
-| ------------------------------------------- | --------- | ------------------------------------------------------------------ |
-| `frontfall_games{state}`                    | gauge     | Games `open`, `starting` (counting down) and `running`             |
-| `frontfall_players`                         | gauge     | Players seated in a game with an open connection                   |
-| `frontfall_connections`                     | gauge     | Open WebSocket connections                                         |
-| `frontfall_games_started_total`             | counter   | Games that started                                                 |
-| `frontfall_games_finished_total{reason}`    | counter   | Games that finished: `abandoned`, `timeout`, `expired`, `empty`    |
-| `frontfall_desyncs_total`                   | counter   | Games in which a client's state hash differed from the majority's  |
-| `frontfall_rejoins_total`                   | counter   | Players who took their seat back after a dropped connection        |
-| `frontfall_messages_received_total`         | counter   | Messages received from clients                                     |
-| `frontfall_rejected_messages_total{reason}` | counter   | Connections closed: `invalid`, `oversized`, `rate_limited`, `idle` |
-| `frontfall_turn_duration_seconds`           | histogram | Time to close and send one turn of every running game              |
-| `process_resident_memory_bytes`             | gauge     | Resident memory of the process                                     |
-| `process_cpu_seconds_total`                 | counter   | CPU time used by the process                                       |
+| Metric                                                | Type      | Meaning                                                            |
+| ----------------------------------------------------- | --------- | ------------------------------------------------------------------ |
+| `frontfall_games{state}`                              | gauge     | Games `open`, `starting` (counting down) and `running`             |
+| `frontfall_players`                                   | gauge     | Players seated in a game with an open connection                   |
+| `frontfall_connections`                               | gauge     | Open WebSocket connections                                         |
+| `frontfall_games_started_total{visibility,map,teams}` | counter   | Games that started                                                 |
+| `frontfall_games_finished_total{reason}`              | counter   | Games that finished: `abandoned`, `timeout`, `expired`, `empty`    |
+| `frontfall_desyncs_total`                             | counter   | Games in which a client's state hash differed from the majority's  |
+| `frontfall_rejoins_total`                             | counter   | Players who took their seat back after a dropped connection        |
+| `frontfall_messages_received_total`                   | counter   | Messages received from clients                                     |
+| `frontfall_rejected_messages_total{reason}`           | counter   | Connections closed: `invalid`, `oversized`, `rate_limited`, `idle` |
+| `frontfall_game_duration_minutes`                     | histogram | Length of the games that finished                                  |
+| `frontfall_turn_duration_seconds`                     | histogram | Time to close and send one turn of every running game              |
+| `frontfall_usage_total{dimension,value}`              | counter   | Reports of players' pages ([privacy.md](privacy.md))               |
+| `process_resident_memory_bytes`                       | gauge     | Resident memory of the process                                     |
+| `process_cpu_seconds_total`                           | counter   | CPU time used by the process                                       |
 
 ## HTTP routes
 
@@ -116,6 +123,8 @@ curl -s localhost:8080/metrics
 | `/status`            | A page for people: players online, games running, lobbies, an announced restart, release and build                      |
 | `/api/status`        | The same as JSON: `version`, `release`, `state`, `players`, `running`, `lobbies`, `restartInMs`                         |
 | `/admin/maintenance` | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only    |
+| `/api/stats`         | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`            |
+| `/api/usage`         | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`        |
 | `/metrics`           | Metrics, from the host only                                                                                             |
 | `/ws`                | WebSocket upgrade                                                                                                       |
 | anything else        | Files of the built client                                                                                               |

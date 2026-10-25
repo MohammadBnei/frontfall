@@ -287,5 +287,17 @@
   "guide.hide": "Hide the guide",
   "guide.close": "Close",
   "online.joinTitle": "Join a game",
-  "online.joinHint": "You were invited to an online game. Pick the name the other players will see."
+  "online.joinHint": "You were invited to an online game. Pick the name the other players will see.",
+  "feedback.question": "Did you enjoy this game?",
+  "feedback.up": "I liked it",
+  "feedback.down": "I did not like it",
+  "feedback.why": "What spoilt it most?",
+  "feedback.reason.too_hard": "Too hard",
+  "feedback.reason.too_long": "Too long, or dull",
+  "feedback.reason.unclear": "I did not know what to do",
+  "feedback.reason.slow_or_buggy": "Slow or buggy",
+  "feedback.noReason": "Send without a reason",
+  "feedback.thanks": "Thanks! Counted, without your name.",
+  "feedback.idea": "Share an idea",
+  "feedback.bug": "Report a bug"
 }
