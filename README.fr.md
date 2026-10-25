@@ -40,7 +40,7 @@ Frontfall est en bêta jusqu'à la v1.0 : règles, équilibrage et visuels chang
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Le jeu**        | Partir d'une case, dépasser ses voisins, tenir la carte. Parties courtes, sans installation.                                                                                         |
 | **La différence** | La carte du Monde boucle d'est en ouest, et la v1.0 la pose sur un globe 3D. Aucun bord où se cacher.                                                                                |
-| **État**          | Bêta. La [v0.4.0](https://github.com/nic0lasm/frontfall/releases/tag/v0.4.0) est publiée ; la v0.5 garde les parties pendant les mises à jour, puis équilibre sur de vraies parties. |
+| **État**          | Bêta. La [v0.4.1](https://github.com/nic0lasm/frontfall/releases/tag/v0.4.1) est publiée ; la v0.5 garde les parties pendant les mises à jour, puis équilibre sur de vraies parties. |
 | **Jouer**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), ou votre propre serveur avec une image Docker.                                                                              |
 | **Prérequis**     | Un navigateur compatible WebGL 2. Un ordinateur reste le plus confortable.                                                                                                           |
 | **Licence**       | MIT : libre d'y jouer, de le forker et de l'héberger.                                                                                                                                |

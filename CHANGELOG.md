@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-25
+
+Public games, games that survive updates and a fairer start on the maps of the north. Games running when this update is deployed end, once: the server before it could not keep them. After it, updates that leave the rules alone no longer cut games.
+
 ### Added
 
 - **Public games of your own.** "Create a public game" opens a game under the name you choose (3 to 32 characters). You are its host: pick the map, the mode, bots, nations, what the game leaves out and the number of seats, from 2 to 16, then start it when you are ready, as soon as a second player is in. Tick "Start as soon as the game is full" to let it go by itself. Other players see it in the list until it starts.
@@ -22,8 +26,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Fixed
 
-- **Aiming at the coast is easier.** A port, a warship or a ship sent across the sea no longer asks for a click right on the shore: a click within about 24 pixels of the coast finds it, 40 with a finger, at any zoom. On a large map zoomed out that used to be a pixel or two. Port and warship modes stay armed until one goes through, or until Esc, and a click too far from any coast still says why.
-
+- **Aiming at the coast is easier.** A port, a warship or a ship sent across the sea no longer asks for a click right on the shore: a click within about 24 pixels of the coast finds your closest coast tile that can take it, 40 with a finger, at any zoom. On a large map zoomed out the coast is under a pixel wide, so a port almost never found it. Port and warship modes stay armed until one goes through, or until Esc, so a second quick click builds instead of attacking, and a click too far from any coast still says why.
 - **Lobby settings stay as you set them.** On a slow connection, the host who changed several settings in a row could see one of them snap back, and the game started with the old value. Each choice now holds until the server has answered it.
 - When an online game loses its connection, a notice now says so, with the time to the next attempt, instead of a map that silently stops. A player who cannot get their seat back is told that the game went on without them or is over, no longer that every player left.
 - A solo game waits behind its end screen until you choose to keep watching. It used to play on, so the clock ran past the time limit and a replay saved a few minutes later held those minutes too.
@@ -32,7 +35,6 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Keys on AZERTY keyboards.** M did nothing and ? picked the missile mode. Command letters now follow the letter printed on the key, whatever the layout.
 - **A dropped connection in a lobby keeps your place.** A phone that sleeps or a network that blinks gets 30 seconds to come back, with the host role if you had it, and lands in the game if it started meanwhile. In a running game, your seat now waits 5 minutes instead of 2, and up to 16 players can share one home or mobile network.
 - **Reloading after a desync helps.** The page that says your game no longer matches the others asks for a reload; the reload now rebuilds the game from the start and clears the warning, instead of showing it again.
-- **Ports are easy to place.** On a large map the coast is under a pixel wide, so a port almost never found it. A click by the water, on your land or just off it at sea, now puts the port on your closest coast tile that can take one, and a warship is bought with a click as close to the port. A build mode also stays on through a refused click, so a second quick click builds instead of attacking.
 - Bots and nations build their port on the ocean, no longer on a lake where it found nobody to trade with. Building your own port on a lake shore still works, and a note says it trades only with ports on the same lake.
 
 ### Changed
@@ -183,7 +185,8 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/nic0lasm/frontfall/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/nic0lasm/frontfall/compare/v0.2.0...v0.4.0
 [0.2.0]: https://github.com/nic0lasm/frontfall/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nic0lasm/frontfall/releases/tag/v0.1.0
