@@ -14,12 +14,13 @@ const setup: BalanceSetup = {
 };
 
 describe("playBalanceGame", () => {
+  // Two games of three minutes: a second of work, several under coverage.
   it("plays the same game twice from the same setup", () => {
     const a = playBalanceGame(setup);
     const b = playBalanceGame(setup);
     expect(a.hash).toBe(b.hash);
     expect(a.players).toEqual(b.players);
-  });
+  }, 30_000);
 
   it("reports every player, minute by minute", () => {
     const report = playBalanceGame(setup);
