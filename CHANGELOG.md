@@ -20,10 +20,16 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Fixed
 
+- **Lobby settings stay as you set them.** On a slow connection, the host of a private game who changed several settings in a row could see one of them snap back, and the game started with the old value. Each choice now holds until the server has it.
 - When an online game loses its connection, a notice now says so, with the time to the next attempt, instead of a map that silently stops. A player who cannot get their seat back is told that the game went on without them or is over, no longer that every player left.
 - A solo game waits behind its end screen until you choose to keep watching. It used to play on, so the clock ran past the time limit and a replay saved a few minutes later held those minutes too.
 - Players who join an online game under a name already taken in it, such as everyone who kept the default one, are numbered (Commander, Commander 2…) instead of looking alike in the lobby, the leaderboard and on the map.
 - A game without ports no longer offers warships or embargoes: the lobby unticks warships with ports, and the player menu drops the embargo, which had no trade to cut and only declared a war.
+- **Keys on AZERTY keyboards.** M did nothing and ? picked the missile mode. Command letters now follow the letter printed on the key, whatever the layout.
+- **A dropped connection in a lobby keeps your place.** A phone that sleeps or a network that blinks gets 30 seconds to come back, with the host role if you had it, and lands in the game if it started meanwhile. In a running game, your seat now waits 5 minutes instead of 2, and up to 16 players can share one home or mobile network.
+- **Reloading after a desync helps.** The page that says your game no longer matches the others asks for a reload; the reload now rebuilds the game from the start and clears the warning, instead of showing it again.
+- **Ports are easy to place.** On a large map the coast is under a pixel wide, so a port almost never found it. A click by the water, on your land or just off it at sea, now puts the port on your closest coast tile that can take one, and a warship is bought with a click as close to the port. A build mode also stays on through a refused click, so a second quick click builds instead of attacking.
+- Bots and nations build their port on the ocean, no longer on a lake where it found nobody to trade with. Building your own port on a lake shore still works, and a note says it trades only with ports on the same lake.
 
 ### Changed
 
@@ -31,14 +37,6 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - The reason a click was refused stays up for four seconds and names the building, as in "Port: …".
 - Trade reaches farther on large maps: 500 tiles of sea, as before, on a map of 2^19 tiles, and 1,000 on World, where ports were often too far apart to trade at all. A long route pays more: up to 22,000 gold to each side on World.
 - A self-hosted server reports its release in the `X-Frontfall-Release` header of `/healthz`, next to the build. The release number has one home, the version of the root `package.json`, read by the client and the server alike.
-
-### Fixed
-
-- **Keys on AZERTY keyboards.** M did nothing and ? picked the missile mode. Command letters now follow the letter printed on the key, whatever the layout.
-- **A dropped connection in a lobby keeps your place.** A phone that sleeps or a network that blinks gets 30 seconds to come back, with the host role if you had it, and lands in the game if it started meanwhile. In a running game, your seat now waits 5 minutes instead of 2, and up to 16 players can share one home or mobile network.
-- **Reloading after a desync helps.** The page that says your game no longer matches the others asks for a reload; the reload now rebuilds the game from the start and clears the warning, instead of showing it again.
-- **Ports are easy to place.** On a large map the coast is under a pixel wide, so a port almost never found it. A click by the water, on your land or just off it at sea, now puts the port on your closest coast tile that can take one, and a warship is bought with a click as close to the port. A build mode also stays on through a refused click, so a second quick click builds instead of attacking.
-- Bots and nations build their port on the ocean, no longer on a lake where it found nobody to trade with. Building your own port on a lake shore still works, and a note says it trades only with ports on the same lake.
 
 ## [0.4.0] - 2026-10-25
 

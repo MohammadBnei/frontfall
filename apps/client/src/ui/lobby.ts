@@ -2,6 +2,7 @@ import { Disable, leftOut } from "@frontfall/engine";
 import type { Difficulty, ErrorCode, GameOptions, Teams } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
+import { PendingEdits } from "./lobby-edits.ts";
 import { LEFT_OUT, TEAM_CHOICES } from "./setup.ts";
 import { applyTranslations, getLanguage, t, type MessageKey, type Params } from "../i18n/index.ts";
 import type { LobbyState } from "../net/online.ts";
@@ -130,6 +131,7 @@ export class LobbyScreen {
   /** Countdown of a public game: when it starts, by this page's clock. */
   private startsAt: number | undefined;
   private lastLobby: LobbyState | undefined;
+  private readonly edits = new PendingEdits();
   private readonly timer: ReturnType<typeof setInterval>;
 
   constructor(
@@ -154,7 +156,7 @@ export class LobbyScreen {
     const configure = (): void => {
       const map = this.maps.find((candidate) => candidate.id === this.mapSelect.value);
       if (!map || !this.lastLobby) return;
-      actions.onConfigure({
+      const options: GameOptions = {
         map: map.id,
         bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.players.length)),
         difficulty: this.difficulty.value as Difficulty,
@@ -164,7 +166,9 @@ export class LobbyScreen {
           (bits, { bit, input }) => bits | (input.checked ? 0 : bit),
           0,
         ),
-      });
+      };
+      this.edits.send(options, performance.now());
+      actions.onConfigure(options);
     };
     this.mapSelect.addEventListener("change", configure);
     this.difficulty.addEventListener("change", configure);
@@ -215,6 +219,9 @@ export class LobbyScreen {
     this.show("status.connecting");
     this.timer = setInterval(() => {
       if (this.startsAt !== undefined && this.lastLobby) this.showLobbyStatus(this.lastLobby);
+      // The server did not take the host's last choices as they were: show what it kept.
+      if (this.edits.expired(performance.now()) && this.lastLobby)
+        this.showSettings(this.lastLobby);
     }, 250);
   }
 
@@ -337,7 +344,7 @@ export class LobbyScreen {
     const editable = lobby.visibility === "private" && lobby.host === lobby.you && map;
     this.settings.hidden = !editable;
     this.summary.hidden = Boolean(editable);
-    if (!editable) return;
+    if (!editable || !this.edits.accepts(lobby, performance.now())) return;
     // Only maps that seat every player already in.
     const fitting = this.maps.filter(
       (candidate) =>
