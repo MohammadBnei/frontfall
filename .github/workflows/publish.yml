@@ -5,6 +5,11 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      now:
+        description: Deploy without waiting for the games in progress to end
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -127,6 +132,21 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      # A restart stops the games in progress. Wait for them to end, up to 20 minutes.
+      - name: Wait for the games in progress
+        if: ${{ !inputs.now }}
+        run: |
+          deadline=$((SECONDS + 20 * 60))
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            running=$(curl -fsS "${SITE}api/games" | jq -r '.running // 0') || running=0
+            if [ "$running" = 0 ]; then
+              echo "No game in progress"
+              exit 0
+            fi
+            echo "$running game(s) in progress, waiting"
+            sleep 30
+          done
+          echo "::warning::Games still in progress after 20 minutes; deploying anyway"
       - name: Roll out the new image
         env:
           HOST: ${{ secrets.DEPLOY_HOST }}
