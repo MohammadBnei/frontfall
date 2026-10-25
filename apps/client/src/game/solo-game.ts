@@ -5,6 +5,8 @@ import {
   Terrain,
   WorldGrid,
   createGame,
+  loadSnapshot,
+  saveSnapshot,
   BuildError,
   StructureKind,
   TileKind,
@@ -108,6 +110,18 @@ export interface SoloOptions {
    * but `map` and `speed`, and its turns are the only orders (#50).
    */
   record?: GameRecord | undefined;
+  /**
+   * Online: where this browser left the game before a reload (#39). The
+   * game starts from it, and only the turns after it are played.
+   */
+  snapshot?: GameSnapshot | undefined;
+}
+
+/** A game between two ticks, and every turn with orders before. */
+export interface GameSnapshot {
+  tick: number;
+  bytes: Uint8Array;
+  history: Turn[];
 }
 
 /** How far a replay has got; `hash` once it reached its last tick, to compare with `expected`. */
@@ -475,6 +489,8 @@ export class SoloGame {
   /** Turns of the game being watched again, by tick. */
   private readonly recorded: ReadonlyMap<number, Turn["orders"]> | undefined;
   private readonly hashes: { tick: number; local: number }[] = [];
+  /** Why the snapshot of the options could not be loaded; the game then starts from its first tick. */
+  readonly snapshotRefused: string | undefined;
   /** Hashes the server says most players had, where this client's differed. */
   private readonly expected = new Map<number, number | null>();
 
@@ -498,9 +514,22 @@ export class SoloGame {
     const teams = options.record ? (options.record.teams ?? 0) : (options.teams ?? 0);
     const disabled = options.record ? (options.record.disabled ?? 0) : (options.disabled ?? 0);
     const difficulty = options.record?.bots.difficulty ?? options.difficulty;
-    this.game = createGame({ terrain, seed, players, balance, teams, disabled });
-    installBots(this.game, botIds, difficulty);
-    installNations(this.game, nationIds, difficulty);
+    const create = (): Game => {
+      const game = createGame({ terrain, seed, players, balance, teams, disabled });
+      installBots(game, botIds, difficulty);
+      installNations(game, nationIds, difficulty);
+      return game;
+    };
+    const { snapshot } = options;
+    const loaded =
+      snapshot && !options.record ? loadSnapshot(snapshot.bytes, BUILD, create) : undefined;
+    if (snapshot && loaded?.ok) {
+      this.game = loaded.game;
+      this.history.push(...snapshot.history);
+    } else {
+      this.game = create();
+    }
+    this.snapshotRefused = loaded && !loaded.ok ? loaded.reason : undefined;
     this.players = players;
     this.botIds = botIds;
     this.nationIds = nationIds;
@@ -513,6 +542,15 @@ export class SoloGame {
     let ownable = 0;
     for (let tile = 0; tile < grid.size; tile++) if (terrain.isOwnable(tile)) ownable++;
     this.ownableTiles = ownable;
+  }
+
+  /** The game as it stands, to start from after a reload (#39). */
+  snapshot(): GameSnapshot {
+    return {
+      tick: this.game.tick,
+      bytes: saveSnapshot(this.game, BUILD),
+      history: [...this.history],
+    };
   }
 
   /** Lowest id of the nations, or one past the last player when there are none. */

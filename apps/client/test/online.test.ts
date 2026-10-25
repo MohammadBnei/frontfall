@@ -472,6 +472,32 @@ describe("OnlineClient", () => {
     expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 3 });
   });
 
+  it("takes its seat back from the tick of a snapshot, and from the start if the snapshot fails (#39)", () => {
+    const online = client();
+    let socket = welcomed();
+    online.resume(START.token, 1200);
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 1200 });
+    socket.receive({ type: "error", code: "token_in_use", message: "" });
+    timers.at(-1)?.callback();
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 1200 });
+
+    socket.receive(START);
+    socket.receive({ type: "turns", turns: [1200, 1201].map((tick) => ({ tick, orders: [] })) });
+    expect(log.filter((entry) => entry.startsWith("started"))).toEqual(["started:2"]);
+    expect(turns).toEqual([1200, 1201]);
+
+    // The page could not load the snapshot: every turn again, over a new connection.
+    online.replayFromStart();
+    expect(socket.closedWith).toBe(1000);
+    timers.at(-1)?.callback();
+    socket = welcomed();
+    expect(socket.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 0 });
+    socket.receive(START);
+    socket.receive({ type: "turns", turns: [0, 1].map((tick) => ({ tick, orders: [] })) });
+    expect(turns).toEqual([1200, 1201, 0, 1]);
+    expect(log.filter((entry) => entry.startsWith("started"))).toEqual(["started:2"]);
+  });
+
   it("says when the seat it came back for is gone", () => {
     const online = client();
     const socket = welcomed();

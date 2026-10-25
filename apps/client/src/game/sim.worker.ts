@@ -11,6 +11,13 @@ interface WorkerScope {
 
 const scope = self as unknown as WorkerScope;
 
+/**
+ * Ticks between two snapshots of an online game (#39): the first after 30
+ * seconds, past the spawn phase, then every two minutes.
+ */
+const FIRST_SNAPSHOT_TICKS = 300;
+const SNAPSHOT_TICKS = 1200;
+
 /** Fastest a replay runs, in ticks per beat. */
 const MAX_SPEED = Math.max(...REPLAY_SPEEDS);
 
@@ -25,6 +32,10 @@ let pending: Order[] = [];
 let online = false;
 /** Turns that arrive while the map still loads, played as soon as it is ready. */
 let early: Turn[] = [];
+/** Tick after which the worker sends the page its next snapshot. */
+let nextSnapshot = FIRST_SNAPSHOT_TICKS;
+/** The game could not start from its snapshot: turns before its first tick comes again are dropped. */
+let replayFromStart = false;
 
 function tick(): void {
   if (!game || paused) return;
@@ -47,9 +58,20 @@ function tick(): void {
 }
 
 function playTurns(turns: Turn[]): void {
-  if (!game || turns.length === 0) return;
+  if (!game) return;
+  if (replayFromStart) {
+    // Turns after the refused snapshot, sent before the page asked for every turn again.
+    if (turns[0]?.tick !== game.game.tick) return;
+    replayFromStart = false;
+  }
+  if (turns.length === 0) return;
   const update = game.playTurns(turns);
   scope.postMessage({ type: "update", update }, transferables(update));
+  if (game.game.tick >= nextSnapshot) {
+    nextSnapshot = game.game.tick + SNAPSHOT_TICKS;
+    const snapshot = game.snapshot();
+    scope.postMessage({ type: "snapshot", snapshot }, [snapshot.bytes.buffer as ArrayBuffer]);
+  }
 }
 
 async function start(request: Extract<WorkerRequest, { type: "start" }>): Promise<void> {
@@ -93,6 +115,12 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
     [view.kinds.buffer, view.relief.buffer],
   );
   if (online) {
+    // A game started from a snapshot has one already.
+    if (game.game.tick > 0) nextSnapshot = game.game.tick + SNAPSHOT_TICKS;
+    if (game.snapshotRefused !== undefined) {
+      replayFromStart = true;
+      scope.postMessage({ type: "snapshotRefused", reason: game.snapshotRefused });
+    }
     playTurns(early);
     early = [];
     return;

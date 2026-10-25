@@ -91,7 +91,8 @@ export type OnlineEntry =
   | { type: "join"; game: string }
   | { type: "create" }
   | { type: "resume"; game: string; token: string };
-type Entry = Exclude<OnlineEntry, { type: "resume" }> | { type: "resume"; token: string };
+type Entry =
+  Exclude<OnlineEntry, { type: "resume" }> | { type: "resume"; token: string; from: number };
 
 /**
  * One player's link to the game server. It keeps the connection open,
@@ -136,9 +137,22 @@ export class OnlineClient {
     this.enter({ type: "join", game });
   }
 
-  /** Takes back a seat in a running game, every turn from the first one resent. */
-  resume(token: string): void {
-    this.enter({ type: "resume", token });
+  /**
+   * Takes back a seat in a running game, every turn from `from` resent: 0,
+   * or the tick of a snapshot the page starts the game from (#39).
+   */
+  resume(token: string, from = 0): void {
+    this.enter({ type: "resume", token, from });
+  }
+
+  /**
+   * The page could not start from the snapshot it resumed with: asks again
+   * for every turn from the first one, over a new connection.
+   */
+  replayFromStart(): void {
+    if (!this.game) return;
+    this.nextTick = 0;
+    this.socket?.close(1000);
   }
 
   /** Host of a private game: map, bots and difficulty, until the start. */
@@ -180,7 +194,8 @@ export class OnlineClient {
   }
 
   private sendEntry(entry: Entry): void {
-    if (entry.type === "resume") this.send({ type: "rejoin", token: entry.token, from: 0 });
+    if (entry.type === "resume")
+      this.send({ type: "rejoin", token: entry.token, from: entry.from });
     else this.send(entry);
   }
 
@@ -277,7 +292,8 @@ export class OnlineClient {
         this.game = message;
         this.lobbySeat = undefined;
         if (!rejoined) {
-          this.nextTick = 0;
+          // A resumed game starts where its snapshot left it.
+          this.nextTick = this.entry?.type === "resume" ? this.entry.from : 0;
           events.started?.(message);
         }
         return;
@@ -327,7 +343,8 @@ export class OnlineClient {
           const token = this.token;
           this.setTimer(() => {
             if (this.token === token) {
-              this.send({ type: "rejoin", token, from: this.game ? this.nextTick : 0 });
+              const from = this.entry?.type === "resume" ? this.entry.from : 0;
+              this.send({ type: "rejoin", token, from: this.game ? this.nextTick : from });
             }
           }, 1_000);
           return;

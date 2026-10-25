@@ -584,6 +584,40 @@ describe("SoloGame online", () => {
     expect(result).toEqual({ order: { type: "spawn", tile: firstLand(online.map) } });
   });
 
+  it("starts from a snapshot after a reload and plays on as the game that never stopped (#39)", () => {
+    const tile = firstLand(online.map);
+    const spawn = { tick: 0, orders: [{ player: 1, order: { type: "spawn" as const, tile } }] };
+    const turns = (from: number, to: number) =>
+      Array.from({ length: to - from }, (_, i) => ({ tick: from + i, orders: [] }));
+    const original = newGame(online);
+    original.playTurns([spawn, ...turns(1, 300)]);
+    const snapshot = original.snapshot();
+    expect(snapshot.tick).toBe(300);
+    expect(snapshot.history).toEqual([spawn]);
+
+    const resumed = newGame({ ...online, snapshot });
+    expect(resumed.snapshotRefused).toBeUndefined();
+    expect(resumed.game.tick).toBe(300);
+    const expected = original.playTurns(turns(300, 500)).hashes;
+    expect(resumed.playTurns(turns(300, 500)).hashes).toEqual(expected);
+    expect(resumed.snapshot().history).toEqual([spawn]);
+  });
+
+  it("starts from the first tick when its snapshot cannot be loaded", () => {
+    const game = newGame(online);
+    game.playTurns(Array.from({ length: 60 }, (_, tick) => ({ tick, orders: [] })));
+    const snapshot = game.snapshot();
+    const damaged = { ...snapshot, bytes: snapshot.bytes.slice(0, -1) };
+    for (const refused of [
+      newGame({ ...online, snapshot: damaged }),
+      newGame({ ...online, seed: 12, snapshot }),
+    ]) {
+      expect(refused.snapshotRefused).toEqual(expect.any(String));
+      expect(refused.game.tick).toBe(0);
+      expect(refused.snapshot().history).toEqual([]);
+    }
+  });
+
   it("refuses a turn out of step with the game", () => {
     expect(() => newGame(online).playTurns([{ tick: 3, orders: [] }])).toThrow(RangeError);
   });

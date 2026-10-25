@@ -258,6 +258,71 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   await Promise.all([host.close(), guest.close()]);
 });
 
+test("a player who reloads later starts from a snapshot, not from the first turn (#39)", async ({
+  browser,
+  baseURL,
+}) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
+  test.skip(test.info().project.name !== "root", "one browser is enough");
+  test.setTimeout(GAME_START_TIMEOUT + 120_000);
+  if (!baseURL) throw new Error("baseURL is not configured");
+  const host = await browser.newPage();
+  const guest = await browser.newPage();
+  const pageErrors: Error[] = [];
+  for (const page of [host, guest]) page.on("pageerror", (error) => pageErrors.push(error));
+  const rejoins: number[] = [];
+  guest.on("websocket", (socket) => {
+    socket.on("framesent", ({ payload }) => {
+      if (typeof payload !== "string") return;
+      const message = JSON.parse(payload) as { type?: string; from?: number };
+      if (message.type === "rejoin") rejoins.push(message.from ?? -1);
+    });
+  });
+
+  await host.goto(baseURL);
+  await host.locator("#online-create").click();
+  const invite = host.locator("#invite-link");
+  await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
+  await host.locator("#lobby-bots").fill("2");
+  await guest.goto(await invite.inputValue());
+  await guest.locator("#join-submit").click();
+  await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
+  await host.locator("#lobby-start").click();
+  for (const page of [host, guest]) {
+    await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  }
+  await guest.locator("#map").click({ position: { x: 300, y: 300 } });
+  // The first snapshot comes after 30 seconds of play, into IndexedDB.
+  const kept = (): Promise<number> =>
+    guest.evaluate(`new Promise((resolve) => {
+      const request = indexedDB.open("frontfall", 1);
+      // Not before the page made it: a database opened here would have no store.
+      request.onupgradeneeded = () => request.transaction.abort();
+      request.onerror = () => resolve(0);
+      request.onsuccess = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains("snapshots")) return resolve(0);
+        const read = database.transaction("snapshots").objectStore("snapshots").get("current");
+        read.onerror = () => resolve(0);
+        read.onsuccess = () => resolve(read.result?.tick ?? 0);
+      };
+    })`);
+  await expect.poll(kept, { timeout: 60_000 }).toBeGreaterThanOrEqual(300);
+
+  await guest.reload();
+  await expect(guest.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  expect(rejoins.at(-1)).toBeGreaterThanOrEqual(300);
+  await expect(guest.locator(".leaderboard-list li")).not.toHaveCount(0);
+  await expect.poll(async () => (await clockOf(host)) - (await clockOf(guest))).toBeLessThan(3);
+  // Two more rounds of state hashes, compared with the game the guest loaded.
+  const now = await clockOf(host);
+  await expect.poll(() => clockOf(guest), { timeout: 20_000 }).toBeGreaterThan(now + 10);
+  expect(await desyncs(baseURL)).toBe("0");
+  for (const page of [host, guest]) await expect(page.locator(".notice")).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+  await Promise.all([host.close(), guest.close()]);
+});
+
 test("a player whose connection drops is told, and plays on once it is back", async ({
   browser,
   baseURL,

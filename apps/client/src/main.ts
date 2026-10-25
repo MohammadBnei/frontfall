@@ -6,6 +6,12 @@ import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.t
 import { BUILD } from "./net/build.ts";
 import { forgetSeat, saveSeat, seatIn } from "./net/seat.ts";
 import {
+  forgetSnapshot,
+  storeSnapshot,
+  storedSnapshot,
+  type StoredSnapshot,
+} from "./net/snapshot-store.ts";
+import {
   OnlineClient,
   socketUrl,
   type ConnectionStatus,
@@ -331,11 +337,17 @@ function askName(invited: string): void {
   screen.focus();
 }
 
+/** Whether snapshots of the online game are kept for a reload: not once it no longer matches the others'. */
+let keepSnapshots = true;
+
 /** Leaves the online game, if any, and closes the connection. */
 function goOffline(): void {
   showMaintenance(null);
   // Leaving on purpose gives up the seat; closing the tab keeps it for a reload.
-  if (online) forgetSeat();
+  if (online) {
+    forgetSeat();
+    void forgetSnapshot();
+  }
   online?.leave();
   online?.close();
   online = undefined;
@@ -348,7 +360,7 @@ function goOffline(): void {
  * lobby until the start, then the game screen plays the turns it relays.
  * The map, bots and difficulty are the host's, or the server's for a public game.
  */
-function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
+function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: StoredSnapshot): void {
   if (!hasWebGL2()) {
     usage().error("webgl");
     showNotice("webgl.missing");
@@ -422,7 +434,12 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         room.lobby(state, inviteLink(state.game));
       },
       started(start) {
-        startOnline(start, client, visibility);
+        startOnline(
+          start,
+          client,
+          visibility,
+          snapshot?.game === start.game ? snapshot : undefined,
+        );
       },
       turns(turns) {
         game?.pushTurns(turns);
@@ -431,11 +448,15 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
         showMaintenance(inMs);
       },
       desync(tick, _hash, expected) {
+        // A reload must play the game again from the start, not from a snapshot of this one.
+        keepSnapshots = false;
+        void forgetSnapshot();
         game?.desync(tick, expected);
         showDesync(tick);
       },
       ended(reason) {
         forgetSeat();
+        void forgetSnapshot();
         if (game) {
           if (reason !== "left") game.disconnected();
           if (reason !== "left") showNotice(`online.ended.${reason}`);
@@ -445,7 +466,10 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
       },
       error(code, message) {
         // A seat taken back after a reload, from a game that went on or ended.
-        if (code === "token_invalid") forgetSeat();
+        if (code === "token_invalid") {
+          forgetSeat();
+          void forgetSnapshot();
+        }
         room.refused(code, message);
       },
     },
@@ -453,7 +477,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
   online = client;
   if (entry.type === "play") client.play();
   else if (entry.type === "create") client.create();
-  else if (entry.type === "resume") client.resume(entry.token);
+  else if (entry.type === "resume") client.resume(entry.token, snapshot?.tick ?? 0);
   else client.join(entry.game);
 }
 
@@ -480,6 +504,7 @@ function startOnline(
   start: GameStart,
   client: OnlineClient,
   visibility: "public" | "private",
+  snapshot: StoredSnapshot | undefined,
 ): void {
   const map = maps.find((candidate) => candidate.id === start.map);
   if (!map) {
@@ -492,6 +517,7 @@ function startOnline(
   lobby = undefined;
   // A reload of this tab takes the seat back, public game or private.
   saveSeat(start.game, start.token);
+  keepSnapshots = true;
   history.replaceState(null, "", `?${new URLSearchParams({ game: start.game }).toString()}`);
   const leave = (): void => {
     goOffline();
@@ -511,6 +537,7 @@ function startOnline(
       playerName: "",
       players: start.players,
       you: start.you,
+      snapshot,
     },
     map,
     {
@@ -528,6 +555,13 @@ function startOnline(
       },
       hash: (tick, hash) => {
         client.hash(tick, hash);
+      },
+      snapshot: (taken) => {
+        if (keepSnapshots) void storeSnapshot({ game: start.game, ...taken });
+      },
+      replayFromStart: () => {
+        void forgetSnapshot();
+        client.replayFromStart();
       },
     },
     startView,
@@ -566,8 +600,12 @@ void ready.then(() => {
   if (invited) {
     const token = seatIn(invited);
     // A seat taken back after a reload, or a name in the link, needs no question.
-    if (token) goOnline({ type: "resume", game: invited, token });
-    else if (query.has("name")) goOnline({ type: "join", game: invited });
+    if (token) {
+      // From where this tab left the game, when it kept a snapshot of it (#39).
+      void storedSnapshot(invited).then((snapshot) => {
+        goOnline({ type: "resume", game: invited, token }, setup, snapshot);
+      });
+    } else if (query.has("name")) goOnline({ type: "join", game: invited });
     else askName(invited);
   } else if (query.has("online")) goOnline({ type: "play" });
   else showMenu();

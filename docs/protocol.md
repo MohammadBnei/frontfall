@@ -94,7 +94,7 @@ Joins a game by id, public or private, before it starts.
 { "type": "rejoin", "token": "q8Vb1aV9mN3x0WcY2tLk4Q", "from": 1200 }
 ```
 
-Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting). `from` is the first tick the client has not received. A rejoin with `from` 0 rebuilds the game from the first turn, so it clears a [`desync`](#desync) flag: the hashes the client sends next decide afresh.
+Takes back a seat after a dropped connection; see [Reconnecting](#reconnecting). `from` is the first tick the client has not received. After a reload, it is the tick of the [snapshot](engine.md#snapshots) the page kept of the game, if any: the browser stores one in IndexedDB 30 seconds into the game, then every two minutes, and starts from it. A page that cannot load its snapshot reconnects and rejoins from 0. A rejoin with `from` 0 rebuilds the game from the first turn, so it clears a [`desync`](#desync) flag: the hashes the client sends next decide afresh.
 
 ### `configure`
 

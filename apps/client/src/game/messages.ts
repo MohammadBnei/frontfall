@@ -2,7 +2,14 @@ import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { MapManifest } from "@frontfall/protocol";
 import type { MapInfo } from "./maps.ts";
 import type { StartInfo } from "./session.ts";
-import type { ClickMode, ClickNote, ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
+import type {
+  ClickMode,
+  ClickNote,
+  ClickRefusal,
+  GameSnapshot,
+  GameUpdate,
+  SoloOptions,
+} from "./solo-game.ts";
 
 /** What became of a click: the order it sent, or why it sent none. */
 export type ClickOutcome = Order["type"] | ClickRefusal;
@@ -65,6 +72,13 @@ export type WorkerReply =
   | { type: "report"; report: DesyncReport | undefined }
   /** None for a game on a generated map, or while watching a replay. */
   | { type: "record"; record: GameRecord | undefined }
+  /** Online: the game as it stands, now and then, to start from after a reload (#39). */
+  | { type: "snapshot"; snapshot: GameSnapshot }
+  /**
+   * Online: the snapshot of the options could not be loaded. The game starts
+   * from its first tick instead, and waits for the turns from there.
+   */
+  | { type: "snapshotRefused"; reason: string }
   | { type: "error"; message: string };
 
 /** Buffers of an update, handed over to the page instead of copied. */

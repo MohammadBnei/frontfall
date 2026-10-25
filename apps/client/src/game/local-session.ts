@@ -2,12 +2,16 @@ import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import { fetchManifest, type MapInfo } from "./maps.ts";
-import type { ClickMode, SoloOptions } from "./solo-game.ts";
+import type { ClickMode, GameSnapshot, SoloOptions } from "./solo-game.ts";
 
 /** Where an online game's orders and state hashes go: the connection to the server. */
 export interface ServerLink {
   order(order: Order): void;
   hash(tick: number, hash: number): void;
+  /** The game as it stands, to keep for a reload (#39). */
+  snapshot?(snapshot: GameSnapshot): void;
+  /** The game could not start from its snapshot: every turn from the first one is needed. */
+  replayFromStart?(): void;
 }
 
 /**
@@ -42,6 +46,11 @@ export class LocalSession implements GameSession {
         this.reports.shift()?.(reply.report);
       } else if (reply.type === "record") {
         this.records.shift()?.(reply.record);
+      } else if (reply.type === "snapshot") {
+        link?.snapshot?.(reply.snapshot);
+      } else if (reply.type === "snapshotRefused") {
+        console.warn(`snapshot refused: ${reply.reason}`);
+        link?.replayFromStart?.();
       } else if (reply.type === "click") {
         if (reply.order) link?.order(reply.order);
         events.onClick(reply.tile, reply.outcome, reply.note);
