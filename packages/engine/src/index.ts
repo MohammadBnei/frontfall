@@ -69,6 +69,7 @@ export {
 } from "./bots/index.ts";
 export {
   DISABLE_ALL,
+  leftOut,
   Disable,
   Game,
   MAX_TEAMS,

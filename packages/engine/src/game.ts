@@ -85,6 +85,11 @@ export const Disable = {
 /** Every `Disable` bit. */
 export const DISABLE_ALL = 0x3f;
 
+/** What a game leaves out once its implications are added: warships are launched from ports (R-MODE-03). */
+export function leftOut(disabled: number): number {
+  return disabled & Disable.Port ? disabled | Disable.Warships : disabled;
+}
+
 export interface Player {
   readonly id: number;
   readonly name: string;
@@ -232,7 +237,7 @@ export class Game {
     if (!(Number.isInteger(disabled) && disabled >= 0 && disabled <= DISABLE_ALL)) {
       throw new RangeError(`invalid disabled set ${String(disabled)}`);
     }
-    this.disabled = disabled;
+    this.disabled = leftOut(disabled);
     // R-MODE-02: dealt in turn, so team sizes differ by one at most.
     this.sortedPlayers = [...this.playersById.values()]
       .sort((a, b) => a.id - b.id)

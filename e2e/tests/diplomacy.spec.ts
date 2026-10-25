@@ -130,6 +130,17 @@ test("sends a bot a gift of gold, in a game without silos (R-DIPLO-06, R-MODE-03
   expect(pageErrors).toEqual([]);
 });
 
+test("leaves warships and embargoes out with ports (R-MODE-03)", async ({ page }) => {
+  await startGame(page, 1, "&off=port");
+  await expect(page).toHaveURL(/off=port%2Cwarship/);
+  await expect(page.locator("#build-port")).toBeHidden();
+  await expect(page.locator("#build-warship")).toBeHidden();
+  await page.locator(".leader-button").click();
+  const menu = page.locator("#player-menu");
+  await expect(menu.locator(".menu-action.gift-gold")).toBeVisible();
+  await expect(menu.locator(".menu-action.embargo")).toHaveCount(0);
+});
+
 test("sends a bot a quick message, which the feed shows (R-DIPLO-07)", async ({ page }) => {
   await startGame(page, 1);
   await page.locator(".leader-button").click();

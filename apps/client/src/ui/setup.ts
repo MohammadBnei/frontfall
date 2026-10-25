@@ -1,4 +1,4 @@
-import { Disable } from "@frontfall/engine";
+import { Disable, leftOut } from "@frontfall/engine";
 import { suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty, type SoloOptions } from "../game/solo-game.ts";
 
@@ -60,9 +60,8 @@ export function sanitizeSetup(
   // Shared in a link as names, off=silo,warship, and never remembered.
   if (typeof input.off === "string") {
     const names = input.off.split(",");
-    setup.disabled = LEFT_OUT.reduce(
-      (bits, { name, bit }) => bits | (names.includes(name) ? bit : 0),
-      0,
+    setup.disabled = leftOut(
+      LEFT_OUT.reduce((bits, { name, bit }) => bits | (names.includes(name) ? bit : 0), 0),
     );
   }
   if (typeof input.name === "string") setup.playerName = cleanName(input.name);

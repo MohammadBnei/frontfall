@@ -1,4 +1,4 @@
-import type { Game, Player } from "./game.ts";
+import { Disable, type Game, type Player } from "./game.ts";
 import { percentOf } from "./integer-math.ts";
 
 /** Two players at peace until `until` (R-DIPLO-02, R-DIPLO-03). `a` is always the lower id. */
@@ -78,6 +78,7 @@ export const DiplomacyError = {
   Teammate: "teammates are allies for the whole game",
   Embargoed: "already under your embargo",
   NotEmbargoed: "not under your embargo",
+  NoTrade: "the game has no ports, so no trade to cut off",
 } as const;
 
 export type DiplomacyError = (typeof DiplomacyError)[keyof typeof DiplomacyError];
@@ -181,6 +182,8 @@ export function embargoError(
   if (target === player.id) return DiplomacyError.Self;
   if (!game.player(target)?.alive) return DiplomacyError.Player;
   if (sameTeam(game, player.id, target)) return DiplomacyError.Teammate;
+  // Without ports there is no trade, and an embargo would only declare a war (R-MODE-03).
+  if (on === 1 && !game.allows(Disable.Port)) return DiplomacyError.NoTrade;
   const held = game.embargoes.some((e) => e.from === player.id && e.to === target);
   if (on === 1 && held) return DiplomacyError.Embargoed;
   if (on === 0 && !held) return DiplomacyError.NotEmbargoed;

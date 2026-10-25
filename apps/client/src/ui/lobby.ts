@@ -1,3 +1,4 @@
+import { Disable, leftOut } from "@frontfall/engine";
 import type { Difficulty, ErrorCode, GameOptions, Teams } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
@@ -323,7 +324,9 @@ export class LobbyScreen {
             summary,
             mode: t(`mode.${String(lobby.teams)}` as MessageKey),
           });
-    const off = LEFT_OUT.filter(({ bit }) => (lobby.disabled & bit) !== 0);
+    // Warships go with ports, whatever the host ticked (R-MODE-03).
+    const disabled = leftOut(lobby.disabled);
+    const off = LEFT_OUT.filter(({ bit }) => (disabled & bit) !== 0);
     this.summary.textContent =
       off.length === 0
         ? withMode
@@ -370,7 +373,10 @@ export class LobbyScreen {
       ),
     );
     this.teams.value = String(lobby.teams);
-    for (const { bit, input } of this.allowed) input.checked = (lobby.disabled & bit) === 0;
+    for (const { bit, input } of this.allowed) {
+      input.checked = (disabled & bit) === 0;
+      input.disabled = bit === Disable.Warships && (lobby.disabled & Disable.Port) !== 0;
+    }
     this.bots.max = String(botLimit(map, lobby.players.length));
     this.bots.value = String(lobby.bots);
     this.botsValue.textContent = String(lobby.bots);

@@ -137,6 +137,16 @@ describe("games that leave things out (R-MODE-03)", () => {
     expect(orderError(game, ada, { type: "warship", port })).toBe(WarshipError.Disabled);
   });
 
+  it("leave warships out with ports, and refuse embargoes, with no trade to cut", () => {
+    const { game, ada } = newGame(Disable.Port);
+    expect(game.disabled).toBe(Disable.Port | Disable.Warships);
+    expect(game.allows(Disable.Warships)).toBe(false);
+    expect(orderError(game, ada, { type: "embargo", target: 2, on: 1 })).toBe(
+      DiplomacyError.NoTrade,
+    );
+    expect(newGame().game.disabled).toBe(0);
+  });
+
   it("count in the state hash only when they leave something out", () => {
     const all = newGame().game.hash();
     expect(newGame(0).game.hash()).toBe(all);

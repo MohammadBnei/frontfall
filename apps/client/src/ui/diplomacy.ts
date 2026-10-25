@@ -1,4 +1,4 @@
-import { QUICK_MESSAGES } from "@frontfall/engine";
+import { Disable, QUICK_MESSAGES } from "@frontfall/engine";
 import type { GameRules } from "../game/messages.ts";
 import type { DiplomacyEvent, GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
@@ -72,12 +72,13 @@ export class DiplomacyPanel {
   private readonly ignored = new Set<number>();
   private rules: Pick<
     GameRules,
-    "ticksPerSecond" | "allianceRequestTicks" | "firstNation" | "teams"
+    "ticksPerSecond" | "allianceRequestTicks" | "firstNation" | "teams" | "disabled"
   > = {
     ticksPerSecond: 10,
     allianceRequestTicks: 200,
     firstNation: Infinity,
     teams: [],
+    disabled: 0,
   };
   /** Drawn content of the menu and the stack, to rebuild them only when it changes. */
   private menuKey = "";
@@ -269,7 +270,8 @@ export class DiplomacyPanel {
       });
     }
 
-    if (!teammate) {
+    // An embargo cuts trade, which a game without ports has none of (R-MODE-03).
+    if (!teammate && (this.rules.disabled & Disable.Port) === 0) {
       buttons.push({
         key: embargoing ? "diplo.liftEmbargo" : "diplo.embargo",
         action: () => {

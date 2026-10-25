@@ -120,7 +120,7 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 - **R-WIN-03** Eliminated players can keep watching the game.
 - **R-MODE-01** Free-for-all: every player for themselves; alliances follow `R-DIPLO`.
 - **R-MODE-02** Teams: 2, 3 or 4 teams. Every player, bots and nations included, is dealt into a team in turn by player number, so team sizes differ by at most one. Teammates are allies for the whole game: they cannot attack each other, ask each other for an alliance or betray each other. A team wins when its members together own `B-WIN-SHARE` of the ownable land, or when it is the last team standing; at `B-MAX-DURATION`, the team with the most land wins. The team's member with the most land is named the winner.
-- **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and leave any of cities, forts, ports, missile silos, air defenses and warships out of the game. Leaving out ports also leaves out trade ships and warships, as they need one; leaving out silos leaves out missiles. No one, bots and nations included, can build or buy what the game leaves out.
+- **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and leave any of cities, forts, ports, missile silos, air defenses and warships out of the game. Leaving out ports also leaves out trade ships and warships, as they need one, and embargoes, with no trade left to cut; leaving out silos leaves out missiles. No one, bots and nations included, can build or buy what the game leaves out.
 
 ## 10. Fairness and determinism
 

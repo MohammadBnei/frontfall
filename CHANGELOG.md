@@ -11,6 +11,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Keys on the build buttons.** Each button shows its key; on a phone, a long press on a button says what it does.
 - For contributors: `pnpm balance` plays many headless games of one setup, bots, nations and a scripted player, and prints how long they last, who wins against their fair share, income from troops and trade, and missiles ([balance](docs/balance.md)).
 
+### Fixed
+
+- A game without ports no longer offers warships or embargoes: the lobby unticks warships with ports, and the player menu drops the embargo, which had no trade to cut and only declared a war.
+
 ### Changed
 
 - The reason a click was refused stays up for four seconds and names the building, as in "Port: …".

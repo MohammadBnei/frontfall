@@ -58,6 +58,12 @@ describe("game setup", () => {
     expect(offers("warship", 32)).toBe(false);
   });
 
+  it("leaves warships out with ports, which launch them (R-MODE-03)", () => {
+    const setup = initialSetup("?map=pangaea&off=port", undefined, maps);
+    expect(setup.disabled).toBe(4 | 32);
+    expect(setupQuery(setup)).toContain("off=port%2Cwarship");
+  });
+
   it("ignores values it does not know", () => {
     const base = defaultSetup(maps);
     expect(
