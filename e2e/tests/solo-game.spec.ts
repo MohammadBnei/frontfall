@@ -138,6 +138,38 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
+test("builds a Micho Palace, worth two cities (R-BUILD-08)", async ({ page }) => {
+  test.setTimeout(120_000);
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  // Gold fast, and so little land per city that the starting land holds two.
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy&speed=5&gold=1000&cityland=10");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  const box = await page.locator("#map").boundingBox();
+  if (!box) throw new Error("the map has no size");
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const start = await clickAround(page, center, async () => (await landShare(page)) > 0);
+  expect(await landShare(page)).toBeGreaterThan(0);
+
+  await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
+  const palace = page.locator("#build-palace");
+  await expect(palace).not.toHaveClass(/unaffordable/, { timeout: 60_000 });
+
+  const before = await structurePixels(page, start);
+  await page.keyboard.press("KeyB");
+  await expect(palace).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".banner")).toContainText("build a Micho Palace");
+  await page.mouse.click(start.x, start.y);
+  // It counts as two of the cities the land supports.
+  await expect(page.locator("#build-city .build-count")).toContainText("2 of", { timeout: 5_000 });
+  await expect(palace).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .poll(() => structurePixels(page, start), { timeout: 10_000 })
+    .toBeGreaterThan(before);
+  expect(pageErrors).toEqual([]);
+});
+
 test("plays against the nations of the map, named and on the board (R-BOT-07)", async ({
   page,
 }) => {

@@ -1159,6 +1159,12 @@ kbd {
   transform: rotate(45deg) scale(0.8);
 }
 
+/* A crown: two cities' worth. */
+.build-palace .build-icon {
+  border: 0;
+  clip-path: polygon(0 100%, 0 15%, 27% 50%, 50% 0, 73% 50%, 100% 15%, 100% 100%);
+}
+
 .build-fort .build-icon {
   border: 0;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
@@ -1215,6 +1221,7 @@ kbd {
 }
 
 .map-surface[data-mode="city"],
+.map-surface[data-mode="palace"],
 .map-surface[data-mode="fort"],
 .map-surface[data-mode="silo"],
 .map-surface[data-mode="airDefense"],

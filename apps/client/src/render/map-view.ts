@@ -156,6 +156,7 @@ export class MapView implements Renderer {
     };
     this.structures = {
       city: layers(4, 4),
+      palace: layers(8, 5.5),
       fort: layers(3, 4.5),
       port: layers(6, 4),
       silo: layers(5, 4.5),
@@ -226,7 +227,7 @@ export class MapView implements Renderer {
   }
 
   setStructures(structures: readonly StructureMark[]): void {
-    for (const type of ["city", "fort", "port", "silo", "airDefense"] as const) {
+    for (const type of ["city", "palace", "fort", "port", "silo", "airDefense"] as const) {
       const { outline, fill } = this.structures[type];
       let count = 0;
       for (const structure of structures) {

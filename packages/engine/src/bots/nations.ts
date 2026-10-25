@@ -5,6 +5,8 @@ import { divFloor, percentOf } from "../integer-math.ts";
 import { MissileSize, missileCost, missileError } from "../missiles.ts";
 import {
   StructureKind,
+  cityShare,
+  disableBit,
   fortRadius,
   placementError,
   structureCost,
@@ -167,7 +169,7 @@ export function installNations(
     if (start === undefined) return;
     // Built around a start it still holds, with a pause after a search that found no room.
     const build = (kind: StructureKind): void => {
-      if (!game.allows(1 << kind) || territory.ownerOf(start) !== nation.id) return;
+      if (!game.allows(disableBit(kind)) || territory.ownerOf(start) !== nation.id) return;
       if (game.tick < (armCooldowns.get(nation.id) ?? 0)) return;
       const tile = inlandSite(game, nation, start);
       if (tile >= 0) game.apply(nation.id, { type: "build", structure: kind, tile });
@@ -176,7 +178,7 @@ export function installNations(
     const light = missileCost(game, MissileSize.Light);
     if (
       structureCount(game, nation.id, StructureKind.Silo) === 0 &&
-      structureCount(game, nation.id, StructureKind.City) >= NATION_SILO_CITIES &&
+      cityShare(game, nation.id) >= NATION_SILO_CITIES &&
       nation.gold >= structureCost(game, nation.id, StructureKind.Silo) + light
     ) {
       build(StructureKind.Silo);
@@ -201,7 +203,8 @@ export function installNations(
     let city = -1;
     let closest = 0;
     for (const s of game.structures) {
-      if (s.player !== target || s.kind !== StructureKind.City) continue;
+      if (s.player !== target) continue;
+      if (s.kind !== StructureKind.City && s.kind !== StructureKind.Palace) continue;
       const distance = topology.squaredDistance(s.tile, start);
       if (city < 0 || distance < closest) {
         city = s.tile;
@@ -283,7 +286,8 @@ export function installNations(
    */
   function buildFort(nation: Player, front: number): void {
     const kind = StructureKind.Fort;
-    if (!game.allows(1 << kind) || nation.gold < structureCost(game, nation.id, kind)) return;
+    if (!game.allows(disableBit(kind)) || nation.gold < structureCost(game, nation.id, kind))
+      return;
     const topology = game.terrain.topology;
     const radius = fortRadius(game);
     for (const s of game.structures) {

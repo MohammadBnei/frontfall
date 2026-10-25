@@ -80,6 +80,7 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 - **R-BUILD-05** Air defense (`B-COST-AIR-DEFENSE`): once per missile, on the first tick a missile of a player who is not its owner's ally flies within `B-AIR-DEFENSE-RADIUS` of it while the air defense is loaded, it tries to stop it and does so at `B-AIR-DEFENSE-CHANCE`, drawn from the game's seed. One that stops a missile tries again only after `B-AIR-DEFENSE-RELOAD`.
 - **R-BUILD-06** A structure can be demolished by its owner, with no refund.
 - **R-BUILD-07** Two structures, whoever owns them, stand at least `B-BUILD-SPACING` tiles apart. A player may own one city, and one more for every `B-CITY-LAND` tiles of land; cities beyond what their land supports, after a loss of land or a capture, do not count towards the cap.
+- **R-BUILD-08** Micho Palace: two cities on one tile. It costs what the player's next two cities would, counts as two cities towards the land limit (`R-BUILD-07`) and the cost of later cities and palaces, and once ready raises the population cap as two cities do (`R-BUILD-01`). It is built, captured and demolished like a city, and a game that leaves out cities leaves out palaces too (`R-MODE-03`).
 
 ## 7. Units
 
@@ -120,7 +121,7 @@ Every structure is built on an owned land tile, costs gold, paid when the order 
 - **R-WIN-03** Eliminated players can keep watching the game.
 - **R-MODE-01** Free-for-all: every player for themselves; alliances follow `R-DIPLO`.
 - **R-MODE-02** Teams: 2, 3 or 4 teams. Every player, bots and nations included, is dealt into a team in turn by player number, so team sizes differ by at most one. Teammates are allies for the whole game: they cannot attack each other, ask each other for an alliance or betray each other. A team wins when its members together own `B-WIN-SHARE` of the ownable land, or when it is the last team standing; at `B-MAX-DURATION`, the team with the most land wins. The team's member with the most land is named the winner.
-- **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and leave any of cities, forts, ports, missile silos, air defenses and warships out of the game. Leaving out ports also leaves out trade ships and warships, as they need one, and embargoes, with no trade left to cut; leaving out silos leaves out missiles. No one, bots and nations included, can build or buy what the game leaves out.
+- **R-MODE-03** Private lobbies let their creator choose the map, the mode, bots and nations, and leave any of cities (palaces with them), forts, ports, missile silos, air defenses and warships out of the game. Leaving out ports also leaves out trade ships and warships, as they need one, and embargoes, with no trade left to cut; leaving out silos leaves out missiles. No one, bots and nations included, can build or buy what the game leaves out.
 
 ## 10. Fairness and determinism
 

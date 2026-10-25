@@ -72,7 +72,8 @@ export interface GameSetup {
 
 /**
  * What a private game can leave out (R-MODE-03), one bit each: a structure
- * by its StructureKind code (bit `1 << kind`), and warships.
+ * by its StructureKind code (bit `1 << kind`), and warships. A palace has no
+ * bit of its own and goes with the cities: ask `disableBit` for a kind's bit.
  */
 export const Disable = {
   City: 1 << 0,

@@ -1,4 +1,4 @@
-import type { Game, Player } from "./game.ts";
+import { Disable, type Game, type Player } from "./game.ts";
 import { divFloor, mulDiv } from "./integer-math.ts";
 import { spawnSettings } from "./spawn.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
@@ -10,10 +10,12 @@ export const StructureKind = {
   Port: 2,
   Silo: 3,
   AirDefense: 4,
+  /** Counts as two cities in every way (R-BUILD-08). */
+  Palace: 5,
 } as const;
 export type StructureKind = (typeof StructureKind)[keyof typeof StructureKind];
 
-const HIGHEST_KIND: number = StructureKind.AirDefense;
+const HIGHEST_KIND: number = StructureKind.Palace;
 
 /** A structure on one land tile. It works from `readyAt` on, and changes hands with its tile. */
 export interface Structure {
@@ -61,24 +63,52 @@ export function structureCount(game: Game, player: number, kind: StructureKind):
 }
 
 /**
+ * The `Disable` bit that leaves a kind out of a private game (R-MODE-03): its
+ * own code's bit, but a palace goes with the cities (R-BUILD-08).
+ */
+export function disableBit(kind: StructureKind): number {
+  return kind === StructureKind.Palace ? Disable.City : 1 << kind;
+}
+
+/** Cities a player owns, those still being built included, a palace counting as two (R-BUILD-08). */
+export function cityShare(game: Game, player: number): number {
+  return (
+    structureCount(game, player, StructureKind.City) +
+    2 * structureCount(game, player, StructureKind.Palace)
+  );
+}
+
+/**
  * Gold the next structure of a kind costs a player: its base cost, times
- * B-COST-GROWTH for each one of that kind they already own (R-BUILD).
+ * B-COST-GROWTH for each one of that kind they already own (R-BUILD). Cities
+ * and palaces grow together, a palace counting as two cities and costing
+ * what the next two would (R-BUILD-08).
  */
 export function structureCost(game: Game, player: number, kind: StructureKind): number {
+  if (kind === StructureKind.City || kind === StructureKind.Palace) {
+    const owned = cityShare(game, player);
+    const next = grownCost(game, game.balance.cityCost, owned);
+    if (kind === StructureKind.City) return next;
+    return Math.min(Number.MAX_SAFE_INTEGER, next + grownCost(game, next, 1));
+  }
+  return grownCost(game, baseCost(game, kind), structureCount(game, player, kind));
+}
+
+function grownCost(game: Game, base: number, owned: number): number {
   const { costGrowthPercent } = game.balance;
-  let cost = baseCost(game, kind);
-  const owned = structureCount(game, player, kind);
+  let cost = base;
   for (let i = 0; i < owned && cost < Number.MAX_SAFE_INTEGER; i++) {
     cost = Math.min(Number.MAX_SAFE_INTEGER, mulDiv(cost, costGrowthPercent, 100));
   }
   return cost;
 }
 
-function baseCost(game: Game, kind: StructureKind): number {
+function baseCost(
+  game: Game,
+  kind: Exclude<StructureKind, typeof StructureKind.City | typeof StructureKind.Palace>,
+): number {
   const balance = game.balance;
   switch (kind) {
-    case StructureKind.City:
-      return balance.cityCost;
     case StructureKind.Fort:
       return balance.fortCost;
     case StructureKind.Port:
@@ -102,17 +132,16 @@ export function cityLimit(game: Game, player: number): number {
   return 1 + divFloor(game.territory.tileCount(player), cityLand(game));
 }
 
-/** Cities that raise a player's population cap: ready ones, up to what their land supports (R-BUILD-01). */
+/**
+ * Cities that raise a player's population cap: ready ones, a palace counting
+ * as two, up to what their land supports (R-BUILD-01, R-BUILD-08).
+ */
 export function workingCities(game: Game, player: Player): number {
   let ready = 0;
   for (const structure of game.structures) {
-    if (
-      structure.player === player.id &&
-      structure.kind === StructureKind.City &&
-      isReady(game, structure)
-    ) {
-      ready++;
-    }
+    if (structure.player !== player.id || !isReady(game, structure)) continue;
+    if (structure.kind === StructureKind.City) ready++;
+    else if (structure.kind === StructureKind.Palace) ready += 2;
   }
   return Math.min(ready, cityLimit(game, player.id));
 }
@@ -127,7 +156,7 @@ export function placementError(
   kind: StructureKind,
   tile: number,
 ): BuildError | undefined {
-  if (!game.allows(1 << kind)) return BuildError.Disabled;
+  if (!game.allows(disableBit(kind))) return BuildError.Disabled;
   if (game.territory.ownerOf(tile) !== player.id) return BuildError.Foreign;
   if (kind === StructureKind.Port && !game.terrain.isCoast(tile)) return BuildError.Coast;
   const spacing = game.balance.buildSpacing;
@@ -135,10 +164,8 @@ export function placementError(
   for (const structure of game.structures) {
     if (topology.distance(structure.tile, tile) < spacing) return BuildError.Crowded;
   }
-  if (
-    kind === StructureKind.City &&
-    structureCount(game, player.id, kind) >= cityLimit(game, player.id)
-  ) {
+  const cities = kind === StructureKind.City ? 1 : kind === StructureKind.Palace ? 2 : 0;
+  if (cities > 0 && cityShare(game, player.id) + cities > cityLimit(game, player.id)) {
     return BuildError.Land;
   }
   if (player.gold < structureCost(game, player.id, kind)) return BuildError.Gold;

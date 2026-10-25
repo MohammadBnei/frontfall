@@ -6,6 +6,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Added
 
+- **Micho Palace** (`R-BUILD-08`): B, then a click on your land, builds a palace worth two cities on one tile. It costs what your next two cities would, counts as two cities towards the cities your land supports and the price of later ones, and once ready raises the troop cap as two cities do. It is captured and demolished like a city, and a game that leaves out cities leaves it out too. Bots and nations do not build it, though nations aim missiles at it as at a city. Protocol version 15 carries it as a `build` structure: pages loaded before the update are sent away to reload once it is deployed.
 - **How to play.** The ? button, H or ? open a help that lists the controls in four short sections, and every building with its key, what it costs you now and where it goes. On a phone it gives the gestures instead.
 - **First steps.** Your first solo game shows four steps that move on as you play: pick a start, expand, build a city, open another player's menu. Next skips one, Hide puts the guide away, and the help brings it back.
 - **Your name from an invitation link.** A link to a private game first asks for the name the other players will see, filled with the last one you used, and keeps it for next time.

@@ -248,9 +248,9 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 | V5-13 | Public games start with bots when a player waits alone                                                       | S    | None         |
 | M3-11 | [#33](https://github.com/nic0lasm/frontfall/issues/33) Playtest with outside players, now from real feedback | S    | V5-10        |
 | M5-07 | [#49](https://github.com/nic0lasm/frontfall/issues/49) Balance pass on real games                            | M    | V5-08        |
-| V5-14 | Michaud Palace: a building worth two cities                                                                  | M    | #49          |
+| V5-14 | Micho Palace: a building worth two cities, in the game; its price is checked in the balance pass             | M    | None         |
 
-17 items, about 29 days. #39 comes first: when the server restarts, every player rejoins at once, and a client that replays the whole game from its first tick takes tens of seconds late in a game. A release that changes the simulation cannot keep its games, because the pages still open would play a different game; for those, the notice of V5-01 is the answer. Counting games needs the clients: the server relays turns and never knows who won, and solo games never reach it. An online game's result counts only when the majority of its players report the same one, as for state hashes. The Michaud Palace is a new structure, so it changes the cost of cities and comes with the balance pass, not in a patch.
+17 items, about 29 days. #39 comes first: when the server restarts, every player rejoins at once, and a client that replays the whole game from its first tick takes tens of seconds late in a game. A release that changes the simulation cannot keep its games, because the pages still open would play a different game; for those, the notice of V5-01 is the answer. Counting games needs the clients: the server relays turns and never knows who won, and solo games never reach it. An online game's result counts only when the majority of its players report the same one, as for state hashes. The Micho Palace is in the game as exactly two cities (`R-BUILD-08`); the balance pass checks its price with the cost of cities.
 
 ## v0.6 · Phones and comfort
 
@@ -373,7 +373,7 @@ Once players I do not know started to play every day, I put running the game ahe
 | v0.6 for phones, from the counts of v0.5                 | The globe would be drawn on the devices players use; I want to know which first.                                                             |
 | v0.7 keeps performance, without the view switch          | Switching to the globe belongs with the globe.                                                                                               |
 | M8 split between v0.8 and v1.0                           | Map and translation contributions, release notes and the landing page help players now; the launch announcement waits for v1.0.              |
-| Michaud Palace in v0.5                                   | A structure worth two cities changes the cost of cities; it is tuned with the rest.                                                          |
+| Micho Palace in v0.5                                     | It plays as two cities from the start; the balance pass checks its price with the rest.                                                      |
 | v0.3 performance check written as measured               | The gate in CI is the 30 ms budget and a 10 % slowdown; the 8 ms target moves to v0.7.                                                       |
 
 ## Changes after v0.2

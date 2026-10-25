@@ -1,6 +1,6 @@
 # Network protocol
 
-Version 14. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 15. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 14, name } ----------> |
+  | -- hello { version: 15, name } ----------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection keeps its seat for 30 seconds, unless
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 14, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 15, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -142,22 +142,22 @@ The client's 32-bit hash of its game state after running `tick`, sent for every 
 
 Binary frame. An order of the local player, in the shape of the engine's `Order`:
 
-| Order      | Fields                                          | Meaning                                                                                                 |
-| ---------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `spawn`    | `tile`                                          | Choose a starting tile during the spawn phase                                                           |
-| `attack`   | `target`, `troops` (`> 0`)                      | Send troops towards a tile                                                                              |
-| `retreat`  | `attack` (`> 0`)                                | Call back one of the player's attacks by its id                                                         |
-| `embark`   | `target`, `troops` (`> 0`)                      | Ship troops to a coastal tile                                                                           |
-| `build`    | `structure` (0 to 255), `tile`                  | Build a structure on one of the player's tiles: `0` city, `1` fort, `2` port, `3` silo, `4` air defense |
-| `demolish` | `tile`                                          | Demolish one of the player's structures                                                                 |
-| `ally`     | `target` (player 1 to 65535)                    | Ask for an alliance, accept one, or renew one                                                           |
-| `betray`   | `target` (player 1 to 65535)                    | End an alliance at once, as a betrayal                                                                  |
-| `embargo`  | `target` (player), `on` (0, 1)                  | Start (1) or lift (0) an embargo on a player's trade                                                    |
-| `warship`  | `port` (tile)                                   | Buy a warship at one of your ports                                                                      |
-| `patrol`   | `ship` (id), `tile`                             | Send one of your warships to patrol around a water tile                                                 |
-| `missile`  | `target`, `size` (0 to 255)                     | Launch a missile (`0`) or a heavy missile (`1`) at a land tile                                          |
-| `gift`     | `target` (player), `troops`, `gold` (0 or more) | Send a player troops and gold                                                                           |
-| `quick`    | `target` (player), `phrase` (0 to 255)          | Send a player a preset quick message, by number                                                         |
+| Order      | Fields                                          | Meaning                                                                                                             |
+| ---------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `spawn`    | `tile`                                          | Choose a starting tile during the spawn phase                                                                       |
+| `attack`   | `target`, `troops` (`> 0`)                      | Send troops towards a tile                                                                                          |
+| `retreat`  | `attack` (`> 0`)                                | Call back one of the player's attacks by its id                                                                     |
+| `embark`   | `target`, `troops` (`> 0`)                      | Ship troops to a coastal tile                                                                                       |
+| `build`    | `structure` (0 to 255), `tile`                  | Build a structure on one of the player's tiles: `0` city, `1` fort, `2` port, `3` silo, `4` air defense, `5` palace |
+| `demolish` | `tile`                                          | Demolish one of the player's structures                                                                             |
+| `ally`     | `target` (player 1 to 65535)                    | Ask for an alliance, accept one, or renew one                                                                       |
+| `betray`   | `target` (player 1 to 65535)                    | End an alliance at once, as a betrayal                                                                              |
+| `embargo`  | `target` (player), `on` (0, 1)                  | Start (1) or lift (0) an embargo on a player's trade                                                                |
+| `warship`  | `port` (tile)                                   | Buy a warship at one of your ports                                                                                  |
+| `patrol`   | `ship` (id), `tile`                             | Send one of your warships to patrol around a water tile                                                             |
+| `missile`  | `target`, `size` (0 to 255)                     | Launch a missile (`0`) or a heavy missile (`1`) at a land tile                                                      |
+| `gift`     | `target` (player), `troops`, `gold` (0 or more) | Send a player troops and gold                                                                                       |
+| `quick`    | `target` (player), `phrase` (0 to 255)          | Send a player a preset quick message, by number                                                                     |
 
 Tiles are indexes in the map, below 2^31. The server checks only the shape of an order; whether it can be carried out is decided by the engine of every client, the same way everywhere. Orders sent outside a running game are ignored.
 
@@ -166,7 +166,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 14 }
+{ "type": "welcome", "version": 15 }
 ```
 
 The hello was accepted.
@@ -344,4 +344,4 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between builds: an older page is always sent away.

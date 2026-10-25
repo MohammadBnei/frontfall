@@ -32,6 +32,7 @@ export interface HudActions {
 
 const MODE_BANNERS = {
   city: "hud.modeCity",
+  palace: "hud.modePalace",
   fort: "hud.modeFort",
   port: "hud.modePort",
   silo: "hud.modeSilo",
@@ -45,6 +46,7 @@ const MODE_BANNERS = {
 /** The build buttons, with their shortcut keys (game-screen.ts), in the order the HUD and the help list them. */
 export const BUILD_MODES = [
   { mode: "city", key: "C" },
+  { mode: "palace", key: "B" },
   { mode: "fort", key: "F" },
   { mode: "port", key: "O" },
   { mode: "silo", key: "L" },
@@ -58,6 +60,7 @@ export const BUILD_MODES = [
 /** The `Disable` bit that leaves a build mode out of a game (R-MODE-03); missiles go with silos. */
 const MODE_BITS: Partial<Record<ClickMode, number>> = {
   city: Disable.City,
+  palace: Disable.City,
   fort: Disable.Fort,
   port: Disable.Port,
   silo: Disable.Silo,
@@ -71,6 +74,7 @@ const MODE_BITS: Partial<Record<ClickMode, number>> = {
 export function costOf(mode: ClickMode, build: BuildView): number | undefined {
   const costs: Partial<Record<ClickMode, number>> = {
     city: build.cityCost,
+    palace: build.palaceCost,
     fort: build.fortCost,
     port: build.portCost,
     silo: build.siloCost,
@@ -133,6 +137,7 @@ export class Hud {
   private readonly leaderRows = new Map<number, LeaderRow>();
   private readonly buildButtons = new Map<ClickMode, HTMLButtonElement>();
   private readonly cityCost = h("span", { class: "build-cost" });
+  private readonly palaceCost = h("span", { class: "build-cost" });
   private readonly fortCost = h("span", { class: "build-cost" });
   private readonly portCost = h("span", { class: "build-cost" });
   private readonly warshipCost = h("span", { class: "build-cost" });
@@ -211,6 +216,7 @@ export class Hud {
       { class: "panel build", "data-i18n-attr": "aria-label:hud.build" },
       ...BUILD_MODES.map(({ mode, key }) => {
         const costs: Partial<Record<ClickMode, HTMLElement>> = {
+          palace: this.palaceCost,
           fort: this.fortCost,
           port: this.portCost,
           silo: this.siloCost,
@@ -391,10 +397,11 @@ export class Hud {
 
   /** Costs of the next city and fort, greyed out while the player cannot pay or has no room. */
   private renderBuild(update: GameUpdate, human: PlayerView): void {
-    const { cityCost, fortCost, portCost, cities, cityLimit } = update.build;
+    const { cityCost, palaceCost, fortCost, portCost, cities, cityLimit } = update.build;
     this.portCost.textContent = formatCount(portCost);
     this.warshipCost.textContent = formatCount(update.build.warshipCost);
     this.cityCost.textContent = formatCount(cityCost);
+    this.palaceCost.textContent = formatCount(palaceCost);
     this.fortCost.textContent = formatCount(fortCost);
     const { siloCost, airDefenseCost, missileCost, heavyMissileCost, loaded } = update.build;
     this.siloCost.textContent = formatCount(siloCost);
@@ -405,6 +412,7 @@ export class Hud {
     const playing = update.phase === "play" && human.alive;
     const can: Partial<Record<ClickMode, boolean>> = {
       city: playing && human.gold >= cityCost && cities < cityLimit,
+      palace: playing && human.gold >= palaceCost && cities + 2 <= cityLimit,
       fort: playing && human.gold >= fortCost,
       port: playing && human.gold >= portCost,
       silo: playing && human.gold >= siloCost,

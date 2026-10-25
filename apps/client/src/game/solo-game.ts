@@ -22,6 +22,7 @@ import {
   sameTeam,
   canRenew,
   cityLimit,
+  cityShare,
   isAllied,
   installBots,
   installNations,
@@ -30,7 +31,6 @@ import {
   populationCap,
   seaRoute,
   structureCost,
-  structureCount,
   type DesyncReport,
   type Game,
   type GameRecord,
@@ -55,6 +55,7 @@ export type Difficulty = "easy" | "normal" | "hard";
 export type ClickMode =
   | "attack"
   | "city"
+  | "palace"
   | "fort"
   | "port"
   | "silo"
@@ -93,6 +94,8 @@ export interface SoloOptions {
   maxMinutes?: number | undefined;
   /** For tests that build: B-GOLD-RATE instead of its value in the balance. */
   goldRate?: number | undefined;
+  /** For tests that build a palace on a small map: B-CITY-LAND instead of its value. */
+  cityLand?: number | undefined;
   /**
    * Online: the human players in their final numbering, and which one plays
    * at this screen. Bots then take the numbers after the last human, and
@@ -224,7 +227,7 @@ export type ClickRefusal =
 
 export type ClickResult = { order: Order } | { refused: ClickRefusal };
 
-export type StructureType = "city" | "fort" | "port" | "silo" | "airDefense";
+export type StructureType = "city" | "palace" | "fort" | "port" | "silo" | "airDefense";
 
 export interface StructureView {
   id: number;
@@ -238,6 +241,8 @@ export interface StructureView {
 export interface BuildView {
   /** Gold the next city and the next fort cost the player. */
   cityCost: number;
+  /** What the next two cities would cost together (R-BUILD-08). */
+  palaceCost: number;
   fortCost: number;
   portCost: number;
   warshipCost: number;
@@ -247,6 +252,7 @@ export interface BuildView {
   heavyMissileCost: number;
   /** Whether a silo of the player's has a missile ready. */
   loaded: boolean;
+  /** Cities owned or being built, a palace counting as two. */
   cities: number;
   /** Most cities the player's land supports now. */
   cityLimit: number;
@@ -254,6 +260,7 @@ export interface BuildView {
 
 const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   city: StructureKind.City,
+  palace: StructureKind.Palace,
   fort: StructureKind.Fort,
   port: StructureKind.Port,
   silo: StructureKind.Silo,
@@ -266,6 +273,7 @@ const STRUCTURE_TYPES: Readonly<Record<StructureKind, StructureType>> = {
   [StructureKind.Port]: "port",
   [StructureKind.Silo]: "silo",
   [StructureKind.AirDefense]: "airDefense",
+  [StructureKind.Palace]: "palace",
 };
 
 /** Engine refusals of a build order, as the interface explains them: one for each BuildError. */
@@ -435,6 +443,7 @@ function newSetup(
     balance.maxDurationTicks = Math.round(options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond);
   }
   if (options.goldRate !== undefined) balance.goldPerThousandTroops = Math.floor(options.goldRate);
+  if (options.cityLand !== undefined) balance.cityLand = Math.floor(options.cityLand);
   return { players, botIds, nationIds, balance };
 }
 
@@ -546,7 +555,13 @@ export class SoloGame {
     ) {
       return { refused: sameTeam(game, this.you, territory.ownerOf(tile)) ? "teammate" : "ally" };
     }
-    if (mode === "city" || mode === "fort" || mode === "silo" || mode === "airDefense") {
+    if (
+      mode === "city" ||
+      mode === "palace" ||
+      mode === "fort" ||
+      mode === "silo" ||
+      mode === "airDefense"
+    ) {
       const order: Order = { type: "build", structure: STRUCTURE_KINDS[mode], tile };
       const error = orderError(game, human, order);
       if (error === undefined) return { order };
@@ -944,6 +959,7 @@ export class SoloGame {
       })),
       build: {
         cityCost: structureCost(game, this.you, StructureKind.City),
+        palaceCost: structureCost(game, this.you, StructureKind.Palace),
         fortCost: structureCost(game, this.you, StructureKind.Fort),
         portCost: structureCost(game, this.you, StructureKind.Port),
         warshipCost: warshipCost(game, this.you),
@@ -953,7 +969,7 @@ export class SoloGame {
         heavyMissileCost: missileCost(game, MissileSize.Heavy),
         // Any tile will do: whether one is loaded does not depend on the target.
         loaded: launchSilo(game, this.you, 0) !== undefined,
-        cities: structureCount(game, this.you, StructureKind.City),
+        cities: cityShare(game, this.you),
         cityLimit: cityLimit(game, this.you),
       },
       diplomacy: this.diplomacy(),

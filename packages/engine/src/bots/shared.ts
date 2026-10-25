@@ -3,7 +3,14 @@ import { reachableCoasts } from "../boats.ts";
 import { isAllied } from "../diplomacy.ts";
 import { Disable, type Game, type Player } from "../game.ts";
 import { divFloor, isqrt } from "../integer-math.ts";
-import { StructureKind, cityLimit, structureCost, structureCount } from "../structures.ts";
+import {
+  StructureKind,
+  cityLimit,
+  cityShare,
+  disableBit,
+  structureCost,
+  structureCount,
+} from "../structures.ts";
 import { NEUTRAL } from "../territory/territory-map.ts";
 import { warshipError } from "../warships.ts";
 
@@ -90,8 +97,8 @@ export type Cooldowns = Map<number, number>;
 export function buildCity(game: Game, bot: Player, cooldowns: Cooldowns, retryTicks: number): void {
   const { territory, random } = game;
   const kind = StructureKind.City;
-  if (!game.allows(1 << kind) || bot.gold < structureCost(game, bot.id, kind)) return;
-  if (structureCount(game, bot.id, kind) >= cityLimit(game, bot.id)) return;
+  if (!game.allows(disableBit(kind)) || bot.gold < structureCost(game, bot.id, kind)) return;
+  if (cityShare(game, bot.id) >= cityLimit(game, bot.id)) return;
   if (game.tick < (cooldowns.get(bot.id) ?? 0)) return;
   const start = bot.start;
   const center =
@@ -138,8 +145,8 @@ export function buildPort(game: Game, bot: Player, cooldowns: Cooldowns, retryTi
   const { territory, terrain, balance } = game;
   const topology = terrain.topology;
   const kind = StructureKind.Port;
-  if (!game.allows(1 << kind) || structureCount(game, bot.id, kind) > 0) return;
-  if (structureCount(game, bot.id, StructureKind.City) === 0) return;
+  if (!game.allows(disableBit(kind)) || structureCount(game, bot.id, kind) > 0) return;
+  if (cityShare(game, bot.id) === 0) return;
   if (bot.gold < structureCost(game, bot.id, kind)) return;
   if (game.tick < (cooldowns.get(bot.id) ?? 0)) return;
   const start = bot.start;

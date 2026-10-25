@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { captureCost, defenderLoss } from "../src/attacks.ts";
 import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
 import { createGame } from "../src/create-game.ts";
-import type { Order, Player } from "../src/game.ts";
+import { Disable, type Order, type Player } from "../src/game.ts";
 import { orderError } from "../src/orders.ts";
 import {
   StructureKind,
   cityLimit,
+  cityShare,
+  disableBit,
   fortRadius,
   fortified,
   structureCost,
@@ -132,6 +134,99 @@ describe("structures", () => {
     for (let y = 10; y < 20; y++)
       for (let x = 10; x < 20; x++) game.territory.setOwner(grid.index(x, y), 2);
     expect(workingCities(game, ada)).toBe(2);
+  });
+
+  it("prices a palace as the next two cities, and counts it as two after (R-BUILD-08)", () => {
+    const { game, ada, build } = newGame();
+    build(1, StructureKind.City, 2, 2);
+    // The second and third cities: 1500 + 2250.
+    expect(structureCost(game, 1, StructureKind.Palace)).toBe(3750);
+    build(1, StructureKind.Palace, 8, 2);
+    expect(ada.gold).toBe(100_000 - 1000 - 3750);
+    expect(cityShare(game, 1)).toBe(3);
+    // The next city is the fourth.
+    expect(structureCost(game, 1, StructureKind.City)).toBe(3375);
+    expect(structureCost(game, 1, StructureKind.Palace)).toBe(3375 + 5062);
+    expect(structureCost(game, 2, StructureKind.Palace)).toBe(2500);
+  });
+
+  it("raises the population cap as two cities once ready (R-BUILD-08)", () => {
+    const { game, ada, build, run } = newGame();
+    build(1, StructureKind.Palace, 5, 5);
+    expect(workingCities(game, ada)).toBe(0);
+    run(4);
+    expect(workingCities(game, ada)).toBe(2);
+  });
+
+  it("needs land for two cities, and counts within the land's cities when land is lost (R-BUILD-08)", () => {
+    const { game, grid, ada, build, run } = newGame();
+    // 400 tiles: three cities' worth.
+    build(1, StructureKind.City, 2, 2);
+    build(1, StructureKind.Palace, 8, 2);
+    const order = (structure: StructureKind): Order => ({
+      type: "build",
+      structure,
+      tile: grid.index(2, 10),
+    });
+    expect(orderError(game, ada, order(StructureKind.City))).toBe(
+      "not enough land for another city",
+    );
+    expect(orderError(game, ada, order(StructureKind.Palace))).toBe(
+      "not enough land for another city",
+    );
+    run(5);
+    expect(workingCities(game, ada)).toBe(3);
+    // Down to 300 tiles: two cities' worth.
+    for (let y = 10; y < 20; y++)
+      for (let x = 10; x < 20; x++) game.territory.setOwner(grid.index(x, y), 2);
+    expect(workingCities(game, ada)).toBe(2);
+  });
+
+  it("refuses a palace with only one more city's land (R-BUILD-08)", () => {
+    const { game, grid, ada, build } = newGame();
+    build(1, StructureKind.City, 2, 2);
+    build(1, StructureKind.City, 8, 2);
+    const palace: Order = {
+      type: "build",
+      structure: StructureKind.Palace,
+      tile: grid.index(2, 10),
+    };
+    expect(orderError(game, ada, palace)).toBe("not enough land for another city");
+  });
+
+  it("changes hands with its tile, and goes with the cities in a private game (R-BUILD-08)", () => {
+    const { game, grid, ada, bea, build, run } = newGame();
+    build(1, StructureKind.Palace, 18, 5);
+    run(5);
+    game.territory.setOwner(grid.index(18, 5), 2);
+    run(1);
+    expect(workingCities(game, ada)).toBe(0);
+    expect(workingCities(game, bea)).toBe(2);
+    const off = newGame();
+    const noCities = createGame({
+      terrain: off.game.terrain,
+      seed: 1,
+      players: [{ id: 1, name: "Ada" }],
+      balance,
+      disabled: Disable.City,
+    });
+    for (let tile = 0; tile < off.grid.size; tile++) noCities.territory.setOwner(tile, 1);
+    const solo = noCities.player(1) as Player;
+    solo.gold = 100_000;
+    const palace: Order = { type: "build", structure: StructureKind.Palace, tile: 5 };
+    expect(orderError(noCities, solo, palace)).toBe("left out of this game");
+    // Its bit is the cities', not the code's own, which leaves out warships.
+    expect(disableBit(StructureKind.Palace)).toBe(Disable.City);
+    const noWarships = createGame({
+      terrain: off.game.terrain,
+      seed: 1,
+      players: [{ id: 1, name: "Ada" }],
+      balance,
+      disabled: Disable.Warships,
+    });
+    for (let tile = 0; tile < off.grid.size; tile++) noWarships.territory.setOwner(tile, 1);
+    (noWarships.player(1) as Player).gold = 100_000;
+    expect(orderError(noWarships, noWarships.player(1) as Player, palace)).toBeUndefined();
   });
 
   it("refuses without enough gold, an unknown structure, or during the spawn phase", () => {

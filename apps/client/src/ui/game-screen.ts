@@ -705,6 +705,7 @@ export class GameScreen {
     }
     const modes: Partial<Record<string, ClickMode>> = {
       KeyC: "city",
+      KeyB: "palace",
       KeyF: "fort",
       KeyO: "port",
       KeyL: "silo",

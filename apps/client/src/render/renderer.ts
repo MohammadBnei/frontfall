@@ -23,7 +23,7 @@ export interface UnitMark {
 export interface StructureMark {
   readonly x: number;
   readonly y: number;
-  readonly type: "city" | "fort" | "port" | "silo" | "airDefense";
+  readonly type: "city" | "palace" | "fort" | "port" | "silo" | "airDefense";
   /** Drawn faded while it is being built. */
   readonly ready: boolean;
 }

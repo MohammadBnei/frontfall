@@ -90,6 +90,8 @@ export {
   BuildError,
   StructureKind,
   cityLimit,
+  cityShare,
+  disableBit,
   fortRadius,
   fortified,
   installStructures,
