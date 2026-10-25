@@ -55,7 +55,10 @@ async function landShare(page: Page): Promise<number> {
 async function startGame(page: Page, bots = 2, extra = ""): Promise<void> {
   await page.goto(`./?map=skirmish&bots=${String(bots)}&difficulty=easy&nations=0&speed=5${extra}`);
   await page.locator("#play").click();
-  await expect(page.locator("#map")).toBeVisible();
+  // A game that cannot start says why in a notice: the failure then names it.
+  await expect(page.locator("#map, .notice").first()).toBeVisible();
+  const notice = page.locator(".notice");
+  if (await notice.isVisible()) throw new Error(`no game: ${(await notice.textContent()) ?? ""}`);
   const box = await page.locator("#map").boundingBox();
   if (!box) throw new Error("the map has no size");
   // Spawn on the first land tile a spiral from the middle finds.
