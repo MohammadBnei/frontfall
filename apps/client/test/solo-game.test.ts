@@ -394,6 +394,60 @@ describe("SoloGame clicks", () => {
     expect(solo.orderForClick(sea, 30, "port")).toEqual({ refused: "gold" });
   });
 
+  it("aims a port or a warship at the coast from as far as the zoom lets a click miss it (R-BUILD-02, R-UNIT-04)", () => {
+    // Two islands, 10 x 10 tiles each, with 14 tiles of sea between them.
+    const width = 40;
+    const height = 14;
+    const kinds = new Uint8Array(width * height).fill(TileKind.Water);
+    const at = (x: number, y: number): number => y * width + x;
+    for (let y = 2; y < 12; y++) {
+      for (let x = 2; x < 12; x++) kinds[at(x, y)] = TileKind.Plains;
+      for (let x = 26; x < 36; x++) kinds[at(x, y)] = TileKind.Plains;
+    }
+    const solo = new SoloGame(
+      { ...options, bots: 0 },
+      {
+        id: "islands",
+        width,
+        height,
+        wrapsX: false,
+        kinds,
+        relief: new Uint8Array(kinds.length),
+        nations: [],
+      },
+    );
+    let update = solo.step([{ type: "spawn", tile: at(9, 6) }]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const { territory } = solo.game;
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 10_000_000;
+    for (let y = 2; y < 12; y++) {
+      for (let x = 2; x < 12; x++) territory.setOwner(at(x, y), HUMAN_ID);
+    }
+
+    // Out at sea, 6 tiles off the player's coast: zoomed in that is far, zoomed out a few pixels.
+    const sea = at(17, 6);
+    expect(solo.orderForClick(sea, 30, "port", 4)).toEqual({ refused: "coast" });
+    const port = solo.orderForClick(sea, 30, "port", 8);
+    expect(port).toEqual({ order: { type: "build", structure: 2, tile: at(11, 6) } });
+    solo.step(["order" in port ? port.order : []].flat());
+    for (let i = 0; i < solo.game.balance.buildTicks; i++) solo.step([]);
+
+    // The port's icon is a few pixels wide: a click as far as a port reaches buys there.
+    expect(solo.orderForClick(at(5, 6), 30, "warship", 4)).toEqual({ refused: "port" });
+    const buy = solo.orderForClick(at(5, 6), 30, "warship", 8);
+    expect(buy).toEqual({ order: { type: "warship", port: at(11, 6) } });
+    update = solo.step(["order" in buy ? buy.order : []].flat());
+    const ship = update.warships[0];
+    if (!ship) throw new Error("no warship");
+
+    // A click on the far island, by its coast, sends the warship to the water closest to it.
+    const patrol = solo.orderForClick(at(28, 6), 30, "warship", 4);
+    expect(patrol).toEqual({ order: { type: "patrol", ship: ship.id, tile: at(25, 6) } });
+    expect(solo.orderForClick(at(30, 6), 30, "warship", 2)).toEqual({ refused: "port" });
+  });
+
   it("sends gifts, shows who is at war, and keeps the game's left-out options in its record (R-DIPLO-06, R-MODE-03)", () => {
     const solo = newGame({ ...options, bots: 1, disabled: 8 });
     const land = firstLand(options.map);
@@ -523,7 +577,18 @@ describe("SoloGame clicks", () => {
     const coast = at(26, 6);
     const result = solo.orderForClick(coast, 50);
     expect(result).toMatchObject({ order: { type: "embark", target: coast } });
-    expect(solo.orderForClick(at(30, 6), 50)).toEqual({ refused: "unreachable" });
+    // Inland, the ship lands on the coast closest to the click, within the reach of a click.
+    const inland = solo.orderForClick(at(30, 6), 50, "attack", 6);
+    expect(inland).toMatchObject({ order: { type: "embark" } });
+    const landing = "order" in inland && inland.order.type === "embark" ? inland.order.target : -1;
+    expect(solo.game.terrain.isCoast(landing)).toBe(true);
+    expect(solo.game.terrain.topology.distance(landing, at(30, 6))).toBe(4);
+    expect(solo.orderForClick(at(30, 6), 50, "attack", 2)).toEqual({ refused: "unreachable" });
+    // On the sea by the far island, the same: its closest coast is the target.
+    expect(solo.orderForClick(at(24, 6), 50, "attack", 6)).toMatchObject({
+      order: { type: "embark", target: coast },
+    });
+    expect(solo.orderForClick(at(19, 6), 50, "attack", 2)).toEqual({ refused: "terrain" });
 
     update = solo.step(["order" in result ? result.order : []].flat());
     expect(update.boats).toHaveLength(1);

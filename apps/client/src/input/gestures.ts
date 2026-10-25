@@ -13,7 +13,7 @@ export interface PointerSample {
 
 export interface MapCallbacks {
   /** A press released without moving: the player picked this tile. */
-  readonly onTileClick?: (tile: number) => void;
+  readonly onTileClick?: (tile: number, finger: boolean) => void;
   /** A press held still for LONG_PRESS_MS, or a right click: the player wants the menu of this tile. */
   readonly onTileHold?: (tile: number) => void;
   /**
@@ -136,7 +136,7 @@ export class PointerGestures {
     const tile = this.camera.screenToTile(sample.x, sample.y);
     if (tile === undefined) return;
     if (held) this.callbacks.onTileHold?.(tile);
-    else this.callbacks.onTileClick?.(tile);
+    else this.callbacks.onTileClick?.(tile, sample.finger === true);
   }
 
   /** A right click: the menu of the tile under the pointer, never a click. */

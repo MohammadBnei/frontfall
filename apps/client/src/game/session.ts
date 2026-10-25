@@ -33,8 +33,12 @@ export interface SessionEvents {
 export interface GameSession {
   /** Order of the local player, carried out on a coming tick. */
   sendOrder(order: Order): void;
-  /** A click on the map, with the attack ratio in percent and the HUD's mode; the session picks the order. */
-  click(tile: number, ratio: number, mode?: ClickMode): void;
+  /**
+   * A click on the map, with the attack ratio in percent and the HUD's mode;
+   * the session picks the order. `reach`: tiles around the click that still
+   * count as aiming at the coast or the sea, from the zoom (aimReach).
+   */
+  click(tile: number, ratio: number, mode?: ClickMode, reach?: number): void;
   /** Solo only: online games never pause. */
   setPaused(paused: boolean): void;
   dispose(): void;

@@ -8,7 +8,7 @@ function setup(zoom = 4) {
   const camera = new FlatCamera({ width: WIDTH, height: 256 });
   camera.resize(1200, 800);
   camera.zoomAt(zoom, 600, 400);
-  const onTileClick = vi.fn<(tile: number) => void>();
+  const onTileClick = vi.fn<(tile: number, finger: boolean) => void>();
   const onHover = vi.fn<(tile: number | undefined) => void>();
   const gestures = new PointerGestures(camera, { onTileClick, onHover });
   return { camera, gestures, onTileClick, onHover };
@@ -21,15 +21,22 @@ describe("PointerGestures", () => {
     gestures.down({ id: 1, x: 300, y: 200 });
     gestures.move({ id: 1, x: 303, y: 204 });
     gestures.up({ id: 1, x: 303, y: 204 });
-    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(expected, false);
     expect(camera.view().centerX).toBe(256);
     expect(gestures.active).toBe(0);
+  });
+
+  it("says when a click is a finger's, which covers more of the screen than a mouse", () => {
+    const { camera, gestures, onTileClick } = setup();
+    gestures.down({ id: 1, x: 300, y: 200, time: 0, finger: true });
+    gestures.up({ id: 1, x: 300, y: 200, time: 100, finger: true });
+    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(camera.screenToTile(300, 200), true);
   });
 
   it("opens the tile's menu after a long press held still, or a right click", () => {
     const camera = new FlatCamera({ width: WIDTH, height: 256 });
     camera.resize(1200, 800);
-    const onTileClick = vi.fn<(tile: number) => void>();
+    const onTileClick = vi.fn<(tile: number, finger: boolean) => void>();
     const onTileHold = vi.fn<(tile: number) => void>();
     const gestures = new PointerGestures(camera, { onTileClick, onTileHold });
     const tile = camera.screenToTile(300, 200);
@@ -42,7 +49,7 @@ describe("PointerGestures", () => {
     gestures.down({ id: 2, x: 300, y: 200, time: 3000 });
     gestures.move({ id: 2, x: 340, y: 200, time: 3200 });
     gestures.up({ id: 2, x: 340, y: 200, time: 4000 });
-    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(tile);
+    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(tile, false);
     gestures.menu(300, 200);
     expect(onTileHold).toHaveBeenCalledTimes(2);
     // A mouse press carries no time: it clicks however long it is held.

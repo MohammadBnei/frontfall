@@ -137,8 +137,13 @@ export class SoloGame {
   }
 
   /** What a click on `tile` means for the player at this screen now (click-orders.ts). */
-  orderForClick(tile: number, ratio: number, mode: ClickMode = "attack"): ClickResult {
-    return orderForClick(this.game, this.you, tile, ratio, mode);
+  orderForClick(
+    tile: number,
+    ratio: number,
+    mode: ClickMode = "attack",
+    reach?: number,
+  ): ClickResult {
+    return orderForClick(this.game, this.you, tile, ratio, mode, reach);
   }
 
   /**

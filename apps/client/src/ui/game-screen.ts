@@ -6,6 +6,7 @@ import type { MapData, MapInfo } from "../game/maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
+import { aimReach } from "../input/aim.ts";
 import { commandCode } from "../input/keyboard.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
@@ -375,8 +376,8 @@ export class GameScreen {
 
   private createInput(): InputController {
     return new InputController(this.surface, this.camera, {
-      onTileClick: (tile) => {
-        this.click(tile);
+      onTileClick: (tile, finger) => {
+        this.click(tile, finger);
       },
       onTileHold: (tile) => {
         if (!this.replayBar) this.diplomacy.pick(this.owners[tile] ?? 0);
@@ -597,10 +598,10 @@ export class GameScreen {
     }
   }
 
-  private click(tile: number): void {
+  private click(tile: number, finger = false): void {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
-    this.session.click(tile, this.hud.ratio, this.mode);
+    this.session.click(tile, this.hud.ratio, this.mode, aimReach(this.camera.scale, finger));
     // A build mode stays on until a structure goes up (afterClick): a click
     // made while the worker answers the one before is still a build click.
     this.clicksInFlight.push(this.mode);

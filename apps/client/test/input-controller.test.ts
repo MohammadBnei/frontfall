@@ -41,7 +41,7 @@ function setup() {
   const camera = new FlatCamera({ width: 512, height: 256 });
   camera.resize(1200, 800);
   camera.zoomAt(4, 600, 400);
-  const onTileClick = vi.fn<(tile: number) => void>();
+  const onTileClick = vi.fn<(tile: number, finger: boolean) => void>();
   const onHover = vi.fn<(tile: number | undefined) => void>();
   const input = new InputController(
     element as unknown as HTMLElement,
@@ -57,7 +57,7 @@ describe("InputController", () => {
     const { element, camera, onTileClick } = setup();
     element.dispatchEvent(pointer("pointerdown", 3, 310, 210));
     element.dispatchEvent(pointer("pointerup", 3, 310, 210));
-    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(camera.screenToTile(310, 210));
+    expect(onTileClick).toHaveBeenCalledExactlyOnceWith(camera.screenToTile(310, 210), true);
     expect(element.captured).toEqual([3]);
   });
 

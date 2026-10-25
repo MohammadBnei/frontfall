@@ -22,6 +22,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Fixed
 
+- **Aiming at the coast is easier.** A port, a warship or a ship sent across the sea no longer asks for a click right on the shore: a click within about 24 pixels of the coast finds it, 40 with a finger, at any zoom. On a large map zoomed out that used to be a pixel or two. Port and warship modes stay armed until one goes through, or until Esc, and a click too far from any coast still says why.
+
 - **Lobby settings stay as you set them.** On a slow connection, the host who changed several settings in a row could see one of them snap back, and the game started with the old value. Each choice now holds until the server has answered it.
 - When an online game loses its connection, a notice now says so, with the time to the next attempt, instead of a map that silently stops. A player who cannot get their seat back is told that the game went on without them or is over, no longer that every player left.
 - A solo game waits behind its end screen until you choose to keep watching. It used to play on, so the clock ran past the time limit and a replay saved a few minutes later held those minutes too.

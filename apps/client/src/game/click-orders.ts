@@ -18,11 +18,14 @@ import type { ClickMode, ClickRefusal, ClickResult, StructureType } from "./game
 /** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
 const DEMOLISH_REACH = 3;
 /**
- * Tiles around a click within which a port finds the player's coast: on a
- * large map the coast is a line under a pixel wide, so a click by the water,
- * on the land or the sea, picks the closest coast tile that takes a port.
+ * Tiles around a click that still aim at the coast or the sea when the screen
+ * gives no reach of its own (aimReach turns pixels into tiles at the zoom):
+ * on a large map the coast is a line under a pixel wide, so a click by the
+ * water, on the land or the sea, picks the closest coast tile that fits.
  */
 const PORT_REACH = 8;
+/** Coasts a sea attack near the click tries, closest first: each one is a route search. */
+const LANDING_TRIES = 4;
 
 const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   city: StructureKind.City,
@@ -52,7 +55,9 @@ function isBuildError(error: string): error is BuildError {
  * What a click on `tile` means for the human now: pick a start during the
  * spawn phase, then expand or attack with `ratio` percent of their troops,
  * by land when the target touches their land, by sea when it is a coast
- * on another land mass. Otherwise, why nothing happens.
+ * on another land mass. Otherwise, why nothing happens. A click on the sea,
+ * or inland where no attack goes, aims at the closest coast within `reach`
+ * tiles; ports and warships look as far.
  */
 export function orderForClick(
   game: Game,
@@ -60,6 +65,7 @@ export function orderForClick(
   tile: number,
   ratio: number,
   mode: ClickMode = "attack",
+  reach = PORT_REACH,
 ): ClickResult {
   const { terrain, territory } = game;
   const human = game.player(you);
@@ -68,12 +74,19 @@ export function orderForClick(
     return { refused: "terrain" };
   }
   if (mode === "demolish") return demolishNear(game, you, tile);
-  if (mode === "warship") return warshipFor(game, you, tile);
+  if (mode === "warship") return warshipFor(game, you, tile, reach);
   if (mode === "missile" || mode === "heavyMissile") {
     return missileAt(game, you, tile, mode === "heavyMissile");
   }
-  if (mode === "port") return portNear(game, you, tile);
-  if (!terrain.isOwnable(tile)) return { refused: "terrain" };
+  if (mode === "port") return portNear(game, you, tile, reach);
+  if (!terrain.isOwnable(tile)) {
+    // On the sea: the coast closest to the click, someone else's, is the target.
+    const coast =
+      mode === "attack" ? landingsNear(game, you, tile, reach, () => true)[0] : undefined;
+    return coast === undefined
+      ? { refused: "terrain" }
+      : orderForClick(game, you, coast, ratio, mode, 0);
+  }
   if (game.phase === "play" && isAllied(game, you, territory.ownerOf(tile)) && mode === "attack") {
     return { refused: sameTeam(game, you, territory.ownerOf(tile)) ? "teammate" : "ally" };
   }
@@ -113,28 +126,60 @@ export function orderForClick(
   if (touches) {
     return { order: { type: "attack", target: tile, troops } };
   }
-  if (terrain.isCoast(tile) && seaRoute(game, you, tile)) {
+  // By sea: the click's own coast, or else the closest coast of the same
+  // owner on the same land mass, for a click a little inland.
+  const landing = [tile, ...landingsNear(game, you, tile, reach, (near) => near !== tile)]
+    .filter((near) => terrain.isCoast(near) && territory.ownerOf(near) === owner)
+    .filter((near) => terrain.landmassOf(near) === mass)
+    .slice(0, LANDING_TRIES)
+    .find((near) => seaRoute(game, you, near));
+  if (landing !== undefined) {
     const atSea = game.boats.filter((boat) => boat.player === you).length;
     if (atSea >= game.balance.boatMax) return { refused: "ships" };
-    return { order: { type: "embark", target: tile, troops } };
+    return { order: { type: "embark", target: landing, troops } };
   }
   return { refused: "unreachable" };
 }
 
+/** Coast tiles not the player's within `reach` of the click and passing `accept`, closest first. */
+function landingsNear(
+  game: Game,
+  you: number,
+  tile: number,
+  reach: number,
+  accept: (near: number) => boolean,
+): number[] {
+  const { terrain, territory } = game;
+  const topology = terrain.topology;
+  if (reach <= 0) return [];
+  return topology
+    .tilesWithin(tile, reach)
+    .filter(
+      (near) =>
+        terrain.isCoast(near) &&
+        terrain.isOwnable(near) &&
+        territory.ownerOf(near) !== you &&
+        accept(near),
+    )
+    .map((near) => ({ near, distance: topology.squaredDistance(near, tile) }))
+    .sort((a, b) => a.distance - b.distance)
+    .map(({ near }) => near);
+}
+
 /**
  * In port mode: a port on the player's coast tile closest to the click,
- * within PORT_REACH, among those that take one. When none does, the refusal
+ * within `reach`, among those that take one. When none does, the refusal
  * is the one of the closest coast tile, or "coast" when the player holds
  * no coast there.
  */
-function portNear(game: Game, you: number, tile: number): ClickResult {
+function portNear(game: Game, you: number, tile: number, reach: number): ClickResult {
   const { terrain, territory } = game;
   const human = game.player(you);
   if (!human) return { refused: "over" };
   const topology = terrain.topology;
   let refusal: { error: string; distance: number } | undefined;
   let best: { tile: number; distance: number } | undefined;
-  for (const near of topology.tilesWithin(tile, PORT_REACH)) {
+  for (const near of topology.tilesWithin(tile, reach)) {
     if (territory.ownerOf(near) !== you || !terrain.isCoast(near)) continue;
     const distance = topology.squaredDistance(near, tile);
     const order: Order = { type: "build", structure: StructureKind.Port, tile: near };
@@ -190,26 +235,43 @@ function missileAt(game: Game, you: number, tile: number, heavy: boolean): Click
 /**
  * In warship mode: a click near the player's port buys a warship there; a
  * click on water sends the player's closest warship that can reach it to
- * patrol around it.
+ * patrol around it. A click on the land away from the player's ports sends
+ * one to the water closest to it, within `reach`; a click on the water with
+ * no warship to send buys one at a port within `reach`.
  */
-function warshipFor(game: Game, you: number, tile: number): ClickResult {
+function warshipFor(game: Game, you: number, tile: number, reach: number): ClickResult {
   const human = game.player(you);
   if (!human) return { refused: "over" };
   if (game.phase !== "play") return { refused: "early" };
-  if (game.terrain.kind(tile) === TileKind.Water) {
-    const topology = game.terrain.topology;
+  const { terrain } = game;
+  const topology = terrain.topology;
+  // A click near the port finds it, as far as a click that built it reaches.
+  const port = structureNear(game, you, tile, (s) => s.kind === StructureKind.Port, reach);
+  let water: number | undefined = terrain.kind(tile) === TileKind.Water ? tile : undefined;
+  if (water === undefined && !port) {
+    let best = Infinity;
+    for (const near of topology.tilesWithin(tile, reach)) {
+      if (terrain.kind(near) !== TileKind.Water) continue;
+      const distance = topology.squaredDistance(near, tile);
+      if (distance < best) {
+        best = distance;
+        water = near;
+      }
+    }
+  }
+  if (water !== undefined) {
+    const target = water;
     const ships = game.warships
       .filter((warship) => warship.player === you)
-      .map((warship) => ({ id: warship.id, distance: topology.distance(warship.tile, tile) }))
+      .map((warship) => ({ id: warship.id, distance: topology.distance(warship.tile, target) }))
       .sort((a, b) => a.distance - b.distance);
     for (const { id } of ships) {
-      const order: Order = { type: "patrol", ship: id, tile };
+      const order: Order = { type: "patrol", ship: id, tile: target };
       if (orderError(game, human, order) === undefined) return { order };
     }
-    return { refused: "noWarship" };
+    // No warship and no port by a click on the land: buying one comes first.
+    if (!port) return { refused: ships.length > 0 || water === tile ? "noWarship" : "port" };
   }
-  // A click near the port finds it, as far as a click that built it reaches.
-  const port = structureNear(game, you, tile, (s) => s.kind === StructureKind.Port, PORT_REACH);
   if (!port) return { refused: "port" };
   const order: Order = { type: "warship", port: port.tile };
   const error = orderError(game, human, order);

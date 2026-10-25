@@ -83,8 +83,8 @@ export class LocalSession implements GameSession {
     else this.post({ type: "order", order });
   }
 
-  click(tile: number, ratio: number, mode: ClickMode = "attack"): void {
-    this.post({ type: "click", tile, ratio, mode });
+  click(tile: number, ratio: number, mode: ClickMode = "attack", reach?: number): void {
+    this.post({ type: "click", tile, ratio, mode, ...(reach === undefined ? {} : { reach }) });
   }
 
   /** Online: turns from the server, consecutive, from the next tick on. */

@@ -49,7 +49,7 @@ export type WorkerRequest =
   | { type: "turns"; turns: Turn[] }
   | { type: "order"; order: Order }
   /** A click on the map, turned into an order by the worker, which knows the game. */
-  | { type: "click"; tile: number; ratio: number; mode: ClickMode }
+  | { type: "click"; tile: number; ratio: number; mode: ClickMode; reach?: number }
   | { type: "pause"; paused: boolean }
   /** Online: the server flagged this client's hash after `tick`. */
   | { type: "desync"; tick: number; expected: number | null }
