@@ -69,6 +69,58 @@ jobs:
           path: e2e/test-results
           retention-days: 7
 
+  self-hosting:
+    name: Self-hosting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    # The image built from this commit, run with compose.yaml as docs/self-hosting.md says,
+    # read-only and with its data volume, then played in Chromium against that container.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          tags: frontfall:ci
+          load: true
+          cache-from: type=gha,scope=self-hosting
+          cache-to: type=gha,scope=self-hosting,mode=max
+      - name: Start the game with compose.yaml
+        env:
+          FRONTFALL_IMAGE: frontfall:ci
+        run: docker compose up --detach --wait
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @frontfall/e2e
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
+      # The menu, solo games, a private game between two pages, and the server's own pages.
+      - run: pnpm test:e2e tests/server-pages.spec.ts tests/solo-game.spec.ts tests/walking-skeleton.spec.ts
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8080/
+      # Stopped, the server writes its usage counts to the volume, and reads them back on start.
+      - name: Keep the data across a restart
+        env:
+          FRONTFALL_IMAGE: frontfall:ci
+        run: |
+          docker compose stop
+          docker compose cp frontfall:/var/lib/frontfall/usage/usage.json "$RUNNER_TEMP/usage.json"
+          test -s "$RUNNER_TEMP/usage.json"
+          docker compose up --detach --wait
+          if docker compose logs | grep -E 'usage_not_loaded|usage_not_saved|usage_in_memory'; then exit 1; fi
+      - if: failure()
+        run: docker compose logs
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: self-hosting-traces
+          path: e2e/test-results
+          retention-days: 7
+
   determinism:
     name: Determinism
     runs-on: ubuntu-24.04
