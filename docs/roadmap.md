@@ -6,7 +6,7 @@ The game is in beta until v1.0, and its page says so. v1.0 is the first version 
 
 The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
-**Where it stands.** v0.1 and v0.2 are complete and live: a solo game against bots and online games with friends, on eight maps. v0.3 is under way. The review of 24 October 2026, after the owner's playtest, moved a few issues; it is summarised under [Changes after v0.2](#changes-after-v02).
+**Where it stands.** v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. v0.5, the balance pass, is under way. The review of 24 October 2026, after the owner's playtest, moved a few issues; it is summarised under [Changes after v0.2](#changes-after-v02).
 
 ## Overview
 
@@ -14,9 +14,9 @@ The game ships as a series of playable versions instead of one release at the en
 | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------- | -----: | -------: |
 | [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)                  | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.     | Shipped |     23 |  71 days |
 | [v0.2 · Online with friends](#v02--online-with-friends)                 | Share a link, two to eight friends join, and the same game plays out on every screen.        | Shipped |      8 |  24 days |
-| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities and forts, ally and betray, face named nations, on a watched server.            | Current |     12 |  24 days |
-| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.             | Current |      6 |  19 days |
-| [v0.5 · Balanced](#v05--balanced)                                       | Play a flat-map game where no strategy or start position runs away with it.                  | Planned |      1 |   3 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                                 | Build cities and forts, ally and betray, face named nations, on a watched server.            | Shipped |     12 |  24 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                       | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.             | Shipped |      6 |  19 days |
+| [v0.5 · Balanced](#v05--balanced)                                       | Play a flat-map game where no strategy or start position runs away with it.                  | Current |      1 |   3 days |
 | [v0.6 · 3D globe](#v06--3d-globe)                                       | The same game on a planet you can spin. No edge, no seam.                                    | Planned |      7 |  21 days |
 | [v0.7 · Performance and view switch](#v07--performance-and-view-switch) | Smooth on a modest laptop, and switch between the flat map and the globe mid-game.           | Planned |      6 |  16 days |
 | [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)    | The complete game on the 3D globe, online, balanced and monitored. The beta label comes off. | Planned |      1 |    1 day |
@@ -143,6 +143,8 @@ Shipped as `v0.2.0`.
 
 **Playable when**
 
+Shipped with v0.4 as `v0.4.0`. Check 6, the round with three outside players, is still to run.
+
 1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-04` and `R-BOT-02` is implemented and covered by a test that names it.
 2. A player who reloads the page 20 minutes into a game is back in sync in under 10 seconds.
 3. An external check alerts the owner within 5 minutes when the public server stops answering.
@@ -176,6 +178,8 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 **Outcome.** Sail from ports, fight at sea, launch missiles, play in teams and watch a game again.
 
 **Playable when**
+
+Shipped as `v0.4.0`. Check 2, a team game of 4 against 4 on the public server, is still to be played.
 
 1. Every rule of `docs/rules.md` v1 is implemented and covered by a test that names it.
 2. A team game of 4 against 4 is played to the end on the public server.

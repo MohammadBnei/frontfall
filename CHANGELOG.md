@@ -4,6 +4,10 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-25
+
+Deeper game, then sea and missiles, released together: cities and forts, alliances and betrayal, named nations, ports and trade, warships, missiles, team games, replays, gifts, quick messages and private-game options. Every rule of the v1 rulebook is in the game. There is no 0.3.0: v0.3 and v0.4 were checked and tagged as one release.
+
 ### Added
 
 - Build cities and forts in a game: a panel above the toolbar, or C, F and X, picks what the next click builds or demolishes, with the cost of each and the cities your land supports. Structures show on the map, faded while being built.
@@ -26,6 +30,8 @@ All notable changes to Frontfall are documented here. The format follows [Keep a
 - Hard bots are stronger: they attack with more troops, keep fewer at home and take on denser neighbours ([docs/balance.md](docs/balance.md#bots)). Easy and normal bots play as before.
 - CI holds the game to a performance budget ([docs/performance.md](docs/performance.md#budgets)). A new Performance job plays 64 bots on World on the commit and on the commit it branched from, alternating on the same runner, and fails when the engine got slower or its tick p95 exceeds 30 ms; it also fails when the client's download outgrows its budget, and reports load times and frame rate in headless Chromium. `pnpm perf:engine` and `pnpm perf:client` run the same checks locally.
 - The panels over the map are opaque, so structures and ships no longer show through them. Ships keep a readable size when the map is zoomed out: trade ships and transports stay at least 6 pixels wide, warships 10, on the flat map and on the globe.
+- The simulation worker is down from 50 kB to 23.5 kB gzipped: the schema library stays out of it.
+- The client is versioned 0.4.0, and the beta label shows it.
 
 ### Fixed
 
@@ -117,6 +123,7 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/nic0lasm/frontfall/compare/v0.2.0...v0.4.0
 [0.2.0]: https://github.com/nic0lasm/frontfall/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nic0lasm/frontfall/releases/tag/v0.1.0
