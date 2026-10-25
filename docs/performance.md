@@ -430,21 +430,31 @@ attack and tick instead of once per captured tile:
 ### Ports opening
 
 A port that opens searches the sea for routes to the other open ports within
-B-TRADE-RANGE, in the tick it opens. Measured on World with 8 normal bots,
-seeds 1 to 5, each game played to its winner (4,978 to 6,701 ticks):
+B-TRADE-RANGE: 500 tiles of sea on a map of 2^19 tiles, 1,000 on World. Done
+in the tick the port opens, one search took up to 27 ms on World at 500 tiles
+and 40 to 50 ms at 1,000, since it then walks most of the ocean. The search
+is now spread over ticks, 25,000 water tiles per tick at most, and a port
+gets its routes once its search is over, about 5 seconds on World, within
+the 10 seconds before its first trade ship. Land masses and the ocean are
+also found when the game is created, no longer on first use, which stalled
+one tick of play for 48 ms and 108 ms on World.
 
-| Seed | Ports opened | Slowest tick a port opened | Slowest tick of the game | Tick p99 |
-| ---: | -----------: | -------------------------: | -----------------------: | -------: |
-|    1 |            6 |                   26.89 ms |                 27.19 ms | 12.02 ms |
-|    2 |            7 |                   15.94 ms |                 15.94 ms |  8.44 ms |
-|    3 |            6 |                   19.89 ms |                 23.63 ms |  9.69 ms |
-|    4 |            7 |                   10.89 ms |                 27.85 ms | 10.89 ms |
-|    5 |            7 |                   19.02 ms |                 24.60 ms | 10.62 ms |
+Measured on World with 8 normal bots and the 64 nations, 20 minutes or to
+the winner, then the same with 300,000 gold for every player every 30
+seconds so that they build some 70 ports:
 
-A port opening can take a tick over 16 ms, up to 27 ms, but no more than the
-slowest ticks without one: those come from large attacks and enclosures. All
-stay well under the 100 ms of a tick, and the p95 budget is untouched. If
-crowded maps make it worse, the search can be spread over a few ticks.
+| Seed | Ports | Slowest tick of route searches | Slowest tick of the game | Tick p99 |
+| ---: | ----: | -----------------------------: | -----------------------: | -------: |
+|    1 |    22 |                       12.56 ms |                 21.60 ms |  8.24 ms |
+|    2 |    23 |                       13.11 ms |                 21.90 ms | 10.41 ms |
+|    3 |    23 |                       13.55 ms |                 18.20 ms |  8.94 ms |
+|    1 |    72 |                        8.50 ms |                 23.90 ms | 10.34 ms |
+|    2 |    72 |                       10.79 ms |                131.50 ms | 10.03 ms |
+|    3 |    67 |                        9.77 ms |                 28.60 ms | 10.75 ms |
+
+Route searches never make a tick slower than 14 ms. The slow ticks left, as
+in the second game with 72 ports, come from large attacks and enclosures
+when every player is rich, and spend no time on routes.
 
 ### Warships and missiles
 

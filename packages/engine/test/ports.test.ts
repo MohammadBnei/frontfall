@@ -5,6 +5,7 @@ import type { Order, Player } from "../src/game.ts";
 import { orderError } from "../src/orders.ts";
 import { StructureKind, structureCost } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
+import { tradeRange } from "../src/trade.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
 const balance: Balance = {
@@ -195,5 +196,18 @@ describe("trade", () => {
     a.step([{ player: 1, order: { type: "embargo", target: 2, on: 1 } }]);
     b.step();
     expect(a.game.hash()).not.toBe(b.game.hash());
+  });
+  it("reaches farther on larger maps, like the spawn radius (B-TRADE-RANGE)", () => {
+    const range = (width: number, height: number) =>
+      tradeRange(
+        createGame({
+          terrain: new Terrain(new WorldGrid(width, height), new Uint8Array(width * height)),
+          seed: 1,
+          players: [],
+        }),
+      );
+    expect(range(256, 128)).toBe(DEFAULT_BALANCE.tradeRange);
+    expect(range(1024, 512)).toBe(DEFAULT_BALANCE.tradeRange);
+    expect(range(2048, 1024)).toBe(2 * DEFAULT_BALANCE.tradeRange);
   });
 });

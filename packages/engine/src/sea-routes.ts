@@ -6,7 +6,12 @@ import { TileKind } from "./terrain.ts";
  * finds every open port within B-TRADE-RANGE of sea and the shortest route
  * to each; the route between two ports is the one found from the newer of
  * the two. Water never changes, so a route stays valid until one of its
- * ports closes. A route lists the water tiles from the side of its first
+ * ports closes.
+ *
+ * One search can walk most of the sea of a large map. With a budget, ports
+ * wait in line and `work` searches at most that many water tiles per call,
+ * so a search spreads over several ticks instead of stalling one; a port
+ * has its routes once its search is over. A route lists the water tiles from the side of its first
  * port to the side of its second, neither coast included; ships share the
  * arrays and never write to them.
  */
@@ -19,12 +24,18 @@ export class SeaRoutes {
   /** Open ports, and the ports each one has routes to, in the order they opened. */
   private readonly partners = new Map<number, number[]>();
   private readonly search: SeaSearch;
+  /** Water tiles searched per call of `work`; without one, a port's search ends as it opens. */
+  private readonly budget: number;
+  /** Ports opened and still waiting for their routes, the first one being searched. */
+  private readonly waiting: number[] = [];
+  private searching = -1;
 
-  constructor(game: Game, range: number) {
+  constructor(game: Game, range: number, budget = Number.POSITIVE_INFINITY) {
     this.game = game;
     this.range = range;
     this.size = game.terrain.topology.size;
     this.search = new SeaSearch(game, range);
+    this.budget = budget;
   }
 
   /** The route from port `from` to port `to`, or undefined when they are out of reach of each other. */
@@ -37,27 +48,58 @@ export class SeaRoutes {
     return this.partners.get(port) ?? [];
   }
 
-  /** Open ports, in the order they opened. */
+  /** Open ports, in the order they opened, then those waiting for their routes. */
   openPorts(): number[] {
-    return [...this.partners.keys()];
+    return [...this.partners.keys(), ...this.waiting];
   }
 
   isOpen(port: number): boolean {
     return this.partners.has(port);
   }
 
-  /** Opens a port: one search over the sea around it gives its routes to every open port in reach. */
+  /**
+   * Opens a port: one search over the sea around it gives its routes to
+   * every open port in reach, at once without a budget, else as `work` gets to it.
+   */
   open(port: number): void {
-    if (this.partners.has(port)) return;
-    // No sea route is shorter than the distance between two ports: skip the search when none is in range.
+    if (this.partners.has(port) || this.waiting.includes(port)) return;
+    this.waiting.push(port);
+    if (this.budget === Number.POSITIVE_INFINITY) this.work();
+  }
+
+  /** Searches for the waiting ports' routes, oldest first, up to the budget. */
+  work(): void {
+    const { topology } = this.game.terrain;
+    let left = this.budget;
+    while (this.waiting.length > 0 && left > 0) {
+      const port = this.waiting[0] as number;
+      if (this.searching !== port) {
+        // No sea route is shorter than the distance between two ports: skip the search when none is in range.
+        const near = (other: number) =>
+          other !== port && topology.distance(port, other) <= this.range + 1;
+        if (![...this.partners.keys(), ...this.waiting].some(near)) {
+          this.finish(port, false);
+          continue;
+        }
+        this.search.from(port);
+        this.searching = port;
+      }
+      left = this.search.advance(left);
+      if (this.search.done) this.finish(port, true);
+    }
+  }
+
+  /** The search of the first waiting port is over: its routes to every open port in reach. */
+  private finish(port: number, searched: boolean): void {
+    this.waiting.shift();
+    this.searching = -1;
     const { topology } = this.game.terrain;
     const others = [...this.partners.keys()].filter(
       (other) => topology.distance(port, other) <= this.range + 1,
     );
     const mine: number[] = [];
     this.partners.set(port, mine);
-    if (others.length === 0) return;
-    this.search.from(port);
+    if (!searched) return;
     for (const other of others) {
       const path = this.search.pathTo(other);
       if (!path) continue;
@@ -70,6 +112,12 @@ export class SeaRoutes {
 
   /** Closes a port: its routes go with it. */
   close(port: number): void {
+    const waiting = this.waiting.indexOf(port);
+    if (waiting >= 0) {
+      this.waiting.splice(waiting, 1);
+      if (this.searching === port) this.searching = -1;
+      return;
+    }
     const mine = this.partners.get(port);
     if (!mine) return;
     this.partners.delete(port);
@@ -94,6 +142,8 @@ class SeaSearch {
   private marks = new Uint32Array(0);
   private generation = 0;
   private queue = new Int32Array(1024);
+  private head = 0;
+  private tail = 0;
   private readonly around = new Int32Array(4);
   private readonly step = new Int32Array(4);
 
@@ -102,7 +152,12 @@ class SeaSearch {
     this.range = Math.min(range, 0xffff);
   }
 
-  /** Marks the sea around `port` with each tile's distance from the port's shore. */
+  /** Whether the search started by `from` has marked all the sea in range. */
+  get done(): boolean {
+    return this.head >= this.tail;
+  }
+
+  /** Starts marking the sea around `port` with each tile's distance from the port's shore; `advance` goes on. */
   from(port: number): void {
     const { topology } = this.game.terrain;
     if (this.marks.length === 0) this.marks = new Uint32Array(topology.size);
@@ -119,8 +174,17 @@ class SeaSearch {
       this.mark(water, 0);
       tail = this.enqueue(tail, water);
     }
-    let head = 0;
-    while (head < tail) {
+    this.head = 0;
+    this.tail = tail;
+  }
+
+  /** Searches up to `budget` more water tiles; gives back what is left of the budget. */
+  advance(budget: number): number {
+    const { topology } = this.game.terrain;
+    let { head, tail } = this;
+    let left = budget;
+    while (head < tail && left > 0) {
+      left--;
       const water = this.queue[head++] as number;
       const distance = this.distance(water) + 1;
       if (distance >= this.range) continue;
@@ -132,6 +196,9 @@ class SeaSearch {
         tail = this.enqueue(tail, tile);
       }
     }
+    this.head = head;
+    this.tail = tail;
+    return left;
   }
 
   /**

@@ -83,15 +83,17 @@ Warships fire only between players at war: a transport ship sailing for a coast 
 
 ## Trade
 
-| Key                | Value | Unit                | Used by     | Notes                                                                |
-| ------------------ | ----: | ------------------- | ----------- | -------------------------------------------------------------------- |
-| `B-TRADE-RANGE`    |   500 | water tiles         | `R-UNIT-03` | Longest trade route, the same on every map; also bounds the search   |
-| `B-TRADE-INTERVAL` |    10 | s                   | `R-UNIT-03` | Between two departures from one port, counted from when it was built |
-| `B-TRADE-MAX`      |     3 | ships per port      | `R-UNIT-03` | Trade ships of one port at sea at once                               |
-| `B-TRADE-BASE`     |  2000 | gold                | `R-UNIT-03` | Earned by each side when a ship arrives                              |
-| `B-TRADE-PER-TILE` |    20 | gold per water tile | `R-UNIT-03` | Earned by each side on top, for the length of the route              |
+| Key                | Value | Unit                | Used by     | Notes                                                                              |
+| ------------------ | ----: | ------------------- | ----------- | ---------------------------------------------------------------------------------- |
+| `B-TRADE-RANGE`    |   500 | water tiles         | `R-UNIT-03` | Longest trade route on a map of 2^19 tiles, 1,000 on World; also bounds the search |
+| `B-TRADE-INTERVAL` |    10 | s                   | `R-UNIT-03` | Between two departures from one port, counted from when it was built               |
+| `B-TRADE-MAX`      |     3 | ships per port      | `R-UNIT-03` | Trade ships of one port at sea at once                                             |
+| `B-TRADE-BASE`     |  2000 | gold                | `R-UNIT-03` | Earned by each side when a ship arrives                                            |
+| `B-TRADE-PER-TILE` |    20 | gold per water tile | `R-UNIT-03` | Earned by each side on top, for the length of the route                            |
 
-A route of 100 tiles pays 4,000 gold to each side, one of 500 tiles 12,000. With three ships at sea at most, a port sees 400 to 1,200 gold per second go out and as much come in, whatever the distance: some 15 to 40 % of the income of an average player four to six minutes into a game on World, and 1 to 2 % of the leader's. Trade helps the small empires and does little for the one that is running away with the game.
+A route of 100 tiles pays 4,000 gold to each side, one of 500 tiles 12,000, one of 1,000 tiles 22,000. With three ships at sea at most, a port sees some 400 to 1,300 gold per second go out and as much come in, whatever the distance.
+
+Like the other lengths, the range grows with the side of the map. At 500 tiles on World, bots, who start 60 tiles apart or more and often on other continents, had no port in each other's reach: in 12 games of 8 normal bots, not one trade ship sailed. At 1,000 tiles, with bots building on the ocean (`R-BOT-06`), the median player with a port earns 3,700 to 5,300 gold per second from trade between 6 and 10 minutes: 63 % of what its troops earn at 6 minutes, 22 % at 10. The leader gets 4 to 5 % of its income from trade. Trade helps the small empires and does little for the one that is running away with the game; games last as long as before (`pnpm balance -- --map world --bots normal:8 --seeds 1-12`).
 
 ## Diplomacy
 

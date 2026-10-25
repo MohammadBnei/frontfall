@@ -67,6 +67,15 @@ export class Terrain {
   }
 
   /**
+   * Finds the land masses and the ocean now instead of on first use: on
+   * World each takes tens of milliseconds, too long for a tick of play.
+   */
+  prepare(): void {
+    this.landmasses ??= this.findLandmasses();
+    this.ocean ??= this.findOcean();
+  }
+
+  /**
    * Ownable land next to the ocean, the largest body of water on the map
    * (R-MAP-05), and not only next to a lake.
    */

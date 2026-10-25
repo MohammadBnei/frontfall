@@ -101,4 +101,41 @@ describe("sea routes (#44)", () => {
       ...(first.between(...ends) as Int32Array),
     ]);
   });
+  it("spreads a search over calls of work with a budget, and finds the same routes", () => {
+    const land = (x: number, y: number) => x === 0 || x === 29 || (x % 7 === 3 && y !== x % 5);
+    const atOnce = mapOf(30, 12, land);
+    const { game, grid } = atOnce;
+    const ends = [grid.index(0, 4), grid.index(29, 8)] as [number, number];
+    const whole = atOnce.between(...ends) as Int32Array;
+    const routes = new SeaRoutes(game, 500, 40);
+    for (const port of ends) routes.open(port);
+    // Both ports wait for their search, oldest first; each one walks the sea in steps of 40 tiles.
+    routes.work();
+    expect(routes.isOpen(ends[0])).toBe(false);
+    expect(routes.openPorts()).toEqual(ends);
+    let calls = 1;
+    while (!routes.isOpen(ends[1])) {
+      routes.work();
+      calls++;
+    }
+    expect(calls).toBeGreaterThan(2);
+    expect([...(routes.route(ends[0], ends[1]) as Int32Array)]).toEqual([...whole]);
+  });
+
+  it("forgets a port closed while it waits for its search", () => {
+    const { grid, game } = mapOf(30, 5, (x) => x === 0 || x === 29);
+    const [a, b] = [grid.index(0, 2), grid.index(29, 2)] as [number, number];
+    const routes = new SeaRoutes(game, 500, 10);
+    routes.open(a);
+    routes.open(b);
+    routes.work();
+    routes.work();
+    routes.close(b);
+    routes.close(a);
+    expect(routes.openPorts()).toEqual([]);
+    routes.open(b);
+    for (let i = 0; i < 20; i++) routes.work();
+    expect(routes.openPorts()).toEqual([b]);
+    expect(routes.partnersOf(b)).toEqual([]);
+  });
 });

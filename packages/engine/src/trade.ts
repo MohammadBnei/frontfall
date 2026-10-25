@@ -1,7 +1,9 @@
 import { embargoed } from "./diplomacy.ts";
 import type { Game } from "./game.ts";
 import { DrawUsage, derivedRandom } from "./random.ts";
+import { mulDiv } from "./integer-math.ts";
 import { SeaRoutes } from "./sea-routes.ts";
+import { spawnSettings } from "./spawn.ts";
 import { StructureKind, isReady, type Structure } from "./structures.ts";
 
 /** A trade ship sailing from one port to another (R-UNIT-03). */
@@ -21,6 +23,23 @@ export interface TradeShip {
 }
 
 /**
+ * Water tiles the search for a new port's routes walks per tick, a few
+ * milliseconds' worth: on World, one search reaches most of the sea and
+ * would stall a tick for some 50 ms at once.
+ */
+const SEARCH_TILES_PER_TICK = 25_000;
+
+/**
+ * B-TRADE-RANGE on this map, in water tiles: set for a map of 2^19 tiles,
+ * it grows with the side of larger maps like the spawn radius, so ports as
+ * far apart as players start still trade.
+ */
+export function tradeRange(game: Game): number {
+  const { tradeRange: range, spawnRadius } = game.balance;
+  return Math.max(range, mulDiv(range, spawnSettings(game).radius, spawnRadius));
+}
+
+/**
  * Trade (R-BUILD-02, R-UNIT-03, R-DIPLO-05). A port opens once built and
  * finds its routes to every open port within B-TRADE-RANGE of sea. Every
  * B-TRADE-INTERVAL after it opened, a port with fewer than B-TRADE-MAX of its
@@ -33,7 +52,7 @@ export interface TradeShip {
  */
 export function installTrade(game: Game): void {
   const { balance } = game;
-  const routes = new SeaRoutes(game, balance.tradeRange);
+  const routes = new SeaRoutes(game, tradeRange(game), SEARCH_TILES_PER_TICK);
   const ships = game.tradeShips;
   /** Ready ports by tile, rebuilt every tick. */
   const ports = new Map<number, Structure>();
@@ -48,6 +67,7 @@ export function installTrade(game: Game): void {
     for (const tile of routes.openPorts()) if (!ports.has(tile)) routes.close(tile);
     // Oldest first, so every client opens them in the same order and finds the same routes.
     for (const tile of ports.keys()) routes.open(tile);
+    routes.work();
 
     let kept = 0;
     for (const ship of ships) {

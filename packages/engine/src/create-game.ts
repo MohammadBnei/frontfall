@@ -20,6 +20,7 @@ import { installWarships } from "./warships.ts";
  */
 export function createGame(setup: GameSetup): Game {
   const game = new Game(setup);
+  game.terrain.prepare();
   installSpawn(game);
   installDiplomacy(game);
   installGifts(game);
