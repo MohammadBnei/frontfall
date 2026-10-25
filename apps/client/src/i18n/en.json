@@ -255,7 +255,7 @@
   "help.mapTitle": "The map",
   "help.buildHow": "Gold comes in by itself. Pick a building with its button or its key, then click where it goes; each one costs more than the last.",
   "help.buildHowTouch": "Gold comes in by itself. Tap a building's button, then tap where it goes; each one costs more than the last.",
-  "help.place.city": "More troops · on your land, {spacing} tiles from any other building",
+  "help.place.city": "Raises your troop cap · on your land, {spacing} tiles from any other building",
   "help.place.fort": "Your land around it costs twice as much to take · on your land, {spacing} tiles from any other building",
   "help.place.port": "Trades with other players' ports · on your coast, {spacing} tiles from any other building",
   "help.place.silo": "Launches missiles · on your land, {spacing} tiles from any other building",
