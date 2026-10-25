@@ -140,8 +140,16 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
           chmod 600 ~/.ssh/deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-      # A restart stops the games in progress. When some are running, every player is told
-      # the update is coming, then the games get that long to end.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # The server keeps the games in progress across a restart, and the new one takes them
+      # back if it has the same simulation build. Otherwise the restart stops them: when some
+      # are running, every player is told the update is coming, then the games get that long
+      # to end.
       - name: Announce the update and wait for the games in progress
         if: ${{ !inputs.now }}
         env:
@@ -151,6 +159,11 @@ jobs:
           running() { curl -fsS "${SITE}api/games" | jq -r '.running // 0' || echo 0; }
           if [ "$(running)" = 0 ]; then
             echo "No game in progress"
+            exit 0
+          fi
+          live=$(curl -fsS "${SITE}api/status" | jq -r '.simulation // ""' || true)
+          if [ -n "$live" ] && [ "$live" != dev ] && [ "$live" = "$(node tools/simulation-build.mjs)" ]; then
+            echo "Same simulation build $live: the games in progress go on after the restart"
             exit 0
           fi
           ssh -i "$HOME/.ssh/deploy" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
