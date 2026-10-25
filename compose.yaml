@@ -1,0 +1,27 @@
+# Frontfall on your own machine: `docker compose up -d`, then http://localhost:8080.
+# docs/self-hosting.md explains each line and how to put the game behind HTTPS.
+name: frontfall
+
+services:
+  frontfall:
+    image: ${FRONTFALL_IMAGE:-ghcr.io/nic0lasm/frontfall:latest}
+    ports:
+      - "${FRONTFALL_PORT:-8080}:8080"
+    environment:
+      # Usage counts survive restarts here; games in progress live in memory.
+      FRONTFALL_DATA: /var/lib/frontfall
+      # Set it to the address players open, such as https://games.example.org,
+      # so that no other site can open games on your server.
+      FRONTFALL_ORIGINE: ${FRONTFALL_ORIGINE:-}
+    volumes:
+      - frontfall-data:/var/lib/frontfall
+    read_only: true
+    tmpfs:
+      - /tmp
+    # Running games get FRONTFALL_DRAIN_SECONDS (20 by default) to end after a stop.
+    stop_grace_period: 30s
+    restart: unless-stopped
+    mem_limit: 1g
+
+volumes:
+  frontfall-data:

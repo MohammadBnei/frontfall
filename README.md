@@ -126,7 +126,7 @@ The published image serves the client and the turn relay on one port:
 docker run --rm -p 8080:8080 ghcr.io/nic0lasm/frontfall:latest   # http://localhost:8080
 ```
 
-Behind a reverse proxy, the game works at the root of a domain or under a sub-path such as `/frontfall`, with WebSocket upgrades forwarded. To build the image yourself: `docker build -t frontfall .`
+For a server that stays up, `docker compose up -d` with the [`compose.yaml`](compose.yaml) of this repository keeps the usage counts in a volume and restarts after a reboot. [docs/self-hosting.md](docs/self-hosting.md) explains the setup, HTTPS behind Caddy or nginx, at the root of a domain or under a path such as `/frontfall`, and how to check that it works.
 
 ## How to contribute
 
