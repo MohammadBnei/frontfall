@@ -25,7 +25,9 @@ export interface TradeShip {
 /**
  * Water tiles the search for a new port's routes walks per tick, a few
  * milliseconds' worth: on World, one search reaches most of the sea and
- * would stall a tick for some 50 ms at once.
+ * would stall a tick for some 50 ms at once. It decides on which tick a
+ * route opens, so it is part of the simulation: changing it changes every
+ * game with ports, and the golden replays with it (`pnpm golden`).
  */
 const SEARCH_TILES_PER_TICK = 25_000;
 
