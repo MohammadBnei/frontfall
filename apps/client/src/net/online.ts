@@ -53,7 +53,8 @@ export interface OnlineEvents {
   turns?(turns: Turn[]): void;
   /** This game's hash for `tick`, and the other players' when most of them agreed. */
   desync?(tick: number, hash: number, expected: number | null): void;
-  ended?(reason: Extract<ServerMessage, { type: "ended" }>["reason"]): void;
+  /** `seatLost`: the seat of this page is gone, after a long absence or once the server lost the game. */
+  ended?(reason: Extract<ServerMessage, { type: "ended" }>["reason"] | "seatLost"): void;
   error?(code: ErrorCode, message: string): void;
   /** The server restarts for an update in `inMs` milliseconds, or no longer does (`null`). */
   maintenance?(inMs: number | null): void;
@@ -315,10 +316,10 @@ export class OnlineClient {
           }
         }
         if (message.code === "token_invalid" && this.game) {
-          // The seat is gone: the game went on without this player.
+          // The seat is gone: the game went on without this player, or the server lost it.
           this.game = undefined;
           this.entry = undefined;
-          events.ended?.("abandoned");
+          events.ended?.("seatLost");
           return;
         }
         if (message.code === "token_in_use" && this.token) {

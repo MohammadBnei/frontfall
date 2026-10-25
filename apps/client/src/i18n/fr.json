@@ -116,6 +116,7 @@
   "online.host": "hôte",
   "online.waitingHost": "{players}/{capacity} joueurs. L’hôte lance la partie quand tout le monde est là.",
   "online.ended.abandoned": "La partie est terminée : tous les joueurs sont partis.",
+  "online.ended.seatLost": "Impossible de reprendre cette partie : elle a continué sans vous, ou elle est terminée.",
   "online.ended.timeout": "La partie est terminée : elle a dépassé sa durée maximale.",
   "online.ended.expired": "La partie a expiré : elle n’a pas commencé dans les dix minutes.",
   "online.ended.left": "Vous avez quitté la partie.",

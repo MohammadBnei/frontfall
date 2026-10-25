@@ -271,7 +271,7 @@ describe("OnlineClient", () => {
     timers.shift()?.callback();
     socket = welcomed();
     socket.receive({ type: "error", code: "token_invalid", message: "" });
-    expect(log.at(-1)).toBe("ended:abandoned");
+    expect(log.at(-1)).toBe("ended:seatLost");
 
     socket.drop();
     timers.shift()?.callback();

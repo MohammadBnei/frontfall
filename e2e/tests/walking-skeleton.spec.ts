@@ -242,6 +242,45 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   await Promise.all([host.close(), guest.close()]);
 });
 
+test("a player whose connection drops is told, and plays on once it is back", async ({
+  browser,
+  baseURL,
+}) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
+  test.skip(test.info().project.name !== "root", "one browser is enough");
+  test.setTimeout(GAME_START_TIMEOUT + 60_000);
+  if (!baseURL) throw new Error("baseURL is not configured");
+  const page = await browser.newPage();
+  // The first connection plays until it is cut, the second fails, the third holds.
+  let attempts = 0;
+  let first: { close(): Promise<void> } | undefined;
+  await page.routeWebSocket(/\/ws$/, (socket) => {
+    attempts++;
+    if (attempts === 2) {
+      void socket.close();
+      return;
+    }
+    socket.connectToServer();
+    if (attempts === 1) first = socket;
+  });
+
+  await page.goto(baseURL);
+  await page.locator("#online-create").click();
+  await expect(page.locator("#invite-link")).toHaveValue(/[?&]game=/, { timeout: 15_000 });
+  await page.locator("#lobby-start").click();
+  await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  await expect.poll(() => clockOf(page), { timeout: 20_000 }).toBeGreaterThan(2);
+
+  await first?.close();
+  const notice = page.locator("#connection-status");
+  await expect(notice).toContainText("Disconnected, retrying in");
+  await expect(notice).toHaveCount(0, { timeout: 20_000 });
+  const back = await clockOf(page);
+  await expect.poll(() => clockOf(page), { timeout: 20_000 }).toBeGreaterThan(back + 2);
+  await expect(page.locator(".notice")).toHaveCount(0);
+  await page.close();
+});
+
 test("two players join a public game from the menu", async ({ browser, baseURL }) => {
   // Never against the public server: real players could join the test's game.
   test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");

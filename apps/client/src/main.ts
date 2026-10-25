@@ -5,7 +5,13 @@ import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
 import { BUILD } from "./net/build.ts";
 import { forgetSeat, saveSeat, seatIn } from "./net/seat.ts";
-import { OnlineClient, socketUrl, type GameStart, type OnlineEntry } from "./net/online.ts";
+import {
+  OnlineClient,
+  socketUrl,
+  type ConnectionStatus,
+  type GameStart,
+  type OnlineEntry,
+} from "./net/online.ts";
 import { loadGlobe, type ViewKind } from "./render/renderer.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
@@ -184,6 +190,26 @@ function showNotice(key: MessageKey): void {
 }
 
 /**
+ * The connection of an online game dropped: its turns stop until it is back,
+ * and the notice says so, with the time to the next attempt. Gone once online.
+ */
+function showConnection(state: ConnectionStatus, retryInMs?: number): void {
+  const current = document.querySelector("#connection-status");
+  if (state !== "offline" && state !== "connecting") {
+    current?.remove();
+    return;
+  }
+  // A notice that matters more, such as the end of the game, stays.
+  if (!current && document.querySelector(".notice")) return;
+  const notice = current ?? h("p", { class: "notice", id: "connection-status", role: "status" });
+  notice.textContent =
+    state === "offline"
+      ? t("status.disconnected", { seconds: Math.ceil((retryInMs ?? 0) / 1000) })
+      : t("status.connecting");
+  if (!current) document.body.append(notice);
+}
+
+/**
  * The game no longer matches the other players': say so, and offer the
  * report that lets a developer replay it (`pnpm sim -- --replay`).
  */
@@ -317,6 +343,8 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup): void {
       status(state, retryInMs) {
         if (state === "connecting") room.connecting();
         if (state === "offline") room.connecting(retryInMs ?? 0);
+        // In a game, the lobby is gone: the notice says the turns stopped, and why.
+        if (game) showConnection(state, retryInMs);
         if (state === "outdated") {
           room.outdated();
           if (game) showNotice("status.outdated");

@@ -116,6 +116,7 @@
   "online.host": "host",
   "online.waitingHost": "{players}/{capacity} players. The host starts the game when everyone is in.",
   "online.ended.abandoned": "The game ended: every player left.",
+  "online.ended.seatLost": "You cannot get back into this game: it went on without you, or it is over.",
   "online.ended.timeout": "The game ended: it ran past its time limit.",
   "online.ended.expired": "The game expired: it did not start within ten minutes.",
   "online.ended.left": "You left the game.",
