@@ -21,6 +21,8 @@ import { isAllowedOrigin } from "./origin.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import type { Peer, Room, RoomObserver, RoomSettings, Seat } from "./room.ts";
 import { loadStaticFile } from "./static-files.ts";
+import { usageInbox } from "./usage-http.ts";
+import { loadUsage, saveUsage, usageFile, UsageStats, usageTable } from "./usage.ts";
 
 type GameSettings = Omit<RoomSettings, "visibility">;
 
@@ -59,12 +61,21 @@ export interface ServerOptions {
   publicGame?: Partial<GameSettings>;
   privateGame?: Partial<GameSettings>;
   logger?: Logger;
+  /**
+   * Directory the server keeps data in between restarts, such as the usage
+   * counts in `usage/`. Unset keeps them in memory only.
+   */
+  dataDir?: string | undefined;
+  /** How often the usage counts are written to the data directory. */
+  usageSaveIntervalMs?: number;
 }
 
 export interface GameServer {
   readonly http: Server;
   readonly games: Directory;
   readonly metrics: Metrics;
+  /** Counts of what players do, from the reports of their pages; /api/stats exports them. */
+  readonly usage: UsageStats;
   /**
    * Stops opening games and lets the running ones go on, for `drainMs` at
    * most, then tells every player the server is restarting and stops.
@@ -212,7 +223,11 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   const observer: RoomObserver = {
     started(room) {
-      metrics.gamesStarted.inc();
+      metrics.gamesStarted.inc({
+        visibility: room.settings.visibility,
+        map: room.settings.map,
+        teams: String(room.settings.teams),
+      });
       logger.info("game_started", {
         game: room.id,
         visibility: room.settings.visibility,
@@ -221,6 +236,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     },
     finished(room, reason) {
       metrics.gamesFinished.inc({ reason });
+      if (room.log.length > 0) metrics.gameMinutes.observe(room.log.length / TICK_RATE / 60);
       logger.info("game_finished", { game: room.id, reason, ticks: room.log.length });
     },
     desync(room, tick, hash, expected) {
@@ -238,6 +254,28 @@ export function createGameServer(options: ServerOptions): GameServer {
     privateGame,
     observer,
   });
+  const usage = new UsageStats({ release: options.release ?? "dev", maps: new Set(maps.keys()) });
+  const usageAt = options.dataDir === undefined ? undefined : usageFile(options.dataDir);
+  if (usageAt === undefined) {
+    logger.warn("usage_in_memory", { reason: "no data directory" });
+  } else {
+    const error = loadUsage(usage, usageAt);
+    if (error) logger.warn("usage_not_loaded", { error: error.message });
+  }
+  /** Writes the usage counts, if there is somewhere to keep them; never stops the server. */
+  const keepUsage = (): void => {
+    if (usageAt === undefined) return;
+    try {
+      saveUsage(usage, usageAt, Date.now());
+    } catch (error) {
+      logger.warn("usage_not_saved", { error: (error as Error).message });
+    }
+  };
+  const usageSaver = setInterval(keepUsage, options.usageSaveIntervalMs ?? 5 * 60_000);
+  usageSaver.unref();
+  const reports = usageInbox(usage, logger, (origin) =>
+    isAllowedOrigin(origin, options.allowedOrigin),
+  );
   /** When the oldest ping a socket has not answered yet was sent. */
   const unanswered = new WeakMap<WebSocket, number>();
   const ping = (socket: WebSocket, now: number): void => {
@@ -270,6 +308,10 @@ export function createGameServer(options: ServerOptions): GameServer {
       announce(request, response);
       return;
     }
+    if (path === "/api/usage") {
+      reports.handle(request, response, clientAddress(request));
+      return;
+    }
     if (request.method !== "GET" && request.method !== "HEAD") {
       response.writeHead(405, { allow: "GET, HEAD" }).end();
       return;
@@ -290,8 +332,17 @@ export function createGameServer(options: ServerOptions): GameServer {
           ...SECURITY_HEADERS,
         })
         .end(
-          request.method === "HEAD" ? undefined : statusPage(status(), options.statusSections?.()),
+          request.method === "HEAD"
+            ? undefined
+            : statusPage(
+                status(),
+                usageTable(usage.export(Date.now())) + (options.statusSections?.() ?? ""),
+              ),
         );
+      return;
+    }
+    if (path === "/api/stats") {
+      sendJson(response, usage.export(Date.now()));
       return;
     }
     if (path === "/metrics" && isLocalRequest(request)) {
@@ -300,7 +351,7 @@ export function createGameServer(options: ServerOptions): GameServer {
           "content-type": "text/plain; version=0.0.4",
           "cache-control": "no-store",
         })
-        .end(metrics.render(snapshot()));
+        .end(metrics.render(snapshot(), usage.renderMetrics()));
       return;
     }
     void loadStaticFile(options.staticRoot, path).then((file) => {
@@ -688,6 +739,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     http,
     games,
     metrics,
+    usage,
     close() {
       if (closing) return closing;
       stopping = true;
@@ -698,6 +750,8 @@ export function createGameServer(options: ServerOptions): GameServer {
       if (running() > 0) broadcastAll(maintenanceMessage(drainMs));
       closing = new Promise<void>((resolve) => {
         const finish = (): void => {
+          clearInterval(usageSaver);
+          keepUsage();
           clearInterval(heartbeat);
           clearInterval(ticker);
           games.stopAll("restart");

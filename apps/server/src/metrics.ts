@@ -36,21 +36,27 @@ class Counter {
   }
 }
 
+/** Upper bounds of the game duration histogram, in minutes. */
+const GAME_BUCKETS = [2, 5, 10, 20, 40, 60, 120];
+
 class Histogram {
-  private readonly counts = new Array<number>(TURN_BUCKETS.length).fill(0);
+  private readonly counts: number[];
   private sum = 0;
   private count = 0;
 
   constructor(
     readonly name: string,
     readonly help: string,
-  ) {}
+    private readonly buckets: readonly number[] = TURN_BUCKETS,
+  ) {
+    this.counts = new Array<number>(buckets.length).fill(0);
+  }
 
-  observe(seconds: number): void {
-    this.sum += seconds;
+  observe(value: number): void {
+    this.sum += value;
     this.count++;
-    TURN_BUCKETS.forEach((bound, index) => {
-      if (seconds <= bound) this.counts[index] = (this.counts[index] ?? 0) + 1;
+    this.buckets.forEach((bound, index) => {
+      if (value <= bound) this.counts[index] = (this.counts[index] ?? 0) + 1;
     });
   }
 
@@ -58,7 +64,7 @@ class Histogram {
     return [
       `# HELP ${this.name} ${this.help}`,
       `# TYPE ${this.name} histogram`,
-      ...TURN_BUCKETS.map(
+      ...this.buckets.map(
         (bound, index) =>
           `${this.name}_bucket{le="${String(bound)}"} ${String(this.counts[index])}`,
       ),
@@ -81,7 +87,10 @@ export interface Snapshot {
  * do not justify a client library.
  */
 export class Metrics {
-  readonly gamesStarted = new Counter("frontfall_games_started_total", "Games that started.");
+  readonly gamesStarted = new Counter(
+    "frontfall_games_started_total",
+    "Games that started, by visibility, map and teams.",
+  );
   readonly gamesFinished = new Counter(
     "frontfall_games_finished_total",
     "Games that finished, by reason.",
@@ -102,12 +111,18 @@ export class Metrics {
     "frontfall_rejected_messages_total",
     "Connections closed for a message, by reason.",
   );
+  readonly gameMinutes = new Histogram(
+    "frontfall_game_duration_minutes",
+    "Length of the games that finished, in minutes.",
+    GAME_BUCKETS,
+  );
   readonly turnDuration = new Histogram(
     "frontfall_turn_duration_seconds",
     "Time to close and send one turn of every running game.",
   );
 
-  render(snapshot: Snapshot): string {
+  /** `extra` are lines rendered elsewhere, such as the usage counts. */
+  render(snapshot: Snapshot, extra: readonly string[] = []): string {
     const memory = process.memoryUsage();
     const cpu = process.cpuUsage();
     const lines = [
@@ -128,7 +143,9 @@ export class Metrics {
       ...this.rejoins.render(),
       ...this.messages.render(),
       ...this.rejected.render(),
+      ...this.gameMinutes.render(),
       ...this.turnDuration.render(),
+      ...extra,
       "# HELP process_resident_memory_bytes Resident memory size in bytes.",
       "# TYPE process_resident_memory_bytes gauge",
       `process_resident_memory_bytes ${String(memory.rss)}`,

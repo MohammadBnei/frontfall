@@ -35,6 +35,7 @@ const server = createGameServer({
   version,
   release,
   logger,
+  dataDir: process.env.FRONTFALL_DATA || undefined,
   publicGame:
     optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
       countdownMs: seconds * 1000,
