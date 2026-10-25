@@ -73,7 +73,7 @@ describe("normalizeGameName", () => {
   });
 
   it("does not flag words that merely contain one", () => {
-    for (const name of ["Classic match", "Scunthorpe", "Cockpit duel", "Shitake"]) {
+    for (const name of ["Classic match", "Scunthorpe", "Cockpit duel", "Shitake", "Salopette"]) {
       expect(normalizeGameName(name).ok, name).toBe(true);
     }
   });
@@ -81,7 +81,17 @@ describe("normalizeGameName", () => {
 
 describe("names shown to strangers", () => {
   it("catch plurals, look-alike letters and stems split by spaces", () => {
-    for (const name of ["niggers", "fuckers", "sales putes", "f u ck", "fuсk you", "Encul3s"]) {
+    for (const name of [
+      "niggers",
+      "fuckers",
+      "sales putes",
+      "f u ck",
+      "fuсk you",
+      "Encul3s",
+      "enculé",
+      "Les connardes",
+      "salopes",
+    ]) {
       expect(normalizeGameName(name).ok, name).toBe(false);
     }
   });

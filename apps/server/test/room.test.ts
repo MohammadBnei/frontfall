@@ -416,6 +416,20 @@ describe("lone player of a quick game (R-MODE-04)", () => {
     expect(alone.peer.last("started")).toMatchObject({ bots: 7, players: [{ id: 1 }] });
   });
 
+  it("leaves at least half the countdown when the second player arrives", () => {
+    const room = new Room("game0000", QUICK, 1);
+    seated(room, "First", 0);
+    expect(room.startsIn(0)).toBe(10_000);
+    seated(room, "Second", 8_000);
+    expect(room.startsIn(8_000)).toBe(5_000);
+    seated(room, "Third", 9_000);
+    expect(room.startsIn(9_000)).toBe(4_000);
+    const early = new Room("game0001", QUICK, 1);
+    seated(early, "First", 0);
+    seated(early, "Second", 1_000);
+    expect(early.startsIn(1_000)).toBe(9_000);
+  });
+
   it("adds no bots when an opponent came", () => {
     const room = new Room("game0000", QUICK, 1);
     const first = seated(room, "First", 0);

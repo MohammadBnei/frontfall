@@ -19,20 +19,20 @@
 
 ## Games
 
-| Setting                        | Value                      | Notes                                                                        |
-| ------------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
-| Players per game               | 2 to 16, set by the host   | A game set to start when full (the default) starts as its last seat is taken |
-| Players to start a public game | 2                          | The host starts it; any number for a private game                            |
-| "Play now" countdown           | 60 seconds                 | From the first player; alone at the end, the map's default bots fill in      |
-| Host away                      | 2 minutes                  | With other players waiting, the role goes to the one seen most recently      |
-| Seat kept after a drop         | 5 minutes                  | The player rejoins with their token and every missed turn                    |
-| Lobby seat kept after a drop   | 30 seconds                 | The player gets their place back, and the host keeps the role (see below)    |
-| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                     |
-| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                    |
-| Bots in a game                 | 25                         | Seats shrink to fit the map's `players.max`, never below the players present |
-| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                     |
-| Lobbies per address            | 3 not yet started          | Public and private; further `create` requests get `too_many_lobbies`         |
-| Public games listed            | 100                        | Waiting ones first, the fewest free seats first, then the oldest             |
+| Setting                        | Value                      | Notes                                                                                                   |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Players per game               | 2 to 16, set by the host   | A game set to start when full (the default) starts as its last seat is taken                            |
+| Players to start a public game | 2                          | The host starts it; any number for a private game                                                       |
+| "Play now" countdown           | 60 seconds                 | From the first player, 30 s at least after the second; alone at the end, the map's default bots fill in |
+| Host away                      | 2 minutes                  | With other players waiting, the role goes to the one seen most recently                                 |
+| Seat kept after a drop         | 5 minutes                  | The player rejoins with their token and every missed turn                                               |
+| Lobby seat kept after a drop   | 30 seconds                 | The player gets their place back, and the host keeps the role (see below)                               |
+| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                                                |
+| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                                               |
+| Bots in a game                 | 25                         | Seats shrink to fit the map's `players.max`, never below the players present                            |
+| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                                                |
+| Lobbies per address            | 3 not yet started          | Public and private; further `create` requests get `too_many_lobbies`                                    |
+| Public games listed            | 100                        | Waiting ones first, the fewest free seats first, then the oldest                                        |
 
 A connection that drops without a close frame, as when a phone goes to sleep or the network fails, keeps its seat in a lobby for 30 seconds: the client takes it back with the token of the `lobby` message, or lands in the game if it started meanwhile. A page that closes its socket itself, on a reload or when the tab closes, gives its lobby seat up at once.
 

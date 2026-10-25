@@ -103,7 +103,13 @@ const COARSE = new Set([
  * Stems that are never innocent, caught inside longer words and across
  * spacing, as in "fuckers" or "f u ck".
  */
-const COARSE_STEMS = ["nigg", "fagg", "fuck", "encul", "salop", "connard"];
+const COARSE_STEMS = ["nigg", "fagg", "fuck"];
+
+/**
+ * Stems caught only at the start of a word, as in "enculés" or "connarde",
+ * where a stem inside a word would refuse innocent ones.
+ */
+const COARSE_PREFIXES = ["encul", "connard", "salopard"];
 
 const STAND_INS: Record<string, string> = {
   "0": "o",
@@ -168,6 +174,9 @@ function hasCoarseWord(name: string): boolean {
   const joined = words.join("");
   // Spelled out with separators, as in "f.u.c.k" or "p u t e".
   if (words.length > 1 && words.every((word) => word.length <= 2) && COARSE.has(joined)) {
+    return true;
+  }
+  if (words.some((word) => COARSE_PREFIXES.some((prefix) => word.startsWith(prefix)))) {
     return true;
   }
   return COARSE_STEMS.some((stem) => joined.includes(stem));

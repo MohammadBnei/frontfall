@@ -141,7 +141,7 @@
   "online.allowed": "In the game",
   "online.desyncReport": "Download a report",
   "online.error.token_invalid": "This game has ended, or went on without you.",
-  "online.quickHint": "Joins the fullest public game waiting, or opens one that starts by itself after 60 s, with bots if nobody else came.",
+  "online.quickHint": "Joins the fullest game opened this way, or opens one that starts by itself after 60 s, with bots if nobody else came.",
   "online.createPublic": "Create a public game",
   "online.gameName": "Name of your public game",
   "online.defaultName": "{name}'s game",

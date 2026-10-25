@@ -34,7 +34,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
-- **"Play now"** replaces "Join a public game". It sends you to the fullest public game waiting, or opens one in your name that starts by itself 60 seconds after you arrive. If nobody else came by then, bots join you so you are never left waiting. Its host can start it sooner, or stop the countdown once and start it by hand.
+- **"Play now"** replaces "Join a public game". It sends you to the fullest game opened the same way, never to one that waits for its host, or opens one in your name that starts by itself 60 seconds after you arrive, and no sooner than 30 seconds after a second player joins, so a third still has time. If nobody else came by then, bots join you so you are never left waiting. Its host can start it sooner, or stop the countdown once and start it by hand.
 - Every online game now shows who hosts it. If the host leaves, or does nothing for two minutes while others wait, another player becomes the host, so a lobby never hangs.
 - Every lobby has an invitation link, public games included.
 - One player can have at most three games waiting to start at once, public and private together.

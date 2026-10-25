@@ -35,11 +35,13 @@ describe("Directory", () => {
     expect(games.quickMatch(undefined, "Quick")).toBe(empty);
   });
 
-  it("sends players of quick games into games created by a host too", () => {
+  it("never sends Play now into a game that waits for its host", () => {
     const games = directory();
     const listed = games.create(hosted("Europe 4v4"));
     listed?.join("Host", peer, 0);
-    expect(games.quickMatch(undefined, "Quick")).toBe(listed);
+    const quick = games.quickMatch(undefined, "Quick");
+    expect(quick).not.toBe(listed);
+    expect(quick?.settings.countdownMs).toBeGreaterThan(0);
   });
 
   it("gives a quick game a countdown and a hosted one none", () => {
@@ -119,11 +121,12 @@ describe("Directory", () => {
     expect(games.create(hosted("Mine"), "203.0.113.9")).toBeDefined();
     expect(games.create(PRIVATE, "203.0.113.9")).toBeUndefined();
     expect(games.atLobbyLimit("203.0.113.9")).toBe(true);
-    // "Play now" still opens a game when none waits: it is not one more lobby to spam.
-    expect(games.quickMatch("203.0.113.9", "Quick")).toBeDefined();
     expect(games.create(PRIVATE, "198.51.100.4")).toBeDefined();
     first?.requestStart(seat(first, "A"), 0);
     expect(games.create(PRIVATE, "203.0.113.9")?.owner).toBe("203.0.113.9");
+    // "Play now" still opens a game when none waits: it is not one more lobby to spam.
+    expect(games.atLobbyLimit("203.0.113.9")).toBe(true);
+    expect(games.quickMatch("203.0.113.9", "Quick")).toBeDefined();
   });
 
   it("caps the number of games", () => {

@@ -141,7 +141,7 @@
   "online.allowed": "Dans la partie",
   "online.desyncReport": "Télécharger un rapport",
   "online.error.token_invalid": "Cette partie est terminée, ou a continué sans vous.",
-  "online.quickHint": "Rejoint la partie publique la plus remplie, ou en ouvre une qui démarre seule au bout de 60 s, avec des bots si personne d’autre n’est venu.",
+  "online.quickHint": "Rejoint la partie rapide la plus remplie, ou en ouvre une qui démarre seule au bout de 60 s, avec des bots si personne d’autre n’est venu.",
   "online.createPublic": "Créer une partie publique",
   "online.gameName": "Nom de votre partie publique",
   "online.defaultName": "Partie de {name}",

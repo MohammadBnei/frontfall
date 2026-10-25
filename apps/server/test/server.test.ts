@@ -325,8 +325,8 @@ describe("WebSocket", () => {
     alice.send({ type: "start" });
     expect((await alice.next("error")).code).toBe("not_enough_players");
 
-    // "play" sends Bob into the game waiting, which keeps waiting for its host.
-    bob.send({ type: "play" });
+    // Bob joins from the list; the game keeps waiting for its host.
+    bob.send({ type: "join", game: lobby.game });
     expect((await bob.next("lobby")).game).toBe(lobby.game);
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect((await alice.next("lobby")).startsIn).toBeNull();

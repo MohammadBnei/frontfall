@@ -34,7 +34,7 @@ client                                   server
 
 1. **Hello.** The first message of every connection. The server checks the protocol version and the player name, then answers `welcome`. A connection that sends nothing within 10 seconds is closed with `4003`.
 2. **Lobby.** The player plays now (`play`), opens a game of their own, public and named or private (`create`), or joins one by id (`join`). Every game has a host, its first player, who sets its options with `configure`. The server sends `lobby` to everyone in the game each time something changes.
-3. **Start.** The host starts the game with `start`; a game set to start when full starts as soon as its last seat is taken. A game opened by `play` also counts down 60 seconds from its first player: if that player is still alone at the end, bots stand in for opponents. Its host may stop the countdown once with `hold`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
+3. **Start.** The host starts the game with `start`; a game set to start when full starts as soon as its last seat is taken. A game opened by `play` also counts down 60 seconds from its first player, with at least 30 seconds left when the second one arrives: if the first player is still alone at the end, bots stand in for opponents. Its host may stop the countdown once with `hold`. Every player receives `started` with the seed, the final player numbers and a reconnect token.
 4. **Turns.** From tick 0, the server sends one turn every 100 ms, with or without orders. A client runs tick `n` only after receiving turn `n`.
 5. **End.** The server sends `ended` when every player is gone, when the game reaches four hours, or when a game has not started ten minutes after it opened. A client that leaves earlier sends `leave`. Either way, the connection can join another game.
 
@@ -70,7 +70,7 @@ The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must
 { "type": "play", "name": "Partie de Nico" }
 ```
 
-Joins the public game still waiting with the most players and a free seat, whoever opened it, or opens a new one under `name` (optional; a name the rules below refuse falls back to "<player>'s game"). A game opened this way counts down 60 seconds from its first player, and starts with the map's default bots if that player is still alone (the catalog's recommended players minus one, 24 at most).
+Joins the game opened by `play` still waiting with the most players and a free seat, never a game that waits for its host, or opens a new one under `name` (optional; a name the rules below refuse falls back to "<player>'s game"). A game opened this way counts down 60 seconds from its first player, leaves at least half of that, 30 seconds, when the second player arrives, so a third can still come, and starts with the map's default bots if that player is still alone (the catalog's recommended players minus one, 24 at most).
 
 ### `create`
 
@@ -141,7 +141,7 @@ The host of a game opened by `play` stops its countdown, once. The game then wai
 { "type": "active" }
 ```
 
-The player is at the screen. A host who has sent nothing for two minutes while other players wait hands the role to the player seen most recently, so a lobby never hangs on someone who walked away. The client of this repository sends it at most every 30 seconds while the player touches the page.
+The player is at the screen. A host who has sent nothing for two minutes while other players wait hands the role to the player seen most recently, so a lobby never hangs on someone who walked away. The role goes to a connected player when there is one; a host who leaves while nobody else is connected hands it to a player whose seat waits for them. The client of this repository sends it at most every 30 seconds while the player touches the page.
 
 ### `leave`
 

@@ -182,6 +182,10 @@ export class Room {
     };
     this.seats.push(seat);
     this.openedAt ??= now;
+    // A countdown nearly over when an opponent arrives leaves a third a chance.
+    if (this.startsAt !== undefined && this.seats.length === this.settings.minPlayers) {
+      this.startsAt = Math.max(this.startsAt, now + this.settings.countdownMs / 2);
+    }
     this.host ??= seat;
     this.lobbyChanged(now);
     return seat;

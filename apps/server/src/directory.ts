@@ -50,14 +50,16 @@ export class Directory {
   }
 
   /**
-   * The fullest public game still waiting with a seat free, or a new one
+   * The fullest quick game still waiting with a seat free, or a new one
    * under `name`; undefined when the server is full. The lobbies an owner
    * holds do not count here: a second "play" joins the game the first opened.
    */
   quickMatch(owner: string | undefined, name: string): Room | undefined {
     let best: Room | undefined;
     for (const room of this.rooms.values()) {
+      // Only quick games: they keep the promise of starting on their own.
       if (!waiting(room) || room.settings.visibility !== "public") continue;
+      if (room.settings.countdownMs <= 0) continue;
       if (room.playerCount >= room.settings.capacity) continue;
       if (!best || room.playerCount > best.playerCount) best = room;
     }
