@@ -134,4 +134,97 @@ describe("TerritoryLayer", () => {
         }),
     ).toThrow(RangeError);
   });
+
+  it("flags allies in the palette's alpha, and keeps the flag across colour changes", () => {
+    const territory = layer();
+    const data = territory.paletteTexture.image.data as Uint8Array;
+    territory.setAllies([2]);
+    expect([data[7], data[11], data[15]]).toEqual([255, 128, 255]);
+    territory.setOwnerColor(2, 0x00ff00);
+    expect(data[11]).toBe(128);
+    territory.setAllies([]);
+    expect(data[11]).toBe(255);
+  });
+
+  it("scorches the land under fallout and restores it when the zone clears (R-UNIT-06)", () => {
+    const width = 8;
+    const terrain = new Uint8Array(width * 8).fill(1);
+    terrain[3 * width + 3] = 0;
+    const territory = new TerritoryLayer({
+      width,
+      height: 8,
+      owners: new Uint16Array(width * 8),
+      terrain,
+      wrapsX: false,
+      maxOwner: 1,
+    });
+    const data = territory.groundTexture.image.data as Uint8Array;
+    const before = data.slice();
+    const zone = [{ x: 3, y: 3, radius: 1 }];
+    expect(territory.setFallout(zone)).toBe(true);
+    expect(territory.setFallout(zone)).toBe(false);
+    const changed = (tile: number): boolean =>
+      [0, 1, 2].some((c) => data[tile * 4 + c] !== before[tile * 4 + c]);
+    // The four neighbours burn; the water at the centre and the corners outside the disc do not.
+    expect([2 * width + 3, 4 * width + 3, 3 * width + 2, 3 * width + 4].map(changed)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect(changed(3 * width + 3)).toBe(false);
+    expect(changed(2 * width + 2)).toBe(false);
+    expect(territory.setFallout([])).toBe(true);
+    expect(Array.from(data)).toEqual(Array.from(before));
+  });
+
+  it("wraps fallout across the edge of a cylinder, and clips it on a flat map", () => {
+    const wrapping = new TerritoryLayer({
+      width: 8,
+      height: 4,
+      owners: new Uint16Array(32),
+      terrain: new Uint8Array(32).fill(1),
+      maxOwner: 1,
+    });
+    const data = wrapping.groundTexture.image.data as Uint8Array;
+    const before = data.slice();
+    wrapping.setFallout([{ x: 0, y: 0, radius: 1 }]);
+    expect(data[(0 * 8 + 7) * 4]).not.toBe(before[(0 * 8 + 7) * 4]);
+    const flat = new TerritoryLayer({
+      width: 8,
+      height: 4,
+      owners: new Uint16Array(32),
+      terrain: new Uint8Array(32).fill(1),
+      wrapsX: false,
+      maxOwner: 1,
+    });
+    const flatData = flat.groundTexture.image.data as Uint8Array;
+    const flatBefore = flatData.slice();
+    flat.setFallout([{ x: 0, y: 0, radius: 1 }]);
+    expect(flatData[7 * 4]).toBe(flatBefore[7 * 4]);
+  });
+
+  it("passes the highlight, hover, motion, time and globe pose to the shader", () => {
+    const territory = layer();
+    const { uniforms } = territory.mesh.material;
+    territory.setHighlight(2);
+    territory.setHovered(3);
+    territory.setMotion(false);
+    territory.setTime(12.5);
+    expect([
+      uniforms.highlight?.value,
+      uniforms.hovered?.value,
+      uniforms.frontMotion?.value,
+      uniforms.now?.value,
+    ]).toEqual([2, 3, 0, 12.5]);
+    territory.setMotion(true);
+    expect(uniforms.frontMotion?.value).toBe(1);
+    territory.setGlobePose({
+      position: [0, 0, 5],
+      forward: [0, 0, -1],
+      right: [1, 0, 0],
+      up: [0, 1, 0],
+    });
+    territory.dispose();
+  });
 });
