@@ -9,26 +9,12 @@ import {
   StructureKind,
   TileKind,
   WarshipError,
-  atWar,
-  quickAllowedAt,
-  warshipCost,
   MissileError,
   MissileSize,
-  launchSilo,
-  missileCost,
-  missileTile,
-  allianceOf,
-  alliesOf,
   sameTeam,
-  canRenew,
-  cityLimit,
-  cityShare,
   isAllied,
-  isReady,
   orderError,
-  populationCap,
   seaRoute,
-  structureCost,
   type DesyncReport,
   type Game,
   type GameRecord,
@@ -44,15 +30,13 @@ import type {
   ClickMode,
   ClickRefusal,
   ClickResult,
-  DiplomacyEvent,
   Difficulty,
-  DiplomacyView,
   GameSnapshot,
   GameUpdate,
   SoloOptions,
   StructureType,
 } from "./game-view.ts";
-import { labelAnchors } from "./label-anchors.ts";
+import { gameUpdate } from "./game-update.ts";
 import { HUMAN_ID, createSimulation, newSetup } from "./simulation.ts";
 
 export type * from "./game-view.ts";
@@ -77,15 +61,6 @@ const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   airDefense: StructureKind.AirDefense,
 };
 
-const STRUCTURE_TYPES: Readonly<Record<StructureKind, StructureType>> = {
-  [StructureKind.City]: "city",
-  [StructureKind.Fort]: "fort",
-  [StructureKind.Port]: "port",
-  [StructureKind.Silo]: "silo",
-  [StructureKind.AirDefense]: "airDefense",
-  [StructureKind.Palace]: "palace",
-};
-
 /** Engine refusals of a build order, as the interface explains them: one for each BuildError. */
 const BUILD_REFUSALS: Readonly<Record<BuildError, ClickRefusal>> = {
   [BuildError.Early]: "early",
@@ -100,9 +75,6 @@ const BUILD_REFUSALS: Readonly<Record<BuildError, ClickRefusal>> = {
 function isBuildError(error: string): error is BuildError {
   return Object.hasOwn(BUILD_REFUSALS, error);
 }
-
-/** Names follow the land twice a second at the default tick rate: a scan of the map each time. */
-const LABEL_TICKS = 5;
 
 /**
  * One game as this client runs it: the engine with every rule installed and
@@ -444,7 +416,7 @@ export class SoloGame {
         this.hashes.push({ tick: turn.tick, local: hash });
       }
     }
-    const update = this.update();
+    const update = gameUpdate(this.game, this.you, this.depth);
     if (hashes.length > 0) update.hashes = hashes;
     return update;
   }
@@ -461,7 +433,7 @@ export class SoloGame {
     while (this.game.tick < end) {
       this.game.step({ tick: this.game.tick, orders: this.recorded.get(this.game.tick) ?? [] });
     }
-    const update = this.update();
+    const update = gameUpdate(this.game, this.you, this.depth);
     update.replay = { ticks: record.ticks, expected: record.hash };
     if (this.game.tick >= record.ticks) update.replay.hash = this.game.hash();
     return update;
@@ -532,151 +504,5 @@ export class SoloGame {
             : null,
       })),
     };
-  }
-
-  private diplomacy(): DiplomacyView {
-    const { game, you } = this;
-    const tick = game.tick;
-    return {
-      allies: alliesOf(game, you).map((id) => {
-        const alliance = allianceOf(game, you, id);
-        const until = alliance?.until ?? tick;
-        return {
-          id,
-          ticksLeft: until - tick,
-          renewable: alliance !== undefined && canRenew(game, alliance),
-          renewing:
-            alliance !== undefined && (you === alliance.a ? alliance.renewA : alliance.renewB),
-        };
-      }),
-      teammates: game
-        .players()
-        .filter((player) => sameTeam(game, you, player.id))
-        .map((player) => player.id),
-      incoming: game.allianceRequests
-        .filter((request) => request.to === you && tick < request.expiresAt)
-        .map((request) => ({ from: request.from, ticksLeft: request.expiresAt - tick })),
-      outgoing: game.allianceRequests
-        .filter((request) => request.from === you && tick < request.expiresAt)
-        .map((request) => request.to),
-      waiting: game.requestCooldowns
-        .filter((cooldown) => cooldown.from === you && tick < cooldown.until)
-        .map((cooldown) => cooldown.to),
-      traitors: game
-        .players()
-        .filter((player) => player.alive && tick < player.traitorUntil)
-        .map((player) => ({ id: player.id, ticksLeft: player.traitorUntil - tick })),
-      embargoes: game.embargoes.filter((e) => e.from === you).map((e) => e.to),
-      embargoedBy: game.embargoes.filter((e) => e.to === you).map((e) => e.from),
-      atWar: game
-        .players()
-        .filter((player) => player.alive && atWar(game, you, player.id))
-        .map((player) => player.id),
-      quickIn: Math.max(0, quickAllowedAt(game, you) - tick),
-    };
-  }
-
-  /** What the engine logged between players since the last update, in order (R-DIPLO-04). */
-  private diplomacyEvents(): DiplomacyEvent[] {
-    return this.game.diplomacyEvents
-      .splice(0)
-      .map(({ type, a, b, phrase }) =>
-        phrase === undefined ? { type, a, b } : { type, a, b, phrase },
-      );
-  }
-
-  private update(): GameUpdate {
-    const { game } = this;
-    const territory = game.territory;
-    const players = game.players().map((player) => ({
-      id: player.id,
-      name: player.name,
-      troops: player.troops,
-      cap: populationCap(game, player),
-      gold: player.gold,
-      tiles: territory.tileCount(player.id),
-      alive: player.alive,
-    }));
-    const update: GameUpdate = {
-      you: this.you,
-      tick: game.tick,
-      phase: game.phase,
-      spawnTicksLeft: Math.max(0, game.balance.spawnPhaseTicks - game.tick),
-      players,
-      attacks: game.attacks
-        .filter((attack) => attack.player === this.you)
-        .map((attack) => ({ id: attack.id, target: attack.target, troops: attack.troops })),
-      changedTiles: new Int32Array(0),
-      changedOwners: new Uint16Array(0),
-      boats: game.boats.map((boat) => ({
-        id: boat.id,
-        player: boat.player,
-        // The water tile the ship has reached, its first one before it sails.
-        tile: boat.path[Math.max(0, Math.min(boat.step, boat.path.length) - 1)] ?? boat.target,
-        troops: boat.troops,
-      })),
-      tradeShips: game.tradeShips.map((ship) => ({
-        id: ship.id,
-        player: ship.player,
-        tile: ship.path[Math.max(0, Math.min(ship.step, ship.path.length) - 1)] ?? ship.from,
-      })),
-      warships: game.warships.map((ship) => ({
-        id: ship.id,
-        player: ship.player,
-        tile: ship.tile,
-        health: ship.health,
-      })),
-      missiles: game.missiles.map((missile) => ({
-        id: missile.id,
-        player: missile.player,
-        heavy: missile.size === MissileSize.Heavy,
-        tile: missileTile(game, missile, game.tick),
-        to: missile.to,
-        target: territory.ownerOf(missile.to),
-      })),
-      fallout: game.fallout.map(({ tile, radius }) => ({ tile, radius })),
-      structures: game.structures.map((structure) => ({
-        id: structure.id,
-        player: structure.player,
-        type: STRUCTURE_TYPES[structure.kind],
-        tile: structure.tile,
-        ready: isReady(game, structure),
-      })),
-      build: {
-        cityCost: structureCost(game, this.you, StructureKind.City),
-        palaceCost: structureCost(game, this.you, StructureKind.Palace),
-        fortCost: structureCost(game, this.you, StructureKind.Fort),
-        portCost: structureCost(game, this.you, StructureKind.Port),
-        warshipCost: warshipCost(game, this.you),
-        siloCost: structureCost(game, this.you, StructureKind.Silo),
-        airDefenseCost: structureCost(game, this.you, StructureKind.AirDefense),
-        missileCost: missileCost(game, MissileSize.Light),
-        heavyMissileCost: missileCost(game, MissileSize.Heavy),
-        // Any tile will do: whether one is loaded does not depend on the target.
-        loaded: launchSilo(game, this.you, 0) !== undefined,
-        cities: cityShare(game, this.you),
-        cityLimit: cityLimit(game, this.you),
-      },
-      diplomacy: this.diplomacy(),
-      events: this.diplomacyEvents(),
-    };
-    if (territory.changesOverflowed) {
-      update.owners = territory.owners.slice();
-    } else {
-      const changes = territory.changes();
-      update.changedTiles = changes.slice();
-      update.changedOwners = new Uint16Array(changes.length);
-      for (let i = 0; i < changes.length; i++) {
-        update.changedOwners[i] = territory.owners[changes[i] as number] as number;
-      }
-    }
-    territory.clearChanges();
-    if (game.tick % LABEL_TICKS === 0) {
-      const width = game.terrain.topology.width;
-      update.labels = labelAnchors(territory.owners, width, players.length, this.depth);
-    }
-    if (game.winner !== undefined) update.winner = game.winner;
-    if (game.winningTeam !== undefined) update.winningTeam = game.winningTeam;
-    return update;
   }
 }
