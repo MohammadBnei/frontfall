@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { GameReport } from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { LogFields } from "../src/log.ts";
+import { createServer } from "node:http";
+import { silentLogger, type LogFields } from "../src/log.ts";
+import { usageInbox } from "../src/usage-http.ts";
+import { UsageStats } from "../src/usage.ts";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
 
 let staticRoot: string;
@@ -101,6 +104,46 @@ describe("/api/usage", () => {
     const page = await (await fetch(`${base}/status`)).text();
     expect(page).toContain("Last 7 days / 7 derniers jours");
     expect(page).toMatch(/<td>\d{4}-\d{2}-\d{2}<\/td><td>1<\/td>/);
+  });
+
+  it("serves /api/stats for a minute from caches", async () => {
+    const base = await start();
+    const response = await fetch(`${base}/api/stats`);
+    expect(response.headers.get("cache-control")).toBe("public, max-age=60");
+  });
+
+  it("holds the buckets of a bounded number of addresses", async () => {
+    let clock = 0;
+    const inbox = usageInbox(
+      new UsageStats({ release: "0.5.0", maps: new Set() }),
+      silentLogger,
+      () => true,
+      () => clock,
+      2,
+    );
+    const http = createServer((request, response) => {
+      inbox.handle(request, response, String(request.headers["x-address"]));
+    });
+    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+    const url = `http://127.0.0.1:${String((http.address() as AddressInfo).port)}/api/usage`;
+    const from = async (address: string) =>
+      (
+        await fetch(url, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-address": address },
+          body: JSON.stringify({ kind: "error", release: "0.5.0", type: "webgl" }),
+        })
+      ).status;
+    try {
+      expect([await from("a"), await from("b"), await from("c"), await from("a")]).toEqual([
+        204, 204, 429, 204,
+      ]);
+      // Once the old buckets are full again, they are forgotten and make room.
+      clock = 10 * 60 * 1000;
+      expect(await from("c")).toBe(204);
+    } finally {
+      await new Promise((resolve) => http.close(resolve));
+    }
   });
 
   it("refuses what is not a report", async () => {

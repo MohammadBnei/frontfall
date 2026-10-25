@@ -149,7 +149,7 @@ If you like where this is going, a star helps other players find the project.
 
 ## What the game records
 
-The game counts how it is played, never who plays: which maps and modes, how long games last and how they end, phone or computer, which language, errors that broke a game, and the thumbs up or down you can give at the end. No name, no address, no cookie: your browser tells the game's own server, which only keeps totals per day, published at [`/api/stats`](https://nclsmgr.com/frontfall/api/stats). A browser set to Do Not Track sends nothing. Every field is listed in [docs/privacy.md](docs/privacy.md).
+The game counts how it is played, never who plays: which maps and modes, how long games last and how they end, phone or computer, which language, errors that broke a game, and the thumbs up or down you can give at the end. No name, no address, no cookie: your browser tells the game's own server, which only keeps totals per day, published at [`/api/stats`](https://nclsmgr.com/frontfall/api/stats). A browser set to Do Not Track or Global Privacy Control sends nothing. Every field is listed in [docs/privacy.md](docs/privacy.md).
 
 ## Inspiration and legal
 

@@ -10,6 +10,12 @@ const PER_ADDRESS = { perSecond: 1 / 20, burst: 10 };
 const OVERALL = { perSecond: 50, burst: 100 };
 /** Error messages written to the log per hour, at most. */
 const LOGGED_ERRORS = { perSecond: 60 / 3600, burst: 60 };
+/**
+ * Addresses whose buckets are held at once. Past this, reports from a new
+ * address are refused until old buckets can be forgotten: a flood from many
+ * addresses cannot grow the server's memory.
+ */
+export const MAX_ADDRESSES = 10_000;
 /** An address's bucket is full again after this long and can be forgotten. */
 const FORGET_AFTER_MS = (PER_ADDRESS.burst / PER_ADDRESS.perSecond) * 1000;
 
@@ -27,21 +33,26 @@ export function usageInbox(
   logger: Logger,
   isAllowed: (origin: string | undefined) => boolean,
   now: () => number = Date.now,
+  maxAddresses = MAX_ADDRESSES,
 ): UsageInbox {
   const buckets = new Map<string, { bucket: TokenBucket; usedAt: number }>();
   const overall = new TokenBucket(OVERALL.perSecond, OVERALL.burst, now());
   const logged = new TokenBucket(LOGGED_ERRORS.perSecond, LOGGED_ERRORS.burst, now());
   let sweptAt = now();
 
-  const allow = (address: string, at: number): boolean => {
-    if (at - sweptAt > FORGET_AFTER_MS) {
-      sweptAt = at;
-      for (const [key, entry] of buckets) {
-        if (at - entry.usedAt > FORGET_AFTER_MS) buckets.delete(key);
-      }
+  const sweep = (at: number): void => {
+    sweptAt = at;
+    for (const [key, entry] of buckets) {
+      if (at - entry.usedAt > FORGET_AFTER_MS) buckets.delete(key);
     }
+  };
+  const allow = (address: string, at: number): boolean => {
+    if (at - sweptAt > FORGET_AFTER_MS) sweep(at);
     let entry = buckets.get(address);
     if (!entry) {
+      // Full: forget what can be forgotten, at most once a second, then refuse.
+      if (buckets.size >= maxAddresses && at - sweptAt >= 1000) sweep(at);
+      if (buckets.size >= maxAddresses) return false;
       entry = {
         bucket: new TokenBucket(PER_ADDRESS.perSecond, PER_ADDRESS.burst, at),
         usedAt: at,

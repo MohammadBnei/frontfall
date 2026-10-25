@@ -196,6 +196,8 @@ describe("saving the counts", () => {
     const broken = join(directory, "broken.json");
     writeFileSync(broken, "{ not json");
     expect(loadUsage(usage, broken)).toBeInstanceOf(Error);
+    // Set aside, so that the next save does not write over what could be mended.
+    expect(readFileSync(`${broken}.broken`, "utf8")).toBe("{ not json");
     expect(usage.export(NOW).days).toEqual([]);
   });
 });

@@ -233,7 +233,14 @@ export function loadUsage(stats: UsageStats, file: string): Error | undefined {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     return error as Error;
   }
-  return stats.restore(text) ? undefined : new Error("unreadable usage counts");
+  if (stats.restore(text)) return undefined;
+  // Kept aside rather than overwritten by the next save, so the counts can be mended by hand.
+  try {
+    renameSync(file, `${file}.broken`);
+  } catch {
+    // Left in place: the next save replaces it.
+  }
+  return new Error(`unreadable usage counts, kept as ${file}.broken`);
 }
 
 /** Writes the counts readable by the server's user only, replacing the old file at once. */

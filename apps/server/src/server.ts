@@ -342,7 +342,8 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (path === "/api/stats") {
-      sendJson(response, usage.export(Date.now()));
+      // Totals by the day: a minute late is fine, and spares the server repeated scrapes.
+      sendJson(response, usage.export(Date.now()), "public, max-age=60");
       return;
     }
     if (path === "/metrics" && isLocalRequest(request)) {
@@ -836,8 +837,8 @@ function acceptsGzip(request: IncomingMessage): boolean {
   return typeof header === "string" && /(^|[\s,])gzip(?!;\s*q=0(\.0*)?(\s*,|$))/i.test(header);
 }
 
-function sendJson(response: ServerResponse, body: unknown): void {
+function sendJson(response: ServerResponse, body: unknown, caching = "no-store"): void {
   response
-    .writeHead(200, { "content-type": "application/json", "cache-control": "no-store" })
+    .writeHead(200, { "content-type": "application/json", "cache-control": caching })
     .end(JSON.stringify(body));
 }
