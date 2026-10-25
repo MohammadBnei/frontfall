@@ -292,6 +292,16 @@ describe("OnlineClient", () => {
     socket.receive({ ...lobby, bots: 0, configured: 1 });
     socket.receive({ ...lobby, bots: 0, difficulty: "hard", configured: 2 });
     expect(behind).toEqual([false, true, false]);
+
+    // A new connection numbers from 1 again, as the server does from the rejoin.
+    socket.drop();
+    timers.shift()?.callback();
+    const again = welcomed();
+    again.receive(lobby);
+    online.configure(options);
+    expect(again.sent.at(-1)).toMatchObject({ type: "configure", seq: 1 });
+    again.receive({ ...lobby, configured: 1 });
+    expect(behind.slice(3)).toEqual([false, false]);
   });
 
   it("takes its seat back after a drop and asks only for the missing turns", () => {

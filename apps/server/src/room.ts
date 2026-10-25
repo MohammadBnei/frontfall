@@ -268,6 +268,8 @@ export class Room {
     seat.peer = peer;
     seat.awaySince = undefined;
     seat.activeAt = now;
+    // A new connection numbers its `configure` messages from 1 again.
+    seat.configured = 0;
     if (this.stateValue !== "running") {
       this.lobbyChanged(now);
       return undefined;
@@ -317,6 +319,11 @@ export class Room {
     if (this.seats.length < this.settings.minPlayers) return "not_enough_players";
     this.start(now);
     return undefined;
+  }
+
+  /** The host stopped the countdown: the game waits for them to start it. */
+  get isHeld(): boolean {
+    return this.held;
   }
 
   /** Host, once: stop the countdown. The game then waits for the host to start it. */

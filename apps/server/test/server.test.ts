@@ -319,6 +319,11 @@ describe("WebSocket", () => {
     const bob = await player(host, "Bob");
     alice.send({ type: "create", visibility: "public", name: "fuck off" });
     expect((await alice.next("error")).code).toBe("invalid_game_name");
+    // Without a name, the game is named after its host, a name always valid.
+    const named = await player(host, "Maximilien-Alexandre");
+    named.send({ type: "create", visibility: "public" });
+    expect((await named.next("lobby")).name).toBe("Maximilien-Alexandre's game");
+    named.send({ type: "leave" });
     alice.send({ type: "create", visibility: "public", name: "  Europe   4v4 " });
     const lobby = await alice.next("lobby");
     expect(lobby).toMatchObject({ visibility: "public", name: "Europe 4v4", host: 1 });

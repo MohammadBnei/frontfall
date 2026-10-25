@@ -295,7 +295,8 @@ export class OnlineClient {
     switch (message.type) {
       case "welcome":
         this.attempt = 0;
-        // Whatever went out on the old connection is answered or lost.
+        // Whatever went out on the old connection is answered or lost; the
+        // server numbers this connection's anew too, from its rejoin on.
         this.configures.sent = 0;
         events.status?.("online");
         if (this.game) {

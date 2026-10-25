@@ -44,6 +44,23 @@ describe("Directory", () => {
     expect(quick?.settings.countdownMs).toBeGreaterThan(0);
   });
 
+  it("never sends Play now into a quick game whose host stopped the countdown", () => {
+    const games = new Directory({
+      maxRooms: 10,
+      publicGame: { ...DEFAULT_GAME, capacity: 4, minPlayers: 2 },
+      privateGame: { ...DEFAULT_GAME, minPlayers: 1, countdownMs: 0 },
+    });
+    const held = games.quickMatch(undefined, "Quick");
+    const host = seat(held, "Host");
+    seat(held, "Guest");
+    expect(held?.state).toBe("starting");
+    expect(held?.hold(host, 0)).toBeUndefined();
+    expect(held?.isHeld).toBe(true);
+    const next = games.quickMatch(undefined, "Quick");
+    expect(next).not.toBe(held);
+    expect(next?.settings.countdownMs).toBeGreaterThan(0);
+  });
+
   it("gives a quick game a countdown and a hosted one none", () => {
     const games = directory();
     expect(games.create({ kind: "quick", name: "Quick" })?.settings.countdownMs).toBe(60_000);

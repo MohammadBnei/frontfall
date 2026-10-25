@@ -523,12 +523,16 @@ export function createGameServer(options: ServerOptions): GameServer {
           const visibility = message.visibility ?? "private";
           let name: string | null = null;
           if (visibility === "public") {
-            const checked = normalizeGameName(message.name ?? defaultGameName(session.name));
-            if (!checked.ok) {
-              reply(session, "invalid_game_name", checked.error);
-              return;
+            // Without a name of their own, the player gets one that is always valid, as with play.
+            if (message.name === undefined) name = gameName(undefined, session.name);
+            else {
+              const checked = normalizeGameName(message.name);
+              if (!checked.ok) {
+                reply(session, "invalid_game_name", checked.error);
+                return;
+              }
+              name = checked.name;
             }
-            name = checked.name;
           }
           if (games.atLobbyLimit(session.address)) {
             reply(session, "too_many_lobbies");

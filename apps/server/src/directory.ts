@@ -57,9 +57,9 @@ export class Directory {
   quickMatch(owner: string | undefined, name: string): Room | undefined {
     let best: Room | undefined;
     for (const room of this.rooms.values()) {
-      // Only quick games: they keep the promise of starting on their own.
+      // Only quick games still counting down: they keep the promise of starting on their own.
       if (!waiting(room) || room.settings.visibility !== "public") continue;
-      if (room.settings.countdownMs <= 0) continue;
+      if (room.settings.countdownMs <= 0 || room.isHeld) continue;
       if (room.playerCount >= room.settings.capacity) continue;
       if (!best || room.playerCount > best.playerCount) best = room;
     }

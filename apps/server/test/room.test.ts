@@ -267,6 +267,34 @@ describe("private lobby", () => {
     expect(room.requestStart(host.seat, 2_000)).toBeUndefined();
   });
 
+  it("counts a new connection's settings changes from the start again", () => {
+    const room = new Room("game0000", PRIVATE, 1);
+    const host = seated(room, "Host");
+    expect(
+      room.configure(
+        host.seat,
+        {
+          map: "world",
+          bots: 0,
+          difficulty: "hard",
+          nations: true,
+          teams: 0,
+          disabled: 0,
+          capacity: 4,
+          autoStart: false,
+        },
+        0,
+        5,
+      ),
+    ).toBeUndefined();
+    expect(host.peer.last("lobby").configured).toBe(5);
+    room.disconnect(host.seat, 1_000);
+    const back = new FakePeer();
+    expect(room.rejoin(host.seat, back, 0, 1_500)).toBeUndefined();
+    // The page numbers this connection's changes from 1: an old 5 would pass for their answer.
+    expect(back.last("lobby").configured).toBe(0);
+  });
+
   it("frees the seat of a player who does not come back in time", () => {
     const room = new Room("game0000", PRIVATE, 1);
     const host = seated(room, "Host");
