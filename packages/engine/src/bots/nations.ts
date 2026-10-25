@@ -33,7 +33,7 @@ export const NATION_ODDS_PERCENT = 80; // B-NATION-ODDS
 export const NATION_FULL_PERCENT = 90; // B-NATION-FULL
 
 /** Seconds of play during which a nation opens no front against a player: it settles its land first. */
-export const NATION_GRACE_SECONDS = 120; // B-NATION-GRACE
+export const NATION_GRACE_SECONDS = 150; // B-NATION-GRACE
 
 /** An attack counts as a threat to a nation from this share of the nation's troops: smaller ones do not stop it. */
 export const NATION_THREAT_PERCENT = 10; // B-NATION-THREAT

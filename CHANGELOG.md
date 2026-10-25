@@ -27,6 +27,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- Nations leave newcomers alone for 2.5 minutes instead of 2. A player who expanded fast was often the thinnest on the map when the grace ended, and eight to ten nations attacked them within the same minute.
 - The reason a click was refused stays up for four seconds and names the building, as in "Port: …".
 - Trade reaches farther on large maps: 500 tiles of sea, as before, on a map of 2^19 tiles, and 1,000 on World, where ports were often too far apart to trade at all. A long route pays more: up to 22,000 gold to each side on World.
 - A self-hosted server reports its release in the `X-Frontfall-Release` header of `/healthz`, next to the build. The release number has one home, the version of the root `package.json`, read by the client and the server alike.
