@@ -47,6 +47,12 @@ export interface RoomSettings {
   countdownMs: number;
   /** A host who has not been at the screen for this long hands the role on. */
   hostIdleMs: number;
+  /**
+   * Quick games: bots that fill in for opponents when a player is still alone
+   * at the end of the countdown, which then starts with the first player. 0
+   * waits for minPlayers.
+   */
+  soloBots: number;
   /** How long a seat stays reserved for a player whose connection dropped. */
   reconnectGraceMs: number;
   /** The same before the start: a phone that sleeps a moment keeps its place, and the host its role. */
@@ -272,7 +278,7 @@ export class Room {
   /** Host: map, bots, difficulty, seats and, for a public game, its name, until the start. */
   configure(
     seat: Seat,
-    options: GameOptions & { name?: string },
+    options: GameOptions & { name?: string; soloBots?: number },
     now: number,
   ): ErrorCode | undefined {
     const refused = this.hostOnly(seat);
@@ -420,6 +426,10 @@ export class Room {
   }
 
   private start(now: number): void {
+    // Only a countdown starts a game short of players: bots stand in for them.
+    if (this.seats.length < this.settings.minPlayers) {
+      this.settings.bots = Math.max(this.settings.bots, this.settings.soloBots);
+    }
     this.stateValue = "running";
     this.startsAt = undefined;
     this.startedAt = now;
@@ -487,7 +497,8 @@ export class Room {
       return;
     }
     const counting = this.settings.countdownMs > 0 && !this.held;
-    if (counting && count >= this.settings.minPlayers) {
+    const enough = this.settings.soloBots > 0 ? 1 : this.settings.minPlayers;
+    if (counting && count >= enough) {
       this.startsAt ??= now + this.settings.countdownMs;
     } else this.startsAt = undefined;
     this.stateValue = this.startsAt === undefined ? "open" : "starting";

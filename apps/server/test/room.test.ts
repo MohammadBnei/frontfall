@@ -16,6 +16,7 @@ const PUBLIC: RoomSettings = {
   minPlayers: 2,
   countdownMs: 10_000,
   hostIdleMs: 120_000,
+  soloBots: 0,
   reconnectGraceMs: 60_000,
   lobbyGraceMs: 30_000,
   maxDurationMs: 3_600_000,
@@ -306,7 +307,7 @@ describe("private lobby", () => {
   });
 });
 
-describe("public game created by its host", () => {
+describe("public game created by its host (R-MODE-04)", () => {
   it("waits for the host, who needs a second player to start", () => {
     const room = new Room("game0000", HOSTED, 1);
     const host = seated(room, "Host");
@@ -377,7 +378,7 @@ describe("public game created by its host", () => {
   });
 });
 
-describe("countdown of a quick game", () => {
+describe("countdown of a quick game (R-MODE-04)", () => {
   it("can be stopped once by the host, who then starts the game", () => {
     const room = new Room("game0000", PUBLIC, 1);
     const host = seated(room, "Host");
@@ -403,7 +404,36 @@ describe("countdown of a quick game", () => {
   });
 });
 
-describe("host who walked away", () => {
+describe("lone player of a quick game (R-MODE-04)", () => {
+  const QUICK: RoomSettings = { ...PUBLIC, soloBots: 7 };
+
+  it("starts with bots at the end of the countdown", () => {
+    const room = new Room("game0000", QUICK, 1);
+    const alone = seated(room, "Alone", 0);
+    expect(alone.peer.last("lobby")).toMatchObject({ startsIn: 10_000, holdable: true });
+    expect(room.requestStart(alone.seat, 1_000)).toBe("not_enough_players");
+    room.update(10_000);
+    expect(alone.peer.last("started")).toMatchObject({ bots: 7, players: [{ id: 1 }] });
+  });
+
+  it("adds no bots when an opponent came", () => {
+    const room = new Room("game0000", QUICK, 1);
+    const first = seated(room, "First", 0);
+    seated(room, "Second", 4_000);
+    room.update(10_000);
+    expect(first.peer.last("started").bots).toBe(0);
+  });
+
+  it("waits for the host instead once the countdown is stopped", () => {
+    const room = new Room("game0000", QUICK, 1);
+    const alone = seated(room, "Alone", 0);
+    room.hold(alone.seat, 1_000);
+    room.update(60_000);
+    expect(room.state).toBe("open");
+  });
+});
+
+describe("host who walked away (R-MODE-04)", () => {
   it("hands the role to the player at the screen most recently", () => {
     const room = new Room("game0000", HOSTED, 1);
     const host = seated(room, "Host", 0);

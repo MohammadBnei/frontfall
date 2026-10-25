@@ -120,6 +120,7 @@ export const DEFAULT_GAME: GameSettings = {
   minPlayers: 2,
   countdownMs: 60_000,
   hostIdleMs: 2 * 60_000,
+  soloBots: 0,
   reconnectGraceMs: 5 * 60_000,
   lobbyGraceMs: 30_000,
   maxDurationMs: 4 * 60 * 60 * 1000,
@@ -183,7 +184,7 @@ function seatsFor(
   maxBots: number,
   players: number,
 ): number | undefined {
-  const maxPlayers = maps.get(options.map);
+  const maxPlayers = maps.get(options.map)?.max;
   if (maxPlayers === undefined || options.bots > maxBots) return undefined;
   const seats = Math.min(options.capacity, maxPlayers - options.bots);
   return seats >= Math.max(players, 1) ? seats : undefined;
@@ -253,11 +254,17 @@ export function createGameServer(options: ServerOptions): GameServer {
   };
   const privateGame = { ...DEFAULT_GAME, minPlayers: 1, countdownMs: 0, ...options.privateGame };
   const maps = loadMapLimits(options.staticRoot, privateGame.map);
+  const publicMap = options.publicGame?.map ?? DEFAULT_GAME.map;
+  const publicGame = {
+    ...DEFAULT_GAME,
+    soloBots: maps.get(publicMap)?.bots ?? 0,
+    ...options.publicGame,
+  };
   const maxBots = options.maxBots ?? 25;
   const games = new Directory({
     maxRooms: options.maxRooms ?? 500,
     maxLobbiesPerOwner: options.maxLobbiesPerAddress ?? 3,
-    publicGame: { ...DEFAULT_GAME, ...options.publicGame },
+    publicGame,
     privateGame,
     observer,
   });
@@ -546,9 +553,12 @@ export function createGameServer(options: ServerOptions): GameServer {
           }
           name = games.uniqueName(checked.name, current.room);
         }
+        // A quick game keeps filling in with the new map's bots.
+        const soloBots =
+          current.room.settings.soloBots > 0 ? (maps.get(message.options.map)?.bots ?? 0) : 0;
         const error = current.room.configure(
           current.seat,
-          { ...message.options, capacity: seats, ...(name !== undefined && { name }) },
+          { ...message.options, capacity: seats, soloBots, ...(name !== undefined && { name }) },
           Date.now(),
         );
         if (error) reply(session, error);

@@ -240,7 +240,7 @@ describe("HTTP", () => {
 });
 
 describe("WebSocket", () => {
-  const fast = { publicGame: { countdownMs: 50 } };
+  const fast = { publicGame: { countdownMs: 50, soloBots: 0 } };
   /** Seats asked for in `configure`; the map and bots may leave fewer. */
   const SEATS = { capacity: 4, autoStart: false } as const;
 

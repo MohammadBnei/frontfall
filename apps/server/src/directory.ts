@@ -85,6 +85,8 @@ export class Directory {
               opening.visibility === "public"
                 ? this.options.publicGame.minPlayers
                 : this.options.privateGame.minPlayers,
+            // The host sets the bots of their own game.
+            soloBots: 0,
           };
     const room = new Room(newGameId(), settings, randomInt(2 ** 31), this.options.observer, owner);
     this.rooms.set(room.id, room);
