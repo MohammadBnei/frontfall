@@ -245,4 +245,17 @@ describe("coasts and land masses", () => {
     expect(terrain.landmassOf(grid.index(3, 1))).toBe(-1);
     expect(terrain.landmassOf(grid.index(6, 1))).toBe(-1);
   });
+
+  it("tells the ocean, the largest body of water, from a lake (R-MAP-05)", () => {
+    const { grid, game } = newGame(["XXXXXXXXXX", "#.##.....#", "##########", "XXXXXXXXXX"]);
+    const { terrain } = game;
+    // (1, 1) is a lake of one tile; (4, 1) to (8, 1) is the ocean.
+    expect(terrain.isOceanCoast(grid.index(3, 1))).toBe(true);
+    expect(terrain.isOceanCoast(grid.index(9, 1))).toBe(true);
+    expect(terrain.isCoast(grid.index(2, 1))).toBe(true);
+    expect(terrain.isOceanCoast(grid.index(2, 1))).toBe(false);
+    expect(terrain.isOceanCoast(grid.index(0, 1))).toBe(false);
+    expect(terrain.isOceanCoast(grid.index(5, 1))).toBe(false);
+    expect(terrain.isOceanCoast(grid.index(5, 2))).toBe(true);
+  });
 });

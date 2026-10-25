@@ -125,13 +125,15 @@ scope.onmessage = (event) => {
             tile: request.tile,
             outcome: result.order.type,
             order: result.order,
+            ...(result.note ? { note: result.note } : {}),
           });
           break;
         }
         pending.push(result.order);
       }
       const outcome = "order" in result ? result.order.type : result.refused;
-      scope.postMessage({ type: "click", tile: request.tile, outcome });
+      const note = "order" in result ? result.note : undefined;
+      scope.postMessage({ type: "click", tile: request.tile, outcome, ...(note ? { note } : {}) });
       break;
     }
     case "turns":

@@ -36,6 +36,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **A dropped connection in a lobby keeps your place.** A phone that sleeps or a network that blinks gets 30 seconds to come back, with the host role if you had it, and lands in the game if it started meanwhile. In a running game, your seat now waits 5 minutes instead of 2, and up to 16 players can share one home or mobile network.
 - **Reloading after a desync helps.** The page that says your game no longer matches the others asks for a reload; the reload now rebuilds the game from the start and clears the warning, instead of showing it again.
 - **Ports are easy to place.** On a large map the coast is under a pixel wide, so a port almost never found it. A click by the water, on your land or just off it at sea, now puts the port on your closest coast tile that can take one, and a warship is bought with a click as close to the port. A build mode also stays on through a refused click, so a second quick click builds instead of attacking.
+- Bots and nations build their port on the ocean, no longer on a lake where it found nobody to trade with. Building your own port on a lake shore still works, and a note says it trades only with ports on the same lake.
 
 ## [0.4.0] - 2026-10-25
 

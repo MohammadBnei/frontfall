@@ -324,4 +324,37 @@ describe("bots", () => {
     }
     expect(bot.gold).toBe(10_000 - 750 - 1125);
   });
+  it("build their port on the ocean, not on a lake closer to their start (R-BOT-06)", () => {
+    const grid = new WorldGrid(60, 30, { wrapsX: false });
+    const kinds = new Uint8Array(grid.size).fill(TileKind.Plains);
+    for (let tile = 0; tile < grid.size; tile++) {
+      const x = grid.x(tile);
+      const y = grid.y(tile);
+      // The ocean along the west edge, 11 tiles from the start; a lake of nine tiles 10 tiles north.
+      if (x < 4 || (x >= 14 && x <= 16 && y >= 2 && y <= 4)) kinds[tile] = TileKind.Water;
+    }
+    const game = new Game({
+      terrain: new Terrain(grid, kinds),
+      seed: 3,
+      players: [
+        { id: 1, name: "Bot" },
+        { id: 2, name: "Ada" },
+      ],
+      balance: { ...balance, spawnPhaseTicks: 0, cityCost: 500, portCost: 500 },
+    });
+    installStructures(game);
+    installBots(game, [1], "normal");
+    for (let tile = 0; tile < grid.size; tile++) {
+      if (game.terrain.isOwnable(tile)) game.territory.setOwner(tile, grid.x(tile) < 30 ? 1 : 2);
+    }
+    const bot = game.player(1) as Player;
+    bot.start = grid.index(15, 15);
+    bot.gold = 10_000;
+    for (let i = 0; i < 120; i++) game.step({ tick: game.tick, orders: [] });
+    const ports = game.structures.filter((s) => s.kind === StructureKind.Port);
+    expect(ports).toHaveLength(1);
+    const port = (ports[0] as { tile: number }).tile;
+    expect(grid.x(port)).toBe(4);
+    expect(game.terrain.isOceanCoast(port)).toBe(true);
+  });
 });

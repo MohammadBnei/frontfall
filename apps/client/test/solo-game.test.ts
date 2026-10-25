@@ -313,7 +313,7 @@ describe("SoloGame clicks", () => {
       if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
     }
     const topology = terrain.topology;
-    const coast = [...terrain.kinds.keys()].find((tile) => terrain.isCoast(tile)) ?? -1;
+    const coast = [...terrain.kinds.keys()].find((tile) => terrain.isOceanCoast(tile)) ?? -1;
     // Further than a click reaches from any coast.
     const inland =
       [...terrain.kinds.keys()].find(
@@ -324,6 +324,15 @@ describe("SoloGame clicks", () => {
     expect(solo.orderForClick(inland, 30, "port")).toEqual({ refused: "coast" });
     expect(solo.orderForClick(coast, 30, "port")).toEqual({
       order: { type: "build", structure: 2, tile: coast },
+    });
+    // The map has a lake: a port on its shore is built, with a word about trade.
+    const shore =
+      [...terrain.kinds.keys()].find(
+        (tile) => terrain.isCoast(tile) && !terrain.isOceanCoast(tile),
+      ) ?? -1;
+    expect(solo.orderForClick(shore, 30, "port")).toEqual({
+      order: { type: "build", structure: 2, tile: shore },
+      note: "lake",
     });
     update = solo.step([{ type: "embargo", target: 2, on: 1 }]);
     expect(update.diplomacy.embargoes).toEqual([2]);
@@ -360,7 +369,9 @@ describe("SoloGame clicks", () => {
     if (coast === undefined) throw new Error("no coast with the sea to the north");
     const sea = topology.index(topology.x(coast), topology.y(coast) - 1);
     const land = topology.index(topology.x(coast), topology.y(coast) + 1);
-    const port = { order: { type: "build", structure: 2, tile: coast } };
+    const order = { type: "build", structure: 2, tile: coast };
+    // On a lake shore the port is built all the same, with a word about trade.
+    const port = terrain.isOceanCoast(coast) ? { order } : { order, note: "lake" };
     // A click on the sea or on the land just behind finds the coast between them.
     expect(solo.orderForClick(sea, 30, "port")).toEqual(port);
     expect(solo.orderForClick(land, 30, "port")).toEqual(port);

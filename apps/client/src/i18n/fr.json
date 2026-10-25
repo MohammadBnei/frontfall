@@ -180,6 +180,7 @@
   "click.foreign": "Construisez sur vos propres terres.",
   "click.crowded": "Trop près d’une autre structure.",
   "click.coast": "Aucune côte à vous ici : cliquez au bord de l’eau, près de vos terres.",
+  "click.lake": "Ce port est sur un lac : il ne commerce qu’avec les ports du même lac.",
   "click.port": "Cliquez sur un de vos ports prêts pour y acheter un navire de guerre.",
   "click.shore": "Ce port n’a pas d’eau libre à côté pour un navire de guerre.",
   "click.allyNear": "Trop près d’un allié : le souffle toucherait ses terres.",

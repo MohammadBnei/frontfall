@@ -18,6 +18,7 @@ export class Terrain {
   readonly topology: Topology;
   readonly kinds: Uint8Array;
   private landmasses: Int32Array | undefined;
+  private ocean: Uint8Array | undefined;
   private ownable = -1;
   private readonly around = new Int32Array(4);
 
@@ -66,6 +67,20 @@ export class Terrain {
   }
 
   /**
+   * Ownable land next to the ocean, the largest body of water on the map
+   * (R-MAP-05), and not only next to a lake.
+   */
+  isOceanCoast(tile: number): boolean {
+    if (!this.isOwnable(tile)) return false;
+    this.ocean ??= this.findOcean();
+    const count = this.topology.neighborsInto(tile, this.around);
+    for (let i = 0; i < count; i++) {
+      if (this.ocean[this.around[i] as number] === 1) return true;
+    }
+    return false;
+  }
+
+  /**
    * Number of the land mass a tile belongs to: ownable tiles reachable from
    * one another over ownable land share a number, counted from 0 in tile
    * order. Water and impassable tiles give -1. Computed once, on first use.
@@ -75,14 +90,34 @@ export class Terrain {
     return this.landmasses[tile] as number;
   }
 
+  /** 1 on every water tile of the largest body of water, 0 elsewhere. */
+  private findOcean(): Uint8Array {
+    const bodies = this.findBodies((tile) => this.kinds[tile] === TileKind.Water);
+    const sizes: number[] = [];
+    for (const body of bodies) if (body >= 0) sizes[body] = (sizes[body] ?? 0) + 1;
+    let largest = -1;
+    // The first body in tile order wins a tie, the same on every client.
+    for (let body = 0; body < sizes.length; body++) {
+      if (largest < 0 || (sizes[body] as number) > (sizes[largest] as number)) largest = body;
+    }
+    const ocean = new Uint8Array(bodies.length);
+    for (let tile = 0; tile < bodies.length; tile++) if (bodies[tile] === largest) ocean[tile] = 1;
+    return ocean;
+  }
+
   private findLandmasses(): Int32Array {
+    return this.findBodies((tile) => this.isOwnable(tile));
+  }
+
+  /** Numbers the regions of tiles that `inside` accepts, connected through each other, from 0 in tile order; -1 elsewhere. */
+  private findBodies(inside: (tile: number) => boolean): Int32Array {
     const { topology } = this;
     const masses = new Int32Array(topology.size).fill(-1);
     const queue = new Int32Array(topology.size);
     const around = new Int32Array(4);
     let next = 0;
     for (let start = 0; start < topology.size; start++) {
-      if (masses[start] !== -1 || !this.isOwnable(start)) continue;
+      if (masses[start] !== -1 || !inside(start)) continue;
       masses[start] = next;
       queue[0] = start;
       let head = 0;
@@ -91,7 +126,7 @@ export class Terrain {
         const count = topology.neighborsInto(queue[head++] as number, around);
         for (let i = 0; i < count; i++) {
           const tile = around[i] as number;
-          if (masses[tile] !== -1 || !this.isOwnable(tile)) continue;
+          if (masses[tile] !== -1 || !inside(tile)) continue;
           masses[tile] = next;
           queue[tail++] = tile;
         }

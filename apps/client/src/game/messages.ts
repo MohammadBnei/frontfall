@@ -2,7 +2,7 @@ import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { MapManifest } from "@frontfall/protocol";
 import type { MapInfo } from "./maps.ts";
 import type { StartInfo } from "./session.ts";
-import type { ClickMode, ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
+import type { ClickMode, ClickNote, ClickRefusal, GameUpdate, SoloOptions } from "./solo-game.ts";
 
 /** What became of a click: the order it sent, or why it sent none. */
 export type ClickOutcome = Order["type"] | ClickRefusal;
@@ -60,7 +60,7 @@ export type WorkerReply =
   | ({ type: "started" } & StartInfo)
   | { type: "update"; update: GameUpdate }
   /** Online, `order` is what the page must send to the server; solo, the worker queued it. */
-  | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order }
+  | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order; note?: ClickNote }
   /** None for a game on a generated map. */
   | { type: "report"; report: DesyncReport | undefined }
   /** None for a game on a generated map, or while watching a replay. */

@@ -1,4 +1,5 @@
 import type { ClickOutcome } from "../game/messages.ts";
+import type { ClickNote } from "../game/solo-game.ts";
 import type { MessageKey } from "../i18n/index.ts";
 import { t } from "../i18n/index.ts";
 import type { Camera } from "../render/camera.ts";
@@ -38,6 +39,10 @@ const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   disabled: "click.disabled",
 };
 
+const NOTES: Record<ClickNote, MessageKey> = {
+  lake: "click.lake",
+};
+
 interface Mark {
   readonly tile: number;
   readonly element: HTMLElement;
@@ -62,8 +67,16 @@ export class ClickMarks {
   /**
    * `waiting`: an online order, shown until `arrived` says its turn is back.
    * `action`: the name of the build refused, said before the reason.
+   * `note`: shown under the map like a reason, for an order sent all the same.
    */
-  show(tile: number, outcome: ClickOutcome, now: number, waiting = false, action?: string): void {
+  show(
+    tile: number,
+    outcome: ClickOutcome,
+    now: number,
+    waiting = false,
+    action?: string,
+    note?: ClickNote,
+  ): void {
     const refusal = REFUSALS[outcome];
     if (outcome === "over") return;
     const held = waiting && !refusal;
@@ -74,9 +87,12 @@ export class ClickMarks {
     const mark = { tile, element, until: now + (held ? PENDING_MS : MARK_MS) };
     this.marks.push(mark);
     if (held) this.pending.push(mark);
-    if (refusal) {
-      this.note.textContent =
-        action === undefined ? t(refusal) : t("hud.named", { action, reason: t(refusal) });
+    if (refusal || note) {
+      this.note.textContent = refusal
+        ? action === undefined
+          ? t(refusal)
+          : t("hud.named", { action, reason: t(refusal) })
+        : t(NOTES[note as ClickNote]);
       this.note.hidden = false;
       this.noteUntil = now + NOTE_MS;
     }

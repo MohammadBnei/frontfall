@@ -1,6 +1,7 @@
 import type { Order } from "@frontfall/engine";
 import type { MapData } from "./maps.ts";
 import type { ClickOutcome, GameRules } from "./messages.ts";
+import type { ClickNote } from "./solo-game.ts";
 import type { ClickMode, GameUpdate } from "./solo-game.ts";
 
 /** What the page needs to draw a game, once its map is loaded. */
@@ -19,7 +20,8 @@ export interface SessionEvents {
   /** Once per tick, in order. The game is over when `update.winner` is set. */
   onUpdate(update: GameUpdate): void;
   /** What a click sent through `click` turned into. */
-  onClick(tile: number, outcome: ClickOutcome): void;
+  /** `note`: something to know about an order that was sent all the same. */
+  onClick(tile: number, outcome: ClickOutcome, note?: ClickNote): void;
   onError(message: string): void;
 }
 

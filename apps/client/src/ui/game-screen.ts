@@ -252,12 +252,12 @@ export class GameScreen {
         onUpdate: (update) => {
           this.apply(update);
         },
-        onClick: (tile, outcome) => {
+        onClick: (tile, outcome, note) => {
           // A refused build names what was refused: the oldest click in flight is the one answered.
           const sent = this.clicksInFlight[0];
           const action =
             sent !== undefined && sent !== "attack" ? t(`hud.${sent}` as MessageKey) : undefined;
-          this.marks.show(tile, outcome, performance.now(), link !== undefined, action);
+          this.marks.show(tile, outcome, performance.now(), link !== undefined, action, note);
           this.afterClick(outcome);
         },
         onError: (message) => {

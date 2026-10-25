@@ -225,7 +225,12 @@ export type ClickRefusal =
   /** Left out of this game by its host (R-MODE-03). */
   | "disabled";
 
-export type ClickResult = { order: Order } | { refused: ClickRefusal };
+/** Something to know about an order that was sent all the same. */
+export type ClickNote =
+  /** A port on a lake trades only with ports on the same lake (R-MAP-05). */
+  "lake";
+
+export type ClickResult = { order: Order; note?: ClickNote } | { refused: ClickRefusal };
 
 export type StructureType = "city" | "palace" | "fort" | "port" | "silo" | "airDefense";
 
@@ -624,7 +629,10 @@ export class SoloGame {
         refusal = { error, distance };
       }
     }
-    if (best) return { order: { type: "build", structure: StructureKind.Port, tile: best.tile } };
+    if (best) {
+      const order: Order = { type: "build", structure: StructureKind.Port, tile: best.tile };
+      return terrain.isOceanCoast(best.tile) ? { order } : { order, note: "lake" };
+    }
     if (!refusal) {
       // No coast of the player's near: the click itself says why (the phase,
       // a left-out port, someone else's land), and on the sea, "coast".

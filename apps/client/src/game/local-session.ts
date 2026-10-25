@@ -44,7 +44,7 @@ export class LocalSession implements GameSession {
         this.records.shift()?.(reply.record);
       } else if (reply.type === "click") {
         if (reply.order) link?.order(reply.order);
-        events.onClick(reply.tile, reply.outcome);
+        events.onClick(reply.tile, reply.outcome, reply.note);
       } else {
         events.onError(reply.message);
       }

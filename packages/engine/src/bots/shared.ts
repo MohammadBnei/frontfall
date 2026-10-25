@@ -137,8 +137,9 @@ export function inlandSite(game: Game, bot: Player, center: number): number {
 }
 
 /**
- * R-BOT-06: once it has a city, one port on its own coast closest to its
- * start, when its gold allows. A player whose start is lost, or with no
+ * R-BOT-06: once it has a city, one port on its own ocean coast closest to
+ * its start, when its gold allows: a port on a lake would find nobody to
+ * trade with. A player whose start is lost, or with no
  * coast near it, tries again later.
  */
 export function buildPort(game: Game, bot: Player, cooldowns: Cooldowns, retryTicks: number): void {
@@ -160,7 +161,7 @@ export function buildPort(game: Game, bot: Player, cooldowns: Cooldowns, retryTi
   let best = -1;
   let bestDistance = 0;
   for (const tile of topology.tilesWithin(start, PORT_SEARCH_RADIUS)) {
-    if (territory.ownerOf(tile) !== bot.id || !terrain.isCoast(tile)) continue;
+    if (territory.ownerOf(tile) !== bot.id || !terrain.isOceanCoast(tile)) continue;
     if (nearby.some((s) => topology.distance(s.tile, tile) < spacing)) continue;
     const distance = topology.distance(tile, start);
     if (best < 0 || distance < bestDistance) {
