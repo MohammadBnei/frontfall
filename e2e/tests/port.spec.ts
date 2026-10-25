@@ -27,3 +27,31 @@ test("keeps the port mode on through a refused click, and builds with the next o
   await expect(port).toHaveAttribute("aria-pressed", "false");
   expect(pageErrors).toEqual([]);
 });
+
+test("finds the coast from a click a few pixels off, zoomed out (R-BUILD-02)", async ({ page }) => {
+  test.setTimeout(150_000);
+  const start = await startByTheWater(page, "&gold=500");
+  const port = page.locator("#build-port");
+  await expect(port).not.toHaveClass(/unaffordable/, { timeout: 90_000 });
+  const cost = port.locator(".build-cost");
+  const first = await cost.textContent();
+  // Zoom out around the start: the player's coast shrinks to a few pixels.
+  await page.mouse.move(start.x, start.y);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(500);
+  await page.keyboard.press("KeyO");
+  await expect(port).toHaveAttribute("aria-pressed", "true");
+  // Twenty pixels to the side: far from the coast in tiles, close on the screen.
+  for (const [dx, dy] of [
+    [20, 0],
+    [-20, 0],
+    [0, 20],
+    [0, -20],
+  ] as const) {
+    await page.mouse.click(start.x + dx, start.y + dy);
+    await page.waitForTimeout(400);
+    if ((await cost.textContent()) !== first) break;
+  }
+  await expect(cost).not.toHaveText(first ?? "", { timeout: 5_000 });
+  await page.screenshot({ path: process.env.SHOT ?? "/tmp/aim.png" });
+});
