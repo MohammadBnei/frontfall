@@ -118,16 +118,27 @@ export function installNations(
     }
   });
 
+  /** What spared() knows, computed once per decision: a scan asks about every tile of the border. */
+  let pileFresh = false;
+  const piled = new Map<number, number>();
+  let pileLeader: number = NEUTRAL;
+
   /**
    * R-BOT-13: whether a nation may open a front against `owner` early on:
    * fewer than `NATION_PILE_MAX` nations are attacking them, or they lead.
    */
   function spared(owner: number): boolean {
-    let attackers = 0;
-    for (const attack of game.attacks) {
-      if (attack.target === owner && nationSet.has(attack.player)) attackers++;
+    if (!pileFresh) {
+      pileFresh = true;
+      piled.clear();
+      for (const attack of game.attacks) {
+        if (attack.target !== NEUTRAL && nationSet.has(attack.player)) {
+          piled.set(attack.target, (piled.get(attack.target) ?? 0) + 1);
+        }
+      }
+      pileLeader = leader();
     }
-    return attackers < NATION_PILE_MAX || owner === leader();
+    return (piled.get(owner) ?? 0) < NATION_PILE_MAX || owner === pileLeader;
   }
 
   /** The player with the most land, the lowest number among equals. */
@@ -145,6 +156,7 @@ export function installNations(
   }
 
   function decide(nation: Player): void {
+    pileFresh = false;
     const tiles = territory.tileCount(nation.id);
     if (tiles === 0 || territory.borderCount(nation.id) === 0) return;
     buildCity(game, nation, cityCooldowns, retryTicks);
