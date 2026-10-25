@@ -1,7 +1,7 @@
 import type { Order, Turn } from "@frontfall/engine";
 import { transferables, type WorkerReply, type WorkerRequest } from "./messages.ts";
 import { fetchMapData } from "./maps.ts";
-import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS } from "./replay-file.ts";
+import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS, sameReplayMap } from "./replay-file.ts";
 import { SoloGame } from "./solo-game.ts";
 
 interface WorkerScope {
@@ -81,8 +81,8 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
   online = request.online === true;
   const map = await fetchMapData(request.map, request.manifest);
   const record = request.options.record;
-  // The map of a replay must be the one its game was played on, terrain and all.
-  if (record && record.map.sha256 !== map.source?.sha256) throw new Error(REPLAY_MAP_CHANGED);
+  // The map of a replay must be the one its game was played on, terrain and nations.
+  if (record && !sameReplayMap(record.map, map.source)) throw new Error(REPLAY_MAP_CHANGED);
   game = new SoloGame(request.options, map);
   const {
     ticksPerSecond,

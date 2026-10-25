@@ -117,15 +117,17 @@ The generator ([`tools/src/mapgen/`](../tools/src/mapgen)) then:
 
    A definition can also list `nations.seats`: places of Natural Earth, by
    name and country code, that always hold a nation and are placed before
-   the countries are picked. A seat is named after its region (`"region":
-true`, Natural Earth's first-level division) or after its country. Seats
-   share out land that one country would otherwise have to itself: with
-   Ottawa as the only start north of the United States, Canada won 15 games
-   of nations out of 24 on World, with the whole Arctic free to take. World
-   and Americas therefore seat Greenland (Nuuk), Nunavut (Iqaluit), the
-   Northwest Territories (Yellowknife), Yukon (Whitehorse) and Alaska
-   (Anchorage), World also Iceland, and Americas Chubut (Rawson), whose
-   Patagonia Argentina had to itself once Canada was held back.
+   the countries are picked. A seat with `region` set is named after its
+   region, Natural Earth's first-level division; otherwise after its
+   country. Seats share out land that one country would otherwise have to
+   itself: with Ottawa as the only start north of the United States, Canada
+   won 18 games of nations out of 24 on World, with the whole Arctic free to
+   take. World and Americas therefore seat Greenland (Nuuk), Nunavut
+   (Iqaluit), the Northwest Territories (Yellowknife), Yukon (Whitehorse)
+   and Alaska, World also Iceland, and Americas Chubut (Rawson), whose
+   Patagonia Argentina had to itself once Canada was held back. Alaska
+   starts from Anchorage, its largest city, rather than from its capital:
+   Juneau lies too close to Whitehorse for both to hold a nation.
 
    On a continent map, `nations.continents` limits nations to the countries
    Natural Earth places on those continents, and `nations.alsoCountries`

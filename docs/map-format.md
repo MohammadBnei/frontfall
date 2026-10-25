@@ -117,6 +117,8 @@ with these bytes.
 
 - `version` is the version of this map, not of the format. Any change to the
   terrain bytes needs a new version; CI enforces it (see [`maps.md`](maps.md)).
+  A change to the nations alone needs one too: a replay only plays on the
+  version of the map it was recorded on.
 - `projection` gives the outer edges of the grid in degrees. Columns are
   evenly spaced in longitude and rows in latitude (an equirectangular grid);
   the degrees per column and per row may differ, which keeps regional maps

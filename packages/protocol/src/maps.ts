@@ -30,7 +30,7 @@ export const MapManifest = z
     format: z.literal(1),
     id: mapId,
     name: MapName,
-    /** Bumped whenever the terrain bytes change, so a published map never changes silently. */
+    /** Bumped whenever the terrain bytes or the nations change, so a published map never changes silently. */
     version: count,
     width: count,
     height: count,

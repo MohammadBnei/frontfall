@@ -1,7 +1,12 @@
 import { TileKind } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
 import { generateMap, type MapData } from "../src/game/maps.ts";
-import { readReplayFile, replayFile, replayFileName } from "../src/game/replay-file.ts";
+import {
+  readReplayFile,
+  replayFile,
+  replayFileName,
+  sameReplayMap,
+} from "../src/game/replay-file.ts";
 import { SoloGame, type SoloOptions } from "../src/game/solo-game.ts";
 
 const options: SoloOptions = {
@@ -31,6 +36,21 @@ function played(ticks: number): SoloGame {
 }
 
 describe("replays (#50)", () => {
+  it("needs the same map version as well as the same terrain", () => {
+    const terrain = "a".repeat(64);
+    expect(sameReplayMap({ version: 3, sha256: terrain }, { version: 3, sha256: terrain })).toBe(
+      true,
+    );
+    // World v4 kept the terrain of v3 and added nations.
+    expect(sameReplayMap({ version: 3, sha256: terrain }, { version: 4, sha256: terrain })).toBe(
+      false,
+    );
+    expect(
+      sameReplayMap({ version: 3, sha256: terrain }, { version: 3, sha256: "b".repeat(64) }),
+    ).toBe(false);
+    expect(sameReplayMap({ version: 3, sha256: terrain }, undefined)).toBe(false);
+  });
+
   it("record a solo game and play it again to the same hash (R-FAIR-01)", () => {
     const solo = played(400);
     const record = solo.record();
