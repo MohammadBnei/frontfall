@@ -12,7 +12,7 @@ COPY tools/package.json tools/
 COPY e2e/package.json e2e/
 RUN pnpm install --frozen-lockfile
 COPY . .
-# The client sends its build to the server, which turns away pages from another build.
+# Both builds embed the simulation build (docs/protocol.md); FRONTFALL_VERSION, the commit, is for /healthz.
 ARG FRONTFALL_VERSION=dev
 RUN FRONTFALL_VERSION=$FRONTFALL_VERSION pnpm --filter @frontfall/client --filter @frontfall/server build
 

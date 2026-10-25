@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
+import { simulationBuild } from "../../tools/simulation-build.mjs";
 
 // The release is the version of the repository's root package.json, for the client and the server alike.
 const { version } = JSON.parse(
@@ -12,8 +13,8 @@ export default defineConfig({
   // Relative URLs: the same build works at / and behind a path prefix such as /frontfall/.
   base: "./",
   define: {
-    // Commit the image is built from; see src/net/build.ts.
-    __FRONTFALL_BUILD__: JSON.stringify(process.env.FRONTFALL_VERSION ?? "dev"),
+    // Simulation build of the sources, not the commit; see src/net/build.ts.
+    __FRONTFALL_SIMULATION__: JSON.stringify(simulationBuild()),
     // Release of the game, from the root package.json; see src/release.ts.
     __FRONTFALL_RELEASE__: JSON.stringify(version),
   },

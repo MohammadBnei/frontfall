@@ -1,8 +1,12 @@
-declare const __FRONTFALL_BUILD__: string | undefined;
+declare const __FRONTFALL_SIMULATION__: string | undefined;
 
 /**
- * Build of this page, set by Vite from FRONTFALL_VERSION. The server refuses
- * a page from another build: the engine or the balance may differ, and the
- * game would desynchronise. Development builds are "dev" and always accepted.
+ * Simulation build of this page, a hash of the engine, the balance, the
+ * protocol, the maps and the setup of a game, set by Vite (docs/protocol.md,
+ * "Simulation build"). The server refuses a page of another simulation build,
+ * which would desynchronise; a release that keeps the simulation keeps the
+ * pages already open. Snapshots and saved games carry it too. Outside a
+ * Vite build it is "dev", always accepted.
  */
-export const BUILD = typeof __FRONTFALL_BUILD__ === "string" ? __FRONTFALL_BUILD__ : "dev";
+export const BUILD =
+  typeof __FRONTFALL_SIMULATION__ === "string" ? __FRONTFALL_SIMULATION__ : "dev";

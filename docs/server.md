@@ -124,7 +124,7 @@ curl -s localhost:8080/metrics
 | `/healthz`           | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release` |
 | `/api/games`         | Public games that have not started, and the number of games running, as JSON                                            |
 | `/status`            | A page for people: players online, games running, lobbies, an announced restart, release and build                      |
-| `/api/status`        | The same as JSON: `version`, `release`, `state`, `players`, `running`, `lobbies`, `restartInMs`                         |
+| `/api/status`        | The same as JSON: `version`, `release`, `simulation`, `state`, `players`, `running`, `lobbies`, `restartInMs`           |
 | `/admin/maintenance` | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only    |
 | `/api/stats`         | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`            |
 | `/api/usage`         | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`        |

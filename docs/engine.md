@@ -139,16 +139,16 @@ loads the published map the report names, refuses a map whose terrain hash diffe
 
 A `GameRecord` (format version `GAME_RECORD_VERSION`, now 1) keeps a finished game to watch again (#50). It has the fields of a desync report from `map` to `turns`, without `hashes`, and two of its own:
 
-| Field   | Content                                                                                                                            |
-| ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `build` | `release` and `protocol` as in a desync report, and `build`, the page's build. Only the same build replays a record: rules change. |
-| `hash`  | The state hash after `ticks` ticks. A replay that reaches another one ran different rules, or the file was damaged.                |
+| Field   | Content                                                                                                                                                                    |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `build` | `release` and `protocol` as in a desync report, and `build`, the page's [simulation build](protocol.md#simulation-build). Only the same simulation build replays a record. |
+| `hash`  | The state hash after `ticks` ticks. A replay that reaches another one ran different rules, or the file was damaged.                                                        |
 
 Bots and nations are not in the turns: they decide again, from the same state, as they did in the game. `readGameRecord(json)` checks a parsed record and `replayGameRecord(record, terrain)` plays it to its last tick and returns the hash it reaches; `recreateGame(record, terrain)` sets up the game before its first tick, for a viewer that plays it at its own pace. Both readers refuse turns out of order or past `ticks`, and a `you` that is not one of the players.
 
 ## Snapshots
 
-A snapshot is the whole state of a game between two ticks, in a compact binary form (#39): a client that joins late, or comes back, loads one and plays only the turns after it instead of every turn from the start. `saveSnapshot(game, build)` writes one, where `build` names the simulation, the page's `BUILD`. `loadSnapshot(bytes, build, create)` loads one into the new game `create()` returns, set up like the original: same setup, same rules, same bots and nations, before its first tick (`recreateGame` gives one). It never throws: a snapshot it cannot load comes back as `{ ok: false, reason }`, and the caller plays the turns from the start in a game of its own. `readSnapshotHeader(bytes)` reads the header alone.
+A snapshot is the whole state of a game between two ticks, in a compact binary form (#39): a client that joins late, or comes back, loads one and plays only the turns after it instead of every turn from the start. `saveSnapshot(game, build)` writes one, where `build` names the simulation, the page's `BUILD` ([simulation build](protocol.md#simulation-build)). `loadSnapshot(bytes, build, create)` loads one into the new game `create()` returns, set up like the original: same setup, same rules, same bots and nations, before its first tick (`recreateGame` gives one). It never throws: a snapshot it cannot load comes back as `{ ok: false, reason }`, and the caller plays the turns from the start in a game of its own. `readSnapshotHeader(bytes)` reads the header alone.
 
 The checks come in this order, and nothing of the state is read before the first five pass:
 

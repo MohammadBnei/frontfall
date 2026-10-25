@@ -18,6 +18,9 @@ const version = process.env.FRONTFALL_VERSION ?? "dev";
 declare const __FRONTFALL_RELEASE__: string | undefined;
 /** Release of the game, the root package.json version, set when the server is bundled. */
 const release = typeof __FRONTFALL_RELEASE__ === "string" ? __FRONTFALL_RELEASE__ : "dev";
+declare const __FRONTFALL_SIMULATION__: string | undefined;
+/** Simulation build of the sources, set when the server is bundled; see docs/protocol.md. */
+const simulation = typeof __FRONTFALL_SIMULATION__ === "string" ? __FRONTFALL_SIMULATION__ : "dev";
 
 /** Reads a numeric setting from the environment, ignoring it when unset or invalid. */
 function optionalNumber<T>(name: string, use: (value: number) => T): T | undefined {
@@ -34,6 +37,7 @@ const server = createGameServer({
   allowedOrigin: process.env.FRONTFALL_ORIGINE,
   version,
   release,
+  simulation,
   logger,
   dataDir: process.env.FRONTFALL_DATA || undefined,
   publicGame:
@@ -61,5 +65,5 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
 server.http.listen(port, () => {
-  logger.info("server_started", { port, version, release });
+  logger.info("server_started", { port, version, release, simulation });
 });

@@ -37,6 +37,11 @@ export interface ServerOptions {
   version: string;
   /** Release of the game, such as 0.4.0, returned by /healthz next to the build. */
   release?: string;
+  /**
+   * Simulation build (docs/protocol.md): pages that send another one in
+   * `hello` are asked to reload. Unset compares with the build instead.
+   */
+  simulation?: string;
   pingIntervalMs?: number;
   maxConnectionsPerAddress?: number;
   /** Open WebSockets the whole server accepts. */
@@ -470,8 +475,9 @@ export function createGameServer(options: ServerOptions): GameServer {
         reject(session, CloseCode.invalidMessage, "hello was already sent", "invalid");
         return;
       }
-      if (message.build && !sameBuild(message.build, options.version)) {
-        session.socket.close(CloseCode.versionMismatch, `build ${options.version} required`);
+      const simulation = options.simulation ?? options.version;
+      if (message.build && !sameBuild(message.build, simulation)) {
+        session.socket.close(CloseCode.versionMismatch, `build ${simulation} required`);
         return;
       }
       if (message.version !== PROTOCOL_VERSION) {
@@ -757,6 +763,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     return {
       version: options.version,
       release: options.release ?? "dev",
+      simulation: options.simulation ?? "dev",
       state: stopping ? "stopping" : "ok",
       players,
       running: running(),
@@ -842,6 +849,8 @@ export function createGameServer(options: ServerOptions): GameServer {
 export interface ServerStatus {
   version: string;
   release: string;
+  /** Simulation build: pages of another one are asked to reload. */
+  simulation: string;
   state: "ok" | "stopping";
   /** Players seated in a game, lobbies included, with an open connection. */
   players: number;

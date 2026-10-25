@@ -675,6 +675,19 @@ describe("WebSocket", () => {
     await dev.next("welcome");
   });
 
+  it("keeps the pages of another commit with the same simulation build", async () => {
+    const host = await start({ version: "newcommit", simulation: "5e5e5e5e5e5e" });
+    const kept = open(host);
+    await opened(kept.socket);
+    kept.send({ type: "hello", version: PROTOCOL_VERSION, name: "Kept", build: "5e5e5e5e5e5e" });
+    await kept.next("welcome");
+
+    const other = open(host);
+    await opened(other.socket);
+    other.send({ type: "hello", version: PROTOCOL_VERSION, name: "Other", build: "newcommit" });
+    expect(await closed(other.socket)).toBe(CloseCode.versionMismatch);
+  });
+
   it("asks for another name when the name is not allowed", async () => {
     const client = open(await start());
     await opened(client.socket);

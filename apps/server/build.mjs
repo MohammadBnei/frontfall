@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { build } from "esbuild";
+import { simulationBuild } from "../../tools/simulation-build.mjs";
 
 // The release is the version of the repository's root package.json, like the client's.
 const { version } = JSON.parse(
@@ -20,5 +21,8 @@ await build({
   },
   // Optional native accelerators of ws, absent on purpose.
   external: ["bufferutil", "utf-8-validate"],
-  define: { __FRONTFALL_RELEASE__: JSON.stringify(version) },
+  define: {
+    __FRONTFALL_RELEASE__: JSON.stringify(version),
+    __FRONTFALL_SIMULATION__: JSON.stringify(simulationBuild()),
+  },
 });

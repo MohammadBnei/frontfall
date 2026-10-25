@@ -52,6 +52,7 @@ export default tseslint.config(
       "**/coverage/**",
       "**/*.config.*",
       "**/build.mjs",
+      "tools/simulation-build.mjs",
       "**/test-results/**",
     ],
   },
