@@ -1005,6 +1005,26 @@ describe("WebSocket", () => {
       expect(await (await fetch(`http://${host}/api/games`)).json()).toMatchObject({ running: 1 });
     });
 
+    it("does not drain, and says it keeps its games", async () => {
+      const host = await start({ drainMs: 60_000, dataDir });
+      expect(await (await fetch(`http://${host}/api/status`)).json()).toMatchObject({
+        keepsGames: true,
+      });
+      const alice = await player(host, "Alice");
+      const bob = await player(host, "Bob");
+      alice.send({ type: "create" });
+      const { game } = await alice.next("lobby");
+      bob.send({ type: "join", game });
+      await bob.next("lobby");
+      alice.send({ type: "start" });
+      await Promise.all([alice.next("started"), bob.next("started")]);
+      const began = performance.now();
+      await server?.close();
+      server = undefined;
+      expect(performance.now() - began).toBeLessThan(5_000);
+      expect(existsSync(join(dataDir, "games", `${game}.json`))).toBe(true);
+    });
+
     it("drops the games of another simulation build", async () => {
       const { game, token } = await savedGame("5e5e5e5e5e5e");
       const host = await start({ dataDir, simulation: "a1a1a1a1a1a1" });

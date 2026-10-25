@@ -146,8 +146,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
-      # The server keeps the games in progress across a restart, and the new one takes them
-      # back if it has the same simulation build. Otherwise the restart stops them: when some
+      # A server with a data directory (keepsGames) keeps the games in progress across a
+      # restart, and the new one takes them back if it has the same simulation build. Otherwise the restart stops them: when some
       # are running, every player is told the update is coming, then the games get that long
       # to end.
       - name: Announce the update and wait for the games in progress
@@ -166,7 +166,7 @@ jobs:
             echo "No game in progress"
             exit 0
           fi
-          live=$(curl -fsS --max-time 10 "${SITE}api/status" | jq -r '.simulation // ""' || true)
+          live=$(curl -fsS --max-time 10 "${SITE}api/status" | jq -r 'select(.keepsGames == true) | .simulation // ""' || true)
           if [ -n "$live" ] && [ "$live" != dev ] && [ "$live" = "$(node tools/simulation-build.mjs)" ]; then
             echo "Same simulation build $live: the games in progress go on after the restart"
             exit 0

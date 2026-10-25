@@ -14,7 +14,7 @@ import { z } from "zod";
 import type { RoomSettings, SavedRoom } from "./room.ts";
 
 /**
- * Running games kept across a restart (V5-03), one file each in
+ * Running games kept across a restart, one file each in
  * `<data>/games`: seed, settings, seats with their tokens, and the turn log.
  * No state of the game: the clients rebuild it from the turns, as on any
  * rejoin, so the server never keeps a state the players have not agreed on.

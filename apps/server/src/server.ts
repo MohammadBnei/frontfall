@@ -798,6 +798,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       version: options.version,
       release: options.release ?? "dev",
       simulation: options.simulation ?? "dev",
+      keepsGames: savedGames !== undefined,
       state: stopping ? "stopping" : "ok",
       players,
       running: running(),
@@ -854,8 +855,10 @@ export function createGameServer(options: ServerOptions): GameServer {
       // Lobbies would never start: they end now. Running games play on.
       for (const room of games.all()) if (room.state !== "running") room.stop("restart");
       games.sweep();
-      const deadline = performance.now() + drainMs;
-      if (running() > 0) broadcastAll(maintenanceMessage(drainMs));
+      // Games that are kept need no drain: they stop at once and go on after the restart.
+      const drainFor = savedGames === undefined ? drainMs : 0;
+      const deadline = performance.now() + drainFor;
+      if (drainFor > 0 && running() > 0) broadcastAll(maintenanceMessage(drainFor));
       closing = new Promise<void>((resolve) => {
         const finish = (): void => {
           clearInterval(usageSaver);
@@ -886,6 +889,8 @@ export interface ServerStatus {
   release: string;
   /** Simulation build: pages of another one are asked to reload. */
   simulation: string;
+  /** Whether the games running at a restart are kept for the next run (`FRONTFALL_DATA`). */
+  keepsGames: boolean;
   state: "ok" | "stopping";
   /** Players seated in a game, lobbies included, with an open connection. */
   players: number;
