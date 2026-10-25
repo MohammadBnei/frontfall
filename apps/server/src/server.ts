@@ -31,6 +31,8 @@ export interface ServerOptions {
   allowedOrigin?: string | undefined;
   /** Build identifier, returned by /healthz so a deployment can be checked. */
   version: string;
+  /** Release of the game, such as 0.4.0, returned by /healthz next to the build. */
+  release?: string;
   pingIntervalMs?: number;
   maxConnectionsPerAddress?: number;
   /** Open WebSockets the whole server accepts. */
@@ -230,6 +232,7 @@ export function createGameServer(options: ServerOptions): GameServer {
           "content-type": "text/plain",
           "cache-control": "no-store",
           "x-frontfall-version": options.version,
+          ...(options.release ? { "x-frontfall-release": options.release } : {}),
         })
         .end(status);
       return;

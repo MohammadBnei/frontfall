@@ -1,4 +1,10 @@
+import { readFileSync } from "node:fs";
 import { build } from "esbuild";
+
+// The release is the version of the repository's root package.json, like the client's.
+const { version } = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
+);
 
 // One self-contained file for the container image: no node_modules at runtime.
 await build({
@@ -14,4 +20,5 @@ await build({
   },
   // Optional native accelerators of ws, absent on purpose.
   external: ["bufferutil", "utf-8-validate"],
+  define: { __FRONTFALL_RELEASE__: JSON.stringify(version) },
 });

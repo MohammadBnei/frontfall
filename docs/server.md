@@ -105,13 +105,13 @@ curl -s localhost:8080/metrics
 
 ## HTTP routes
 
-| Path          | Answer                                                                         |
-| ------------- | ------------------------------------------------------------------------------ |
-| `/healthz`    | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header |
-| `/api/games`  | Public games that have not started, as JSON                                    |
-| `/metrics`    | Metrics, from the host only                                                    |
-| `/ws`         | WebSocket upgrade                                                              |
-| anything else | Files of the built client                                                      |
+| Path          | Answer                                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `/healthz`    | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release` |
+| `/api/games`  | Public games that have not started, as JSON                                                                             |
+| `/metrics`    | Metrics, from the host only                                                                                             |
+| `/ws`         | WebSocket upgrade                                                                                                       |
+| anything else | Files of the built client                                                                                               |
 
 HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Every file carries an `ETag` drawn from its content; maps and other files without a hashed name are sent with `no-cache`, so browsers revalidate them and get `304 Not Modified` until they change. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
 

@@ -94,7 +94,13 @@ describe("HTTP", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
     expect(response.headers.get("x-frontfall-version")).toBe("abc123");
+    expect(response.headers.get("x-frontfall-release")).toBeNull();
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("names the release next to the build when it knows it", async () => {
+    const response = await fetch(`http://${await start({ release: "0.4.0" })}/healthz`);
+    expect(response.headers.get("x-frontfall-release")).toBe("0.4.0");
   });
 
   it("fails the health check once turns stop being closed", async () => {

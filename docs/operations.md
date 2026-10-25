@@ -6,15 +6,16 @@ The host is configured in [nic0lasm/nclsmgr.com](https://github.com/nic0lasm/ncl
 
 ## Where things are
 
-| What            | Where                                                                                                                       |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Host            | A Debian VPS behind Cloudflare; Caddy terminates TLS, strips `/frontfall` and forwards to the game                          |
-| Game            | Compose project `frontfall` in `/opt/frontfall`, one container `frontfall-frontfall-1`, on the internal network `frontfall` |
-| Running version | `IMAGE_TAG` in `/opt/frontfall/.env`, the 12-character commit of `main` the image was built from                            |
-| Images          | `ghcr.io/nic0lasm/frontfall:<tag>`, built by the Publish workflow for every push to `main`                                  |
-| Deployment      | Publish connects over SSH to the `frontfall` account, whose only command is `/usr/local/sbin/frontfall-deployer <tag>`      |
-| Compose file    | Maintained with the host configuration, outside this repository: the game repository only chooses the image tag             |
-| Uptime check    | Better Stack requests `/healthz` every 3 minutes and emails the maintainer when it fails                                    |
+| What            | Where                                                                                                                                         |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Host            | A Debian VPS behind Cloudflare; Caddy terminates TLS, strips `/frontfall` and forwards to the game                                            |
+| Game            | Compose project `frontfall` in `/opt/frontfall`, one container `frontfall-frontfall-1`, on the internal network `frontfall`                   |
+| Running version | `IMAGE_TAG` in `/opt/frontfall/.env`, the 12-character commit of `main` the image was built from                                              |
+| Release         | `version` in the root `package.json`; the client's beta label and `/healthz` (`X-Frontfall-Release`) show it. Bumped with each tagged release |
+| Images          | `ghcr.io/nic0lasm/frontfall:<tag>`, built by the Publish workflow for every push to `main`                                                    |
+| Deployment      | Publish connects over SSH to the `frontfall` account, whose only command is `/usr/local/sbin/frontfall-deployer <tag>`                        |
+| Compose file    | Maintained with the host configuration, outside this repository: the game repository only chooses the image tag                               |
+| Uptime check    | Better Stack requests `/healthz` every 3 minutes and emails the maintainer when it fails                                                      |
 
 The container restarts on its own after a crash or a reboot (`restart: unless-stopped`), but stays down after a manual `docker stop`. Docker reports it `unhealthy` after three failed health checks in a row; that does not restart it.
 
@@ -60,7 +61,7 @@ A bad release is undone by deploying the previous image with the same command Pu
 cat /opt/frontfall/.env                                     # the running tag
 docker image ls ghcr.io/nic0lasm/frontfall                  # tags kept on the host, newest first
 sudo -u frontfall env SSH_ORIGINAL_COMMAND=<tag> /usr/local/sbin/frontfall-deployer
-curl -sI https://nclsmgr.com/frontfall/healthz | grep -i x-frontfall-version
+curl -sI https://nclsmgr.com/frontfall/healthz | grep -i x-frontfall-
 ```
 
 The deployer pulls the image if the host no longer has it, waits for the container to be healthy and prints `Déployé : <tag>`. It takes under a minute when the image is on the host. Any tag of a commit on `main` works: `git log --first-parent --format=%h --abbrev=12 origin/main` lists them.

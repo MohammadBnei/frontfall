@@ -1,6 +1,6 @@
 declare const __FRONTFALL_RELEASE__: string | undefined;
 
-/** Release of the game, the client's package.json version, set by Vite. */
+/** Release of the game, the version of the root package.json, set by Vite. */
 export const RELEASE = typeof __FRONTFALL_RELEASE__ === "string" ? __FRONTFALL_RELEASE__ : "0.0.0";
 
 /**
