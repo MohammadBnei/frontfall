@@ -1323,10 +1323,22 @@ kbd {
     bottom: auto;
     left: 12px;
     grid-template-columns: repeat(5, auto);
+    gap: 4px;
+    padding: 4px;
   }
 
+  /* The icon over the cost: five buttons fit across a 320 px phone. */
   .build-button {
-    min-width: 0;
+    grid-template-columns: auto;
+    justify-items: center;
+    min-width: 44px;
+    padding: 4px;
+    line-height: 1.1;
+  }
+
+  .build-icon {
+    grid-row: auto;
+    margin-bottom: 2px;
   }
 
   .build-name,
