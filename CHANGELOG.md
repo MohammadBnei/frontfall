@@ -15,7 +15,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - When an online game loses its connection, a notice now says so, with the time to the next attempt, instead of a map that silently stops. A player who cannot get their seat back is told that the game went on without them or is over, no longer that every player left.
 - A solo game waits behind its end screen until you choose to keep watching. It used to play on, so the clock ran past the time limit and a replay saved a few minutes later held those minutes too.
-- Players who join an online game under a name already taken in it, such as everyone who kept the default one, are numbered (Commander, Commander 2...) instead of looking alike in the lobby, the leaderboard and on the map.
+- Players who join an online game under a name already taken in it, such as everyone who kept the default one, are numbered (Commander, Commander 2…) instead of looking alike in the lobby, the leaderboard and on the map.
 - A game without ports no longer offers warships or embargoes: the lobby unticks warships with ports, and the player menu drops the embargo, which had no trade to cut and only declared a war.
 
 ### Changed
