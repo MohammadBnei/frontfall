@@ -14,10 +14,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Updates no longer cut games short without a word.** When the server is about to restart for an update, a band at the top of the page counts the minutes down, and the update waits for running games to end. A game the update still has to stop ends with a message that says so.
 - **Back in the game in seconds after a reload.** Your browser keeps a snapshot of the online game you play, 30 seconds in and then every two minutes. A reload starts from it and plays only the turns since, instead of the whole game from its first turn, which took tens of seconds late in a game. A snapshot that does not match the game is dropped, and the game is played from the start as before.
 - **Server status page** at [/status](https://nclsmgr.com/frontfall/status): players online, games running, lobbies, and any update on its way.
-- For self-hosters and contributors: on `SIGTERM` the server stops opening games and lets running ones play on for `FRONTFALL_DRAIN_SECONDS` (20 s by default); `POST /admin/maintenance?minutes=N`, from inside the container only, announces a restart; `/api/status` gives the status page as JSON and `/api/games` the number of games running. Pushes to `next` can deploy a preview at `/frontfall-next/` ([server](docs/server.md#shutdown)).
 - **Say how the game went.** The end screen asks whether you enjoyed the game: a thumbs up, or a thumbs down with one reason to pick if you like (too hard, too long, did not know what to do, slow or buggy). Next to it, and at the bottom of the menu, **Share an idea** and **Report a bug** lead to the project's GitHub, where I read everything.
 - **The game counts how it is played, not who plays.** At the end of each game your browser tells the game's server the map, the mode, how long it lasted, how it ended, phone or computer and the language, plus any error that broke the game. No name, no address, no cookie, and nothing at all from a browser set to Do Not Track or Global Privacy Control. The server keeps only daily totals, which anyone can read at [`/api/stats`](https://nclsmgr.com/frontfall/api/stats); [every field is listed here](docs/privacy.md).
-- For contributors: `pnpm balance` plays many headless games of one setup, bots, nations and a scripted player, and prints how long they last, who wins against their fair share, income from troops and trade, and missiles ([balance](docs/balance.md)).
 
 ### Fixed
 
@@ -37,6 +35,14 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - Nations leave newcomers alone for 2.5 minutes instead of 2. A player who expanded fast was often the thinnest on the map when the grace ended, and eight to ten nations attacked them within the same minute.
 - The reason a click was refused stays up for four seconds and names the building, as in "Port: …".
 - Trade reaches farther on large maps: 500 tiles of sea, as before, on a map of 2^19 tiles, and 1,000 on World, where ports were often too far apart to trade at all. A long route pays more: up to 22,000 gold to each side on World.
+
+### For self-hosters and contributors
+
+- **Hosting your own server** has [a guide](docs/self-hosting.md) and a ready [`compose.yaml`](compose.yaml): data volume, read-only container, time for running games to end on a stop, then HTTPS with Caddy or nginx, a sub-path, updates and checks.
+- CI builds the image of each commit, starts it with that `compose.yaml` and plays solo and private games against it, then restarts it to check the data volume is kept.
+- CI reports known advisories in the dependencies in the summary of its Check job, as a warning that does not fail the build.
+- On `SIGTERM` the server stops opening games and lets running ones play on for `FRONTFALL_DRAIN_SECONDS` (20 s by default); `POST /admin/maintenance?minutes=N`, from inside the container only, announces a restart; `/api/status` gives the status page as JSON and `/api/games` the number of games running. Pushes to `next` can deploy a preview at `/frontfall-next/` ([server](docs/server.md#shutdown)).
+- `pnpm balance` plays many headless games of one setup, bots, nations and a scripted player, and prints how long they last, who wins against their fair share, income from troops and trade, and missiles ([balance](docs/balance.md)).
 - A self-hosted server reports its release in the `X-Frontfall-Release` header of `/healthz`, next to the build. The release number has one home, the version of the root `package.json`, read by the client and the server alike.
 
 ## [0.4.0] - 2026-10-25
