@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- For contributors: `pnpm balance` plays many headless games of one setup, bots, nations and a scripted player, and prints how long they last, who wins against their fair share, income from troops and trade, and missiles ([balance](docs/balance.md)).
+
 ### Changed
 
 - A self-hosted server reports its release in the `X-Frontfall-Release` header of `/healthz`, next to the build. The release number has one home, the version of the root `package.json`, read by the client and the server alike.

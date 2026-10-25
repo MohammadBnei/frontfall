@@ -4,6 +4,14 @@ Status: starting values, not yet play-tested · Rules: [rules.md](rules.md)
 
 Every number the rules depend on lives here. The values are Frontfall's own starting points and will move with play-testing; each change goes through a pull request that explains what it fixes in play. When the engine implements a value, its constant carries the same key in a comment so the two stay linked.
 
+Values are checked with headless games that only bots, nations and a scripted stand-in for a casual player play. `pnpm balance` plays one setup on many seeds, several games at a time, and prints how long games last, who wins against their fair share, gold from troops and from trade, and missiles; every game is deterministic, so the figures are the same on any machine:
+
+```sh
+pnpm balance -- --map world --bots normal:4,hard:4 --seeds 1-12
+pnpm balance -- --map world --bots normal:0 --nations normal --casual --minutes 30
+pnpm balance -- --map europe --bots hard:11 --set tradeRange=1000
+```
+
 Durations are given in seconds of play and converted to ticks with `B-TICK-RATE`. Percentages apply to whole numbers and round down (`R-ECO-04`).
 
 ## Time
