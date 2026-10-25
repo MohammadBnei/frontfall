@@ -77,8 +77,8 @@ describe("desync reports", () => {
     expect(broken({ disabled: 64 })).toThrow(/disabled/);
     expect(broken({ players: [{ id: 3, name: "Norland", start: 1.5 }] })).toThrow(/player start/);
     expect(
-      broken({ turns: [{ tick: 0, orders: [{ player: 1, order: { type: "nuke" } }] }] }),
-    ).toThrow(/nuke/);
+      broken({ turns: [{ tick: 0, orders: [{ player: 1, order: { type: "launch" } }] }] }),
+    ).toThrow(/launch/);
   });
 });
 

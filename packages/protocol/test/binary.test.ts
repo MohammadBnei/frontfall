@@ -168,7 +168,7 @@ describe("frames", () => {
   });
 
   it("refuses to encode unknown orders", () => {
-    expect(() => encodeOrderFrame({ type: "nuke" } as never)).toThrow(RangeError);
+    expect(() => encodeOrderFrame({ type: "launch" } as never)).toThrow(RangeError);
   });
 });
 

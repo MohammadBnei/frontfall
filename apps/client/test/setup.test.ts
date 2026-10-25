@@ -45,7 +45,7 @@ describe("game setup", () => {
   });
 
   it("shares what a game leaves out by name (R-MODE-03)", () => {
-    const setup = initialSetup("?map=pangaea&off=silo,warship,nuke", undefined, maps);
+    const setup = initialSetup("?map=pangaea&off=silo,warship,bomb", undefined, maps);
     expect(setup.disabled).toBe(8 | 32);
     expect(setupQuery(setup)).toContain("off=silo%2Cwarship");
     expect(initialSetup(setupQuery(setup), undefined, maps).disabled).toBe(40);
