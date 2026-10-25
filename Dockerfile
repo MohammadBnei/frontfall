@@ -31,6 +31,9 @@ RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /us
      /opt/yarn-v* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=build --chown=node:node /app/apps/server/dist/server.mjs ./server.mjs
 COPY --from=build --chown=node:node /app/apps/client/dist ./public
+# The only place the server may write besides /tmp, mounted as a volume in production; a new
+# named volume takes this owner. The server also starts without it.
+RUN install -d -o node -g node /var/lib/frontfall
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
