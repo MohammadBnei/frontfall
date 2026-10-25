@@ -53,8 +53,10 @@ export async function startByTheWater(
  * `button` changes: the structure went up on a tile of the player's.
  * Returns the point that took it.
  *
- * Each click is answered before the next one: a build raises the cost, a
- * refusal shows its reason. The mode stays on until a structure goes up.
+ * Each click is answered before the next one, by a ring on the map: a
+ * refusal, whose reason the note gives and which leaves the mode on, or an
+ * order, which raises the cost. A click with no answer fails the test, as
+ * does an order that builds nothing.
  */
 export async function buildAround(
   page: Page,
@@ -64,23 +66,45 @@ export async function buildAround(
 ): Promise<{ x: number; y: number }> {
   const mode = page.locator(button);
   const cost = mode.locator(".build-cost");
-  const note = page.locator(".click-note");
   const first = await cost.textContent();
+  const refusals: string[] = [];
   for (const point of spiral(start, 8, 4)) {
     if ((await mode.getAttribute("aria-pressed")) !== "true") await page.keyboard.press(key);
     await expect(mode).toHaveAttribute("aria-pressed", "true");
+    // A ring lasts well under a second: an observer keeps the first one this click draws.
+    await page.evaluate(`(() => {
+      window.clickAnswer = "";
+      const observer = new MutationObserver((changes) => {
+        for (const change of changes) {
+          for (const node of change.addedNodes) {
+            if (!node.classList || !node.classList.contains("click-mark")) continue;
+            window.clickAnswer = node.classList.contains("refused") ? "refused" : "order";
+            observer.disconnect();
+            return;
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+    })()`);
     await page.mouse.click(point.x, point.y);
+    const at = `${String(Math.round(point.x))}, ${String(Math.round(point.y))}`;
+    let answer = "";
     await expect
-      .poll(
-        async () => {
-          if ((await cost.textContent()) !== first) return "built";
-          return (await note.isVisible()) ? "refused" : "waiting";
-        },
-        { timeout: 10_000, intervals: [50] },
-      )
-      .not.toBe("waiting")
-      .catch(() => undefined);
-    if ((await cost.textContent()) !== first) return point;
+      .poll(async () => (answer = await page.evaluate<string>("window.clickAnswer")), {
+        message: `an answer to the click at ${at}`,
+        timeout: 10_000,
+      })
+      .not.toBe("");
+    if (answer === "refused") {
+      refusals.push((await page.locator(".click-note").textContent()) ?? "");
+      continue;
+    }
+    await expect(cost, "the cost after an order to build").not.toHaveText(first ?? "", {
+      timeout: 5_000,
+    });
+    // Refused clicks before this one are expected on a coast; their reasons help when not.
+    if (refusals.length > 0) console.log(`${key} built after: ${refusals.join(" / ")}`);
+    return point;
   }
-  throw new Error(`nothing built with ${key} around the start`);
+  throw new Error(`nothing built with ${key} around the start: ${refusals.join(" / ")}`);
 }

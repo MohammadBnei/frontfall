@@ -52,10 +52,10 @@ test("buys a warship at its port and sends it on patrol (R-UNIT-04)", async ({ p
   await expect(warship).not.toHaveClass(/unaffordable/, { timeout: 90_000 });
   const cost = warship.locator(".build-cost");
   await expect(cost).toHaveText("250K");
-  await page.keyboard.press("KeyV");
-  await page.mouse.click(port.x, port.y);
+  // The port went on the coast closest to the click: a click near it buys there.
+  await buildAround(page, port, "KeyV", "#build-warship");
   // The next one costs B-COST-GROWTH more.
-  await expect(cost).toHaveText("375K", { timeout: 5_000 });
+  await expect(cost).toHaveText("375K");
 
   // A click on the channel, in the middle of the map, sends it there.
   const box = await page.locator("#map").boundingBox();
