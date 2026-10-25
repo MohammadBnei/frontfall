@@ -1,10 +1,8 @@
 import {
-  DEFAULT_BALANCE,
   DESYNC_REPORT_VERSION,
   GAME_RECORD_VERSION,
   Terrain,
   WorldGrid,
-  createGame,
   loadSnapshot,
   saveSnapshot,
   BuildError,
@@ -26,8 +24,6 @@ import {
   cityLimit,
   cityShare,
   isAllied,
-  installBots,
-  installNations,
   isReady,
   orderError,
   populationCap,
@@ -36,7 +32,6 @@ import {
   type DesyncReport,
   type Game,
   type GameRecord,
-  type Balance,
   type Order,
   type PlayerSetup,
   type Structure,
@@ -47,9 +42,10 @@ import { HASH_INTERVAL, PROTOCOL_VERSION } from "@frontfall/protocol";
 import { BUILD } from "../net/build.ts";
 import { RELEASE } from "../release.ts";
 import { labelAnchors, type LabelAnchor } from "./label-anchors.ts";
-import type { MapData } from "./maps.ts";
+import { HUMAN_ID, createSimulation, newSetup } from "./simulation.ts";
 
-export const HUMAN_ID = 1;
+export { HUMAN_ID, MAX_BOTS } from "./simulation.ts";
+import type { MapData } from "./maps.ts";
 
 export type Difficulty = "easy" | "normal" | "hard";
 
@@ -400,71 +396,8 @@ export interface BoatView {
   troops: number;
 }
 
-/** Names for computer players. Invented, so they never collide with real countries. */
-const BOT_NAMES = [
-  "Aldmere",
-  "Brask",
-  "Corvan",
-  "Dunmoor",
-  "Elsk",
-  "Fenwold",
-  "Gorran",
-  "Halvik",
-  "Istra",
-  "Jorvel",
-  "Kesh",
-  "Lorne",
-  "Mirava",
-  "Norrin",
-  "Ostmark",
-  "Pellan",
-  "Quill",
-  "Ravenna",
-  "Sorrel",
-  "Tarsk",
-  "Ulvar",
-  "Vesk",
-  "Wyndham",
-  "Yarrow",
-  "Zennor",
-];
-
-export const MAX_BOTS = BOT_NAMES.length;
-
 /** Names follow the land twice a second at the default tick rate: a scan of the map each time. */
 const LABEL_TICKS = 5;
-
-/** Players and balance of a new game: the humans, then the bots, then the map's nations. */
-function newSetup(
-  options: SoloOptions,
-  map: MapData,
-): { players: PlayerSetup[]; botIds: number[]; nationIds: number[]; balance: Balance } {
-  const bots = Math.max(0, Math.min(MAX_BOTS, Math.floor(options.bots)));
-  const humans = options.players ?? [{ id: HUMAN_ID, name: options.playerName }];
-  const firstBot = Math.max(...humans.map((human) => human.id)) + 1;
-  const players: PlayerSetup[] = [...humans];
-  const botIds: number[] = [];
-  for (let i = 0; i < bots; i++) {
-    botIds.push(firstBot + i);
-    players.push({ id: firstBot + i, name: BOT_NAMES[i] as string });
-  }
-  // Nations take the numbers after the bots, in the manifest's order, the same on every client.
-  const nationIds: number[] = [];
-  if (options.nations) {
-    for (const { name, tile } of map.nations) {
-      const id = firstBot + bots + nationIds.length;
-      nationIds.push(id);
-      players.push({ id, name, start: tile });
-    }
-  }
-  const balance = { ...DEFAULT_BALANCE };
-  if (options.maxMinutes !== undefined) {
-    balance.maxDurationTicks = Math.round(options.maxMinutes * 60 * DEFAULT_BALANCE.ticksPerSecond);
-  }
-  if (options.goldRate !== undefined) balance.goldPerThousandTroops = Math.floor(options.goldRate);
-  if (options.cityLand !== undefined) balance.cityLand = Math.floor(options.cityLand);
-  return { players, botIds, nationIds, balance };
-}
 
 /**
  * One game as this client runs it: the engine with every rule installed and
@@ -508,18 +441,19 @@ export class SoloGame {
           nationIds: record.nations ?? [],
           balance: record.balance,
         }
-      : newSetup(options, map);
+      : newSetup(options, map.nations);
     this.you = options.record?.you ?? options.you ?? HUMAN_ID;
     const seed = options.record?.seed ?? options.seed;
     const teams = options.record ? (options.record.teams ?? 0) : (options.teams ?? 0);
     const disabled = options.record ? (options.record.disabled ?? 0) : (options.disabled ?? 0);
     const difficulty = options.record?.bots.difficulty ?? options.difficulty;
-    const create = (): Game => {
-      const game = createGame({ terrain, seed, players, balance, teams, disabled });
-      installBots(game, botIds, difficulty);
-      installNations(game, nationIds, difficulty);
-      return game;
-    };
+    const create = (): Game =>
+      createSimulation(
+        { terrain, seed, players, balance, teams, disabled },
+        botIds,
+        nationIds,
+        difficulty,
+      );
     const { snapshot } = options;
     const loaded =
       snapshot && !options.record ? loadSnapshot(snapshot.bytes, BUILD, create) : undefined;
