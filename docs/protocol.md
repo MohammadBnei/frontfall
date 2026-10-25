@@ -62,7 +62,7 @@ First message of every connection. `version` is `PROTOCOL_VERSION`. A server run
 
 `build`, optional, is the commit the page was built from. The server also closes the connection with `4000` when it runs another build, since the engine or the balance may differ and the game would desynchronise. `dev` builds, on either side, are always accepted.
 
-The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must then hold 1 to 20 characters: letters and digits of any script, spaces, `.`, `_`, `'` and `-`, starting with a letter or a digit. Names that pass for the people running the game, such as `admin` or `Frontfall`, are refused. A refused name gets an `invalid_name` error and the client may send `hello` again. Once accepted, a second `hello` closes the connection.
+The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must then hold 1 to 20 characters: letters and digits of any script, spaces, `.`, `_`, `'` and `-`, starting with a letter or a digit. Names that pass for the people running the game, such as `admin` or `Frontfall`, are refused. A refused name gets an `invalid_name` error and the client may send `hello` again. Once accepted, a second `hello` closes the connection. Two players never share a name in a game: one who joins under a name already there, ignoring case, gets it with a number, `Léa 2`, shortened to stay within 20 characters.
 
 ### `play`
 

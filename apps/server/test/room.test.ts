@@ -147,6 +147,17 @@ describe("public lobby", () => {
     });
   });
 
+  it("numbers players who join under a name already taken", () => {
+    const room = new Room("game0000", { ...PRIVATE, capacity: 8 }, 1);
+    expect(seated(room, "Commander").seat.name).toBe("Commander");
+    expect(seated(room, "commander").seat.name).toBe("commander 2");
+    expect(seated(room, "Commander").seat.name).toBe("Commander 3");
+    // Still within the longest name, shortened to make room for the number.
+    const long = "Abcdefghijklmnopqrst";
+    expect(seated(room, long).seat.name).toBe(long);
+    expect(seated(room, long).seat.name).toBe("Abcdefghijklmnopqr 2");
+  });
+
   it("finishes when the last player leaves before the start", () => {
     const observer = events();
     const room = new Room("game0000", PUBLIC, 1, observer);

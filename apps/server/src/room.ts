@@ -2,6 +2,7 @@ import {
   encodeServerMessage,
   encodeTurnsFrame,
   HASH_INTERVAL,
+  MAX_NAME_LENGTH,
   TICK_RATE,
   type Difficulty,
   type ErrorCode,
@@ -155,7 +156,7 @@ export class Room {
     if (this.seats.length >= this.settings.capacity) return "game_full";
     const seat: Seat = {
       id: this.nextLobbyId++,
-      name,
+      name: this.freeName(name),
       token: newToken(),
       peer,
       awaySince: undefined,
@@ -167,6 +168,24 @@ export class Room {
     if (this.settings.visibility === "private") this.host ??= seat;
     this.lobbyChanged(now);
     return seat;
+  }
+
+  /**
+   * `name`, or `name 2`, `name 3`... when a player in the game already goes
+   * by it: every player who kept the default name would look alike.
+   */
+  private freeName(name: string): string {
+    const taken = new Set(this.seats.map((seat) => seat.name.toLowerCase()));
+    if (!taken.has(name.toLowerCase())) return name;
+    for (let n = 2; ; n++) {
+      const suffix = ` ${String(n)}`;
+      const base = Array.from(name)
+        .slice(0, MAX_NAME_LENGTH - suffix.length)
+        .join("")
+        .trimEnd();
+      const candidate = base + suffix;
+      if (!taken.has(candidate.toLowerCase())) return candidate;
+    }
   }
 
   /** The player leaves for good. Before the start, their seat is freed. */
