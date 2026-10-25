@@ -15,117 +15,29 @@ import {
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
 import { loadMapLimits, type MapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
-import { addressPseudonym, silentLogger, type Logger } from "./log.ts";
+import { addressPseudonym, silentLogger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
 import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { TokenBucket } from "./rate-limit.ts";
-import type { Peer, Room, RoomObserver, RoomSettings, Seat } from "./room.ts";
+import type { Peer, Room, RoomObserver, Seat } from "./room.ts";
 import { SECURITY_HEADERS, sendCachedJson, sendJson, serveStatic } from "./http-replies.ts";
+import {
+  DEFAULT_GAME,
+  DEFAULT_PING_INTERVAL_MS,
+  DRAIN_CHECK_MS,
+  type ServerOptions,
+} from "./server-options.ts";
 import { gamesDirectory, loadGames, saveGame } from "./saved-games.ts";
 import { statusPage, type ServerStatus } from "./status-page.ts";
 import { usageInbox } from "./usage-http.ts";
 import { loadUsage, saveUsage, usageFile, UsageStats, usageTable } from "./usage.ts";
 
+export { DEFAULT_GAME, type ServerOptions } from "./server-options.ts";
 export { statusPage, type ServerStatus } from "./status-page.ts";
-
-type GameSettings = Omit<RoomSettings, "visibility" | "name">;
-
-export interface ServerOptions {
-  /** Directory of the built client. */
-  staticRoot: string;
-  /** Only WebSockets opened by pages of this origin are accepted. Unset accepts any. */
-  allowedOrigin?: string | undefined;
-  /** Build identifier, returned by /healthz so a deployment can be checked. */
-  version: string;
-  /** Release of the game, such as 0.4.0, returned by /healthz next to the build. */
-  release?: string;
-  /**
-   * Simulation build (docs/protocol.md): pages that send another one in
-   * `hello` are asked to reload. Unset compares with the build instead.
-   */
-  simulation?: string;
-  pingIntervalMs?: number;
-  maxConnectionsPerAddress?: number;
-  /** Open WebSockets the whole server accepts. */
-  maxConnections?: number;
-  /** Games not yet started, public or private, that one address may hold. */
-  maxLobbiesPerAddress?: number;
-  maxRooms?: number;
-  /** Bots the host of a private game may add, within the map's player count. */
-  maxBots?: number;
-  /** /healthz fails once no turn has been closed for this long. */
-  stallAfterMs?: number;
-  /** A connection must say hello within this delay. */
-  helloTimeoutMs?: number;
-  /** A connection whose seat is claimed must answer a ping within this delay. */
-  probeTimeoutMs?: number;
-  /** A connection that is in no game for this long is closed. */
-  idleTimeoutMs?: number;
-  /** On close, how long running games may go on before they are stopped. */
-  drainMs?: number;
-  /** More of /status, as HTML that is already escaped, such as usage figures. */
-  statusSections?: () => string;
-  /** Messages a connection may send per second on average, and at once. */
-  messageRate?: { perSecond: number; burst: number };
-  /** Public games opened by "play", which start on their own after a countdown. */
-  publicGame?: Partial<GameSettings>;
-  /** Games a host creates, public or private, and starts themselves. */
-  privateGame?: Partial<GameSettings>;
-  logger?: Logger;
-  /**
-   * Directory the server keeps data in between restarts: the usage counts in
-   * `usage/`, and in `games/` the games running when it stopped, which the
-   * next run of the same simulation build takes back. Unset keeps the counts
-   * in memory only, and running games end with the server.
-   */
-  dataDir?: string | undefined;
-  /** How often the usage counts are written to the data directory. */
-  usageSaveIntervalMs?: number;
-}
-
-export interface GameServer {
-  readonly http: Server;
-  readonly games: Directory;
-  readonly metrics: Metrics;
-  /** Counts of what players do, from the reports of their pages; /api/stats exports them. */
-  readonly usage: UsageStats;
-  /**
-   * Stops opening games and lets the running ones go on, for `drainMs` at
-   * most, then tells every player the server is restarting and stops.
-   */
-  close(): Promise<void>;
-}
-
-/** Cloudflare drops a WebSocket that stays silent for 100 s. */
-const DEFAULT_PING_INTERVAL_MS = 25_000;
-
-/** How often a draining server looks for games still running. */
-const DRAIN_CHECK_MS = 250;
 
 /** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
 const MAX_PAYLOAD_BYTES = 1024;
-
-export const DEFAULT_GAME: GameSettings = {
-  map: "world",
-  capacity: 16,
-  autoStart: true,
-  bots: 0,
-  difficulty: "normal",
-  nations: true,
-  teams: 0,
-  disabled: 0,
-  minPlayers: 2,
-  countdownMs: 60_000,
-  hostIdleMs: 2 * 60_000,
-  soloBots: 0,
-  reconnectGraceMs: 5 * 60_000,
-  lobbyGraceMs: 30_000,
-  maxDurationMs: 4 * 60 * 60 * 1000,
-  lobbyTimeoutMs: 10 * 60 * 1000,
-  maxOrdersPerTurn: 10,
-  maxLogBytes: 64 * 1024 * 1024,
-};
 
 /** WebSocket close reasons are capped at 123 bytes of UTF-8; ws throws on longer ones. */
 const MAX_CLOSE_REASON_BYTES = 123;
@@ -205,6 +117,19 @@ interface Session {
   idleSince: number | undefined;
   /** Rejected: whatever else it sends is dropped. */
   closing: boolean;
+}
+
+export interface GameServer {
+  readonly http: Server;
+  readonly games: Directory;
+  readonly metrics: Metrics;
+  /** Counts of what players do, from the reports of their pages; /api/stats exports them. */
+  readonly usage: UsageStats;
+  /**
+   * Stops opening games and lets the running ones go on, for `drainMs` at
+   * most, then tells every player the server is restarting and stops.
+   */
+  close(): Promise<void>;
 }
 
 export function createGameServer(options: ServerOptions): GameServer {
