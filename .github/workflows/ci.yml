@@ -71,6 +71,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-all-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit
       - run: pnpm build
       # The built game at / and behind a proxy that serves it under /frontfall/,
@@ -111,6 +115,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter @frontfall/e2e
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
       # The menu, solo games, a private game between two pages, and the server's own pages.
       - run: pnpm test:e2e tests/server-pages.spec.ts tests/solo-game.spec.ts tests/walking-skeleton.spec.ts
@@ -149,6 +157,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-all-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit
       # Ten thousand ticks of bots on World, twice in Node and once in a Chromium, a Firefox
       # and a WebKit worker, then the golden replays in the three browsers: every run must
@@ -170,6 +182,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
       - run: pnpm build
       # Download sizes against bench/client/budget.json, failing when over; then load
