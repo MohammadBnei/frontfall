@@ -10,6 +10,12 @@ test("saves a finished game and watches it again to the same end (#50)", async (
   await page.locator("#play").click();
   const end = page.locator(".end-screen");
   await expect(end).toBeVisible({ timeout: 120_000 });
+  // The game waits behind the end screen: the record ends where the game did.
+  const clock = page.locator(".goal-clock");
+  const ended = (await clock.textContent()) ?? "";
+  await page.waitForTimeout(1_000);
+  await expect(clock).toHaveText(ended);
+  const endTime = ended.split(" ")[0] ?? "";
 
   const saved = page.waitForEvent("download");
   await end.getByRole("button", { name: "Save the replay" }).click();
@@ -28,8 +34,8 @@ test("saves a finished game and watches it again to the same end (#50)", async (
   await expect(bar.locator(".replay-result")).toHaveText("Same end as the game", {
     timeout: 120_000,
   });
-  // At the end of the record, which runs on past the win until it was saved.
-  await expect(bar.locator(".replay-time")).toHaveText(/^(\d+:\d\d) \/ \1$/);
+  // At the end of the record, the end of the game.
+  await expect(bar.locator(".replay-time")).toHaveText(`${endTime} / ${endTime}`);
   await expect(page.locator(".end-screen")).toHaveCount(0);
 
   expect(pageErrors).toEqual([]);

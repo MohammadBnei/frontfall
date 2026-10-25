@@ -867,6 +867,11 @@ export class GameScreen {
   }
 
   private showEnd(update: GameUpdate): void {
+    // A solo game waits behind the end screen, so its record ends where the game did.
+    if (!this.link) {
+      this.paused = true;
+      this.session.setPaused(true);
+    }
     this.showOverlay(
       endScreen(
         {
@@ -886,8 +891,7 @@ export class GameScreen {
             this.actions.onMenu();
           },
           onWatch: () => {
-            this.overlay?.remove();
-            this.overlay = undefined;
+            this.closeOverlay();
           },
           onDownload: () => {
             void this.record().then((record) => {
