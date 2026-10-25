@@ -9,7 +9,9 @@ import {
   setLanguage,
   t,
   type Language,
+  type MessageKey,
 } from "../i18n/index.ts";
+import { MAX_GAME_NAME_LENGTH, PublicGame, normalizeGameName } from "@frontfall/protocol";
 import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
@@ -20,14 +22,6 @@ import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setu
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 /** How often the list of public games is fetched again while the menu shows. */
 const GAMES_REFRESH_MS = 3_000;
-
-/** A public game waiting for players, as `/api/games` lists it. */
-interface PublicGame {
-  id: string;
-  map: string;
-  players: number;
-  capacity: number;
-}
 
 /**
  * The main menu: name, map, bots, difficulty and nations, and one button to play.
@@ -255,20 +249,59 @@ export class Menu {
   }
 
   /**
-   * Online play: the next public game, a new private one, or a public game
-   * from the list, which is fetched again every few seconds.
+   * Online play: play now, create a public game under a name or a private
+   * one, or join a public game from the list, which is fetched again every
+   * few seconds.
    */
   private onlineSection(
     mapList: readonly MapInfo[],
     enter: (entry: OnlineEntry) => void,
   ): HTMLElement {
-    const button = (id: string, key: string, entry: OnlineEntry): HTMLElement => {
-      const element = h("button", { type: "button", class: "secondary", id, "data-i18n": key });
+    const gameName = h("input", {
+      id: "online-game-name",
+      type: "text",
+      maxlength: MAX_GAME_NAME_LENGTH,
+      autocomplete: "off",
+      spellcheck: false,
+    });
+    const nameError = h("p", {
+      class: "hint error",
+      id: "online-game-name-error",
+      hidden: true,
+      "data-i18n": "online.error.invalid_game_name",
+    });
+    /** The name typed, or the player's default one. */
+    const defaultName = (): string =>
+      t("online.defaultName", { name: this.setup.playerName || t("menu.namePlaceholder") });
+    const showDefault = (): void => {
+      gameName.placeholder = defaultName();
+    };
+    gameName.addEventListener("focus", showDefault);
+    gameName.addEventListener("input", () => {
+      nameError.hidden = true;
+    });
+    this.cleanups.push(onLanguageChange(showDefault));
+    showDefault();
+
+    const button = (
+      id: string,
+      key: MessageKey,
+      entry: () => OnlineEntry | undefined,
+      kind = "secondary",
+    ): HTMLElement => {
+      const element = h("button", { type: "button", class: kind, id, "data-i18n": key });
       element.addEventListener("click", () => {
-        enter(entry);
+        const chosen = entry();
+        if (chosen) enter(chosen);
       });
       return element;
     };
+    const createPublic = (): OnlineEntry | undefined => {
+      const checked = normalizeGameName(gameName.value.trim() || defaultName());
+      nameError.hidden = checked.ok;
+      return checked.ok ? { type: "create", visibility: "public", name: checked.name } : undefined;
+    };
+
     const list = h("ul", { class: "public-games", id: "public-games" });
     const empty = h("p", { class: "hint", "data-i18n": "online.noGames" });
     const games = h(
@@ -282,40 +315,33 @@ export class Menu {
       const info = mapList.find((candidate) => candidate.id === id);
       return info?.name?.[getLanguage()] ?? id;
     };
+    let shown: readonly PublicGame[] = [];
     const show = (found: readonly PublicGame[]): void => {
+      shown = found;
       games.hidden = false;
       empty.hidden = found.length > 0;
-      list.replaceChildren(
-        ...found.map((game) => {
-          const join = h("button", { type: "button", class: "secondary" }, t("online.join"));
-          join.addEventListener("click", () => {
-            enter({ type: "join", game: game.id });
-          });
-          return h(
-            "li",
-            { class: "public-game" },
-            h(
-              "span",
-              {},
-              t("online.gameRow", {
-                map: mapLabel(game.map),
-                players: game.players,
-                capacity: game.capacity,
-              }),
-            ),
-            join,
-          );
-        }),
-      );
+      list.replaceChildren(...found.map((game) => this.gameRow(game, mapLabel, enter)));
     };
+    this.cleanups.push(
+      onLanguageChange(() => {
+        show(shown);
+      }),
+    );
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let etag: string | undefined;
     const refresh = async (): Promise<void> => {
       try {
-        const response = await fetch(new URL("api/games", location.href));
-        const body: unknown = response.ok ? await response.json() : undefined;
-        // The menu may have closed while the request ran.
-        if (!stopped) show(publicGames(body));
+        const response = await fetch(new URL("api/games", location.href), {
+          headers: etag ? { "if-none-match": etag } : {},
+        });
+        // Unchanged since the last answer: nothing to redraw.
+        if (response.status !== 304) {
+          const body: unknown = response.ok ? await response.json() : undefined;
+          etag = response.headers.get("etag") ?? undefined;
+          // The menu may have closed while the request ran.
+          if (!stopped) show(publicGames(body));
+        }
       } catch {
         // No server next to the page, as in a static preview: the buttons stay.
       }
@@ -336,11 +362,80 @@ export class Menu {
       h("h2", { id: "online-heading", "data-i18n": "online.heading" }),
       h(
         "div",
+        { class: "online-quick" },
+        button(
+          "online-play",
+          "online.quick",
+          () => ({ type: "play", name: defaultName() }),
+          "primary",
+        ),
+        h("p", { class: "hint", "data-i18n": "online.quickHint" }),
+      ),
+      h(
+        "div",
+        { class: "field" },
+        h("label", { for: "online-game-name", "data-i18n": "online.gameName" }),
+        h(
+          "div",
+          { class: "online-actions" },
+          gameName,
+          button("online-create-public", "online.createPublic", createPublic),
+        ),
+        nameError,
+      ),
+      h(
+        "div",
         { class: "online-actions" },
-        button("online-play", "online.quick", { type: "play" }),
-        button("online-create", "online.create", { type: "create" }),
+        button("online-create", "online.create", () => ({ type: "create", visibility: "private" })),
       ),
       games,
+    );
+  }
+
+  /** One public game of the list: name, map, mode, host, seats, and whether it can be joined. */
+  private gameRow(
+    game: PublicGame,
+    mapLabel: (id: string) => string,
+    enter: (entry: OnlineEntry) => void,
+  ): HTMLElement {
+    const full = game.players >= game.capacity;
+    const open = game.state === "waiting" && !full;
+    const join = h("button", { type: "button", class: "secondary" }, t("online.join"));
+    join.toggleAttribute("disabled", !open);
+    join.addEventListener("click", () => {
+      enter({ type: "join", game: game.id });
+    });
+    const state =
+      game.state === "running"
+        ? t("online.state.running")
+        : full
+          ? t("online.full")
+          : t("online.state.waiting");
+    return h(
+      "li",
+      { class: `public-game ${game.state}`, "data-game": game.id },
+      h(
+        "div",
+        { class: "public-game-text" },
+        // Text nodes only: names come from other players.
+        h("span", { class: "public-game-name" }, game.name),
+        h(
+          "span",
+          { class: "public-game-details" },
+          t("online.gameDetails", {
+            map: mapLabel(game.map),
+            mode: t(`mode.${String(game.teams)}` as MessageKey),
+            host: game.host,
+          }),
+        ),
+      ),
+      h(
+        "span",
+        { class: "public-game-count" },
+        t("online.gamePlayers", { players: game.players, capacity: game.capacity }),
+      ),
+      h("span", { class: `public-game-state ${game.state}` }, state),
+      join,
     );
   }
 
@@ -359,18 +454,13 @@ export class Menu {
 }
 
 /** The games of a `/api/games` answer, leaving out anything malformed. */
-function publicGames(body: unknown): PublicGame[] {
+export function publicGames(body: unknown): PublicGame[] {
   const games = (body as { games?: unknown } | undefined)?.games;
   if (!Array.isArray(games)) return [];
-  return games.filter(
-    (game): game is PublicGame =>
-      typeof game === "object" &&
-      game !== null &&
-      typeof (game as PublicGame).id === "string" &&
-      typeof (game as PublicGame).map === "string" &&
-      Number.isInteger((game as PublicGame).players) &&
-      Number.isInteger((game as PublicGame).capacity),
-  );
+  return games.flatMap((game) => {
+    const parsed = PublicGame.safeParse(game);
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 /** Small picture of a map: the published thumbnail, or drawn from a generated terrain. */

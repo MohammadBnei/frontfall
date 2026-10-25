@@ -166,21 +166,32 @@ describe("OnlineClient", () => {
 
     online.join("Xk3_9aB-q2Lm");
     online.create();
-    online.configure({
-      map: "europe",
-      bots: 4,
-      difficulty: "hard",
-      nations: true,
-      teams: 0,
-      disabled: 0,
-    });
+    online.create("public", "Europe 4v4");
+    online.play("Partie de Bob");
+    online.configure(
+      {
+        map: "europe",
+        bots: 4,
+        difficulty: "hard",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+        capacity: 8,
+        autoStart: true,
+      },
+      "Europe 2v2",
+    );
     online.start();
+    online.hold();
+    online.active();
     online.order({ type: "spawn", tile: 4 });
     online.hash(50, 7);
     online.leave();
     expect(socket.sent.slice(2)).toEqual([
       { type: "join", game: "Xk3_9aB-q2Lm" },
-      { type: "create" },
+      { type: "create", visibility: "private" },
+      { type: "create", visibility: "public", name: "Europe 4v4" },
+      { type: "play", name: "Partie de Bob" },
       {
         type: "configure",
         options: {
@@ -190,9 +201,14 @@ describe("OnlineClient", () => {
           nations: true,
           teams: 0,
           disabled: 0,
+          capacity: 8,
+          autoStart: true,
         },
+        name: "Europe 2v2",
       },
       { type: "start" },
+      { type: "hold" },
+      { type: "active" },
       { type: "order", order: { type: "spawn", tile: 4 } },
       { type: "hash", tick: 50, hash: 7 },
       { type: "leave" },
@@ -207,6 +223,7 @@ describe("OnlineClient", () => {
       type: "lobby",
       game: START.game,
       visibility: "public",
+      name: "Partie de Alice",
       map: "world",
       bots: 0,
       difficulty: "normal",
@@ -214,11 +231,14 @@ describe("OnlineClient", () => {
       teams: 0,
       disabled: 0,
       capacity: 16,
+      autoStart: true,
+      minPlayers: 2,
       players: START.players,
       you: 2,
-      host: null,
+      host: 1,
       startsIn: 1000,
       token: START.token,
+      holdable: true,
     });
     socket.receive(START);
     socket.receive({ type: "turns", turns: [{ tick: 0, orders: [] }] });
@@ -302,6 +322,7 @@ describe("OnlineClient", () => {
       type: "lobby",
       game: START.game,
       visibility: "private",
+      name: null,
       map: "world",
       bots: 0,
       difficulty: "normal",
@@ -309,10 +330,13 @@ describe("OnlineClient", () => {
       teams: 0,
       disabled: 0,
       capacity: 16,
+      autoStart: true,
+      minPlayers: 1,
       players: START.players,
       you: 1,
       host: 1,
       startsIn: null,
+      holdable: false,
       token: START.token,
     });
 
@@ -334,6 +358,7 @@ describe("OnlineClient", () => {
       type: "lobby",
       game: START.game,
       visibility: "public",
+      name: "Partie de Alice",
       map: "world",
       bots: 0,
       difficulty: "normal",
@@ -341,10 +366,13 @@ describe("OnlineClient", () => {
       teams: 0,
       disabled: 0,
       capacity: 16,
+      autoStart: true,
+      minPlayers: 2,
       players: START.players,
       you: 2,
-      host: null,
+      host: 1,
       startsIn: 1000,
+      holdable: true,
       token: START.token,
     });
     socket.drop();

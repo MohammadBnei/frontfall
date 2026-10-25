@@ -1,5 +1,14 @@
 import { Disable, leftOut } from "@frontfall/engine";
-import type { Difficulty, ErrorCode, GameOptions, Teams } from "@frontfall/protocol";
+import {
+  MAX_GAME_NAME_LENGTH,
+  MAX_SEATS,
+  MIN_SEATS,
+  normalizeGameName,
+  type Difficulty,
+  type ErrorCode,
+  type GameOptions,
+  type Teams,
+} from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS } from "../game/solo-game.ts";
 import { PendingEdits } from "./lobby-edits.ts";
@@ -24,11 +33,23 @@ export function botLimit(map: MapInfo, players: number): number {
   return Math.max(0, Math.min(MAX_BOTS, (map.maxPlayers ?? 0) - Math.max(1, players)));
 }
 
+/** Seats a host can open on `map` with `bots`: between 2 and 16, as the map allows. */
+export function seatLimit(map: MapInfo, bots: number): number {
+  return Math.max(MIN_SEATS, Math.min(MAX_SEATS, (map.maxPlayers ?? 0) - bots));
+}
+
+/** How often, at most, the lobby tells the server the player is at the screen. */
+const ACTIVE_EVERY_MS = 30_000;
+
 export interface LobbyActions {
-  /** Host of a private game: start with the players present. */
+  /** Host: start with the players present. */
   onStart(): void;
-  /** Host of a private game: new map, bots or difficulty. */
-  onConfigure(options: GameOptions): void;
+  /** Host: new options and, for a public game, a new name. */
+  onConfigure(options: GameOptions, name?: string): void;
+  /** Host of a quick game: stop the countdown. */
+  onHold(): void;
+  /** The player touched the page: they are still at the screen. */
+  onActive(): void;
   onLeave(): void;
 }
 
@@ -36,10 +57,10 @@ export interface LobbyActions {
 export type EndReason = "abandoned" | "timeout" | "expired" | "left" | "restart" | "seatLost";
 
 /**
- * The room before an online game: who is in, the countdown of a public
- * game, the invitation link and the start button of a private one, and
- * what went wrong when something did. The connection lives elsewhere; this
- * only shows what it reports.
+ * The room before an online game: its name, who is in and who hosts, the
+ * options the host sets and the start button, the countdown of a quick
+ * game, the invitation link, and what went wrong when something did. The
+ * connection lives elsewhere; this only shows what it reports.
  */
 export class LobbyScreen {
   readonly element: HTMLElement;
@@ -48,6 +69,7 @@ export class LobbyScreen {
     id: "lobby-title",
     "data-i18n": "online.title",
   });
+  private readonly kind = h("p", { class: "lobby-kind", id: "lobby-kind" });
   private readonly status = h("p", { class: "lobby-status", id: "lobby-status", role: "status" });
   private readonly players = h("ul", { class: "lobby-players", id: "lobby-players" });
   private readonly invite = h("input", {
@@ -75,6 +97,13 @@ export class LobbyScreen {
     hidden: true,
     "data-i18n": "online.start",
   });
+  private readonly hold = h("button", {
+    type: "button",
+    class: "secondary",
+    id: "lobby-hold",
+    hidden: true,
+    "data-i18n": "online.hold",
+  });
   private readonly reload = h("button", {
     type: "button",
     class: "primary",
@@ -82,6 +111,16 @@ export class LobbyScreen {
     hidden: true,
     "data-i18n": "online.reload",
   });
+  private readonly gameName = h("input", {
+    id: "lobby-name",
+    type: "text",
+    maxlength: MAX_GAME_NAME_LENGTH,
+    spellcheck: false,
+    autocomplete: "off",
+  });
+  private readonly gameNameLabel = h("label", { for: "lobby-name", "data-i18n": "online.name" });
+  private readonly seats = h("select", { id: "lobby-seats" });
+  private readonly autoStart = h("input", { id: "lobby-auto", type: "checkbox" });
   private readonly mapSelect = h("select", { id: "lobby-map" });
   private readonly bots = h("input", {
     id: "lobby-bots",
@@ -102,6 +141,17 @@ export class LobbyScreen {
   private readonly settings = h(
     "div",
     { class: "lobby-settings", hidden: true },
+    this.gameNameLabel,
+    this.gameName,
+    h("label", { for: "lobby-seats", "data-i18n": "online.seats" }),
+    this.seats,
+    h("span", { class: "lobby-auto-label", "data-i18n": "online.autoStartLabel" }),
+    h(
+      "label",
+      { class: "toggle", for: "lobby-auto" },
+      this.autoStart,
+      h("span", { "data-i18n": "online.autoStart" }),
+    ),
     h("label", { for: "lobby-map", "data-i18n": "menu.map" }),
     this.mapSelect,
     h("label", { for: "lobby-bots", "data-i18n": "menu.bots" }),
@@ -133,6 +183,7 @@ export class LobbyScreen {
   private lastLobby: LobbyState | undefined;
   private readonly edits = new PendingEdits();
   private readonly timer: ReturnType<typeof setInterval>;
+  private readonly stopWatching: () => void;
 
   constructor(
     actions: LobbyActions,
@@ -150,15 +201,19 @@ export class LobbyScreen {
     this.start.addEventListener("click", () => {
       actions.onStart();
     });
+    this.hold.addEventListener("click", () => {
+      actions.onHold();
+    });
     this.reload.addEventListener("click", () => {
       location.reload();
     });
-    const configure = (): void => {
+    const configure = (name?: string): void => {
       const map = this.maps.find((candidate) => candidate.id === this.mapSelect.value);
       if (!map || !this.lastLobby) return;
+      const bots = Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.players.length));
       const options: GameOptions = {
         map: map.id,
-        bots: Math.min(Number(this.bots.value), botLimit(map, this.lastLobby.players.length)),
+        bots,
         difficulty: this.difficulty.value as Difficulty,
         nations: this.nations.checked,
         teams: Number(this.teams.value) as Teams,
@@ -166,20 +221,41 @@ export class LobbyScreen {
           (bits, { bit, input }) => bits | (input.checked ? 0 : bit),
           0,
         ),
+        capacity: Math.min(Number(this.seats.value), seatLimit(map, bots)),
+        autoStart: this.autoStart.checked,
       };
       this.edits.send(options, performance.now());
-      actions.onConfigure(options);
+      actions.onConfigure(options, name);
     };
-    this.mapSelect.addEventListener("change", configure);
-    this.difficulty.addEventListener("change", configure);
-    this.nations.addEventListener("change", configure);
-    this.teams.addEventListener("change", configure);
-    for (const { input } of this.allowed) input.addEventListener("change", configure);
+    // The name goes out once typed: on Enter or when the field loses focus.
+    this.gameName.addEventListener("change", () => {
+      const checked = normalizeGameName(this.gameName.value);
+      if (!checked.ok) {
+        this.show("online.error.invalid_game_name");
+        if (this.lastLobby?.name) this.gameName.value = this.lastLobby.name;
+        return;
+      }
+      configure(checked.name);
+    });
+    this.seats.addEventListener("change", () => {
+      configure();
+    });
+    this.autoStart.addEventListener("change", () => {
+      configure();
+    });
+    const reconfigure = (): void => {
+      configure();
+    };
+    this.mapSelect.addEventListener("change", reconfigure);
+    this.difficulty.addEventListener("change", reconfigure);
+    this.nations.addEventListener("change", reconfigure);
+    this.teams.addEventListener("change", reconfigure);
+    for (const { input } of this.allowed) input.addEventListener("change", reconfigure);
     this.bots.addEventListener("input", () => {
       this.botsValue.textContent = this.bots.value;
     });
     // Sent on release, not on every step of a drag.
-    this.bots.addEventListener("change", configure);
+    this.bots.addEventListener("change", reconfigure);
     this.copy.addEventListener("click", () => {
       // Selected, the link can still be copied by hand where the clipboard is
       // out of reach, as on a page served over plain HTTP.
@@ -207,12 +283,13 @@ export class LobbyScreen {
         "section",
         { class: "lobby-panel", "aria-labelledby": "lobby-title" },
         this.title,
+        this.kind,
         this.status,
         this.summary,
         this.settings,
         this.players,
         this.invitation,
-        h("div", { class: "lobby-actions" }, this.start, this.reload, leave),
+        h("div", { class: "lobby-actions" }, this.start, this.hold, this.reload, leave),
       ),
     );
     applyTranslations(this.element);
@@ -223,6 +300,19 @@ export class LobbyScreen {
       if (this.edits.expired(performance.now()) && this.lastLobby)
         this.showSettings(this.lastLobby);
     }, 250);
+    // A host who walks away hands the role on: touching the page says otherwise.
+    let lastActive = -Infinity;
+    const touched = (): void => {
+      const now = performance.now();
+      if (now - lastActive < ACTIVE_EVERY_MS) return;
+      lastActive = now;
+      actions.onActive();
+    };
+    const events = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
+    for (const type of events) document.addEventListener(type, touched, { passive: true });
+    this.stopWatching = () => {
+      for (const type of events) document.removeEventListener(type, touched);
+    };
   }
 
   /** The connection is opening, or dropped and retries in `retryInMs`. */
@@ -237,6 +327,7 @@ export class LobbyScreen {
     this.startsAt = undefined;
     this.show("status.outdated");
     this.start.hidden = true;
+    this.hold.hidden = true;
     this.settings.hidden = true;
     this.reload.hidden = false;
   }
@@ -255,8 +346,16 @@ export class LobbyScreen {
     this.lastLobby = lobby;
     this.startsAt = lobby.startsIn === null ? undefined : performance.now() + lobby.startsIn;
     const privateGame = lobby.visibility === "private";
-    this.title.dataset.i18n = privateGame ? "online.private" : "online.public";
-    this.title.textContent = t(this.title.dataset.i18n as MessageKey);
+    const host = lobby.host === lobby.you;
+    this.kind.textContent = t(privateGame ? "online.private" : "online.public");
+    // A public game goes by its name, as the list shows it.
+    if (lobby.name === null) {
+      this.title.dataset.i18n = "online.title";
+      this.title.textContent = t("online.title");
+    } else {
+      delete this.title.dataset.i18n;
+      this.title.textContent = lobby.name;
+    }
     this.players.replaceChildren(
       ...lobby.players.map((player, i) =>
         h(
@@ -275,9 +374,13 @@ export class LobbyScreen {
         ),
       ),
     );
-    this.invitation.hidden = !privateGame;
-    if (privateGame) this.invite.value = inviteLink;
-    this.start.hidden = !privateGame || lobby.host !== lobby.you;
+    this.invite.value = inviteLink;
+    this.invitation.hidden = false;
+    this.start.hidden = !host;
+    const enough = lobby.players.length >= lobby.minPlayers;
+    this.start.toggleAttribute("disabled", !enough);
+    this.start.title = enough ? "" : t("online.needPlayers", { count: lobby.minPlayers });
+    this.hold.hidden = !host || !lobby.holdable;
     this.showSettings(lobby);
     this.showLobbyStatus(lobby);
   }
@@ -303,6 +406,7 @@ export class LobbyScreen {
 
   dispose(): void {
     clearInterval(this.timer);
+    this.stopWatching();
     this.element.remove();
   }
 
@@ -311,19 +415,21 @@ export class LobbyScreen {
     this.lastLobby = undefined;
     this.startsAt = undefined;
     this.start.hidden = true;
+    this.hold.hidden = true;
     this.settings.hidden = true;
     this.show(key);
   }
 
-  /** The host of a private game changes the settings; everyone else reads them. */
+  /** The host changes the settings; everyone else reads them. */
   private showSettings(lobby: LobbyState): void {
     const map = this.maps.find((candidate) => candidate.id === lobby.map);
     const mapName = map?.name?.[getLanguage()] ?? lobby.map;
-    const summary = t(lobby.nations ? "online.summaryNations" : "online.summary", {
+    const base = t(lobby.nations ? "online.summaryNations" : "online.summary", {
       map: mapName,
       bots: lobby.bots,
       difficulty: t(`difficulty.${lobby.difficulty}`),
     });
+    const summary = lobby.autoStart ? t("online.summaryAuto", { summary: base }) : base;
     const withMode =
       lobby.teams === 0
         ? summary
@@ -341,7 +447,7 @@ export class LobbyScreen {
             summary: withMode,
             off: off.map(({ name }) => t(`hud.${name}`)).join(", "),
           });
-    const editable = lobby.visibility === "private" && lobby.host === lobby.you && map;
+    const editable = lobby.host === lobby.you && map;
     this.settings.hidden = !editable;
     this.summary.hidden = Boolean(editable);
     if (!editable || !this.edits.accepts(lobby, performance.now())) return;
@@ -369,6 +475,20 @@ export class LobbyScreen {
       ),
     );
     this.mapSelect.value = lobby.map;
+    const listed = lobby.name !== null;
+    this.gameNameLabel.hidden = !listed;
+    this.gameName.hidden = !listed;
+    // Not while the host is typing a new one.
+    if (listed && document.activeElement !== this.gameName) this.gameName.value = lobby.name ?? "";
+    const most = seatLimit(map, lobby.bots);
+    const least = Math.min(most, Math.max(MIN_SEATS, lobby.players.length));
+    this.seats.replaceChildren(
+      ...Array.from({ length: most - least + 1 }, (_, i) =>
+        h("option", { value: least + i }, String(least + i)),
+      ),
+    );
+    this.seats.value = String(Math.min(Math.max(lobby.capacity, least), most));
+    this.autoStart.checked = lobby.autoStart;
     this.difficulty.replaceChildren(
       ...DIFFICULTIES.map((level) => h("option", { value: level }, t(`difficulty.${level}`))),
     );
@@ -391,11 +511,16 @@ export class LobbyScreen {
 
   private showLobbyStatus(lobby: LobbyState): void {
     const count = { players: lobby.players.length, capacity: lobby.capacity };
+    const hostName = lobby.players.find((player) => player.id === lobby.host)?.name ?? "";
     if (this.startsAt === undefined) {
-      this.show(lobby.visibility === "private" ? "online.waitingHost" : "status.waiting", count);
+      if (lobby.host !== lobby.you) this.show("online.waitingFor", { ...count, host: hostName });
+      else if (lobby.players.length < lobby.minPlayers) this.show("online.waitingOpponent", count);
+      else this.show("online.youHost", count);
     } else {
       const seconds = Math.max(0, Math.ceil((this.startsAt - performance.now()) / 1000));
-      this.show("status.starting", { ...count, seconds });
+      // Alone in a quick game: bots stand in for the opponents at the end.
+      if (lobby.players.length < lobby.minPlayers) this.show("online.soloStarting", { seconds });
+      else this.show("status.starting", { ...count, seconds });
     }
   }
 

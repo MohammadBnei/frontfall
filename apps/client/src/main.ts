@@ -21,7 +21,7 @@ import {
 import { loadGlobe, type ViewKind } from "./render/renderer.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { GameScreen } from "./ui/game-screen.ts";
-import { LobbyScreen, botLimit, onlineMaps } from "./ui/lobby.ts";
+import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
 import { Menu } from "./ui/menu.ts";
@@ -375,15 +375,21 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
   const playable = onlineMaps(maps);
   /** Public unless a lobby said otherwise: a seat taken back after a reload sees no lobby. */
   let visibility: "public" | "private" = entry.type === "create" ? "private" : "public";
-  // A new private game starts with the map, bots and difficulty of the menu, when it can.
+  // A game of one's own starts with the map, bots and difficulty of the menu, when it can.
   let fromMenu = entry.type === "create";
   const room = new LobbyScreen(
     {
       onStart: () => {
         online?.start();
       },
-      onConfigure: (options) => {
-        online?.configure(options);
+      onConfigure: (options, name) => {
+        online?.configure(options, name);
+      },
+      onHold: () => {
+        online?.hold();
+      },
+      onActive: () => {
+        online?.active();
       },
       onLeave: () => {
         goOffline();
@@ -418,14 +424,8 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
       },
       lobby(state) {
         visibility = state.visibility;
-        // A private game is joined again from its link, after a reload too.
-        if (state.visibility === "private") {
-          history.replaceState(
-            null,
-            "",
-            `?${new URLSearchParams({ game: state.game }).toString()}`,
-          );
-        }
+        // Any game is joined again from its link, after a reload too.
+        history.replaceState(null, "", `?${new URLSearchParams({ game: state.game }).toString()}`);
         if (fromMenu && state.host === state.you) {
           fromMenu = false;
           const options = initialOptions(chosen, playable, state.players.length);
@@ -475,13 +475,13 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
     },
   });
   online = client;
-  if (entry.type === "play") client.play();
-  else if (entry.type === "create") client.create();
+  if (entry.type === "play") client.play(entry.name);
+  else if (entry.type === "create") client.create(entry.visibility, entry.name);
   else if (entry.type === "resume") client.resume(entry.token, snapshot?.tick ?? 0);
   else client.join(entry.game);
 }
 
-/** The menu's choices as settings of a private game, kept within what the server accepts. */
+/** The menu's choices as settings of a new game, kept within what the server accepts. */
 function initialOptions(
   chosen: GameSetup,
   playable: readonly MapInfo[],
@@ -489,13 +489,16 @@ function initialOptions(
 ): GameOptions | undefined {
   const map = playable.find((candidate) => candidate.id === chosen.map);
   if (!map || (map.maxPlayers ?? 0) < players) return undefined;
+  const bots = Math.min(chosen.bots, botLimit(map, players));
   return {
     map: map.id,
-    bots: Math.min(chosen.bots, botLimit(map, players)),
+    bots,
     difficulty: chosen.difficulty,
     nations: chosen.nations ?? true,
     teams: (chosen.teams ?? 0) as Teams,
     disabled: chosen.disabled ?? 0,
+    capacity: seatLimit(map, bots),
+    autoStart: true,
   };
 }
 
@@ -607,6 +610,10 @@ void ready.then(() => {
       });
     } else if (query.has("name")) goOnline({ type: "join", game: invited });
     else askName(invited);
-  } else if (query.has("online")) goOnline({ type: "play" });
-  else showMenu();
+  } else if (query.has("online")) {
+    goOnline({
+      type: "play",
+      name: t("online.defaultName", { name: setup.playerName || t("menu.namePlaceholder") }),
+    });
+  } else showMenu();
 });

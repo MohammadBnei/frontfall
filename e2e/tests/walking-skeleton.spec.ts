@@ -103,7 +103,7 @@ test("two players meet in a private game without leaving the base path", async (
   await expect(guest.locator("#lobby-start")).toBeHidden();
   await expect(guest.locator("#lobby-map")).toBeHidden();
   await expect(guest.locator("#lobby-summary")).toHaveText(
-    "World · 0 bots · nations · Hard · left out: Silo",
+    "World · 0 bots · nations · Hard · starts when full · left out: Silo",
   );
   await host.locator("#lobby-start").click();
 
@@ -371,11 +371,66 @@ test("two players join a public game from the menu", async ({ browser, baseURL }
   for (const page of pages) {
     await page.goto(baseURL);
     await page.locator("#online-play").click();
-    await expect(page.locator("#lobby-status")).toHaveText(/^(Waiting for players|Starting in)/);
+    // Alone, the first one sees bots coming; the second, the game about to start.
+    await expect(page.locator("#lobby-status")).toHaveText(/^(Alone for now|Starting in)/);
   }
   for (const page of pages) {
     await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
   }
+});
+
+test("a host names a public game, others find it in the list, the host starts it", async ({
+  browser,
+  baseURL,
+}) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
+  test.setTimeout(GAME_START_TIMEOUT + 60_000);
+  if (!baseURL) throw new Error("baseURL is not configured");
+  const [host, guest, late] = [
+    await browser.newPage(),
+    await browser.newPage(),
+    await browser.newPage(),
+  ];
+  const name = `Europe ${String(Date.now() % 100_000)}`;
+
+  await host.goto(baseURL);
+  await host.locator("#player-name").fill("Host");
+  await host.locator("#online-game-name").fill(name);
+  await host.locator("#online-create-public").click();
+  await expect(host.locator("#lobby-title")).toHaveText(name, { timeout: 15_000 });
+  await expect(host.locator("#lobby-start")).toBeDisabled();
+  await expect(host.locator("#lobby-hold")).toBeHidden();
+  await host.locator("#lobby-seats").selectOption("4");
+  await host.locator("#lobby-auto").uncheck();
+
+  // The game shows in the list of the others, with its host and seats.
+  await guest.goto(baseURL);
+  await guest.locator("#player-name").fill("Guest");
+  const row = guest.locator(".public-game", { hasText: name });
+  await expect(row).toContainText("host: Host", { timeout: 10_000 });
+  await expect(row).toContainText("1/4");
+  await row.getByRole("button", { name: "Join" }).click();
+  await expect(guest.locator("#lobby-status")).toHaveText(/Host starts the game/, {
+    timeout: 15_000,
+  });
+  await expect(guest.locator("#lobby-start")).toBeHidden();
+
+  // Nothing starts on its own: the host decides.
+  await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
+  await host.waitForTimeout(3_000);
+  await expect(host.locator("#lobby")).toBeVisible();
+  await expect(host.locator("#lobby-start")).toBeEnabled();
+  await host.locator("#lobby-start").click();
+  for (const page of [host, guest]) {
+    await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  }
+
+  // A third player sees it running, and cannot join it.
+  await late.goto(baseURL);
+  const running = late.locator(".public-game", { hasText: name });
+  await expect(running).toContainText("In progress", { timeout: 10_000 });
+  await expect(running.getByRole("button", { name: "Join" })).toBeDisabled();
+  await Promise.all([host.close(), guest.close(), late.close()]);
 });
 
 test("says when an invitation leads nowhere", async ({ page }) => {

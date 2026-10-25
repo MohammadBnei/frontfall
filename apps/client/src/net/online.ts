@@ -9,6 +9,7 @@ import {
   type Order,
   type ServerMessage,
   type Turn,
+  type Visibility,
 } from "@frontfall/protocol";
 
 const MAX_RETRY_DELAY_MS = 10_000;
@@ -82,14 +83,14 @@ export interface OnlineOptions {
 }
 
 /**
- * How a player enters an online game: the next public one, a new private
- * one, one by id, or back into a running game with the seat's token after
- * the page reloaded.
+ * How a player enters an online game: the next public one (opening one under
+ * `name` if none waits), a new game of their own, one by id, or back into a
+ * running game with the seat's token after the page reloaded.
  */
 export type OnlineEntry =
-  | { type: "play" }
+  | { type: "play"; name?: string }
   | { type: "join"; game: string }
-  | { type: "create" }
+  | { type: "create"; visibility?: Visibility; name?: string }
   | { type: "resume"; game: string; token: string };
 type Entry =
   Exclude<OnlineEntry, { type: "resume" }> | { type: "resume"; token: string; from: number };
@@ -118,14 +119,14 @@ export class OnlineClient {
     this.open();
   }
 
-  /** Join the public game that starts soonest. */
-  play(): void {
-    this.enter({ type: "play" });
+  /** Join the fullest public game waiting, or open one under `name`. */
+  play(name?: string): void {
+    this.enter({ type: "play", ...(name !== undefined && { name }) });
   }
 
-  /** Open a private game; share its id as `?game=<id>`. */
-  create(): void {
-    this.enter({ type: "create" });
+  /** Open a game of one's own; a public one is listed under `name`, any is joined by `?game=<id>`. */
+  create(visibility: Visibility = "private", name?: string): void {
+    this.enter({ type: "create", visibility, ...(name !== undefined && { name }) });
   }
 
   /** Joins a game by id; an id the protocol cannot carry is refused here, as not found. */
@@ -155,14 +156,24 @@ export class OnlineClient {
     this.socket?.close(1000);
   }
 
-  /** Host of a private game: map, bots and difficulty, until the start. */
-  configure(options: GameOptions): void {
-    this.send({ type: "configure", options });
+  /** Host: map, bots, seats and, for a public game, its name, until the start. */
+  configure(options: GameOptions, name?: string): void {
+    this.send({ type: "configure", options, ...(name !== undefined && { name }) });
   }
 
-  /** Host of a private game: start now. */
+  /** Host: start now. */
   start(): void {
     this.send({ type: "start" });
+  }
+
+  /** Host, once: stop the countdown of a quick game. */
+  hold(): void {
+    this.send({ type: "hold" });
+  }
+
+  /** The player is at the screen, so the host keeps the role. */
+  active(): void {
+    this.send({ type: "active" });
   }
 
   leave(): void {

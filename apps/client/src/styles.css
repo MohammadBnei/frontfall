@@ -285,6 +285,89 @@ input[type="range"] {
   justify-content: flex-start;
 }
 
+button.primary:disabled,
+button.secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.online-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.online-quick .hint,
+.hint.error {
+  text-align: left;
+}
+
+.hint.error {
+  color: var(--ff-ember-bright);
+}
+
+#online-game-name {
+  flex: 2 1 180px;
+  min-width: 0;
+}
+
+.public-game-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.public-game-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-game-details,
+.public-game-state {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}
+
+.public-game-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.public-game-state.waiting {
+  color: var(--ff-ember);
+}
+
+.public-game.running {
+  opacity: 0.7;
+}
+
+.lobby-kind {
+  margin: -8px 0 0;
+  color: var(--ff-slate-300);
+  font-size: 13px;
+}
+
+@media (width < 720px) {
+  .public-game {
+    flex-wrap: wrap;
+  }
+
+  .public-game-text {
+    flex-basis: 100%;
+  }
+
+  .public-game > button {
+    margin-left: auto;
+  }
+
+  #online-game-name {
+    flex-basis: 100%;
+  }
+}
+
 .lobby-player.you {
   font-weight: 700;
 }
@@ -367,7 +450,9 @@ input[type="range"] {
 }
 
 #player-name,
-#join-name {
+#join-name,
+#online-game-name,
+#lobby-name {
   padding: 10px 12px;
   border: 1px solid var(--ff-night-500);
   border-radius: var(--ff-radius);
