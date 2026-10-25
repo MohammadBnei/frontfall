@@ -112,7 +112,7 @@ export const ClientMessage = z.discriminatedUnion("type", [
     type: z.literal("hello"),
     version: z.number().int(),
     name: z.string().max(64),
-    /** Build of the page; the server turns away other builds, except "dev". */
+    /** Simulation build of the page; the server turns away other ones, except "dev". */
     build: z.string().max(64).optional(),
   }),
   /**
