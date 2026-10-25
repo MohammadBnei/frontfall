@@ -126,7 +126,7 @@ Shipped as `v0.2.0`.
 1. A player creates a private game from the menu, picks one of at least three maps and a number of bots, and shares the link; the others join from it.
 2. Four players on two networks and two browsers finish a game on `nclsmgr.com/frontfall` with zero desyncs.
 3. A deliberate desync in a test is detected within 10 seconds and reported to the server with the tick and both hashes.
-4. A scripted 4-player game ends with the same state hash in Node.js, Chromium and Firefox, checked in CI. WebKit was dropped from the suite: Playwright's WebKit on Linux is not the Safari that players run.
+4. A scripted 4-player game ends with the same state hash in Node.js, Chromium and Firefox, checked in CI. WebKit joined it later: Playwright's WebKit on Linux is not the Safari that players run, but it has the same JavaScript engine, so it checks the hashes of games between iPhones and computers, and the main paths of the game. I still try real Safari by hand, on a Mac and an iPhone.
 5. Every map rebuilds byte for byte from its pinned sources, checked in CI.
 
 | ID    | Issue                                                                                                      | Size | Depends on |

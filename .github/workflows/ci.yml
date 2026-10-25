@@ -57,10 +57,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit
       - run: pnpm build
       # The built game at / and behind a proxy that serves it under /frontfall/,
-      # and at / in Firefox, which needs a display for WebGL.
+      # at / in Firefox, which needs a display for WebGL, and in WebKit.
       - run: xvfb-run --auto-servernum pnpm test:e2e --shard=${{ matrix.shard }}/2
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -83,10 +83,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox
-      # Ten thousand ticks of bots on World, twice in Node and once in a Chromium and a Firefox
-      # worker, then the golden replays in both browsers: every run must reach the same state
-      # hashes (R-FAIR-01).
+      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit
+      # Ten thousand ticks of bots on World, twice in Node and once in a Chromium, a Firefox
+      # and a WebKit worker, then the golden replays in the three browsers: every run must
+      # reach the same state hashes (R-FAIR-01).
       - run: pnpm determinism
 
   performance:

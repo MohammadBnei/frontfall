@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { MapDescription, ReplayResult } from "@frontfall/engine";
-import { chromium, firefox, type BrowserType, type Page } from "playwright-core";
+import { chromium, firefox, webkit, type BrowserType, type Page } from "playwright-core";
 import { createServer } from "vite";
 import { playScenario, type ScenarioResult } from "./scenario.ts";
 
@@ -12,7 +12,7 @@ const { values } = parseArgs({
     map: { type: "string", default: "world" },
     ticks: { type: "string", default: "10000" },
     // Browsers to run the scenario and the golden replays in, as CI does.
-    browsers: { type: "string", default: "chromium,firefox" },
+    browsers: { type: "string", default: "chromium,firefox,webkit" },
   },
 });
 const ticks = Number(values.ticks);
@@ -54,6 +54,7 @@ if (!address) throw new Error("the determinism page server did not start");
 const engines: Record<string, { label: string; type: BrowserType; path: string | undefined }> = {
   chromium: { label: "Chromium", type: chromium, path: process.env.CHROMIUM_PATH },
   firefox: { label: "Firefox", type: firefox, path: process.env.FIREFOX_PATH },
+  webkit: { label: "WebKit", type: webkit, path: process.env.WEBKIT_PATH },
 };
 try {
   for (const name of values.browsers.split(",").filter(Boolean)) {

@@ -37,6 +37,17 @@ const local = {
       },
     },
     {
+      // Safari's engine, which every iPhone browser uses: the paths a new player takes.
+      name: "webkit",
+      testMatch: [
+        "solo-game.spec.ts",
+        "replay.spec.ts",
+        "globe.spec.ts",
+        "walking-skeleton.spec.ts",
+      ],
+      use: { ...devices["Desktop Safari"], baseURL: `http://127.0.0.1:${String(SERVER_PORT)}/` },
+    },
+    {
       name: "desync",
       testMatch: DESYNC_TEST,
       use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${String(DESYNC_PORT)}/` },
