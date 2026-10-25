@@ -156,12 +156,17 @@ jobs:
           HOST: ${{ secrets.DEPLOY_HOST }}
           MINUTES: ${{ vars.ANNONCE_MINUTES || '10' }}
         run: |
-          running() { curl -fsS "${SITE}api/games" | jq -r '.running // 0' || echo 0; }
+          # A server that does not answer may still hold games: "unknown" waits as if some ran.
+          running() {
+            local count
+            count=$(curl -fsS --max-time 10 "${SITE}api/games" | jq -er '.running') || count=unknown
+            case "$count" in '' | *[!0-9]*) echo unknown ;; *) echo "$count" ;; esac
+          }
           if [ "$(running)" = 0 ]; then
             echo "No game in progress"
             exit 0
           fi
-          live=$(curl -fsS "${SITE}api/status" | jq -r '.simulation // ""' || true)
+          live=$(curl -fsS --max-time 10 "${SITE}api/status" | jq -r '.simulation // ""' || true)
           if [ -n "$live" ] && [ "$live" != dev ] && [ "$live" = "$(node tools/simulation-build.mjs)" ]; then
             echo "Same simulation build $live: the games in progress go on after the restart"
             exit 0

@@ -53,6 +53,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - `pnpm balance` plays many headless games of one setup, bots, nations and a scripted player, and prints how long they last, who wins against their fair share, income from troops and trade, and missiles ([balance](docs/balance.md)).
 - Pages and servers now compare a simulation build, a hash of the engine, the balance, the protocol, the maps and the setup of a game, instead of the commit. `node tools/simulation-build.mjs` prints it, and `/api/status` reports it as `simulation` ([protocol](docs/protocol.md#simulation-build)).
 - With `FRONTFALL_DATA` set, the server writes the games still running at the end of its drain to `games/` in that directory (seed, settings, seats and their tokens, the turn log; `0600`), and the next run of the same simulation build takes them back and deletes the files ([server](docs/server.md#shutdown)).
+- The Publish workflow no longer deploys at once when `/api/games` does not answer: it announces the update and waits, as when games are running.
 - A self-hosted server reports its release in the `X-Frontfall-Release` header of `/healthz`, next to the build. The release number has one home, the version of the root `package.json`, read by the client and the server alike.
 
 ## [0.4.0] - 2026-10-25
