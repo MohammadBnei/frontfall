@@ -149,6 +149,10 @@ describe("HTTP", () => {
     expect(await page.text()).toBe("<!doctype html>");
     expect(page.headers.get("cache-control")).toBe("no-cache");
     expect(page.headers.get("x-content-type-options")).toBe("nosniff");
+    // The page cannot be framed, and runs only what it loads from its own origin.
+    expect(page.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(page.headers.get("content-security-policy")).toContain("default-src 'self'");
+    expect(page.headers.get("referrer-policy")).toBe("same-origin");
 
     const head = await fetch(`http://${host}/app.js`, { method: "HEAD" });
     expect(head.headers.get("content-type")).toContain("text/javascript");

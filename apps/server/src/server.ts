@@ -78,6 +78,18 @@ const DEFAULT_PING_INTERVAL_MS = 25_000;
 /** How often a draining server looks for games still running. */
 const DRAIN_CHECK_MS = 250;
 
+/**
+ * Headers of every page and file the server sends. The policy is the one the
+ * game is deployed behind, without a host: a server run on its own, at any
+ * address, gets the same protection. A proxy may replace it.
+ */
+const SECURITY_HEADERS = {
+  "content-security-policy":
+    "default-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "referrer-policy": "same-origin",
+  "x-content-type-options": "nosniff",
+} as const;
+
 /** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
 const MAX_PAYLOAD_BYTES = 1024;
 
@@ -275,7 +287,7 @@ export function createGameServer(options: ServerOptions): GameServer {
         .writeHead(200, {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "no-store",
-          "x-content-type-options": "nosniff",
+          ...SECURITY_HEADERS,
         })
         .end(
           request.method === "HEAD" ? undefined : statusPage(status(), options.statusSections?.()),
@@ -311,7 +323,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       response.writeHead(200, {
         ...caching,
         "content-type": file.contentType,
-        "x-content-type-options": "nosniff",
+        ...SECURITY_HEADERS,
         "content-length": (gzip ?? file.body).length,
         ...(file.gzip && { vary: "Accept-Encoding" }),
         ...(gzip && { "content-encoding": "gzip" }),
