@@ -175,6 +175,9 @@ test.describe("on a touch screen", () => {
   }) => {
     test.setTimeout(120_000);
     await startGame(page);
+    // On a phone the guide covers a good part of the map: put away, as a player would.
+    const hide = page.locator("#guide-hide");
+    if (await hide.isVisible()) await hide.click();
     const menu = page.locator("#player-menu");
     // Zoomed out, the bots' land is in view.
     const box = await page.locator("#map").boundingBox();
@@ -218,10 +221,11 @@ test.describe("on a touch screen", () => {
       map.dispatchEvent(new PointerEvent("pointerup", init));
     })()`);
     await expect(menu.locator("h2")).toHaveText(name);
-    // An attack would show up with the next update, which brings more troops.
-    const troops = page.locator(".stats .stat").first().locator(".stat-value");
-    const before = await troops.textContent();
-    await expect(troops).not.toHaveText(before ?? "");
+    // An attack would show up with the next updates: the clock says they came.
+    // (Troops are no sign of one: they stand still once at their cap.)
+    const clock = page.locator(".goal-clock");
+    const before = await clock.textContent();
+    await expect(clock).not.toHaveText(before ?? "", { timeout: 10_000 });
     await expect(page.locator(".attacks")).toBeHidden();
     await expect(menu).toBeVisible();
     await expect(menu.locator(".menu-action.ask")).toBeVisible();
