@@ -1,6 +1,6 @@
 # Network protocol
 
-Version 10. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 13. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 5, name } ---------> |
+  | -- hello { version: 13, name } ----------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection keeps its seat for 30 seconds, unless
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 5, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 13, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -166,7 +166,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 7 }
+{ "type": "welcome", "version": 13 }
 ```
 
 The hello was accepted.
