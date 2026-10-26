@@ -59,9 +59,11 @@ Le développement avance par versions jouables. Chacune se termine par quelque c
 | v0.4.x  | Correctifs : les bugs trouvés depuis la v0.4.0                                                                | En cours |
 | v0.5    | En service et équilibré : mises à jour sans partie perdue, mesures d'usage, équilibrage sur de vraies parties | À suivre |
 | v0.6    | Téléphones et confort : une partie entière au doigt, un seul panneau de réglages                              | Prévu    |
-| v0.7    | Performance sur un portable modeste et un téléphone milieu de gamme                                           | Prévu    |
-| v0.8    | Cartes de la communauté : cartes et traductions des joueurs, nouveautés dans le jeu                           | Prévu    |
-| v0.9    | Globe 3D, et bascule entre carte et globe en cours de partie                                                  | Prévu    |
+| v0.7    | Look et ambiance : refonte graphique, une icône reconnaissable par bâtiment, sons, tutoriel                   | Prévu    |
+| v0.8    | Règles propres : fronts qui s'effondrent, doctrines et objectifs, depuis un menu à part                       | Prévu    |
+| v0.9    | Performance sur un portable modeste et un téléphone milieu de gamme, serveur sécurisé et sauvegardé           | Prévu    |
+| v0.10   | Cartes de la communauté : cartes et traductions des joueurs, liens de replay, spectateurs                     | Prévu    |
+| v0.11   | Globe 3D, et bascule entre carte et globe en cours de partie                                                  | Prévu    |
 | v1.0    | Le jeu complet sur le globe 3D, fin de la bêta                                                                | Prévu    |
 
 Le périmètre et les critères « jouable » de chaque version sont dans [docs/roadmap.md](docs/roadmap.md) (en anglais). Le travail ouvert est suivi dans les [milestones](https://github.com/nic0lasm/frontfall/milestones).

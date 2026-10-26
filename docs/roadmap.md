@@ -1,28 +1,30 @@
 # Roadmap
 
-Frontfall is built in two phases. Phase 1 (v0.1 to v0.8) delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), and makes it steady: deployments that do not cut games, balance tuned on real games, phones, performance and community maps. Phase 2 (v0.9 and v1.0) puts the same game on a 3D globe. The rules do not change between the two: the globe is a new view, not a new game.
+Frontfall is built in two phases. Phase 1 (v0.1 to v0.10) delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), and makes it steady and good to look at: deployments that do not cut games, balance tuned on real games, phones, a full visual redesign, rules of its own, performance and community maps. Phase 2 (v0.11 and v1.0) puts the same game on a 3D globe. The rules do not change between the two: the globe is a new view, not a new game.
 
 The game is in beta until v1.0, and its page says so. v1.0 is the first version that is a complete territory strategy game, played on the 3D globe, on a server that is run like a product.
 
 The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
-**Where it stands.** v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps and three generated quick maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. People I do not know now play it every day, so the next versions put running the game first: v0.5 makes deployments harmless and measures how games actually go, before any balance number changes. The globe moves from v0.6 to v0.9. [Changes after v0.4](#changes-after-v04) says what moved and why.
+**Where it stands.** v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps and three generated quick maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. People I do not know now play it every day, so the next versions put running the game first: v0.5 makes deployments harmless and measures how games actually go, before any balance number changes. The globe moves from v0.6 to v0.11, after a redesign of the look (v0.7) and rules that are Frontfall's own (v0.8), so that the globe shows the final game. [Changes after v0.4](#changes-after-v04) and [Changes after v0.4.1](#changes-after-v041) say what moved and why.
 
 ## Overview
 
-| Version                                                              | You can                                                                                                      | Status  | Issues | Estimate |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------- | -----: | -------: |
-| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.                     | Shipped |     23 |  71 days |
-| [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.                        | Shipped |      8 |  24 days |
-| [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations, on a watched server.                            | Shipped |     12 |  24 days |
-| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                    | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.                             | Shipped |      6 |  19 days |
-| [v0.4.x · Fixes](#v04x--fixes)                                       | The same game, with the bugs players and testing found since `v0.4.0` fixed.                                 | Current |      – |        – |
-| [v0.5 · Live and balanced](#v05--live-and-balanced)                  | Play through a release without losing your game, tell me what went wrong, and play a game tuned on yours.    | Next    |     17 |  29 days |
-| [v0.6 · Phones and comfort](#v06--phones-and-comfort)                | Play a whole game on a phone with your fingers, and find every setting and action without the keyboard.      | Planned |      5 |   9 days |
-| [v0.7 · Performance](#v07--performance)                              | Smooth on a modest laptop and a mid-range phone, on the largest map, with 64 players.                        | Planned |      4 |  12 days |
-| [v0.8 · Community maps](#v08--community-maps)                        | Play maps and translations made by other players, and follow each release from the game.                     | Planned |      6 |  12 days |
-| [v0.9 · 3D globe](#v09--3d-globe)                                    | The same game on a planet you can spin, and switch between the flat map and the globe mid-game.              | Planned |      8 |  24 days |
-| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta) | The complete game on the 3D globe, online, balanced and run without interruptions. The beta label comes off. | Planned |      2 |   2 days |
+| Version                                                              | You can                                                                                                          | Status  | Issues | Estimate |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------- | -----: | -------: |
+| [v0.1 · Solo, on a real map](#v01--solo-on-a-real-map)               | Open the site, spawn on a map of the Earth, expand and fight bots until you win or lose.                         | Shipped |     23 |  71 days |
+| [v0.2 · Online with friends](#v02--online-with-friends)              | Share a link, two to eight friends join, and the same game plays out on every screen.                            | Shipped |      8 |  24 days |
+| [v0.3 · Deeper game](#v03--deeper-game)                              | Build cities and forts, ally and betray, face named nations, on a watched server.                                | Shipped |     12 |  24 days |
+| [v0.4 · Sea and missiles](#v04--sea-and-missiles)                    | Sail from ports, fight at sea, launch missiles, play in teams and watch replays.                                 | Shipped |      6 |  19 days |
+| [v0.4.x · Fixes](#v04x--fixes)                                       | The same game, with the bugs players and testing found since `v0.4.0` fixed.                                     | Current |      – |        – |
+| [v0.5 · Live and balanced](#v05--live-and-balanced)                  | Play through a release without losing your game, tell me what went wrong, and play a game tuned on yours.        | Next    |     17 |  29 days |
+| [v0.6 · Phones and comfort](#v06--phones-and-comfort)                | Play a whole game on a phone with your fingers, and find every setting and action without the keyboard.          | Planned |      9 |  13 days |
+| [v0.7 · Look and feel](#v07--look-and-feel)                          | Play a game that is beautiful and readable: every building is recognised at a glance, with sound and a tutorial. | Planned |     10 |  30 days |
+| [v0.8 · Own rules](#v08--own-rules)                                  | Choose special rules from a menu of their own: collapsing fronts, doctrines, objectives and modes.               | Planned |      7 |  25 days |
+| [v0.9 · Performance and hardening](#v09--performance-and-hardening)  | Smooth on a modest laptop and a mid-range phone, on a server that is secured, backed up and load-tested.         | Planned |      9 |  21 days |
+| [v0.10 · Community maps](#v010--community-maps)                      | Play maps and translations made by other players, share a replay by link and watch games as a spectator.         | Planned |     10 |  20 days |
+| [v0.11 · 3D globe](#v011--3d-globe)                                  | The same game on a planet you can spin, and switch between the flat map and the globe mid-game.                  | Planned |      9 |  27 days |
+| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta) | The complete game on the 3D globe, online, balanced and run without interruptions. The beta label comes off.     | Planned |      6 |   6 days |
 
 M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
 
@@ -35,15 +37,17 @@ flowchart LR
     V04["v0.4 · Sea and missiles"]
     V05["v0.5 · Live and balanced"]
     V06["v0.6 · Phones and comfort"]
-    V07["v0.7 · Performance"]
-    V08["v0.8 · Community maps"]
+    V07["v0.7 · Look and feel"]
+    V08["v0.8 · Own rules"]
+    V09["v0.9 · Performance and hardening"]
+    V010["v0.10 · Community maps"]
   end
   subgraph P2["Phase 2: globe"]
-    V09["v0.9 · 3D globe"]
+    V011["v0.11 · 3D globe"]
     V10["v1.0 · Globe release, out of beta"]
   end
-  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V09 --> V10
-  V01 -. "rendering contracts" .-> V09
+  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V09 --> V010 --> V011 --> V10
+  V01 -. "rendering contracts" .-> V011
 ```
 
 A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 were built alongside v0.1, and the globe renderer and picking (#53, #56) were tried during v0.3 as a time-boxed spike ([ADR 0005](adr/0005-globe-spike.md)), to test the Renderer contract against a second implementation before more of the 2D view was built on it.
@@ -153,7 +157,7 @@ Shipped with v0.4 as `v0.4.0`. Three checks were not met at the release and move
 1. Every rule of `R-MAP`, `R-BUILD-01`, `R-BUILD-03`, `R-BUILD-06`, `R-DIPLO-01` to `R-DIPLO-04` and `R-BOT-02` is implemented and covered by a test that names it.
 2. A player who reloads the page 20 minutes into a game is back in sync in under 10 seconds.
 3. An external check alerts me within 5 minutes when the public server stops answering.
-4. A World game with 64 bots, nations and structures keeps the tick p95 under the 30 ms budget of [docs/performance.md](performance.md#budgets), and CI fails when the engine is 10 % slower than the commit it branched from. At the release it measured 6.4 ms on the CI runner and 8.5 to 9.1 ms on the slower reference machine; the 8 ms first aimed for here moves to v0.7.
+4. A World game with 64 bots, nations and structures keeps the tick p95 under the 30 ms budget of [docs/performance.md](performance.md#budgets), and CI fails when the engine is 10 % slower than the commit it branched from. At the release it measured 6.4 ms on the CI runner and 8.5 to 9.1 ms on the slower reference machine; the 8 ms first aimed for here moves to v0.9.
 5. A casual scripted player survives 10 minutes against normal bots in most seeds, and loses most games against hard bots.
 6. Three people outside the project each finish a solo game and an online game without help; what blocked them is filed as issues.
 
@@ -176,7 +180,7 @@ Already met before v0.3 started, and kept as regression checks: every interface 
 
 12 issues, about 24 days. Buildings come first: #43, then the protocol orders, then the client. #18 keeps only the snapshot test of the high ranges, since relief costs already apply (R-MAP-06). #39 keeps only the catch-up time: a reload replays the game from its first tick, which takes tens of seconds late in a game, so the client needs a faster way back in.
 
-**Started early, not gating v0.3.** [#53](https://github.com/nic0lasm/frontfall/issues/53) and [#56](https://github.com/nic0lasm/frontfall/issues/56), the globe renderer and picking, now in v0.9, as a spike of three days at most: the World territory texture on a sphere with tile picking, to find out early whether the Renderer contract or the texture layout needs to change.
+**Started early, not gating v0.3.** [#53](https://github.com/nic0lasm/frontfall/issues/53) and [#56](https://github.com/nic0lasm/frontfall/issues/56), the globe renderer and picking, now in v0.11, as a spike of three days at most: the World territory texture on a sphere with tile picking, to find out early whether the Renderer contract or the texture layout needs to change.
 
 ## v0.4 · Sea and missiles
 
@@ -262,6 +266,9 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 2. The interface fits a screen 360 pixels wide in portrait and landscape, with no control under 44 pixels.
 3. The game holds 30 frames per second on World on three real phones, one of them a three-year-old Android, measured with `pnpm bench:render -- --serve`.
 4. Settings (language, sound, reduced motion, colour-blind palette, graphics quality) are in one panel and kept between visits.
+5. A player can report another player from the game, and the server operator can ban a player from an address or a token without a redeploy.
+6. The browsers and devices that are supported are listed, each tested by hand on a real device before every tag.
+7. The interface can be used with the keyboard alone and keeps a contrast of at least 4.5 to 1 on text.
 
 | ID    | Issue                                                                             | Size | Depends on |
 | ----- | --------------------------------------------------------------------------------- | ---- | ---------- |
@@ -270,18 +277,89 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 | M3-10 | [#32](https://github.com/nic0lasm/frontfall/issues/32) Settings and accessibility | S    | #26        |
 | M7-06 | [#65](https://github.com/nic0lasm/frontfall/issues/65) Graphics quality settings  | S    | None       |
 | V6-03 | Frame rate measured on three real phones                                          | S    | None       |
+| V6-04 | Accessibility pass: keyboard-only play, contrast, reduced motion                  | S    | #32        |
+| V6-05 | Report a player and operator tools to ban an address or a token                   | S    | V5-11      |
+| V6-06 | Supported browsers and devices matrix, tested by hand before each tag             | S    | None       |
+| V6-07 | Local profile: name, colour and your last games, stored on the device only        | S    | None       |
 
-5 items, about 9 days. This version comes before performance and the globe because the counts of v0.5 say which devices players use: if phones are a small share, it shrinks to the settings and the measurement.
+9 items, about 13 days. This version comes before the redesign, performance and the globe because the counts of v0.5 say which devices players use: if phones are a small share, it shrinks to the settings and the measurement.
 
-## v0.7 · Performance
+## v0.7 · Look and feel
 
-**Outcome.** Smooth on a modest laptop and a mid-range phone, on the largest map, with 64 players.
+**Outcome.** Play a game that is beautiful and readable: terrain, borders and buildings are drawn with care, every building is recognised at a glance, and the game has sound and a tutorial.
+
+Today the game works but does not look good enough, and the pictograms on buildings say little: a new city carries no city symbol. This is a full redesign of what the player sees, done before performance is measured and before the globe, so that both work on the final look.
+
+**Playable when**
+
+1. A written style guide (palette, shapes, type, motion) is approved by me from mock-ups, before any code.
+2. Every structure and unit (city, fort, port, Micho Palace, silo, warship, trade ship, missile) has its own pictogram, drawn for Frontfall, readable at 16 pixels and distinguishable by shape alone for a colour-blind player.
+3. Five players outside the project, shown the icons without a legend, name the right building at least 9 times out of 10.
+4. Terrain, water, coasts, territory fills, borders and attack fronts are redrawn and stay readable from the whole World map down to a single tile.
+5. The menus, the in-game interface and the end screen follow the style guide on a laptop and on a phone.
+6. Attacks, landings, ports, ships and missiles have effects that show what is happening without hiding the map; effects can be reduced or turned off in settings.
+7. The game has sound effects and a music track, each with its own volume and a mute, off until the first click.
+8. A first-time player finishes an interactive tutorial game, step by step, without reading the help page.
+9. Text and icons keep a contrast of at least 4.5 to 1, and reduced motion removes every effect that moves the camera.
+
+| ID    | Issue                                                                              | Size | Depends on |
+| ----- | ---------------------------------------------------------------------------------- | ---- | ---------- |
+| V7-01 | Art direction: style guide and mock-ups approved                                   | M    | None       |
+| V7-02 | Terrain, water and coasts redrawn                                                  | M    | V7-01      |
+| V7-03 | Territory fills, borders and attack fronts redrawn, colour-blind safe              | M    | V7-01      |
+| V7-04 | Pictograms for every structure and unit (SVG set drawn for Frontfall, own licence) | L    | V7-01      |
+| V7-05 | Icon legibility at every zoom, tested with five outside players                    | S    | V7-04      |
+| V7-06 | HUD, menus and end screen redesigned, laptop and phone                             | L    | V7-01      |
+| V7-07 | Effects and animation for attacks, landings, ports, ships and missiles             | M    | V7-03      |
+| V7-08 | Sound effects and music                                                            | M    | V7-01      |
+| V7-09 | Interactive tutorial game                                                          | M    | V7-06      |
+| V7-10 | Accessibility audit of the new look: contrast, motion, keyboard                    | S    | V7-06      |
+
+10 items, about 30 days. The pictograms are SVG, so the globe of v0.11 can use them as labels and markers without redrawing them. Everything here is drawn and written for Frontfall: no asset, icon or sound from another game is used ([clean-room](clean-room.md)).
+
+## v0.8 · Own rules
+
+**Outcome.** Choose special rules from a menu of their own when setting up a game: fronts that collapse, doctrines, objectives and modes.
+
+Frontfall plays much like the games it was inspired by. This version gives it rules of its own. Each new rule is an option in a separate "Special rules" menu of the game setup, next to the other options and apart from them, so that a game can be played with none of them, with some, or with all. Quick play uses the defaults chosen by the balance pass. Rules are written in `docs/rules.md` in our own words, with their numbers in `docs/balance.md`, and checked against the clean-room rules.
+
+**Playable when**
+
+1. The game setup has a "Special rules" menu, in English and French, on a laptop and on a phone, kept apart from the other options. Each rule can be turned on or off for a private game, and the choice is shown in the lobby and on the end screen.
+2. **Collapsing fronts.** A front that is outnumbered gives way by stretches instead of tile by tile, so a long stalemate resolves. On World with nations, at least 8 games out of 10 end by victory within 30 minutes, where today only 2 out of 8 are decided in nations-normal games.
+3. **Doctrines.** Each player picks one of three traits at the start (for example sea, builders, offence), with a small effect, so that no doctrine wins more than 1.5 times its fair share over 1,000 headless games.
+4. **Objectives and modes.** At least two new ways to win or play (for example taking a capital, holding a hill, a timed rush), each playable alone and online.
+5. Bots and nations know every rule and play it; nations do not become weaker on Europe and stronger on World.
+6. Every rule is covered by a test that names it, the golden replays are rebuilt, and the protocol number changes in the same commit.
+7. A second balance pass runs on at least 200 real games with the new rules, and the measures of [v0.5](#v05--live-and-balanced) still hold.
+
+| ID    | Issue                                                                         | Size | Depends on          |
+| ----- | ----------------------------------------------------------------------------- | ---- | ------------------- |
+| V8-01 | "Special rules" menu in the game setup, options in the protocol and the lobby | M    | V7-06               |
+| V8-02 | Collapsing fronts                                                             | L    | V8-01               |
+| V8-03 | Doctrines                                                                     | L    | V8-01               |
+| V8-04 | Objectives and modes                                                          | L    | V8-01               |
+| V8-05 | Bots and nations play the new rules                                           | M    | V8-02, V8-03, V8-04 |
+| V8-06 | Second balance pass on real games, replays rebuilt                            | M    | V8-05               |
+| V8-07 | Rules text and clean-room check for the new rules                             | S    | V8-02               |
+
+7 items, about 25 days. These are the three rules chosen first. Supply lines, events of the world and extended diplomacy were considered and stay as ideas for after v1.0.
+
+## v0.9 · Performance and hardening
+
+**Outcome.** Smooth on a modest laptop and a mid-range phone, on the largest map, with 64 players, on a server that is secured, backed up and tested under load.
 
 **Playable when**
 
 1. Budgets from `docs/performance.md` met on the reference laptop: 60 fps on World at 1080p with 64 players, and 30 fps on the phones of v0.6.
 2. Tick p95 under 8 ms on World with 64 players on the reference machine (8.5 to 9.1 ms at `v0.4.0`), and under the 30 ms budget on the 4,096 × 2,048 workload, twice the size of World.
 3. Client memory under 500 MB in a full World game, and the first visit within its download budget.
+4. Measured after the redesign of v0.7 and the rules of v0.8, so the numbers are those of the game that ships.
+5. A load test at ten times the busiest hour seen so far holds, with the figures published in [docs/performance.md](performance.md).
+6. A review of the server inputs, the content security policy and the dependencies (automatic updates and secret scanning on) finds nothing open, and the findings are filed.
+7. The data volume is backed up off the machine, and a restore on a clean machine is tried and timed.
+8. If Cloudflare is down, the game can be reached directly at the origin by a documented change, and the steps are tried once.
+9. Players who send orders faster than a person could are detected and limited, and several seats from one address are refused in public games.
 
 | ID    | Issue                                                                                                  | Size | Depends on |
 | ----- | ------------------------------------------------------------------------------------------------------ | ---- | ---------- |
@@ -289,10 +367,15 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 | M7-04 | [#63](https://github.com/nic0lasm/frontfall/issues/63) Cheaper updates from the worker to the renderer | M    | M7-02      |
 | M7-05 | [#64](https://github.com/nic0lasm/frontfall/issues/64) Rendering levels of detail                      | M    | None       |
 | M7-08 | [#67](https://github.com/nic0lasm/frontfall/issues/67) Download size and load time                     | S    | None       |
+| V9-01 | Load test at ten times the busiest hour, and a capacity note                                           | M    | None       |
+| V9-02 | Security review: inputs, content security policy, dependencies, secret scanning                        | M    | None       |
+| V9-03 | Off-machine backup of the data volume and a timed restore                                              | S    | None       |
+| V9-04 | Plan B if Cloudflare is down: direct access to the origin, tried once                                  | S    | None       |
+| V9-05 | Detect automated play and limit it                                                                     | S    | V5-12      |
 
-4 issues, about 12 days. The view switch (#66) moves to v0.9 with the globe it switches to.
+9 items, about 21 days. The view switch (#66) moves to v0.11 with the globe it switches to.
 
-## v0.8 · Community maps
+## v0.10 · Community maps
 
 **Outcome.** Play maps and translations made by other players, and follow each release from the game.
 
@@ -302,19 +385,24 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 2. A translation into a third language is contributed the same way.
 3. Each tag publishes release notes for players from the changelog, and the game shows what is new the first time it opens after a release.
 4. At least 10 open issues labelled `good first issue`, each with a clear scope and pointers.
+5. A finished game can be shared as a link that opens its replay, and a live game can be watched by anyone who has its link.
 
-| ID    | Issue                                                                                            | Size | Depends on |
-| ----- | ------------------------------------------------------------------------------------------------ | ---- | ---------- |
-| M8-01 | [#68](https://github.com/nic0lasm/frontfall/issues/68) Map contribution workflow                 | M    | M2-08      |
-| M8-02 | [#69](https://github.com/nic0lasm/frontfall/issues/69) Translation workflow                      | S    | None       |
-| M8-03 | [#70](https://github.com/nic0lasm/frontfall/issues/70) Release notes and what is new in the game | S    | None       |
-| M8-04 | [#71](https://github.com/nic0lasm/frontfall/issues/71) Good first issues backlog                 | S    | None       |
-| M8-05 | [#72](https://github.com/nic0lasm/frontfall/issues/72) Contributor architecture guide            | M    | None       |
-| M8-06 | [#73](https://github.com/nic0lasm/frontfall/issues/73) Game landing and about page               | M    | None       |
+| ID     | Issue                                                                                            | Size | Depends on |
+| ------ | ------------------------------------------------------------------------------------------------ | ---- | ---------- |
+| M8-01  | [#68](https://github.com/nic0lasm/frontfall/issues/68) Map contribution workflow                 | M    | M2-08      |
+| M8-02  | [#69](https://github.com/nic0lasm/frontfall/issues/69) Translation workflow                      | S    | None       |
+| M8-03  | [#70](https://github.com/nic0lasm/frontfall/issues/70) Release notes and what is new in the game | S    | None       |
+| M8-04  | [#71](https://github.com/nic0lasm/frontfall/issues/71) Good first issues backlog                 | S    | None       |
+| M8-05  | [#72](https://github.com/nic0lasm/frontfall/issues/72) Contributor architecture guide            | M    | None       |
+| M8-06  | [#73](https://github.com/nic0lasm/frontfall/issues/73) Game landing and about page               | M    | None       |
+| V10-01 | Share a replay by link                                                                           | M    | #50        |
+| V10-02 | Spectator mode for a live game                                                                   | M    | None       |
+| V10-03 | A "how to play" page and search previews for the game and the landing page                       | S    | #73        |
+| V10-04 | Rematch and back to the lobby after a game                                                       | S    | None       |
 
-6 issues, about 12 days. Ranked games are not in it: they need accounts, which stay out of the plan ([Not planned yet](#not-planned-yet)).
+10 items, about 20 days. Ranked games are not in it: they need accounts, which stay out of the plan ([Not planned yet](#not-planned-yet)).
 
-## v0.9 · 3D globe
+## v0.11 · 3D globe
 
 **Outcome.** The same game on a planet you can spin, with no edge and no seam, and a switch between the flat map and the globe in the middle of a game.
 
@@ -326,18 +414,19 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 4. 45 frames per second or more on the reference laptop at 1080p on World, and 30 on the phones of v0.6.
 5. Switching view keeps the game running and takes under 500 ms.
 
-| ID    | Issue                                                                                                   | Size | Depends on   |
-| ----- | ------------------------------------------------------------------------------------------------------- | ---- | ------------ |
-| M6-01 | [#53](https://github.com/nic0lasm/frontfall/issues/53) Globe renderer on the Renderer contract          | M    | M3-01        |
-| M6-02 | [#54](https://github.com/nic0lasm/frontfall/issues/54) Territory texture on the sphere                  | M    | M6-01, M3-02 |
-| M6-03 | [#55](https://github.com/nic0lasm/frontfall/issues/55) Orbital camera                                   | M    | M6-01        |
-| M6-04 | [#56](https://github.com/nic0lasm/frontfall/issues/56) Ray-sphere picking                               | S    | M6-03, M1-01 |
-| M6-05 | [#57](https://github.com/nic0lasm/frontfall/issues/57) Units, structures and trajectories on the sphere | L    | M6-02, M5-04 |
-| M6-06 | [#58](https://github.com/nic0lasm/frontfall/issues/58) Labels and interface over the globe              | M    | M6-02        |
-| M6-07 | [#59](https://github.com/nic0lasm/frontfall/issues/59) Globe maps                                       | M    | M2-08        |
-| M7-07 | [#66](https://github.com/nic0lasm/frontfall/issues/66) Switch between map and globe during a game       | M    | M6-04, M7-04 |
+| ID     | Issue                                                                                                   | Size | Depends on   |
+| ------ | ------------------------------------------------------------------------------------------------------- | ---- | ------------ |
+| M6-01  | [#53](https://github.com/nic0lasm/frontfall/issues/53) Globe renderer on the Renderer contract          | M    | M3-01        |
+| M6-02  | [#54](https://github.com/nic0lasm/frontfall/issues/54) Territory texture on the sphere                  | M    | M6-01, M3-02 |
+| M6-03  | [#55](https://github.com/nic0lasm/frontfall/issues/55) Orbital camera                                   | M    | M6-01        |
+| M6-04  | [#56](https://github.com/nic0lasm/frontfall/issues/56) Ray-sphere picking                               | S    | M6-03, M1-01 |
+| M6-05  | [#57](https://github.com/nic0lasm/frontfall/issues/57) Units, structures and trajectories on the sphere | L    | M6-02, M5-04 |
+| M6-06  | [#58](https://github.com/nic0lasm/frontfall/issues/58) Labels and interface over the globe              | M    | M6-02        |
+| M6-07  | [#59](https://github.com/nic0lasm/frontfall/issues/59) Globe maps                                       | M    | M2-08        |
+| M7-07  | [#66](https://github.com/nic0lasm/frontfall/issues/66) Switch between map and globe during a game       | M    | M6-04, M7-04 |
+| V11-01 | The look of v0.7 on the globe: pictograms as markers, lighting and atmosphere                           | M    | M6-06, V7-04 |
 
-8 issues, about 24 days. The spike of v0.3 already draws World on a sphere behind `?view=globe` and switches with G; what is left is listed in [ADR 0005](adr/0005-globe-spike.md).
+9 items, about 27 days. The spike of v0.3 already draws World on a sphere behind `?view=globe` and switches with G; what is left is listed in [ADR 0005](adr/0005-globe-spike.md).
 
 ## v1.0 · Globe release, out of beta
 
@@ -345,19 +434,26 @@ Until v0.4, every deployment restarted the server and ended every game in progre
 
 **Playable when**
 
-1. Every check of v0.1 to v0.9 still passes.
+1. Every check of v0.1 to v0.11 still passes.
 2. A full online game with 8 or more players, with structures, ships and missiles, is played to the end on the globe at `nclsmgr.com/frontfall` with zero desyncs.
 3. Over the 30 days before the tag: uptime above 99.5 %, no game ended by a deployment, and fewer than 1 game in 100 with a client error report.
 4. Every release since v0.5 has player release notes, and every bug filed from the game in those 30 days has an answer.
 5. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`, without the beta label.
 6. The README shows screenshots and a short clip of a real game on the globe.
+7. The redesign is approved by me, and balance holds over at least 200 real games, with the measures of v0.5 and v0.8.
+8. A legal notice (publisher and host) and terms of use are published in English and French, and the privacy page matches what the game counts.
+9. A written decision says that nothing is sold before v1.0 and what comes after.
 
 | ID    | Issue                                                                      | Size | Depends on |
 | ----- | -------------------------------------------------------------------------- | ---- | ---------- |
 | M5-10 | [#52](https://github.com/nic0lasm/frontfall/issues/52) Release v1.0        | S    | All above  |
 | M8-07 | [#74](https://github.com/nic0lasm/frontfall/issues/74) Launch announcement | S    | #52, #73   |
+| V1-01 | Legal notice and terms of use, English and French                          | S    | None       |
+| V1-02 | Decision record: money, accounts and cosmetics after v1.0, nothing before  | S    | None       |
+| V1-03 | Trademark filing for the name and logo (done by the owner)                 | S    | None       |
+| V1-04 | Beta exit review: look, balance over real games, open bugs                 | S    | All above  |
 
-2 issues, about 2 days, once v0.9 is done.
+6 items, about 6 days, once v0.11 is done.
 
 ## Changes after v0.4
 
@@ -375,6 +471,22 @@ Once players I do not know started to play every day, I put running the game ahe
 | M8 split between v0.8 and v1.0                           | Map and translation contributions, release notes and the landing page help players now; the launch announcement waits for v1.0.              |
 | Micho Palace in v0.5                                     | It plays as two cities from the start; the balance pass checks its price with the rest.                                                      |
 | v0.3 performance check written as measured               | The gate in CI is the 30 ms budget and a 10 % slowdown; the 8 ms target moves to v0.7.                                                       |
+
+## Changes after v0.4.1
+
+Before the beta ends, the game has to look good, play in a way of its own and be balanced. What moved, and why:
+
+| Change                                                                         | Why                                                                                                                                 |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| New v0.7, Look and feel                                                        | The game is not beautiful enough, and buildings carry no symbol that says what they are. It comes before performance and the globe. |
+| New v0.8, Own rules, as a separate menu of the game setup                      | The game is too close to the ones it was inspired by. Options in their own menu keep the plain game available.                      |
+| Rules frozen before performance and the globe                                  | The globe is a view of the same game, and performance has to be measured on the game that ships.                                    |
+| Performance gains security, backup, load test and Cloudflare plan B            | They were not on the plan and matter as soon as the beta ends.                                                                      |
+| Balance in three steps                                                         | A pass on real games (v0.5), a second one with the new rules (v0.8), and a gate for v1.0.                                           |
+| Community maps get replay links, spectators and a how-to-play page             | They help people share and discover the game.                                                                                       |
+| Globe from v0.9 to v0.11, community maps from v0.8 to v0.10                    | Renumbering only, the order of the two is kept.                                                                                     |
+| Phones and comfort gets moderation tools, a browser matrix and a local profile | Small gaps found while looking at the whole project.                                                                                |
+| Nothing is sold before v1.0                                                    | Money and accounts wait for a finished game; the decision is written down in v1.0.                                                  |
 
 ## Changes after v0.2
 
@@ -403,7 +515,7 @@ Small issues opened for newcomers (keyboard panning, zoom towards the cursor, We
 
 ## Not planned yet
 
-Player accounts, ranked matchmaking, cosmetics and payments, native mobile apps and servers in several regions are left out on purpose. They will be considered after v1.0 based on what players ask for in [Discussions](https://github.com/nic0lasm/frontfall/discussions).
+Player accounts, ranked matchmaking, cosmetics and payments, native mobile apps and servers in several regions are left out on purpose, and so are the rules that were considered for v0.8 and not chosen: supply lines, events of the world and extended diplomacy. They will be considered after v1.0 based on what players ask for in [Discussions](https://github.com/nic0lasm/frontfall/discussions).
 
 ## Legal
 
