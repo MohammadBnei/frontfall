@@ -5,7 +5,7 @@ import {
   type PointerSample,
   wheelZoomFactor,
 } from "./gestures.ts";
-import { KeyboardCamera, isTextEntry } from "./keyboard.ts";
+import { KeyboardCamera, isPressable, isTextEntry } from "./keyboard.ts";
 
 export type { MapCallbacks } from "./gestures.ts";
 
@@ -19,6 +19,8 @@ export class InputController {
   private readonly gestures: PointerGestures;
   private readonly keys: KeyboardCamera;
   private readonly removers: (() => void)[] = [];
+  /** The keyboard aims at the middle of the view until the pointer is used again. */
+  private keyboardAim = false;
 
   /**
    * @param element receives pointer and wheel events, positions are relative to it.
@@ -43,9 +45,11 @@ export class InputController {
       } catch {
         // Synthetic pointers have nothing to capture.
       }
+      this.keyboardAim = false;
       this.gestures.down(this.sample(pointer));
     });
     this.listen(element, "pointermove", (event) => {
+      if ((event as PointerEvent).pointerType === "mouse") this.keyboardAim = false;
       this.gestures.move(this.sample(event as PointerEvent));
     });
     this.listen(element, "pointerup", (event) => {
@@ -85,7 +89,24 @@ export class InputController {
     this.listen(keyboardTarget, "keydown", (event) => {
       const key = event as KeyboardEvent;
       if (key.ctrlKey || key.metaKey || key.altKey || isTextEntry(key.target)) return;
-      if (this.keys.keyDown(key.key, key.code)) key.preventDefault();
+      if (this.keys.keyDown(key.key, key.code)) {
+        this.keyboardAim = true;
+        key.preventDefault();
+        return;
+      }
+      if (isPressable(key.target)) return;
+      const { viewportWidth, viewportHeight } = this.camera;
+      const [x, y] = [viewportWidth / 2, viewportHeight / 2];
+      if (key.code === "ContextMenu" || (key.code === "Enter" && key.shiftKey)) {
+        this.keyboardAim = true;
+        this.gestures.menu(x, y);
+        key.preventDefault();
+      } else if (key.code === "Enter" || key.code === "Space") {
+        if (key.repeat) return;
+        this.keyboardAim = true;
+        this.gestures.pick(x, y);
+        key.preventDefault();
+      }
     });
     this.listen(keyboardTarget, "keyup", (event) => {
       this.keys.keyUp((event as KeyboardEvent).code);
@@ -99,6 +120,8 @@ export class InputController {
   /** Applies held keys for a frame that lasted dtMs milliseconds. */
   update(dtMs: number): void {
     this.keys.update(dtMs);
+    if (this.keyboardAim)
+      this.gestures.aim(this.camera.viewportWidth / 2, this.camera.viewportHeight / 2);
     this.gestures.refreshHover();
   }
 

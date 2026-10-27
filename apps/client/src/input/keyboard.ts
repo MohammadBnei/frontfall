@@ -106,3 +106,10 @@ export function commandCode(key: string, code: string): string {
   if (/^[^\p{L}]$/u.test(key)) return key;
   return code;
 }
+
+/** Controls that act on Enter and Space themselves: the map must not also pick a tile. */
+export function isPressable(target: unknown): boolean {
+  if (typeof target !== "object" || target === null) return false;
+  const { tagName } = target as { tagName?: unknown };
+  return tagName === "BUTTON" || tagName === "A" || tagName === "SUMMARY" || tagName === "LABEL";
+}

@@ -20,6 +20,7 @@ import {
 } from "./net/online.ts";
 import { loadGlobe, type ViewKind } from "./render/renderer.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
+import { loadAccessibility } from "./ui/accessibility.ts";
 import { GameScreen } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
@@ -28,6 +29,7 @@ import { Menu } from "./ui/menu.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 import { usage } from "./usage.ts";
 
+loadAccessibility();
 const storage = safeStorage();
 let maps: readonly MapInfo[] = [];
 let menu: Menu | undefined;

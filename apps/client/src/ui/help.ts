@@ -25,7 +25,7 @@ const LINES: Readonly<Record<"mouse" | "touch", Record<string, readonly MessageK
   mouse: {
     expand: ["help.click", "help.ships", "help.ratio"],
     diplomacy: ["help.diplomacy"],
-    map: ["help.drag", "help.zoom", "help.keys", "help.pause"],
+    map: ["help.drag", "help.zoom", "help.keys", "help.keyboardPick", "help.pause"],
   },
   touch: {
     expand: ["help.tap", "help.shipsTouch", "help.ratioTouch"],
