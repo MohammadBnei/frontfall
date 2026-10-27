@@ -106,3 +106,32 @@ export function withGame(profile: Profile, game: RecentGame): Profile {
     games: [{ ...game, minutes: Math.round(game.minutes) }, ...profile.games].slice(0, MAX_RECENT),
   };
 }
+
+/** The profile of this device: what is kept, and what a game or the player changes in it. */
+export class LocalProfile {
+  private profile: Profile;
+
+  constructor(private readonly storage: Storage | undefined) {
+    this.profile = loadProfile(storage);
+  }
+
+  read(): Profile {
+    return this.profile;
+  }
+
+  setColor(color: number): void {
+    this.profile = { ...this.profile, color };
+    saveProfile(this.profile, this.storage);
+  }
+
+  /** A game that ended for the player goes to the top of the list. */
+  record(game: RecentGame): void {
+    this.profile = withGame(this.profile, game);
+    saveProfile(this.profile, this.storage);
+  }
+
+  forget(): void {
+    this.profile = emptyProfile();
+    forgetProfile(this.storage);
+  }
+}

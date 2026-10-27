@@ -27,7 +27,7 @@ import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
 import { AchievementStore } from "./achievements/store.ts";
 import { Menu } from "./ui/menu.ts";
-import { forgetProfile, loadProfile, saveProfile, withGame, type Profile } from "./ui/profile.ts";
+import type { LocalProfile } from "./ui/profile.ts";
 import { HUMAN_ID } from "./game/simulation.ts";
 import { preferColor } from "./palette.ts";
 import {
@@ -46,14 +46,21 @@ let maps: readonly MapInfo[] = [];
 let menu: Menu | undefined;
 let game: GameScreen | undefined;
 let setup: GameSetup;
-let profile: Profile = loadProfile(storage);
+
+/** The profile, loaded with its code when first needed: not part of the first download. */
+let loadedProfile: Promise<LocalProfile> | undefined;
+function localProfile(): Promise<LocalProfile> {
+  loadedProfile ??= import("./ui/profile.ts").then(({ LocalProfile }) => new LocalProfile(storage));
+  return loadedProfile;
+}
 let lobby: LobbyScreen | undefined;
 let online: OnlineClient | undefined;
 
 // The games the player finished stay in the profile, on this device only.
 usage().onGameEnd((ended) => {
-  profile = withGame(profile, ended);
-  saveProfile(profile, storage);
+  void localProfile().then((profile) => {
+    profile.record(ended);
+  });
 });
 
 // Errors the game did not catch, counted to find the ones players run into (docs/privacy.md).
@@ -83,23 +90,22 @@ function showMenu(): void {
     (file) => {
       void watch(file);
     },
-    {
-      read: () => profile,
-      setColor: (color) => {
-        profile = { ...profile, color };
-        saveProfile(profile, storage);
-      },
-      forget: () => {
-        profile = loadProfile(undefined);
-        forgetProfile(storage);
-        setup = { ...setup, playerName: "" };
-        forgetSetup(storage);
-        new AchievementStore(storage).clear();
-        // A game in progress cannot be resumed either.
-        forgetSeat();
-        void forgetSnapshot();
-      },
-    },
+    () =>
+      localProfile().then((profile) => ({
+        read: () => profile.read(),
+        setColor: (color) => {
+          profile.setColor(color);
+        },
+        forget: () => {
+          profile.forget();
+          setup = { ...setup, playerName: "" };
+          forgetSetup(storage);
+          new AchievementStore(storage).clear();
+          // A game in progress cannot be resumed either.
+          forgetSeat();
+          void forgetSnapshot();
+        },
+      })),
   );
   document.body.prepend(menu.element);
   // Ready for Enter, without scrolling a phone's menu down to the button.
@@ -146,9 +152,15 @@ function play(chosen: GameSetup): void {
   }
   const map = maps.find((candidate) => candidate.id === setup.map);
   if (!map) return;
-  game?.dispose();
   // Your colour is yours alone: online, every page shows the colours the game gives.
-  preferColor(HUMAN_ID, profile.color);
+  void localProfile().then((profile) => {
+    preferColor(HUMAN_ID, profile.read().color);
+    begin(map);
+  });
+}
+
+function begin(map: MapInfo): void {
+  game?.dispose();
   const seed = Math.floor(Math.random() * 0x7fffffff);
   game = new GameScreen(
     { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed, ...testing },

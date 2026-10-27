@@ -1,13 +1,21 @@
 import { PLAYER_COLORS } from "../palette.ts";
-import {
-  applyTranslations,
-  getLanguage,
-  onLanguageChange,
-  t,
-  type MessageKey,
-} from "../i18n/index.ts";
+import { getLanguage, onLanguageChange, t, type Language } from "../i18n/index.ts";
+import { text } from "./profile-text.ts";
 import { h, swatch } from "./dom.ts";
 import { COLOR_CHOICES, type Profile } from "./profile.ts";
+
+/** Names of the colours, read aloud by screen readers; here, not in the catalogues, to stay out of the first download. */
+const COLOR_NAMES: Record<Language, readonly string[]> = {
+  en: ["Sky", "Amber", "Jade", "Lemon", "Azure", "Vermilion", "Orchid", "Snow"],
+  fr: ["Ciel", "Ambre", "Jade", "Citron", "Azur", "Vermillon", "Orchidée", "Neige"],
+};
+
+/** An outcome in words; the end screen already names two of them. */
+function outcomeText(outcome: string): string {
+  if (outcome === "victory") return t("end.victory");
+  if (outcome === "defeat") return t("end.defeat");
+  return text(`outcome.${outcome}`);
+}
 
 /** What the profile panel reads and changes; the page keeps the profile on the device. */
 export interface ProfileControl {
@@ -17,8 +25,12 @@ export interface ProfileControl {
   forget(): void;
 }
 
-/** The menu's profile: the colour for solo games, the last games, and a way to erase both. */
-export function profilePanel(
+/**
+ * The inside of the menu's profile: the colour for solo games, the last
+ * games, and a way to erase them. Loaded when the panel is first opened, to
+ * keep it out of the first download.
+ */
+export function profileBody(
   control: ProfileControl,
   mapLabel: (id: string) => string,
   /** Called after the profile is erased, so the menu can empty its name field. */
@@ -31,36 +43,43 @@ export function profilePanel(
     "aria-labelledby": "profile-color-label",
   });
   const inputs: HTMLInputElement[] = [];
+  const labels: HTMLElement[] = [];
   for (let index = 0; index < COLOR_CHOICES; index++) {
     const input = h("input", { type: "radio", name: "profile-color", value: index });
     input.addEventListener("change", () => {
       control.setColor(index);
     });
     inputs.push(input);
-    colors.append(
-      h(
-        "label",
-        {
-          class: "color-choice",
-          "data-i18n-attr": `title:profile.color.${String(index)};aria-label:profile.color.${String(index)}`,
-        },
-        input,
-        swatch((PLAYER_COLORS[index] ?? PLAYER_COLORS[0] ?? { hex: "#56B4E9" }).hex),
-      ),
+    const label = h(
+      "label",
+      { class: "color-choice" },
+      input,
+      swatch((PLAYER_COLORS[index] ?? PLAYER_COLORS[0] ?? { hex: "#56B4E9" }).hex),
     );
+    labels.push(label);
+    colors.append(label);
   }
 
   const list = h("ol", { class: "recent-games", id: "recent-games" });
-  const empty = h("p", { class: "hint", "data-i18n": "profile.noGames" });
+  const empty = h("p", { class: "hint", "data-text": "noGames" });
   const forget = h("button", {
     type: "button",
     class: "secondary",
     id: "profile-forget",
-    "data-i18n": "profile.forget",
+    "data-text": "forget",
   });
 
+  const root = h("div", { class: "profile-body" });
   const refresh = (): void => {
+    for (const element of root.querySelectorAll<HTMLElement>("[data-text]")) {
+      element.textContent = text(element.dataset.text ?? "");
+    }
     const profile = control.read();
+    labels.forEach((label, index) => {
+      const name = COLOR_NAMES[getLanguage()][index] ?? "";
+      label.title = name;
+      label.setAttribute("aria-label", name);
+    });
     inputs.forEach((input, index) => {
       input.checked = index === profile.color;
     });
@@ -71,10 +90,10 @@ export function profilePanel(
         h(
           "li",
           { class: `recent-game ${game.outcome}` },
-          t("profile.game", {
-            map: game.map === "generated" ? t("profile.generatedMap") : mapLabel(game.map),
-            mode: t(`profile.mode.${game.mode}` as MessageKey),
-            outcome: t(`profile.outcome.${game.outcome}` as MessageKey),
+          text("game", {
+            map: game.map === "generated" ? text("generatedMap") : mapLabel(game.map),
+            mode: text(`mode.${game.mode}`),
+            outcome: outcomeText(game.outcome),
             minutes: game.minutes,
             date: date.format(game.at),
           }),
@@ -88,37 +107,25 @@ export function profilePanel(
     onForgotten();
   });
   cleanups.push(onLanguageChange(refresh));
-  refresh();
 
-  const panel = h(
-    "details",
-    { class: "menu-profile", id: "menu-profile" },
-    h("summary", { "data-i18n": "profile.heading" }),
+  root.append(
     h(
       "div",
-      { class: "profile-body" },
-      h(
-        "div",
-        { class: "field" },
-        h("span", {
-          id: "profile-color-label",
-          class: "field-label",
-          "data-i18n": "profile.color",
-        }),
-        colors,
-        h("p", { class: "hint", "data-i18n": "profile.colorHint" }),
-      ),
-      h(
-        "div",
-        { class: "field" },
-        h("span", { class: "field-label", "data-i18n": "profile.games" }),
-        list,
-        empty,
-      ),
-      h("p", { class: "hint", "data-i18n": "profile.storedHere" }),
-      forget,
+      { class: "field" },
+      h("span", { id: "profile-color-label", class: "field-label", "data-text": "color" }),
+      colors,
+      h("p", { class: "hint", "data-text": "colorHint" }),
     ),
+    h(
+      "div",
+      { class: "field" },
+      h("span", { class: "field-label", "data-text": "games" }),
+      list,
+      empty,
+    ),
+    h("p", { class: "hint", "data-text": "storedHere" }),
+    forget,
   );
-  applyTranslations(panel);
-  return panel;
+  refresh();
+  return root;
 }

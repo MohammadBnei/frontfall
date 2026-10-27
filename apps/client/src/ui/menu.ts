@@ -20,7 +20,7 @@ import { betaBadge, betaNotice } from "./beta.ts";
 import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
 import { h, present } from "./dom.ts";
-import { profilePanel, type ProfileControl } from "./profile-panel.ts";
+import type { ProfileControl } from "./profile-panel.ts";
 import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
 
 /** Sent on the document once the profile is erased, so that what shows it can change. */
@@ -45,8 +45,8 @@ export class Menu {
     onOnline: (entry: OnlineEntry, setup: GameSetup) => void,
     /** A replay file the player picked, to watch. */
     onReplay: (file: File) => void,
-    /** The profile kept on this device. */
-    profile: ProfileControl,
+    /** The profile kept on this device, loaded when the panel is opened. */
+    profile: () => Promise<ProfileControl>,
   ) {
     this.setup = { ...initial };
 
@@ -224,16 +224,32 @@ export class Menu {
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),
     );
-    const profileSection = profilePanel(
-      profile,
-      (id) => mapList.find((candidate) => candidate.id === id)?.name?.[getLanguage()] ?? id,
-      () => {
-        this.setup.playerName = "";
-        name.value = "";
-        document.dispatchEvent(new Event(PROFILE_FORGOTTEN));
-      },
-      this.cleanups,
+    const profileSection = h(
+      "details",
+      { class: "menu-profile", id: "menu-profile" },
+      h("summary", { "data-i18n": "profile.heading" }),
     );
+    // Its code comes with the first opening, not with the first visit.
+    profileSection.addEventListener("toggle", () => {
+      if (!profileSection.open || profileSection.querySelector(".profile-body")) return;
+      void Promise.all([import("./profile-panel.ts"), profile()]).then(
+        ([{ profileBody }, control]) => {
+          if (!profileSection.isConnected) return;
+          profileSection.append(
+            profileBody(
+              control,
+              (id) => mapList.find((candidate) => candidate.id === id)?.name?.[getLanguage()] ?? id,
+              () => {
+                this.setup.playerName = "";
+                name.value = "";
+                document.dispatchEvent(new Event(PROFILE_FORGOTTEN));
+              },
+              this.cleanups,
+            ),
+          );
+        },
+      );
+    });
     const online = this.onlineSection(mapList, (entry) => {
       onOnline(entry, { ...this.setup });
     });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  LocalProfile,
   MAX_RECENT,
   emptyProfile,
   forgetProfile,
@@ -93,5 +94,20 @@ describe("local profile", () => {
     saveProfile(withGame(emptyProfile(), game(1)), storage as unknown as Storage);
     forgetProfile(storage as unknown as Storage);
     expect(storage.items.size).toBe(0);
+  });
+});
+
+describe("the profile of a device", () => {
+  it("keeps a colour and games between visits, and forgets them on request", () => {
+    const storage = new MemoryStorage() as unknown as Storage;
+    const profile = new LocalProfile(storage);
+    profile.setColor(4);
+    profile.record(game(7));
+    const again = new LocalProfile(storage).read();
+    expect(again.color).toBe(4);
+    expect(again.games.map((entry) => entry.at)).toEqual([7]);
+    profile.forget();
+    expect(profile.read()).toEqual(emptyProfile());
+    expect(new LocalProfile(storage).read()).toEqual(emptyProfile());
   });
 });
