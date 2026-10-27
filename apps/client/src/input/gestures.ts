@@ -139,6 +139,18 @@ export class PointerGestures {
     else this.callbacks.onTileClick?.(tile, sample.finger === true);
   }
 
+  /** Enter or Space: picks the tile at (x, y) as a click would, for play without a pointer. */
+  pick(x: number, y: number): void {
+    const tile = this.camera.screenToTile(x, y);
+    if (tile !== undefined) this.callbacks.onTileClick?.(tile, false);
+  }
+
+  /** Lights the tile at (x, y) as a hovering mouse would, so the keyboard aim shows what it would pick. */
+  aim(x: number, y: number): void {
+    this.hoverAt = { x, y };
+    this.hover(x, y);
+  }
+
   /** A right click: the menu of the tile under the pointer, never a click. */
   menu(x: number, y: number): void {
     const tile = this.camera.screenToTile(x, y);

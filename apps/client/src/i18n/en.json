@@ -330,5 +330,11 @@
   "feedback.noReason": "Send without a reason",
   "feedback.thanks": "Thanks! Counted, without your name.",
   "feedback.idea": "Share an idea",
-  "feedback.bug": "Report a bug"
+  "feedback.bug": "Report a bug",
+  "a11y.title": "Accessibility",
+  "a11y.scale": "Interface size",
+  "a11y.motion": "Reduce motion",
+  "a11y.contrast": "High contrast",
+  "a11y.note": "Reduce motion also follows your device setting.",
+  "help.keyboardPick": "Keyboard: the cross marks the middle of the view. Enter or Space clicks it, Shift+Enter opens its menu"
 }

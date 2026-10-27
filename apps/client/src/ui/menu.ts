@@ -1,3 +1,4 @@
+import { accessibilityPanel } from "./accessibility.ts";
 import { REPLAY_EXTENSION } from "../game/replay-file.ts";
 import { MAP_GROUPS, generateMap, suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
@@ -238,6 +239,7 @@ export class Menu {
       form,
       online,
       h("footer", { class: "menu-footer" }, replayPicker(onReplay), language),
+      accessibilityPanel(),
       feedbackLinks(),
     );
     applyTranslations(this.element);
