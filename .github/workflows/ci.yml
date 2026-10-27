@@ -119,7 +119,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-chromium-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @frontfall/e2e exec playwright install chromium
       # The menu, solo games, a private game between two pages, and the server's own pages.
       - run: pnpm test:e2e tests/server-pages.spec.ts tests/solo-game.spec.ts tests/walking-skeleton.spec.ts
         env:
@@ -186,7 +186,7 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-chromium-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium
+      - run: pnpm --filter @frontfall/e2e exec playwright install chromium
       - run: pnpm build
       # Download sizes against bench/client/budget.json, failing when over; then load
       # times and frame rate in headless Chromium, reported only (docs/performance.md).
