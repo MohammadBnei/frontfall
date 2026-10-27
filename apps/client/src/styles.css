@@ -2043,42 +2043,4 @@ kbd {
   padding: 0;
   list-style: none;
   font-size: 14px;
-
-.account {
-  margin: 6px 0 0;
-  color: var(--ff-slate-400);
-  font-size: 13px;
-}
-
-.account[hidden] {
-  display: none;
-}
-
-.account p {
-  margin: 0;
-}
-
-.account button.link {
-  padding: 0;
-  font-size: inherit;
-}
-
-.account-sign-in {
-  display: inline-block;
-  margin: 4px 6px 0 0;
-  padding: 4px 10px;
-  border: 1px solid var(--ff-slate-500);
-  border-radius: 4px;
-  color: var(--ff-slate-200);
-  text-decoration: none;
-}
-
-.account-sign-in:hover,
-.account-sign-in:focus-visible {
-  border-color: var(--ff-slate-300);
-  color: var(--ff-slate-50);
-}
-
-.account-error {
-  color: var(--ff-ember-bright);
 }

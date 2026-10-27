@@ -1,5 +1,6 @@
-import { applyTranslations, t, type MessageKey } from "../i18n/index.ts";
+import { getLanguage, onLanguageChange, type Language } from "../i18n/index.ts";
 import { h } from "./dom.ts";
+import "./account.css";
 
 type Provider = "discord" | "google";
 
@@ -7,6 +8,39 @@ type Provider = "discord" | "google";
 interface Me {
   providers: Provider[];
   account: { name: string; provider: Provider } | null;
+}
+
+/**
+ * The box's own words: the module and its styles load after the menu shows,
+ * so they stay out of the first visit's code.
+ */
+const TEXT = {
+  en: {
+    offer: "Optional: sign in to keep your name for yourself with",
+    signedIn: "Signed in with {service}. Your name is yours alone.",
+    signOut: "Sign out",
+    delete: "Delete my account",
+    deleteConfirm: "Delete your account? Your name will be free for anyone to take.",
+    failed: "Signing in did not work. You can try again, or play as a guest.",
+    taken: "Another player already holds this name.",
+    invalid: "This name is not allowed.",
+  },
+  fr: {
+    offer: "Facultatif : connectez-vous pour garder votre nom avec",
+    signedIn: "Connecté avec {service}. Ce nom n'est qu'à vous.",
+    signOut: "Se déconnecter",
+    delete: "Supprimer mon compte",
+    deleteConfirm: "Supprimer votre compte ? Votre nom redeviendra libre pour tout le monde.",
+    failed: "La connexion n'a pas abouti. Vous pouvez réessayer, ou jouer en invité.",
+    taken: "Un autre joueur a déjà ce nom.",
+    invalid: "Ce nom n'est pas autorisé.",
+  },
+} satisfies Record<Language, Record<string, string>>;
+
+type TextKey = keyof (typeof TEXT)["en"];
+
+function text(key: TextKey, service = ""): string {
+  return TEXT[getLanguage()][key].replace("{service}", service);
 }
 
 const PROVIDER_NAMES: Record<Provider, string> = { discord: "Discord", google: "Google" };
@@ -25,7 +59,9 @@ function isMe(value: unknown): value is Me {
 export class AccountBox {
   readonly element = h("div", { class: "account", hidden: true, "aria-live": "polite" });
   private me: Me | undefined;
-  private message: MessageKey | undefined;
+  private message: TextKey | undefined;
+  /** Stops following the language once the menu is gone. */
+  readonly dispose: () => void;
 
   /**
    * @param name the name field of the menu: signed in, it shows and renames the account.
@@ -37,13 +73,16 @@ export class AccountBox {
   ) {
     const query = new URLSearchParams(location.search);
     if (query.get("signin") === "failed") {
-      this.message = "account.failed";
+      this.message = "failed";
       query.delete("signin");
       const search = query.toString();
       history.replaceState(history.state, "", `${location.pathname}${search && `?${search}`}`);
     }
     name.addEventListener("change", () => {
       if (this.me?.account) void this.rename(name.value);
+    });
+    this.dispose = onLanguageChange(() => {
+      this.show(this.me);
     });
     void this.load();
   }
@@ -69,8 +108,8 @@ export class AccountBox {
           body: JSON.stringify(body),
         }),
       });
-      if (response.status === 409) this.message = "account.taken";
-      else if (response.status === 400) this.message = "account.invalid";
+      if (response.status === 409) this.message = "taken";
+      else if (response.status === 400) this.message = "invalid";
       if (!response.ok) return undefined;
       const value: unknown = await response.json();
       return isMe(value) ? value : undefined;
@@ -96,7 +135,7 @@ export class AccountBox {
   }
 
   private async remove(): Promise<void> {
-    if (!confirm(t("account.deleteConfirm"))) return;
+    if (!confirm(text("deleteConfirm"))) return;
     const me = await this.request("DELETE");
     if (!me) return;
     this.name.value = "";
@@ -113,18 +152,15 @@ export class AccountBox {
       this.name.value = account.name;
       this.setName(account.name);
     }
-    const signOut = h("button", { type: "button", class: "link", "data-i18n": "account.signOut" });
+    const signOut = h("button", { type: "button", class: "link" }, text("signOut"));
     signOut.addEventListener("click", () => void this.signOut());
-    const remove = h("button", { type: "button", class: "link", "data-i18n": "account.delete" });
+    const remove = h("button", { type: "button", class: "link" }, text("delete"));
     remove.addEventListener("click", () => void this.remove());
     const status = account
       ? h(
           "p",
           { class: "account-status" },
-          h("span", {
-            "data-i18n": "account.signedIn",
-            "data-i18n-params": JSON.stringify({ service: PROVIDER_NAMES[account.provider] }),
-          }),
+          text("signedIn", PROVIDER_NAMES[account.provider]),
           " ",
           signOut,
           " · ",
@@ -133,7 +169,7 @@ export class AccountBox {
       : h(
           "p",
           { class: "account-status" },
-          h("span", { "data-i18n": "account.offer" }),
+          text("offer"),
           " ",
           ...me.providers.map((provider) =>
             h(
@@ -145,8 +181,7 @@ export class AccountBox {
         );
     this.element.replaceChildren(
       status,
-      ...(this.message ? [h("p", { class: "account-error", "data-i18n": this.message })] : []),
+      ...(this.message ? [h("p", { class: "account-error" }, text(this.message))] : []),
     );
-    applyTranslations(this.element);
   }
 }
