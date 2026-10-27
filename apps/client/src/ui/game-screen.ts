@@ -22,7 +22,7 @@ import {
   type ViewKind,
 } from "../render/renderer.ts";
 import { AchievementStore, type Gain } from "../achievements/store.ts";
-import { AchievementTracker } from "../achievements/tracker.ts";
+import { AchievementTracker, type Credited } from "../achievements/tracker.ts";
 import { endScreen } from "./end-screen.ts";
 // The help and the guide load when first shown, out of the first download.
 import type { Guide } from "./guide.ts";
@@ -267,13 +267,16 @@ export class GameScreen {
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
           if (!options.record) {
-            this.achievements = new AchievementTracker({
-              ticksPerSecond: info.rules.ticksPerSecond,
-              ownableTiles: info.rules.ownableTiles,
-              disabled: info.rules.disabled,
-              difficulty: link ? undefined : options.difficulty,
-              teamGame: info.rules.teams.length > 0,
-            });
+            this.achievements = new AchievementTracker(
+              {
+                ticksPerSecond: info.rules.ticksPerSecond,
+                ownableTiles: info.rules.ownableTiles,
+                disabled: info.rules.disabled,
+                difficulty: link ? undefined : options.difficulty,
+                teamGame: info.rules.teams.length > 0,
+              },
+              this.loadCredited(),
+            );
           }
           this.hud.setRules(info.rules);
           // Fetched while the game starts, so H opens the help at once.
@@ -657,6 +660,34 @@ export class GameScreen {
     const delta = this.achievements?.observe(update);
     if (!delta || (delta.fresh.length === 0 && Object.keys(delta.counts).length === 0)) return;
     this.earned.push(...this.achievementStore.record(delta, Date.now()));
+    this.saveCredited();
+  }
+
+  /** The same game, for a screen made again after a reload or a reconnection. */
+  private creditKey(): string {
+    return `frontfall.credited.${this.options.map}.${String(this.options.seed)}`;
+  }
+
+  private loadCredited(): Credited | undefined {
+    try {
+      const raw = window.sessionStorage.getItem(this.creditKey());
+      return raw ? (JSON.parse(raw) as Credited) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private saveCredited(): void {
+    try {
+      if (this.achievements) {
+        window.sessionStorage.setItem(
+          this.creditKey(),
+          JSON.stringify(this.achievements.credited()),
+        );
+      }
+    } catch {
+      // Without it a reload may count a city twice.
+    }
   }
 
   private click(tile: number, finger = false): void {

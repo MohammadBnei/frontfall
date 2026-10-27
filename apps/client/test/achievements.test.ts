@@ -298,4 +298,14 @@ describe("counted by the tracker", () => {
     expect(tracker.observe(update({ winner: 2 })).counts).toEqual({ games: 1 });
     expect(tracker.observe(update({ winner: 2 })).counts).toEqual({});
   });
+
+  it("does not count again what an earlier tracker of the same game credited", () => {
+    const first = new Tracker(GAME);
+    const city = structure("city");
+    first.observe(update({ structures: [city] }));
+    first.observe(update({ winner: 2 }));
+    const second = new Tracker(GAME, first.credited());
+    expect(second.observe(update({ structures: [city] })).counts).toEqual({});
+    expect(second.observe(update({ winner: 2 })).counts).toEqual({});
+  });
 });

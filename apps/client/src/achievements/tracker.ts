@@ -27,6 +27,14 @@ const METROPOLIS_CITIES = 5;
 /** Players in a game for a victory to be in a crowded world. */
 const CROWDED = 10;
 
+/** What a game has already credited, to keep when the page is reloaded or the connection resumes. */
+export interface Credited {
+  /** Ids of the cities counted. */
+  cities: number[];
+  /** Whether the finished game was counted. */
+  counted: boolean;
+}
+
 /**
  * Watches one game as its player sees it and says which achievements it
  * earned. Nothing here changes the game: it only reads the updates the
@@ -37,11 +45,22 @@ export class AchievementTracker {
   private peakShare = 0;
   private fell = false;
   private launched = false;
-  private counted = false;
+  private counted: boolean;
   /** Cities already counted, by id. */
-  private readonly cities = new Set<number>();
+  private readonly cities: Set<number>;
 
-  constructor(private readonly game: AchievementGame) {}
+  constructor(
+    private readonly game: AchievementGame,
+    credited?: Credited,
+  ) {
+    this.cities = new Set(credited?.cities);
+    this.counted = credited?.counted ?? false;
+  }
+
+  /** What this game has credited so far, for a tracker that takes over after a reload. */
+  credited(): Credited {
+    return { cities: [...this.cities], counted: this.counted };
+  }
 
   /** Reads one update; returns what it adds, no achievement twice and no city or game counted twice. */
   observe(update: GameUpdate): Delta {
