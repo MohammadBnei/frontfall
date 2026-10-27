@@ -716,12 +716,11 @@ button.secondary:disabled {
 
 .ratio {
   bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
   display: flex;
   gap: 10px;
   align-items: center;
-  width: min(420px, calc(100vw - 24px));
+  width: min(260px, calc(100vw - 24px));
   box-sizing: border-box;
 }
 
@@ -737,7 +736,8 @@ button.secondary:disabled {
 /* The player's attacks under way, each with its retreat button (ui/hud.ts). */
 
 .attacks {
-  bottom: 48px;
+  bottom: 64px;
+  left: 12px;
   left: 12px;
   width: 220px;
   max-width: calc(100vw - 24px);
@@ -941,11 +941,6 @@ kbd {
     width: 170px;
   }
 
-  /* Five leaders and the player, wherever they rank. */
-  .leader:nth-child(n + 6):not(.you) {
-    display: none;
-  }
-
   /* Beside the leaderboard, above the attack ratio. */
   .attacks {
     bottom: 64px;
@@ -956,9 +951,18 @@ kbd {
   /* The ratio panel stops short of the three toolbar buttons. */
   .ratio {
     left: 12px;
-    right: 160px;
+    right: 174px;
     width: auto;
     transform: none;
+  }
+
+  .icon-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .toolbar {
+    gap: 6px;
   }
 
   .ratio label {
@@ -972,19 +976,19 @@ kbd {
   /* Over the base rule, which comes later in this file. */
   .game .click-note {
     bottom: auto;
-    top: 242px;
+    top: 140px;
   }
 
   /* Over the banner, under the build row it explains. */
   .game .build-tip {
     bottom: auto;
-    top: 198px;
+    top: 78px;
     z-index: 3;
     background: var(--ff-night-800);
   }
 
   .banner {
-    top: 198px;
+    top: 78px;
   }
 
   /* Play stays in reach without scrolling past the maps. */
@@ -1140,24 +1144,6 @@ kbd {
   margin: 6px 0 0;
   color: var(--ff-slate-300);
   font-size: 13px;
-}
-
-.beta-hud {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  background: var(--ff-night-800);
-  opacity: 0.8;
-  pointer-events: none;
-}
-
-@media (width < 720px) {
-  .beta-hud {
-    top: 12px;
-    right: 12px;
-    bottom: auto;
-    left: auto;
-  }
 }
 
 .icon-menu::before {
@@ -1333,29 +1319,64 @@ kbd {
 
 /* Build buttons (ui/hud.ts): structures, units and demolish, with the cost of the next one. */
 
-/* Above the toolbar, clear of the leaderboard on short screens: two columns. */
+/* A dock of icons at the foot of the map. Name, key and cost show in a bubble
+   over the button the pointer or the keyboard is on. */
 .build {
-  right: 12px;
-  bottom: 64px;
-  display: grid;
-  grid-template-columns: repeat(2, auto);
-  gap: 6px;
-  padding: 6px;
+  bottom: 12px;
+  left: 50%;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  transform: translateX(-50%);
 }
 
 .build-button {
+  position: relative;
   display: grid;
-  grid-template-columns: 16px auto;
-  column-gap: 8px;
-  align-items: center;
-  min-width: 112px;
-  padding: 6px 8px;
-  border: 1px solid var(--ff-night-500);
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: var(--ff-radius);
   background: transparent;
   font-size: 13px;
-  text-align: left;
   cursor: pointer;
+}
+
+/* Only narrow screens need the button that opens the dock as a tray. */
+.icon-build {
+  display: none;
+}
+
+.build-button.unaffordable .build-icon {
+  opacity: 0.45;
+}
+
+.build-info {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 2;
+  display: none;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  transform: translateX(-50%);
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-800);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.build-info .build-key {
+  position: static;
+}
+
+.build-button:hover .build-info,
+.build-button:focus-visible .build-info {
+  display: flex;
 }
 
 .build-button:hover,
@@ -1373,7 +1394,6 @@ kbd {
 }
 
 .build-icon {
-  grid-row: span 2;
   width: 12px;
   height: 12px;
   border: 2px solid var(--ff-night-800);
@@ -1441,10 +1461,6 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
-.build-cost + .build-count {
-  grid-column: 2;
-}
-
 .map-surface[data-mode="city"],
 .map-surface[data-mode="palace"],
 .map-surface[data-mode="fort"],
@@ -1470,28 +1486,44 @@ kbd {
    and costs under the stats, clear of the leaderboard. After the rules above, so
    it wins over them. */
 @media (width < 720px), (height < 560px) {
+  /* A tray over the toolbar, opened by its button (ui/hud.ts). */
   .build {
-    top: 100px;
-    right: auto;
-    bottom: auto;
+    right: 12px;
+    bottom: 64px;
     left: 12px;
-    grid-template-columns: repeat(5, auto);
+    z-index: 2;
+    display: none;
+    grid-template-columns: repeat(5, 1fr);
     gap: 4px;
     padding: 4px;
+    transform: none;
+  }
+
+  .build.open {
+    display: grid;
   }
 
   /* The icon over the cost: five buttons fit across a 320 px phone. */
   .build-button {
-    grid-template-columns: auto;
-    justify-items: center;
-    min-width: 44px;
+    width: auto;
+    height: auto;
+    min-height: 44px;
+    align-content: center;
     padding: 4px;
     line-height: 1.1;
   }
 
   .build-icon {
-    grid-row: auto;
     margin-bottom: 2px;
+  }
+
+  .build-info {
+    position: static;
+    display: block;
+    padding: 0;
+    transform: none;
+    border: 0;
+    background: none;
   }
 
   .build-name,
@@ -1502,13 +1534,17 @@ kbd {
     overflow: hidden;
     clip-path: inset(50%);
   }
+
+  .icon-build {
+    display: inline-block;
+  }
 }
 
 /* Short and wide windows keep the leaderboard top right: the banner goes under
-   the build row, on the left, short of it. */
+   the stats, on the left, short of it. */
 @media (height < 560px) and (width >= 720px) {
   .banner {
-    top: 198px;
+    top: 78px;
     left: 12px;
     max-width: calc(100vw - 300px);
     transform: none;
@@ -2043,4 +2079,50 @@ kbd {
   padding: 0;
   list-style: none;
   font-size: 14px;
+}
+
+/* Lighter in-game interface (ui/hud.ts). */
+
+.leaderboard-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.leaderboard-toggle::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border: solid currentcolor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.leaderboard-toggle[aria-expanded="true"]::after {
+  transform: rotate(225deg);
+}
+
+/* The rule of the win is one tap away. */
+.leaderboard:not(.open) .goal-text {
+  display: none;
+}
+
+.icon-build::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background:
+    linear-gradient(currentcolor, currentcolor) 0 0 / 5px 5px no-repeat,
+    linear-gradient(currentcolor, currentcolor) 100% 0 / 5px 5px no-repeat,
+    linear-gradient(currentcolor, currentcolor) 0 100% / 5px 5px no-repeat,
+    linear-gradient(currentcolor, currentcolor) 100% 100% / 5px 5px no-repeat;
 }

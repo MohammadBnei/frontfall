@@ -8,6 +8,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **Report a player.** In an online game, a player's menu now has Report this player: pick a reason (insults or harassment, offensive name, cheating, something else) and the report goes to whoever runs the server, who can ban the network of someone who abuses others (`R-MODE-06`). The player is not told. No text to type; the report keeps the game, the reason and the name they played under, never your address ([what is kept](docs/privacy.md#reporting-a-player)).
 
+### Changed
+
+- **A lighter screen in play.** The buildings are now a row of icons at the foot of the map: hover or focus one to see its name, key and cost. On a phone they sit behind a Build button next to the other buttons and close once you pick one. The leaderboard lists the three leaders and you, and opens to ten when you tap its title. The Beta badge no longer sits on the map.
+
 ### Fixed
 
 - The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of the site next door.

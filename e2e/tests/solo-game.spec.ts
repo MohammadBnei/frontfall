@@ -185,6 +185,8 @@ test("plays against the nations of the map, named and on the board (R-BOT-07)", 
   await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
   const leaders = page.locator(".leaderboard-list .leader-name");
   await expect(leaders.filter({ hasText: "Northmark" })).toHaveCount(1);
+  // The leaderboard lists three leaders at rest, and all of them once opened.
+  await page.locator("#leaderboard-toggle").click();
   await expect(page.locator(".leaderboard-list .leader")).toHaveCount(8);
 
   // Unticked, the next game has none, and the choice is remembered.

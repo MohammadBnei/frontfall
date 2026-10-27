@@ -7,6 +7,9 @@ test("fits every build button and its cost on a narrow phone", async ({ page }) 
   await page.goto("./?map=skirmish&bots=1&nations=0");
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
+  // The buildings sit behind a button on a phone.
+  await expect(page.locator(".build")).toBeHidden();
+  await page.locator("#build-toggle").click();
   await expect(page.locator("#build-heavyMissile .build-cost")).toHaveText(/\S/);
 
   const panel = await page.locator(".build").boundingBox();
