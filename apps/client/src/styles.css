@@ -1658,6 +1658,33 @@ kbd {
   border-color: var(--ff-slate-400);
 }
 
+.report-reasons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.report-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  color: var(--ff-slate-300);
+}
+
+.report-reason {
+  padding: 4px 6px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.report-reason:hover,
+.report-reason:focus-visible {
+  border-color: var(--ff-slate-400);
+}
+
 .menu-action.betray {
   border-color: var(--ff-danger);
 }

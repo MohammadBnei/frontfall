@@ -4,9 +4,18 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **Report a player.** In an online game, a player's menu now has Report this player: pick a reason (insults or harassment, offensive name, cheating, something else) and the report goes to whoever runs the server, who can ban the network of someone who abuses others (`R-MODE-06`). The player is not told. No text to type; the report keeps the game, the reason and the name they played under, never your address ([what is kept](docs/privacy.md#reporting-a-player)).
+
 ### Fixed
 
 - The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of the site next door.
+
+### For self-hosters and contributors
+
+- **Reports and bans for operators.** `GET /admin/reports` lists the reports of the last 30 days and the players most reported, each named by a keyed hash of their address that stays the same across restarts. `POST /admin/bans?target=…&days=…` bans an address or such a reference, `DELETE` lifts it, and `bans.json` under `FRONTFALL_DATA/moderation/` can be edited by hand and read again without a restart. Banned connections close with code `4005` ([server](docs/server.md#reports-and-bans)).
+- Protocol version 18: `report`, `reported`, the `too_many_reports` error and close code `4005` ([protocol](docs/protocol.md#report)). Pages loaded before the update are asked to reload.
 
 ## [0.5.0] - 2026-10-27
 

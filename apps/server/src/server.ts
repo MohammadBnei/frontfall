@@ -11,6 +11,7 @@ import { loadMapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
+import { Moderation, validTarget } from "./moderation.ts";
 import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { AddressRate, TokenBucket } from "./rate-limit.ts";
@@ -171,6 +172,12 @@ export function createGameServer(options: ServerOptions): GameServer {
       logger.warn("usage_not_saved", { error: (error as Error).message });
     }
   };
+  const moderation = new Moderation(options.dataDir, Date.now(), options.reportRate);
+  try {
+    moderation.reload();
+  } catch (error) {
+    logger.warn("bans_not_loaded", { error: (error as Error).message });
+  }
   const usageSaver = setInterval(keepUsage, options.usageSaveIntervalMs ?? 5 * 60_000);
   usageSaver.unref();
   const reports = usageInbox(usage, logger, (origin) =>
@@ -207,6 +214,13 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
     if (path === "/admin/maintenance" && isLoopbackRequest(request)) {
       announce(request, response);
+      return;
+    }
+    if (path.startsWith("/admin/")) {
+      if (!isLoopbackRequest(request)) response.writeHead(404).end();
+      else if (path === "/admin/reports") reportsAnswer(request, response);
+      else if (path === "/admin/bans") bansAnswer(request, response);
+      else response.writeHead(404).end();
       return;
     }
     if (path === "/api/usage") {
@@ -296,6 +310,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     metrics,
     logger,
     stopping: () => stopping,
+    moderation,
     maintenance: (now) =>
       maintenanceAt !== undefined && maintenanceAt > now
         ? maintenanceMessage(maintenanceAt - now)
@@ -329,6 +344,7 @@ export function createGameServer(options: ServerOptions): GameServer {
         },
       },
     };
+    if (turnAwayBanned(session)) return;
     sessions.add(session);
 
     const helloTimer = setTimeout(() => {
@@ -419,6 +435,81 @@ export function createGameServer(options: ServerOptions): GameServer {
     broadcastAll(maintenanceMessage(minutes > 0 ? minutes * 60_000 : null));
     logger.info("maintenance_announced", { minutes });
     sendJson(response, { minutes, running: running() });
+  }
+
+  /** Closes the connection of a banned address, with the code that tells its page not to retry. */
+  function turnAwayBanned(session: Session): boolean {
+    const ban = moderation.banned(session.address, Date.now());
+    if (!ban) return false;
+    session.closing = true;
+    metrics.rejected.inc({ reason: "banned" });
+    logger.warn("connection_rejected", { client: session.client, reason: "banned" });
+    session.socket.close(
+      CloseCode.banned,
+      ban.until === null ? "banned" : `banned until ${ban.until}`,
+    );
+    return true;
+  }
+
+  /** GET /admin/reports?days=N, from inside the container: the reports of the last N days, 30 at most. */
+  function reportsAnswer(request: IncomingMessage, response: ServerResponse): void {
+    const days = Number(
+      new URL(request.url ?? "/", "http://localhost").searchParams.get("days") ?? 30,
+    );
+    if (request.method !== "GET" || !Number.isFinite(days) || days <= 0) {
+      response.writeHead(400, { "content-type": "text/plain" }).end("GET ?days=1 to 30");
+      return;
+    }
+    sendJson(response, moderation.read(Date.now(), Math.min(days, 30)));
+  }
+
+  /**
+   * /admin/bans, from inside the container. GET lists the bans. POST
+   * ?target=T[&days=N][&note=text] bans an address or a reference, for N days
+   * or for good; POST without a target reads the ban file again. DELETE
+   * ?target=T lifts a ban. Connections of addresses now banned are closed.
+   */
+  function bansAnswer(request: IncomingMessage, response: ServerResponse): void {
+    const query = new URL(request.url ?? "/", "http://localhost").searchParams;
+    const now = Date.now();
+    const target = query.get("target");
+    const days = query.has("days") ? Number(query.get("days")) : undefined;
+    const usage =
+      "GET, POST ?target=address-or-reference&days=N&note=text, POST to reload, DELETE ?target=";
+    if (target !== null && !validTarget(target)) {
+      response.writeHead(400, { "content-type": "text/plain" }).end(usage);
+      return;
+    }
+    if (request.method === "POST" && target === null && days === undefined) {
+      try {
+        moderation.reload();
+      } catch (error) {
+        response.writeHead(422, { "content-type": "text/plain" }).end((error as Error).message);
+        return;
+      }
+      logger.info("bans_reloaded", { bans: moderation.list(now).length });
+    } else if (
+      request.method === "POST" &&
+      target !== null &&
+      (days === undefined || (Number.isFinite(days) && days > 0))
+    ) {
+      moderation.ban(target, days, query.get("note")?.slice(0, 200) ?? undefined, now);
+      logger.info("player_banned", { days: days ?? null });
+    } else if (request.method === "DELETE" && target !== null) {
+      if (!moderation.unban(target, now)) {
+        response.writeHead(404, { "content-type": "text/plain" }).end("no such ban");
+        return;
+      }
+      logger.info("ban_lifted", {});
+    } else if (request.method !== "GET") {
+      response.writeHead(400, { "content-type": "text/plain" }).end(usage);
+      return;
+    }
+    let closed = 0;
+    if (request.method !== "GET") {
+      for (const session of sessions) if (!session.closing && turnAwayBanned(session)) closed++;
+    }
+    sendJson(response, { bans: moderation.list(now), closed });
   }
 
   function status(): ServerStatus {

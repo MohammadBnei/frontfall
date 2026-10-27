@@ -6,6 +6,7 @@ import {
   PROTOCOL_VERSION,
   type ErrorCode,
   type GameOptions,
+  type ReportReason,
   type Order,
   type ServerMessage,
   type Turn,
@@ -43,7 +44,9 @@ export type ConnectionStatus =
    * The server closed the connection over a message it refused or too many
    * messages: trying again would end the same way.
    */
-  | "rejected";
+  | "rejected"
+  /** The operator of the server banned this network (R-MODE-06): trying again would be refused. */
+  | "banned";
 
 export interface OnlineEvents {
   status?(status: ConnectionStatus, retryInMs?: number): void;
@@ -61,6 +64,8 @@ export interface OnlineEvents {
   /** `seatLost`: the seat of this page is gone, after a long absence or once the server lost the game. */
   ended?(reason: Extract<ServerMessage, { type: "ended" }>["reason"] | "seatLost"): void;
   error?(code: ErrorCode, message: string): void;
+  /** The server received this page's report of `player`. */
+  reported?(player: number): void;
   /** The server restarts for an update in `inMs` milliseconds, or no longer does (`null`). */
   maintenance?(inMs: number | null): void;
 }
@@ -190,6 +195,11 @@ export class OnlineClient {
     this.send({ type: "kick", player });
   }
 
+  /** Reports another player of the game to the server's operator (R-MODE-06). */
+  report(player: number, reason: ReportReason): void {
+    this.send({ type: "report", player, reason });
+  }
+
   /** The player is at the screen, so the host keeps the role. */
   active(): void {
     this.send({ type: "active" });
@@ -279,6 +289,11 @@ export class OnlineClient {
         this.options.events.status?.("rejected");
         return;
       }
+      if (code === CloseCode.banned) {
+        this.closedByUser = true;
+        this.options.events.status?.("banned");
+        return;
+      }
       const delay = retryDelay(this.attempt++);
       this.options.events.status?.("offline", delay);
       this.setTimer(() => {
@@ -351,6 +366,9 @@ export class OnlineClient {
         return;
       case "maintenance":
         events.maintenance?.(message.inMs);
+        return;
+      case "reported":
+        events.reported?.(message.player);
         return;
       case "ended":
         this.entry = undefined;

@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 17;
+export const PROTOCOL_VERSION = 18;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -35,6 +35,8 @@ export const CloseCode = {
   idle: 4003,
   /** Another connection took over this player. */
   replaced: 4004,
+  /** The operator of the server banned this address (R-MODE-06): do not reconnect. */
+  banned: 4005,
 } as const;
 
 /** Error codes of the `error` message. */
@@ -56,6 +58,7 @@ export const ErrorCode = z.enum([
   "too_many_lobbies",
   "removed",
   "too_many_seats",
+  "too_many_reports",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
@@ -75,6 +78,10 @@ export type Teams = z.infer<typeof Teams>;
 
 /** What a private game leaves out (R-MODE-03): the engine's `Disable` bits, 0 for nothing. */
 export const Disabled = z.number().int().min(0).max(0x3f);
+
+/** Why a player reports another (R-MODE-06): no free text, so a report carries nothing else. */
+export const ReportReason = z.enum(["abuse", "name", "cheating", "other"]);
+export type ReportReason = z.infer<typeof ReportReason>;
 
 /** Seats a host may open for human players, before the map and bots narrow them. */
 export const MIN_SEATS = 2;
@@ -155,6 +162,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("active") }).strict(),
   /** Host only, before the start: remove a player, who cannot join this game again. */
   z.object({ type: z.literal("kick"), player: PlayerNumber }).strict(),
+  /** Tell the operator of the server that another player of this game misbehaves. */
+  z.object({ type: z.literal("report"), player: PlayerNumber, reason: ReportReason }).strict(),
   /** Leave the current game for good. */
   z.object({ type: z.literal("leave") }).strict(),
   /** Hash of the client's game state after running `tick`. */
@@ -235,6 +244,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     reason: z.enum(["abandoned", "timeout", "expired", "left", "restart", "removed"]),
   }),
   z.object({ type: z.literal("error"), code: ErrorCode, message: z.string() }),
+  /** The report of `player` was received; sent again for a player already reported. */
+  z.object({ type: z.literal("reported"), player: PlayerNumber }),
   /**
    * The server restarts for an update in `inMs` milliseconds, stopping the
    * games still running then; `null` when the restart was called off.

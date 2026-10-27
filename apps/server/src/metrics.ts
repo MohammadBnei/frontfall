@@ -111,6 +111,10 @@ export class Metrics {
     "frontfall_rejected_messages_total",
     "Connections closed for a message, by reason.",
   );
+  readonly reports = new Counter(
+    "frontfall_reports_total",
+    "Reports of a player by another, by reason.",
+  );
   readonly gameMinutes = new Histogram(
     "frontfall_game_duration_minutes",
     "Length of the games that finished, in minutes.",
@@ -143,6 +147,7 @@ export class Metrics {
       ...this.rejoins.render(),
       ...this.messages.render(),
       ...this.rejected.render(),
+      ...this.reports.render(),
       ...this.gameMinutes.render(),
       ...this.turnDuration.render(),
       ...extra,

@@ -45,7 +45,7 @@ test("the host removes a player, who cannot join that game again (R-MODE-05)", a
   await guest.close();
 });
 
-test("a player hides another one, whose name and messages leave their screen (R-DIPLO-08)", async ({
+test("a player hides another one, whose name and messages leave their screen, and reports them (R-DIPLO-08, R-MODE-06)", async ({
   browser,
   baseURL,
 }) => {
@@ -85,6 +85,14 @@ test("a player hides another one, whose name and messages leave their screen (R-
   await host.getByRole("button", { name: "Diplomacy with Player 2" }).click();
   await menu.locator(".menu-action.hide").click();
   await expect(host.locator(".leaderboard")).toContainText("Guest");
+
+  // A report takes a reason; the server's receipt turns the button into "Reported".
+  const report = menu.locator(".menu-action.report");
+  await report.click();
+  await expect(report).toHaveAttribute("aria-expanded", "true");
+  await menu.getByRole("button", { name: "Insults or harassment" }).click();
+  await expect(report).toHaveText("Reported");
+  await expect(report).toBeDisabled();
   await host.close();
   await guest.close();
 });

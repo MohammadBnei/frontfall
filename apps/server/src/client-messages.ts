@@ -14,6 +14,7 @@ import type { MapLimits } from "./catalog.ts";
 import type { Directory } from "./directory.ts";
 import type { Logger } from "./log.ts";
 import type { Metrics } from "./metrics.ts";
+import type { Moderation } from "./moderation.ts";
 import type { TokenBucket } from "./rate-limit.ts";
 import type { Peer, Room, Seat } from "./room.ts";
 
@@ -62,6 +63,7 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   too_many_lobbies: "you already have three games waiting to start",
   removed: "the host removed you from this game",
   too_many_seats: "too many players from your network are already in this game",
+  too_many_reports: "you have sent many reports lately; try again in a few minutes",
 };
 
 /**
@@ -108,6 +110,7 @@ export interface MessageContext {
   readonly simulation: string;
   readonly metrics: Metrics;
   readonly logger: Logger;
+  readonly moderation: Moderation;
   /** Whether the server has begun to close: no new game opens. */
   stopping(): boolean;
   /** The announcement of a restart due after `now`, if one is. */
@@ -293,6 +296,36 @@ export function messageHandler(ctx: MessageContext): {
           : "not_in_game";
         if (error) reply(session, error);
         else ctx.games.sweep();
+        return;
+      }
+      case "report": {
+        if (!current) {
+          reply(session, "not_in_game");
+          return;
+        }
+        const target = current.room.seatOf(message.player);
+        if (!target || target === current.seat) {
+          reply(session, "not_found");
+          return;
+        }
+        const now = Date.now();
+        const taken = ctx.moderation.report(
+          { game: current.room.id, reason: message.reason, player: target.id, name: target.name },
+          session.address,
+          target.address,
+          now,
+        );
+        if (!taken) {
+          reply(session, "too_many_reports");
+          return;
+        }
+        ctx.metrics.reports.inc({ reason: message.reason });
+        ctx.logger.info("player_reported", {
+          game: current.room.id,
+          player: target.id,
+          reason: message.reason,
+        });
+        session.peer.send(encodeServerMessage({ type: "reported", player: target.id }));
         return;
       }
       case "leave":

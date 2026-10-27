@@ -116,6 +116,8 @@ export class GameScreen {
   private readonly labels = new PlayerLabels();
   /** Players hidden on this screen (R-DIPLO-08), for this game only. */
   private readonly hidden = new Set<number>();
+  /** Players this page reported, as the server confirmed (R-MODE-06). */
+  private readonly reports = new Set<number>();
   /** Online: evens out the arrival of the server's turns before the worker plays them. */
   private readonly pacer: TurnPacer;
   /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
@@ -231,6 +233,14 @@ export class GameScreen {
         if (hide) this.hidden.add(player);
         else this.hidden.delete(player);
         this.showNames();
+      },
+      // Only people can be reported, through a server that takes reports.
+      reported: (player) =>
+        this.link?.report && this.options.players?.some((p) => p.id === player)
+          ? this.reports.has(player)
+          : undefined,
+      onReport: (player, reason) => {
+        this.link?.report?.(player, reason);
       },
     });
     this.hud.leaderboard.append(this.diplomacy.menu);
@@ -873,6 +883,11 @@ export class GameScreen {
     const latest = this.latest;
     const human = latest?.players.find((player) => player.id === latest.you);
     return human !== undefined && (!human.alive || human.tiles === 0) && this.focused;
+  }
+
+  /** Online: the server took this page's report of `player`; the menu says so. */
+  reported(player: number): void {
+    this.reports.add(player);
   }
 
   /** Online: the game was lost to the connection, or stopped by the server. */

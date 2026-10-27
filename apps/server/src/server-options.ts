@@ -42,6 +42,8 @@ export interface ServerOptions {
   messageRate?: { perSecond: number; burst: number };
   /** WebSockets one address may open per second on average, and at once. */
   upgradeRate?: { perSecond: number; burst: number };
+  /** Reports one address may send per second on average, and at once (R-MODE-06). */
+  reportRate?: { perSecond: number; burst: number };
   /** Public games opened by "play", which start on their own after a countdown. */
   publicGame?: Partial<GameSettings>;
   /** Games a host creates, public or private, and starts themselves. */
