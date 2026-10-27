@@ -4,20 +4,20 @@
 
 ## Configuration
 
-| Variable                           | Default                                 | Meaning                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                             | `8080`                                  | HTTP and WebSocket port                                                                                                                                                                                                                                                                                                    |
-| `FRONTFALL_STATIC`                 | `../../client/dist`                     | Directory of the built client                                                                                                                                                                                                                                                                                              |
-| `FRONTFALL_ORIGINE`                | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                                                                                                                                                                                                                          |
-| `FRONTFALL_VERSION`                | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                                                                                                                                                                                                                   |
-| `FRONTFALL_MAX_GAMES`              | `500`                                   | Games open or running at once                                                                                                                                                                                                                                                                                              |
-| `FRONTFALL_MAX_CONNECTIONS`        | `5000`                                  | Open WebSocket connections at once                                                                                                                                                                                                                                                                                         |
-| `NODE_OPTIONS`                     | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                                                                                                                                                                                                                       |
-| `FRONTFALL_COUNTDOWN_SECONDS`      | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                                                                                                                                                                                                                                |
-| `FRONTFALL_DRAIN_SECONDS`          | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                                                                                                                                                                                                                         |
-| `FRONTFALL_DATA`                   | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`: the usage counts go in `usage/` (`usage.json`, its copy `usage.json.bak` and one file per month in `usage/months/`), the games running at a restart in `games/` ([Shutdown](#shutdown)). Unset keeps the counts in memory and ends the games with the server |
-| `FRONTFALL_SEATS_PER_ADDRESS`      | `3`                                     | Seats players from one address may take in a public game; 0 for no limit, as for a LAN party behind one router                                                                                                                                                                                                             |
-| `FRONTFALL_CONNECTIONS_PER_MINUTE` | `30`                                    | WebSockets one address may open per minute on average, after a first 40 at once                                                                                                                                                                                                                                            |
+| Variable                           | Default                                 | Meaning                                                                                                                                                                                                                                |
+| ---------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                             | `8080`                                  | HTTP and WebSocket port                                                                                                                                                                                                                |
+| `FRONTFALL_STATIC`                 | `../../client/dist`                     | Directory of the built client                                                                                                                                                                                                          |
+| `FRONTFALL_ORIGINE`                | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                                                                                                                                      |
+| `FRONTFALL_VERSION`                | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                                                                                                                               |
+| `FRONTFALL_MAX_GAMES`              | `500`                                   | Games open or running at once                                                                                                                                                                                                          |
+| `FRONTFALL_MAX_CONNECTIONS`        | `5000`                                  | Open WebSocket connections at once                                                                                                                                                                                                     |
+| `NODE_OPTIONS`                     | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                                                                                                                                   |
+| `FRONTFALL_COUNTDOWN_SECONDS`      | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                                                                                                                                            |
+| `FRONTFALL_DRAIN_SECONDS`          | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                                                                                                                                     |
+| `FRONTFALL_DATA`                   | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`: the usage counts go in `usage/`, the games running at a restart in `games/` ([Shutdown](#shutdown)). Unset keeps the counts in memory and ends the games with the server |
+| `FRONTFALL_SEATS_PER_ADDRESS`      | `3`                                     | Seats players from one address may take in a public game; 0 for no limit, as for a LAN party behind one router                                                                                                                         |
+| `FRONTFALL_CONNECTIONS_PER_MINUTE` | `30`                                    | WebSockets one address may open per minute on average, after a first 40 at once                                                                                                                                                        |
 
 ## Games
 
@@ -81,23 +81,24 @@ The server writes one JSON object per line on standard output, read with `docker
 }
 ```
 
-| Event                 | Level | Fields                                                                                                           |
-| --------------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
-| `server_started`      | info  | `port`, `version`                                                                                                |
-| `server_stopping`     | info  |                                                                                                                  |
-| `game_started`        | info  | `game`, `visibility`, `players`                                                                                  |
-| `game_finished`       | info  | `game`, `reason`, `ticks`                                                                                        |
-| `player_rejoined`     | info  | `game`, `player`, `from`                                                                                         |
-| `desync`              | warn  | `game`, `tick`, `hash` (the player out of step), `expected` (the majority's, or `null`)                          |
-| `connection_rejected` | warn  | `client`, `reason`                                                                                               |
-| `client_error`        | warn  | `type`, `release`, `message` (scrubbed, see [privacy.md](privacy.md)); 60 an hour at most                        |
-| `game_saved`          | info  | `game`, `ticks`: kept for the next run, at a restart                                                             |
-| `game_not_saved`      | warn  | `game`, `error`: the game ends with reason `restart` instead                                                     |
-| `game_restored`       | info  | `game`, `ticks`: taken back from the last run                                                                    |
-| `game_not_restored`   | warn  | `file`, `reason`: `simulation` for another simulation build, or `unreadable`                                     |
-| `usage_in_memory`     | warn  | `reason`: no data directory, the usage counts are lost at the next restart                                       |
-| `usage_not_loaded`    | warn  | `error`: the counts kept by the last run could not be read (the copy of the save before is used if there is one) |
-| `usage_not_saved`     | warn  | `error`                                                                                                          |
+| Event                 | Level | Fields                                                                                    |
+| --------------------- | ----- | ----------------------------------------------------------------------------------------- |
+| `server_started`      | info  | `port`, `version`                                                                         |
+| `server_stopping`     | info  |                                                                                           |
+| `game_started`        | info  | `game`, `visibility`, `players`                                                           |
+| `game_finished`       | info  | `game`, `reason`, `ticks`                                                                 |
+| `player_rejoined`     | info  | `game`, `player`, `from`                                                                  |
+| `desync`              | warn  | `game`, `tick`, `hash` (the player out of step), `expected` (the majority's, or `null`)   |
+| `connection_rejected` | warn  | `client`, `reason`                                                                        |
+| `client_error`        | warn  | `type`, `release`, `message` (scrubbed, see [privacy.md](privacy.md)); 60 an hour at most |
+| `game_saved`          | info  | `game`, `ticks`: kept for the next run, at a restart                                      |
+| `game_not_saved`      | warn  | `game`, `error`: the game ends with reason `restart` instead                              |
+| `game_restored`       | info  | `game`, `ticks`: taken back from the last run                                             |
+| `game_not_restored`   | warn  | `file`, `reason`: `simulation` for another simulation build, or `unreadable`              |
+| `usage_in_memory`     | warn  | `reason`: no data directory, the usage counts are lost at the next restart                |
+| `usage_not_loaded`    | warn  | `error`: the counts kept by the last run could not be read                                |
+| `usage_month_bad`     | warn  | `error`: a month file was set aside                                                       |
+| `usage_not_saved`     | warn  | `error`                                                                                   |
 
 Client addresses never appear in clear. `client` is a keyed hash of the address: stable while the process runs, so repeated abuse from one address can be spotted, and impossible to link to the address or across restarts, because the key is drawn at random on start. Player names are not logged.
 
@@ -157,3 +158,8 @@ Games live in memory, so a restart would cut them short. Four things keep that f
 4. **The next run takes them back.** On start, the server reads every file in `games/` and deletes it, whether it loads or not. A game of the same simulation build runs again from its last turn, every seat waiting for its player as after a dropped connection: the pages reconnect, rejoin with their token and receive the turns they missed. The time limit goes on where it was, and the minutes the server was down count for nothing. A game of another simulation build would desynchronise and is dropped (`game_not_restored`), like a file that does not read; its players reconnect, are sent away to reload, and find the game over. Without a data directory, or when a file cannot be written, the game ends with reason `restart` and the page says it was stopped for an update.
 
 The process exits 5 seconds after the drain at the latest. A second `SIGTERM` or `SIGINT` exits at once. With the default 20 seconds, a drain fits within the 30-second stop grace period of the production host; a longer drain needs a longer grace period, or Docker kills the process before players are told.
+
+## Usage counts
+
+With `FRONTFALL_DATA`, `usage/usage.json` holds the counts, saved every 5 minutes; the save before it stays as `usage.json.bak`, and the server falls back on that copy if the file is damaged (the damaged one is kept as `usage.json.broken`).
+`usage/months/2026-10.json` holds one month: `{ "version": 1, "month": "2026-10", "days": { "2026-10-25": { dimension: { value: count } } } }`. A monthly file is added to and never cut down: a day keeps the larger of the file's figures and the server's, and a file that cannot be read is set aside as `.broken-<time>`.

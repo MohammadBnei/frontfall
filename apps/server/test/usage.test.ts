@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { GameReport } from "@frontfall/protocol";
@@ -241,5 +241,49 @@ describe("usageTable", () => {
     // A restart that lost the days still leaves the month as it was.
     exportMonths(stats(), months, NOW);
     expect(readFileSync(file, "utf8")).toBe(JSON.stringify({ ...first }));
+  });
+
+  it("keeps the larger figures when the file holds more than the memory", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const months = join(directory, "months");
+    const full = stats();
+    full.record(GAME, NOW);
+    full.record({ ...GAME, game: "other-game" }, NOW);
+    exportMonths(full, months, NOW);
+    const file = join(months, "2026-10.json");
+    const before = readFileSync(file, "utf8");
+    const partial = stats();
+    partial.record(GAME, NOW);
+    exportMonths(partial, months, NOW);
+    expect(readFileSync(file, "utf8")).toBe(before);
+  });
+
+  it("sets an unreadable month aside and says so", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const months = join(directory, "months");
+    mkdirSync(months);
+    writeFileSync(join(months, "2026-10.json"), "{ not json");
+    const usage = stats();
+    usage.record(GAME, NOW);
+    const problems: string[] = [];
+    exportMonths(usage, months, NOW, (message) => problems.push(message));
+    expect(problems).toHaveLength(1);
+    expect(readFileSync(join(months, `2026-10.json.broken-${String(NOW)}`), "utf8")).toBe(
+      "{ not json",
+    );
+  });
+
+  it("does not copy a damaged file over the last good copy", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const file = usageFile(directory);
+    const usage = stats();
+    usage.record(GAME, NOW);
+    saveUsage(usage, file, NOW);
+    saveUsage(usage, file, NOW);
+    const good = readFileSync(`${file}.bak`, "utf8");
+    writeFileSync(file, "{ not json");
+    saveUsage(usage, file, NOW);
+    expect(readFileSync(`${file}.bak`, "utf8")).toBe(good);
+    expect(statSync(`${file}.bak`).mode & 0o777).toBe(0o600);
   });
 });

@@ -164,7 +164,9 @@ export function createGameServer(options: ServerOptions): GameServer {
     if (usageAt === undefined) return;
     try {
       saveUsage(usage, usageAt, Date.now());
-      exportMonths(usage, monthsDirectory(usageAt), Date.now());
+      exportMonths(usage, monthsDirectory(usageAt), Date.now(), (message) => {
+        logger.warn("usage_month_bad", { error: message });
+      });
     } catch (error) {
       logger.warn("usage_not_saved", { error: (error as Error).message });
     }

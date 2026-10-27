@@ -1,10 +1,10 @@
 import {
   chmodSync,
-  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -275,20 +275,31 @@ function loadUsageFile(stats: UsageStats, file: string): Error | undefined {
   return new Error(`unreadable usage counts, kept as ${file}.broken`);
 }
 
+/** Writes a file readable by the server's user only, replacing the old one at once. */
+function writePrivate(file: string, text: string): void {
+  const temporary = `${file}.tmp`;
+  try {
+    writeFileSync(temporary, text, { mode: 0o600 });
+    chmodSync(temporary, 0o600);
+    renameSync(temporary, file);
+  } catch (error) {
+    rmSync(temporary, { force: true });
+    throw error;
+  }
+}
+
 /** Writes the counts readable by the server's user only, replacing the old file at once. */
 export function saveUsage(stats: UsageStats, file: string, now: number): void {
-  const directory = join(file, "..");
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const temporary = `${file}.tmp`;
-  writeFileSync(temporary, stats.serialize(now), { mode: 0o600 });
-  chmodSync(temporary, 0o600);
+  mkdirSync(join(file, ".."), { recursive: true, mode: 0o700 });
+  const text = stats.serialize(now);
   try {
-    // The last good counts stay beside the new ones, in case the new file is damaged.
-    copyFileSync(file, `${file}.bak`);
+    // The last good counts stay beside the new ones; a file that does not read is not kept over them.
+    const before = readFileSync(file, "utf8");
+    if (Stored.safeParse(JSON.parse(before)).success) writePrivate(`${file}.bak`, before);
   } catch {
-    // A first save has nothing to copy.
+    // A first save has nothing to copy, and a damaged file is not worth a copy.
   }
-  renameSync(temporary, file);
+  writePrivate(file, text);
 }
 
 /** Where the months are exported, beside the counts: `usage/months/2026-10.json`. */
@@ -302,12 +313,36 @@ const MonthFile = z.object({
   days: z.record(z.string(), StoredTally),
 });
 
+/** The larger of two tallies of one day, dimension by dimension and value by value. */
+function mostOf(a: Tally, b: Tally): Tally {
+  const merged: Tally = {};
+  for (const dimension of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const values: Record<string, number> = {};
+    for (const value of new Set([
+      ...Object.keys(a[dimension] ?? {}),
+      ...Object.keys(b[dimension] ?? {}),
+    ])) {
+      values[value] = Math.max(a[dimension]?.[value] ?? 0, b[dimension]?.[value] ?? 0);
+    }
+    merged[dimension] = values;
+  }
+  return merged;
+}
+
 /**
  * Writes one file per month with the counts of each day, for the months
- * that changed. Days that left the 90 kept in memory stay in a month's
- * file: an existing file is added to, never cut down.
+ * that changed: `{ version: 1, month, days: { "2026-10-25": tally } }`.
+ * A file is added to, never cut down: days that left the 90 kept in memory
+ * stay, and a day counts the larger of the file's figures and the memory's,
+ * so a restart that lost counts does not lower them. A file that cannot be
+ * read is set aside as `<file>.broken-<time>` and reported to `problem`.
  */
-export function exportMonths(stats: UsageStats, directory: string, now: number): void {
+export function exportMonths(
+  stats: UsageStats,
+  directory: string,
+  now: number,
+  problem: (message: string) => void = () => undefined,
+): void {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   for (const [month, days] of stats.months(now)) {
     const file = join(directory, `${month}.json`);
@@ -315,21 +350,26 @@ export function exportMonths(stats: UsageStats, directory: string, now: number):
     let before = "";
     try {
       before = readFileSync(file, "utf8");
-      const parsed = MonthFile.safeParse(JSON.parse(before));
-      if (parsed.success) kept = parsed.data.days;
-    } catch {
-      // No file yet, or one that cannot be read: written afresh.
+      kept = MonthFile.parse(JSON.parse(before)).days;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        const aside = `${file}.broken-${String(now)}`;
+        try {
+          renameSync(file, aside);
+        } catch {
+          // Left in place: it is replaced below.
+        }
+        problem(`unreadable month ${month}, kept as ${aside}`);
+      }
     }
-    const merged = { ...kept, ...Object.fromEntries(days) };
+    const merged: Record<string, Tally> = { ...kept };
+    for (const [day, tally] of days) merged[day] = mostOf(kept[day] ?? {}, tally);
     const text = JSON.stringify({
       version: 1,
       month,
       days: Object.fromEntries(Object.entries(merged).sort(([a], [b]) => a.localeCompare(b))),
     });
-    if (text === before) continue;
-    const temporary = `${file}.tmp`;
-    writeFileSync(temporary, text, { mode: 0o600 });
-    renameSync(temporary, file);
+    if (text !== before) writePrivate(file, text);
   }
 }
 
