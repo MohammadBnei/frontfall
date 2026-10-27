@@ -29,7 +29,14 @@ import { Menu } from "./ui/menu.ts";
 import { forgetProfile, loadProfile, saveProfile, withGame, type Profile } from "./ui/profile.ts";
 import { HUMAN_ID } from "./game/simulation.ts";
 import { preferColor } from "./palette.ts";
-import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
+import {
+  forgetSetup,
+  initialSetup,
+  safeStorage,
+  saveSetup,
+  setupQuery,
+  type GameSetup,
+} from "./ui/setup.ts";
 import { usage } from "./usage.ts";
 
 loadAccessibility();
@@ -85,7 +92,7 @@ function showMenu(): void {
         profile = loadProfile(undefined);
         forgetProfile(storage);
         setup = { ...setup, playerName: "" };
-        saveSetup(setup, storage);
+        forgetSetup(storage);
       },
     },
   );

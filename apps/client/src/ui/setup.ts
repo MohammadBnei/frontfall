@@ -102,6 +102,15 @@ export function saveSetup(setup: GameSetup, storage: Storage | undefined): void 
   }
 }
 
+/** Removes the remembered setup, name included, from the device. */
+export function forgetSetup(storage: Storage | undefined): void {
+  try {
+    storage?.removeItem(STORAGE_KEY);
+  } catch {
+    // Nothing to forget where nothing could be kept.
+  }
+}
+
 /** Query string that reproduces a setup, relative to the page so it works under any prefix. */
 export function setupQuery(setup: GameSetup): string {
   const params = new URLSearchParams({

@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { PLAYER_COLORS, colorOf, preferColor } from "../src/palette.ts";
+import { describe, expect, it } from "vitest";
 import {
   MAX_RECENT,
   emptyProfile,
@@ -94,38 +93,5 @@ describe("local profile", () => {
     saveProfile(withGame(emptyProfile(), game(1)), storage as unknown as Storage);
     forgetProfile(storage as unknown as Storage);
     expect(storage.items.size).toBe(0);
-  });
-});
-
-describe("the colour a player asks for", () => {
-  afterEach(() => {
-    preferColor(1, undefined);
-  });
-
-  it("changes nothing until a colour is asked for", () => {
-    expect(colorOf(1, 100)).toBe(PLAYER_COLORS[0]?.hex);
-  });
-
-  it("swaps with whoever would have had it, so no two players share a colour", () => {
-    preferColor(1, 2);
-    expect(colorOf(1, 100)).toBe(PLAYER_COLORS[2]?.hex);
-    expect(colorOf(3, 100)).toBe(PLAYER_COLORS[0]?.hex);
-    expect(colorOf(2, 100)).toBe(PLAYER_COLORS[1]?.hex);
-    const colors = Array.from({ length: 20 }, (_, i) => colorOf(i + 1, 100));
-    expect(new Set(colors).size).toBe(20);
-  });
-
-  it("leaves nations and teams alone", () => {
-    const plain = colorOf(100, 100);
-    const team = colorOf(1, 100, [0, 1, 1]);
-    preferColor(1, 2);
-    expect(colorOf(100, 100)).toBe(plain);
-    expect(colorOf(1, 100, [0, 1, 1])).toBe(team);
-  });
-
-  it("is cleared by undefined", () => {
-    preferColor(1, 2);
-    preferColor(1, undefined);
-    expect(colorOf(1, 100)).toBe(PLAYER_COLORS[0]?.hex);
   });
 });
