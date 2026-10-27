@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Fixed
+
+- The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of the site next door.
+
 ## [0.5.0] - 2026-10-27
 
 Public games you can keep tidy, honest error counts and a first look at where the look of the game is going. Nothing here changes how a game plays.
