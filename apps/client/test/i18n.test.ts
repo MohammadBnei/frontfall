@@ -72,7 +72,8 @@ describe("catalogues", () => {
 
 describe("online errors", () => {
   it("has a message for every error the server can send the lobby", () => {
-    const handled = ["token_invalid", "token_in_use"];
+    // A refused report comes during a game, and the report panel says so itself.
+    const handled = ["token_invalid", "token_in_use", "too_many_reports"];
     for (const code of ErrorCode.options.filter((code) => !handled.includes(code))) {
       expect(Object.keys(en)).toContain(`online.error.${code}`);
     }

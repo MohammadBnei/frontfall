@@ -1,5 +1,5 @@
 import { Disable, QUICK_MESSAGES } from "@frontfall/engine";
-import { ReportReason } from "@frontfall/protocol";
+import type { ReportReason } from "@frontfall/protocol";
 import type { GameRules } from "../game/messages.ts";
 import type { DiplomacyEvent, GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
@@ -77,6 +77,10 @@ export class DiplomacyPanel {
   private messaging = false;
   /** The player menu shows the reasons of a report. */
   private reporting = false;
+  /** The server turned down the last report from this menu. */
+  private refused = false;
+  /** The reasons of a report, loaded when first asked for. */
+  private reasonsPanel: typeof import("./report-panel.ts") | undefined;
   private last: GameUpdate | undefined;
   private readonly events: { at: number; element: HTMLElement }[] = [];
   /** Requests answered or set aside here: the stack hides them until they run out. */
@@ -121,6 +125,7 @@ export class DiplomacyPanel {
     this.confirming = false;
     this.messaging = false;
     this.reporting = false;
+    this.refused = false;
     this.menuKey = "";
     this.render(update, performance.now());
     const first = this.menu.querySelector<HTMLButtonElement>(".menu-action:not([disabled])");
@@ -134,6 +139,7 @@ export class DiplomacyPanel {
     this.confirming = false;
     this.messaging = false;
     this.reporting = false;
+    this.refused = false;
     this.menu.hidden = true;
     this.menu.replaceChildren();
     this.menuKey = "";
@@ -354,12 +360,19 @@ export class DiplomacyPanel {
     const reported = this.actions.reported(id);
     if (reported !== undefined) {
       buttons.push({
-        key: reported ? "diplo.reported" : this.reporting ? "diplo.reportCancel" : "diplo.report",
+        key: reported ? "diplo.reported" : "diplo.report",
         action: () => {
-          this.reporting = !this.reporting;
-          this.menuKey = "";
-          this.renderMenu(update);
-          this.menu.querySelector<HTMLButtonElement>(".report")?.focus();
+          void (this.reasonsPanel ? Promise.resolve() : import("./report-panel.ts")).then(
+            (loaded) => {
+              if (loaded) this.reasonsPanel = loaded;
+              // The menu may have closed or moved to another player meanwhile.
+              if (this.picked !== id) return;
+              this.reporting = !this.reporting;
+              this.menuKey = "";
+              this.renderMenu(this.last ?? update);
+              this.menu.querySelector<HTMLButtonElement>(".report")?.focus();
+            },
+          );
         },
         enabled: !reported,
         className: "report",
@@ -377,6 +390,7 @@ export class DiplomacyPanel {
       this.confirming,
       this.messaging,
       this.reporting,
+      this.refused,
       ...buttons.map((b) => `${b.key}:${JSON.stringify(b.params ?? {})}:${String(b.enabled)}`),
     ].join("|");
     if (key === this.menuKey) return;
@@ -421,7 +435,8 @@ export class DiplomacyPanel {
         return button;
       }),
       ...(this.messaging && playing ? [this.phrases(id, update)] : []),
-      ...(this.reporting && reported === false ? [this.reasons(id, update)] : []),
+      ...(this.reporting && reported === false ? this.reasons(id, update) : []),
+      ...(this.refused && this.reasonsPanel ? [this.reasonsPanel.reportRefused()] : []),
     );
     this.menu.hidden = false;
     if (focused) refocus(this.menu, focused);
@@ -456,27 +471,25 @@ export class DiplomacyPanel {
   }
 
   /** Why the player is reported, one button each: a click sends the report and folds them away. */
-  private reasons(id: number, update: GameUpdate): HTMLElement {
-    return h(
-      "div",
-      { class: "report-reasons", role: "group", "aria-label": t("diplo.report") },
-      h("p", { class: "report-note" }, t("diplo.reportNote")),
-      ...ReportReason.options.map((reason) => {
-        const button = h(
-          "button",
-          { type: "button", class: "report-reason", "data-kind": `report-${reason}` },
-          t(`report.${reason}`),
-        );
-        button.addEventListener("click", () => {
-          this.actions.onReport(id, reason);
-          this.reporting = false;
-          this.menuKey = "";
-          this.renderMenu(update);
-          this.menu.querySelector<HTMLButtonElement>(".report")?.focus();
-        });
-        return button;
+  private reasons(id: number, update: GameUpdate): HTMLElement[] {
+    if (!this.reasonsPanel) return [];
+    return [
+      this.reasonsPanel.reportReasons(t("diplo.report"), (reason) => {
+        this.actions.onReport(id, reason);
+        this.reporting = false;
+        this.refused = false;
+        this.menuKey = "";
+        this.renderMenu(update);
+        this.menu.querySelector<HTMLButtonElement>(".report")?.focus();
       }),
-    );
+    ];
+  }
+
+  /** The server turned down the report just sent: the menu says so until the next one. */
+  reportRefused(): void {
+    this.refused = true;
+    this.menuKey = "";
+    if (this.last) this.render(this.last, performance.now());
   }
 
   private renderRequests(update: GameUpdate): void {

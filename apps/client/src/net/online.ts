@@ -64,8 +64,6 @@ export interface OnlineEvents {
   /** `seatLost`: the seat of this page is gone, after a long absence or once the server lost the game. */
   ended?(reason: Extract<ServerMessage, { type: "ended" }>["reason"] | "seatLost"): void;
   error?(code: ErrorCode, message: string): void;
-  /** The server received this page's report of `player`. */
-  reported?(player: number): void;
   /** The server restarts for an update in `inMs` milliseconds, or no longer does (`null`). */
   maintenance?(inMs: number | null): void;
 }
@@ -367,8 +365,8 @@ export class OnlineClient {
       case "maintenance":
         events.maintenance?.(message.inMs);
         return;
+      // The menu marks a report as sent at once; only a refusal changes that.
       case "reported":
-        events.reported?.(message.player);
         return;
       case "ended":
         this.entry = undefined;

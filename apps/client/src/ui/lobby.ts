@@ -330,14 +330,9 @@ export class LobbyScreen {
     this.reload.hidden = false;
   }
 
-  /** The server refused this page's messages and closed the connection. */
-  rejected(): void {
-    this.stopped("online.rejected");
-  }
-
-  /** The operator of the server banned this network. */
-  banned(): void {
-    this.stopped("online.banned");
+  /** The server refused this page's messages, or banned its network, and closed the connection. */
+  rejected(key: "online.rejected" | "online.banned" = "online.rejected"): void {
+    this.stopped(key);
   }
 
   /** The game started on a map this page does not have. */

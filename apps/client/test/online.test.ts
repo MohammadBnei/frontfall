@@ -537,13 +537,13 @@ describe("OnlineClient", () => {
     expect(timers).toEqual([]);
   });
 
-  it("sends a report and passes on the server's receipt (R-MODE-06)", () => {
-    const online = client({ reported: (player) => log.push(`reported:${String(player)}`) });
+  it("sends a report of another player (R-MODE-06)", () => {
+    const online = client();
     const socket = welcomed();
     online.report(2, "abuse");
     expect(socket.sent.at(-1)).toEqual({ type: "report", player: 2, reason: "abuse" });
     socket.receive({ type: "reported", player: 2 });
-    expect(log.at(-1)).toBe("reported:2");
+    expect(log.at(-1)).toBe("online");
   });
 
   it("refuses an invitation id the protocol cannot carry, without sending it", () => {

@@ -476,15 +476,11 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
           game?.disconnected();
           if (game) showNotice("status.outdated");
         }
-        if (state === "rejected") {
-          room.rejected();
+        if (state === "rejected" || state === "banned") {
+          const key = state === "banned" ? "online.banned" : "online.rejected";
+          room.rejected(key);
           game?.disconnected();
-          if (game) showNotice("online.rejected");
-        }
-        if (state === "banned") {
-          room.banned();
-          game?.disconnected();
-          if (game) showNotice("online.banned");
+          if (game) showNotice(key);
         }
       },
       lobby(state, behind) {
@@ -538,12 +534,11 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
           forgetSeat();
           void forgetSnapshot();
         }
-        // The lobby is gone in a game: the only refusal there is a report over the limit.
-        if (game && code === "too_many_reports") showNotice("online.error.too_many_reports");
+        if (code === "too_many_reports") {
+          game?.reportRefused();
+          return;
+        }
         room.refused(code, message);
-      },
-      reported(player) {
-        game?.reported(player);
       },
     },
   });
