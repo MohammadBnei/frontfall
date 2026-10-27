@@ -899,7 +899,7 @@ button.link {
 
 .feedback-links {
   margin: 12px 0 0;
-  color: var(--ff-slate-400);
+  color: var(--ff-slate-300);
   font-size: 13px;
   text-align: center;
 }
@@ -996,6 +996,11 @@ kbd {
   }
 }
 
+:root[data-reduce-motion] * {
+  transition: none !important;
+  animation: none !important;
+}
+
 .map-canvas {
   position: fixed;
   inset: 0;
@@ -1037,6 +1042,65 @@ kbd {
 
 .map-surface:focus {
   outline: none;
+}
+
+/* Keyboard play: a cross on the middle of the view shows where Enter clicks. */
+.map-surface:focus-visible::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(var(--ff-text), var(--ff-text)) center / 2px 100% no-repeat,
+    linear-gradient(var(--ff-text), var(--ff-text)) center / 100% 2px no-repeat;
+  filter: drop-shadow(0 0 2px var(--ff-night-900)) drop-shadow(0 0 1px var(--ff-night-900));
+  pointer-events: none;
+}
+
+/* Interface size and contrast chosen in the menu (ui/accessibility.ts). */
+.panel,
+.menu > *,
+.lobby-panel {
+  zoom: var(--ff-ui-scale, 1);
+}
+
+:root[data-high-contrast] {
+  --ff-slate-300: #c3d1de;
+  --ff-slate-400: #8da2b6;
+  --ff-night-500: #5c7389;
+}
+
+.accessibility {
+  width: min(420px, 100%);
+  box-sizing: border-box;
+  color: var(--ff-slate-300);
+  font-size: 13px;
+}
+
+.accessibility summary {
+  cursor: pointer;
+}
+
+.accessibility-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.accessibility select {
+  padding: 6px 8px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-700);
+}
+
+.accessibility-note {
+  margin: 0;
+  color: var(--ff-slate-300);
 }
 
 /* Beta badge, shown until 1.0 (src/release.ts). */

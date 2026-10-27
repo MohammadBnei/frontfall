@@ -116,7 +116,7 @@ describe("InputController", () => {
     const { keyboard, camera, input } = setup();
     keyboard.dispatchEvent(key("keydown", "d", "KeyD", {}, { tagName: "INPUT" }));
     keyboard.dispatchEvent(key("keydown", "-", "Minus", { ctrlKey: true }));
-    const space = key("keydown", " ", "Space");
+    const space = key("keydown", "p", "KeyP");
     keyboard.dispatchEvent(space);
     input.update(100);
     expect(space.defaultPrevented).toBe(false);
@@ -145,6 +145,40 @@ describe("InputController", () => {
     element.dispatchEvent(pointer("pointerup", 1, 300, 300));
     expect(camera.view().centerX).toBe(256);
     expect(camera.zoom).toBe(4);
+    expect(onTileClick).not.toHaveBeenCalled();
+  });
+
+  it("clicks and opens the menu at the middle of the view from the keyboard", () => {
+    const camera = new FlatCamera({ width: 512, height: 256 });
+    camera.resize(1200, 800);
+    camera.zoomAt(4, 600, 400);
+    const keyboard = new EventTarget();
+    const onTileClick = vi.fn<(tile: number, finger: boolean) => void>();
+    const onTileHold = vi.fn<(tile: number) => void>();
+    new InputController(
+      new FakeElement() as unknown as HTMLElement,
+      camera,
+      { onTileClick, onTileHold },
+      keyboard,
+    );
+    const middle = camera.screenToTile(600, 400);
+    const enter = key("keydown", "Enter", "Enter");
+    keyboard.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(true);
+    keyboard.dispatchEvent(key("keydown", " ", "Space"));
+    expect(onTileClick.mock.calls).toEqual([
+      [middle, false],
+      [middle, false],
+    ]);
+    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", { shiftKey: true }));
+    expect(onTileHold).toHaveBeenCalledExactlyOnceWith(middle);
+    expect(onTileClick).toHaveBeenCalledTimes(2);
+  });
+
+  it("leaves Enter to buttons and held keys alone", () => {
+    const { keyboard, onTileClick } = setup();
+    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", {}, { tagName: "BUTTON" }));
+    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", { repeat: true }));
     expect(onTileClick).not.toHaveBeenCalled();
   });
 });

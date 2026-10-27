@@ -1,4 +1,5 @@
 import type { DesyncReport, GameRecord, Turn } from "@frontfall/engine";
+import { motionReduced, onMotionChange } from "./accessibility.ts";
 import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
@@ -137,7 +138,6 @@ export class GameScreen {
   private hoveredTile: number | undefined;
   private hoveredOwner = 0;
   /** Players who ask the system for less motion see fronts without their glint. */
-  private readonly reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   /** First steps of a first solo game, while they show. */
   private guide: Guide | undefined;
   /** The player's land when the attacks opened, for the guide. */
@@ -170,6 +170,7 @@ export class GameScreen {
     // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
     this.surface = document.createElement("div");
     this.surface.className = "map-surface";
+    this.surface.tabIndex = 0;
     this.surface.id = "map";
     this.surface.setAttribute("role", "application");
     this.surface.dataset.i18nAttr = "aria-label:game.map";
@@ -299,9 +300,9 @@ export class GameScreen {
     };
     window.addEventListener("pagehide", hide);
     const motion = (): void => {
-      this.view?.setMotion(!this.reducedMotion.matches);
+      this.view?.setMotion(!motionReduced());
     };
-    this.reducedMotion.addEventListener("change", motion);
+    const stopMotion = onMotionChange(motion);
     this.pacer = new TurnPacer((turns) => {
       this.session.pushTurns(turns);
       const mine = turns.reduce(
@@ -330,7 +331,7 @@ export class GameScreen {
         window.removeEventListener("pagehide", hide);
       },
       () => {
-        this.reducedMotion.removeEventListener("change", motion);
+        stopMotion();
       },
       onLanguageChange(() => {
         applyTranslations(this.surface);
@@ -456,7 +457,7 @@ export class GameScreen {
     }
     view.setHighlight(you);
     view.setHovered(this.hoveredOwner);
-    view.setMotion(!this.reducedMotion.matches);
+    view.setMotion(!motionReduced());
     this.drawnAllies = "";
     // Only a loss the browser inflicts is an error: disposing frees the context on purpose.
     const onLost = (): void => {

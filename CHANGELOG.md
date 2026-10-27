@@ -13,8 +13,12 @@ Public games you can keep tidy, honest error counts and a first look at where th
 - **Remove a player from your lobby.** The host sees a Remove button next to every other player until the game starts (`R-MODE-05`). The player removed is told so, and cannot join that game again from the same network.
 - **Hide a player.** In an online game, a player's menu now has Hide this player: on your screen only, their name becomes "Player 2" (their number) on the map, in the leaderboard and in the events, and their quick messages no longer reach you (`R-DIPLO-08`). The same button shows them again. Nothing changes in the game itself, and they are not told.
 
+- **Play from the keyboard.** Tab reaches the map, a cross marks the middle of the view, the arrows or WASD move it under the cross, Enter or Space clicks where it stands and Shift+Enter (or the menu key) opens that tile's menu. The help lists it.
+- **Accessibility settings** at the bottom of the menu: interface size (100, 125 or 150 %), reduce motion (it already followed your device's setting, and now you can ask for it in the game), and high contrast. They are kept in your browser.
+
 ### Changed
 
+- **You can zoom the page on a phone or a computer again**, and the small grey text of the menu is easier to read.
 - A public game takes at most three players from one network, so that nobody fills one with their own tabs. Private games, shared by invitation, keep no such limit. Pages loaded before this update are asked to reload once it is deployed (protocol version 17).
 - **The error figures on [`/api/stats`](https://nclsmgr.com/frontfall/api/stats) are honest now.** `context_lost` showed up in almost every game, but it was the page freeing its own graphics context when a game ends or the view changes, not a real loss. Only a context the browser takes away is counted.
 
