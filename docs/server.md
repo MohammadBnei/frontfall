@@ -161,5 +161,5 @@ The process exits 5 seconds after the drain at the latest. A second `SIGTERM` or
 
 ## Usage counts
 
-With `FRONTFALL_DATA`, `usage/usage.json` holds the counts, saved every 5 minutes; the save before it stays as `usage.json.bak`, and the server falls back on that copy if the file is damaged (the damaged one is kept as `usage.json.broken`).
+With `FRONTFALL_DATA`, `usage/usage.json` holds the counts, saved every 5 minutes; the save before it stays as `usage.json.bak`, and the server falls back on that copy if the file is damaged (the damaged one is kept as `usage.json.broken`) or missing. To start the counts again from nothing, delete both files.
 `usage/months/2026-10.json` holds one month: `{ "version": 1, "month": "2026-10", "days": { "2026-10-25": { dimension: { value: count } } } }`. A monthly file is added to and never cut down: a day keeps the larger of the file's figures and the server's, and a file that cannot be read is set aside as `.broken-<time>`.

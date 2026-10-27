@@ -228,6 +228,37 @@ describe("usageTable", () => {
     expect(again.export(NOW)).toEqual(usage.export(NOW));
   });
 
+  it("goes on with the copy of the last save when the file is missing", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const file = usageFile(directory);
+    const usage = stats();
+    usage.record(GAME, NOW);
+    saveUsage(usage, file, NOW);
+    const saved = structuredClone(usage.export(NOW));
+    usage.record({ ...GAME, game: "1111111111111111" }, NOW);
+    saveUsage(usage, file, NOW);
+    rmSync(file);
+    const again = stats();
+    expect(loadUsage(again, file)?.message).toContain("went on with the copy");
+    expect(again.export(NOW)).toEqual(saved);
+    // The next saves keep those counts rather than starting again from nothing.
+    saveUsage(again, file, NOW);
+    saveUsage(again, file, NOW);
+    const later = stats();
+    expect(loadUsage(later, `${file}.bak`)).toBeUndefined();
+    expect(later.export(NOW)).toEqual(saved);
+  });
+
+  it("says so when the copy does not read either", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const file = usageFile(directory);
+    mkdirSync(join(file, ".."), { recursive: true });
+    writeFileSync(`${file}.bak`, "{ not json");
+    const usage = stats();
+    expect(loadUsage(usage, file)?.message).toContain("the copy did not read either");
+    expect(usage.export(NOW).days).toEqual([]);
+  });
+
   it("exports one file per month and never cuts an old one down", () => {
     directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
     const months = join(directory, "months");
