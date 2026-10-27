@@ -24,10 +24,10 @@ The game keeps a few things in your browser, for you and nobody else. None of it
 Signing in with Discord or Google is optional; it keeps your name for you. The game asks Discord only who you are (`identify`), and Google only your profile (`openid profile`), once, at sign-in. Of what they answer, the server keeps:
 
 - the name you play under, which starts as your first name or display name there and which you can change;
-- your id at that service, scrambled with a secret key (HMAC-SHA256), so that it finds your account next time but the file alone does not say who you are;
+- your id at that service, scrambled with a random key kept on the server (HMAC-SHA256), so that it finds your account next time but the file alone does not say who you are;
 - which service, and the day the account was made and last used.
 
-No email, no picture, no friends list, and the service's token is forgotten at once. A cookie, `frontfall_session`, keeps you signed in for 30 days; it holds your account number and is used for nothing else. Sign out removes it. **Delete my account**, under your name in the menu, erases the account from the server at once, and your name becomes free again. Your games and reports are never linked to your account: the reports below stay as anonymous as a guest's.
+No email, no picture, no friends list, and the service's token is forgotten at once. A cookie, `frontfall_session`, keeps you signed in for 30 days; it holds your account number and is used for nothing else. Sign out ends it on every device where you signed in. **Delete my account**, under your name in the menu, erases the account from the server at once, and your name becomes free again. Your games and reports are never linked to your account: the reports below stay as anonymous as a guest's.
 
 ## Reports
 

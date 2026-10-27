@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Accounts, isProvider, PROVIDERS, type Account, type Provider } from "./accounts.ts";
 import type { Logger } from "./log.ts";
+import { AddressRate } from "./rate-limit.ts";
 
 /** Where a service sends the player to sign in, and where the server asks who they are. */
 export interface ProviderEndpoints {
@@ -32,7 +33,7 @@ export interface AuthOptions {
    * the services send players back under it, and the session cookie is limited to its path.
    */
   publicUrl: string;
-  /** Signs the session cookies and keys the hash of the services' ids. Never change it. */
+  /** Signs the session cookies: another one signs everyone out, and nothing more. */
   sessionSecret: string;
   /** The applications registered with each service. A service left out offers no sign-in. */
   clients: Partial<Record<Provider, { id: string; secret: string }>>;
@@ -49,6 +50,12 @@ const SIGN_IN_MS = 10 * 60 * 1000;
 const SERVICE_TIMEOUT_MS = 10_000;
 /** A rename sends a name, a few dozen bytes. */
 const MAX_BODY_BYTES = 1024;
+/**
+ * Requests to the sign-in routes and /api/me one address may make: a few
+ * sign-ins and renames, then one every six seconds. Each sign-in calls the
+ * service twice and may write the accounts file.
+ */
+const AUTH_RATE = { perSecond: 1 / 6, burst: 20 };
 
 /** What `/api/me` tells the page: which buttons to show, and who is signed in. */
 export interface Me {
@@ -58,7 +65,12 @@ export interface Me {
 
 export interface Auth {
   /** Answers the sign-in routes and `/api/me`; false for any other path. */
-  handle(request: IncomingMessage, response: ServerResponse, path: string): boolean;
+  handle(
+    request: IncomingMessage,
+    response: ServerResponse,
+    path: string,
+    address: string,
+  ): boolean;
   /** The account signed in on this request, from its session cookie. */
   accountOf(request: IncomingMessage): Account | undefined;
   /** Account holding a name, or one that looks like it: guests may not play under it. */
@@ -84,6 +96,7 @@ export function createAuth(
   const providers = PROVIDERS.filter((provider) => options.clients[provider] !== undefined);
   const endpoints = (provider: Provider): ProviderEndpoints =>
     options.endpoints?.[provider] ?? ENDPOINTS[provider];
+  const rate = new AddressRate(AUTH_RATE.perSecond, AUTH_RATE.burst, now());
   const redirectUri = (provider: Provider): string =>
     new URL(`auth/${provider}/callback`, base).href;
 
@@ -115,9 +128,10 @@ export function createAuth(
   function accountOf(request: IncomingMessage): Account | undefined {
     const payload = verify("session", readCookie(request, SESSION_COOKIE));
     if (payload === undefined) return undefined;
-    const [id = "", expires = ""] = payload.split(".");
+    const [id = "", sessions = "", expires = ""] = payload.split(".");
     if (!(Number(expires) > now())) return undefined;
-    return accounts.get(id);
+    const account = accounts.get(id);
+    return account && String(account.sessions) === sessions ? account : undefined;
   }
 
   function me(account: Account | undefined): Me {
@@ -208,7 +222,7 @@ export function createAuth(
       home(response, [clear], true);
       return;
     }
-    const session = `${account.id}.${String(now() + SESSION_MS)}`;
+    const session = `${account.id}.${String(account.sessions)}.${String(now() + SESSION_MS)}`;
     home(
       response,
       [clear, cookie(SESSION_COOKIE, `${session}.${sign("session", session)}`, SESSION_MS)],
@@ -303,13 +317,26 @@ export function createAuth(
     });
   }
 
-  function handle(request: IncomingMessage, response: ServerResponse, path: string): boolean {
+  function handle(
+    request: IncomingMessage,
+    response: ServerResponse,
+    path: string,
+    address: string,
+  ): boolean {
+    if (path !== "/api/me" && !path.startsWith("/auth/")) return false;
+    if (!rate.take(address, now())) {
+      response.writeHead(429, { "content-type": "text/plain", "retry-after": "6" }).end();
+      return true;
+    }
     const method = request.method ?? "GET";
     if (path === "/auth/logout") {
       if (method !== "POST" || !sameSite(request)) {
         response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
         return true;
       }
+      // Ends the session everywhere, not only in this browser.
+      const account = accountOf(request);
+      if (account) accounts.signOut(account.id);
       json(response, 200, me(undefined), [cookie(SESSION_COOKIE, "", 0)]);
       return true;
     }
