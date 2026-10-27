@@ -278,12 +278,14 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     connectionsByAddress.set(address, connections + 1);
+    // On the raw socket, not the WebSocket: a refused handshake never makes one,
+    // and its slot would otherwise stay taken until the server restarts.
+    socket.once("close", () => {
+      const remaining = (connectionsByAddress.get(address) ?? 1) - 1;
+      if (remaining > 0) connectionsByAddress.set(address, remaining);
+      else connectionsByAddress.delete(address);
+    });
     sockets.handleUpgrade(request, socket, head, (ws) => {
-      ws.on("close", () => {
-        const remaining = (connectionsByAddress.get(address) ?? 1) - 1;
-        if (remaining > 0) connectionsByAddress.set(address, remaining);
-        else connectionsByAddress.delete(address);
-      });
       sockets.emit("connection", ws, request);
     });
   });
