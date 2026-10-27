@@ -47,7 +47,7 @@ FRONTFALL_OAUTH_DISCORD_ID: "123456789012345678"
 FRONTFALL_OAUTH_DISCORD_SECRET: ${FRONTFALL_OAUTH_DISCORD_SECRET}
 ```
 
-The Google pair is `FRONTFALL_OAUTH_GOOGLE_ID` and `FRONTFALL_OAUTH_GOOGLE_SECRET`. The container must reach Discord and Google over HTTPS. Never change the session secret: the accounts are keyed by it ([server.md](server.md#accounts)).
+The Google pair is `FRONTFALL_OAUTH_GOOGLE_ID` and `FRONTFALL_OAUTH_GOOGLE_SECRET`. The container must reach Discord and Google over HTTPS. Changing the session secret signs every player out and does nothing else; the accounts live in the data volume ([server.md](server.md#accounts)).
 
 To update: `docker compose pull && docker compose up -d`. To build the image from the source instead: `docker build -t frontfall .`, then set `FRONTFALL_IMAGE=frontfall` when running `docker compose`.
 

@@ -19,13 +19,15 @@ export function isProvider(value: string): value is Provider {
 export interface Account {
   readonly id: string;
   readonly provider: Provider;
-  /** HMAC of the service's id for this player: the file alone does not tell who it is. */
+  /** HMAC of the service's id, keyed by the file's salt: the file alone does not tell who it is. */
   readonly subject: string;
   /** The name the player plays under, reserved for them. */
   name: string;
   readonly createdAt: number;
   /** Last sign-in, by the day: an account unused for years can be told apart. */
   seenAt: number;
+  /** Raised on every sign-out: the session cookies made before it no longer count. */
+  sessions: number;
 }
 
 export type RenameResult =
@@ -60,38 +62,42 @@ export class Accounts {
   private readonly byId = new Map<string, Account>();
   private readonly bySubject = new Map<string, Account>();
   private readonly byName = new Map<string, Account>();
-
   /**
-   * @param file where the accounts are kept; unset keeps them in memory only, for tests.
-   * @param key secret the services' ids are hashed with: another key loses every account.
+   * Key the services' ids are hashed with, drawn once when the file is
+   * created and kept in it: the accounts depend on no setting of the server.
    */
-  constructor(
-    private readonly file: string | undefined,
-    private readonly key: string,
-  ) {}
+  private salt = randomBytes(32).toString("base64url");
+
+  /** @param file where the accounts are kept; unset keeps them in memory only, for tests. */
+  constructor(private readonly file: string | undefined) {}
 
   get size(): number {
     return this.byId.size;
   }
 
-  /** Reads the file; a missing one is a first start. An unreadable one is kept aside. */
-  load(): Error | undefined {
-    if (this.file === undefined) return undefined;
+  /**
+   * Reads the file; a missing one is a first start. One that cannot be read,
+   * as with wrong permissions, is an error the accounts cannot start with:
+   * the next write would replace it. One that can be read but not understood
+   * is kept aside, and the accounts start empty.
+   */
+  load(): { error?: Error; usable: boolean } {
+    if (this.file === undefined) return { usable: true };
     let text: string;
     try {
       text = readFileSync(this.file, "utf8");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      return error as Error;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { usable: true };
+      return { error: error as Error, usable: false };
     }
-    if (this.restore(text)) return undefined;
+    if (this.restore(text)) return { usable: true };
     const aside = `${this.file}.broken-${String(Date.now())}`;
     try {
       renameSync(this.file, aside);
     } catch {
       // Left in place: the next write replaces it.
     }
-    return new Error(`unreadable accounts, kept as ${aside}`);
+    return { error: new Error(`unreadable accounts, kept as ${aside}`), usable: true };
   }
 
   get(id: string): Account | undefined {
@@ -125,6 +131,7 @@ export class Accounts {
       name: this.freeName(suggested),
       createdAt: dayOf(now),
       seenAt: dayOf(now),
+      sessions: 0,
     };
     this.add(account);
     this.save();
@@ -146,6 +153,14 @@ export class Accounts {
     return { ok: true, name: account.name };
   }
 
+  /** Ends every session of the account, on every device. */
+  signOut(id: string): void {
+    const account = this.byId.get(id);
+    if (!account) return;
+    account.sessions++;
+    this.save();
+  }
+
   /** Deletes an account at its owner's request: nothing of it is left in the file. */
   remove(id: string): boolean {
     const account = this.byId.get(id);
@@ -158,7 +173,7 @@ export class Accounts {
   }
 
   private subject(provider: Provider, providerId: string): string {
-    return createHmac("sha256", this.key)
+    return createHmac("sha256", this.salt)
       .update(`account:${provider}:${providerId}`)
       .digest("base64url");
   }
@@ -194,10 +209,17 @@ export class Accounts {
     } catch {
       return false;
     }
-    if (!isRecord(parsed) || parsed.version !== FILE_VERSION || !Array.isArray(parsed.accounts))
+    if (
+      !isRecord(parsed) ||
+      parsed.version !== FILE_VERSION ||
+      typeof parsed.salt !== "string" ||
+      parsed.salt.length < 32 ||
+      !Array.isArray(parsed.accounts)
+    )
       return false;
     const accounts = parsed.accounts.filter(isAccount);
     if (accounts.length !== parsed.accounts.length) return false;
+    this.salt = parsed.salt;
     for (const account of accounts) this.add({ ...account });
     return true;
   }
@@ -207,7 +229,11 @@ export class Accounts {
     if (this.file === undefined) return;
     mkdirSync(join(this.file, ".."), { recursive: true, mode: 0o700 });
     const temporary = `${this.file}.tmp`;
-    const body = JSON.stringify({ version: FILE_VERSION, accounts: [...this.byId.values()] });
+    const body = JSON.stringify({
+      version: FILE_VERSION,
+      salt: this.salt,
+      accounts: [...this.byId.values()],
+    });
     writeFileSync(temporary, body, { mode: 0o600 });
     chmodSync(temporary, 0o600);
     renameSync(temporary, this.file);
@@ -245,6 +271,7 @@ function isAccount(value: unknown): value is Account {
     typeof value.subject === "string" &&
     typeof value.name === "string" &&
     typeof value.createdAt === "number" &&
-    typeof value.seenAt === "number"
+    typeof value.seenAt === "number" &&
+    Number.isInteger(value.sessions)
   );
 }

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -71,7 +71,10 @@ async function fakeProvider(): Promise<string> {
   return `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
 }
 
-async function start(options: Partial<ServerOptions> = {}): Promise<string> {
+async function start(
+  options: Partial<ServerOptions> = {},
+  sessionSecret = SECRET,
+): Promise<string> {
   const service = await fakeProvider();
   const endpoints = {
     authorize: `${service}/authorize`,
@@ -86,7 +89,7 @@ async function start(options: Partial<ServerOptions> = {}): Promise<string> {
     allowedOrigin: "https://play.example",
     auth: {
       publicUrl: "https://play.example/game",
-      sessionSecret: SECRET,
+      sessionSecret,
       clients: { discord: { id: "client-1", secret: "client-secret" } },
       endpoints: { discord: endpoints },
     },
@@ -261,6 +264,52 @@ describe("sign-in", () => {
     expect(readFileSync(accountsFile(dataDir), "utf8")).not.toContain("Nelly");
   });
 
+  it("keeps the accounts when the session secret changes, and only signs players out", async () => {
+    const base = await start();
+    const { session } = await signIn(base);
+    await server?.close();
+    await new Promise<void>((resolve) => {
+      provider?.close(() => {
+        resolve();
+      });
+    });
+    const again = await start({}, "another-session-secret-of-32-characters-or-more");
+    expect(((await (await me(again, session)).json()) as { account: unknown }).account).toBeNull();
+    const { session: renewed } = await signIn(again);
+    const body = (await (await me(again, renewed)).json()) as { account: { name: string } };
+    // The same account, not a new one under "Nelly1234".
+    expect(body.account.name).toBe("Nelly");
+    const file = JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as { accounts: unknown[] };
+    expect(file.accounts).toHaveLength(1);
+  });
+
+  it("signs the player out on every device", async () => {
+    const base = await start();
+    const { session: one = "" } = await signIn(base);
+    const { session: two = "" } = await signIn(base);
+    const response = await fetch(`${base}/auth/logout`, {
+      method: "POST",
+      headers: { cookie: `frontfall_session=${one}`, origin: "https://play.example" },
+    });
+    expect(response.status).toBe(200);
+    for (const session of [one, two])
+      expect(((await (await me(base, session)).json()) as { account: unknown }).account).toBeNull();
+  });
+
+  it("turns sign-in off rather than overwrite an accounts file it cannot read", async () => {
+    mkdirSync(accountsFile(dataDir), { recursive: true });
+    const base = await start();
+    expect(await (await me(base)).json()).toEqual({ providers: [], account: null });
+  });
+
+  it("limits how often one address may call the sign-in routes", async () => {
+    const base = await start();
+    const statuses: number[] = [];
+    for (let i = 0; i < 25; i++) statuses.push((await me(base)).status);
+    expect(statuses.slice(0, 20).every((status) => status === 200)).toBe(true);
+    expect(statuses.at(-1)).toBe(429);
+  });
+
   it("keeps the accounts over a restart", async () => {
     const base = await start();
     const { session } = await signIn(base);
@@ -322,16 +371,18 @@ describe("Accounts", () => {
 
   it("sets an unreadable file aside rather than overwriting it", () => {
     const file = accountsFile(dataDir);
-    const accounts = new Accounts(file, SECRET);
+    const accounts = new Accounts(file);
     accounts.signIn("google", "1", "Ana", Date.now());
     writeFileSync(file, "{ not json");
-    const again = new Accounts(file, SECRET);
-    expect(again.load()?.message).toMatch(/kept as .*accounts\.json\.broken-\d+/);
+    const again = new Accounts(file);
+    const loaded = again.load();
+    expect(loaded.usable).toBe(true);
+    expect(loaded.error?.message).toMatch(/kept as .*accounts\.json\.broken-\d+/);
     expect(again.size).toBe(0);
   });
 
   it("gives a name to a player whose name at the service has nothing usable", () => {
-    const accounts = new Accounts(undefined, SECRET);
+    const accounts = new Accounts(undefined);
     expect(accounts.signIn("discord", "1", "!!!", Date.now()).name).toBe("Player");
     expect(accounts.signIn("discord", "2", "", Date.now()).name).toMatch(/^Player\d{4}$/);
   });

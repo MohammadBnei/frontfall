@@ -226,7 +226,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       else response.writeHead(404).end();
       return;
     }
-    if (auth?.handle(request, response, path)) return;
+    if (auth?.handle(request, response, path, clientAddress(request))) return;
     if (path === "/api/me" && (request.method === "GET" || request.method === "HEAD")) {
       // Guests only: the page shows no sign-in button.
       sendJson(response, { providers: [], account: null });
@@ -531,9 +531,14 @@ export function createGameServer(options: ServerOptions): GameServer {
       logger.warn("accounts_off", { reason: "no data directory" });
       return undefined;
     }
-    const accounts = new Accounts(accountsFile(options.dataDir), settings.sessionSecret);
-    const error = accounts.load();
+    const accounts = new Accounts(accountsFile(options.dataDir));
+    const { error, usable } = accounts.load();
     if (error) logger.warn("accounts_not_loaded", { error: error.message });
+    // Starting empty would replace a file that is still there at the first sign-in.
+    if (!usable) {
+      logger.warn("accounts_off", { reason: "accounts file cannot be read" });
+      return undefined;
+    }
     logger.info("accounts_loaded", { accounts: accounts.size });
     return createAuth(settings, accounts, logger, (origin) =>
       isAllowedOrigin(origin, options.allowedOrigin),
