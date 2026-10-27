@@ -73,6 +73,8 @@ export class GameScreen {
   private camera: ViewCamera;
   private readonly surface: HTMLElement;
   private view: Renderer | undefined;
+  /** Stops reporting the context of the current renderer as lost, ahead of freeing it. */
+  private unwatchContext: (() => void) | undefined;
   private input: InputController;
   private readonly hud: Hud;
   private readonly session: LocalSession;
@@ -381,8 +383,16 @@ export class GameScreen {
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.session.dispose();
     this.input.dispose();
-    this.view?.dispose();
+    this.releaseView();
     this.element.remove();
+  }
+
+  /** Disposes the renderer, whose context it frees on purpose, without reporting that as lost. */
+  private releaseView(): void {
+    this.unwatchContext?.();
+    this.unwatchContext = undefined;
+    this.view?.dispose();
+    this.view = undefined;
   }
 
   private createInput(): InputController {
@@ -448,9 +458,14 @@ export class GameScreen {
     view.setHovered(this.hoveredOwner);
     view.setMotion(!this.reducedMotion.matches);
     this.drawnAllies = "";
-    view.canvas.addEventListener("webglcontextlost", () => {
+    // Only a loss the browser inflicts is an error: disposing frees the context on purpose.
+    const onLost = (): void => {
       usage().error("context_lost");
-    });
+    };
+    view.canvas.addEventListener("webglcontextlost", onLost);
+    this.unwatchContext = () => {
+      view.canvas.removeEventListener("webglcontextlost", onLost);
+    };
     view.canvas.classList.add("map-canvas");
     this.surface.append(view.canvas);
     this.surface.removeAttribute("aria-busy");
@@ -482,8 +497,7 @@ export class GameScreen {
     this.hoveredTile = undefined;
     this.lightHovered();
     if (!this.view) return;
-    this.view.dispose();
-    this.view = undefined;
+    this.releaseView();
     // The owners are already there to draw.
     this.mountRenderer()?.markAllChanged();
     this.drawnStructures = "";

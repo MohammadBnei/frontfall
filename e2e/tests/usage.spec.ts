@@ -46,6 +46,8 @@ test("reports a finished game and the player's thumbs down, without a name", asy
   await end.getByRole("button", { name: "Main menu" }).click();
   await expect(page.locator("#menu")).toBeVisible();
   expect(reports.filter((report) => report.kind === "game")).toHaveLength(1);
+  // Freeing the graphics context on the way out is not an error to report.
+  expect(reports.filter((report) => report.kind === "error")).toEqual([]);
   expect(JSON.stringify(reports)).not.toContain("Secret Name");
 
   const stats = (await (await page.request.get("./api/stats")).json()) as {

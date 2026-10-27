@@ -17,6 +17,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - One address may open 30 WebSockets a minute after a first 40, answered `429` beyond: set `FRONTFALL_CONNECTIONS_PER_MINUTE`. `FRONTFALL_SEATS_PER_ADDRESS` changes the three seats per address of public games, 0 for none, as for a LAN party behind one router ([server](docs/server.md#configuration)).
 - Protocol version 17: `kick`, the `removed` reason of `ended`, the `removed` and `too_many_seats` errors ([protocol](docs/protocol.md#kick)).
+- **The error count no longer includes games that were simply left.** `context_lost` showed up in almost every game of [`/api/stats`](https://nclsmgr.com/frontfall/api/stats), but it was the page freeing its own graphics context when a game ends or the view changes, not a real loss. Only a context the browser takes away is counted now, so the number says something.
 
 ## [0.4.1] - 2026-10-25
 
