@@ -71,21 +71,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-all-${{ hashFiles('pnpm-lock.yaml') }}
-      # The apt step of --with-deps sometimes hangs for minutes: stop it and start again.
-      - name: Install the browsers and their system packages
-        run: |
-          for attempt in 1 2 3; do
-            timeout -k 10 180 pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit && exit 0
-            echo "::warning title=Browser install::attempt $attempt did not finish, trying again"
-            # timeout cannot reach the apt process started as root, which keeps the dpkg lock.
-            sudo pkill -KILL -x apt-get || true
-            sudo dpkg --configure --pending || true
-          done
-          exit 1
+      - uses: ./.github/actions/browsers
       - run: pnpm build
       # The built game at / and behind a proxy that serves it under /frontfall/,
       # at / in Firefox, which needs a display for WebGL, and in WebKit.
@@ -167,21 +153,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-all-${{ hashFiles('pnpm-lock.yaml') }}
-      # The apt step of --with-deps sometimes hangs for minutes: stop it and start again.
-      - name: Install the browsers and their system packages
-        run: |
-          for attempt in 1 2 3; do
-            timeout -k 10 180 pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit && exit 0
-            echo "::warning title=Browser install::attempt $attempt did not finish, trying again"
-            # timeout cannot reach the apt process started as root, which keeps the dpkg lock.
-            sudo pkill -KILL -x apt-get || true
-            sudo dpkg --configure --pending || true
-          done
-          exit 1
+      - uses: ./.github/actions/browsers
       # Ten thousand ticks of bots on World, twice in Node and once in a Chromium, a Firefox
       # and a WebKit worker, then the golden replays in the three browsers: every run must
       # reach the same state hashes (R-FAIR-01).

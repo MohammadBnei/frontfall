@@ -1,0 +1,33 @@
+name: Install the browsers
+description: Chromium, Firefox and WebKit for Playwright, with the system packages they need, from caches.
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-all-${{ hashFiles('pnpm-lock.yaml') }}
+    # The 120 MB of packages come from a mirror that is sometimes slow: keep them between runs.
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/apt-archives
+        key: playwright-apt-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+    - name: Install the browsers and their system packages
+      shell: bash
+      run: |
+        mkdir -p ~/apt-archives
+        sudo cp -n ~/apt-archives/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+        # A slow download is stopped and resumed: the packages already fetched stay in the cache.
+        for attempt in 1 2 3; do
+          if timeout -k 10 300 pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit; then
+            installed=true
+            break
+          fi
+          echo "::warning title=Browser install::attempt $attempt did not finish, trying again"
+          # timeout cannot reach the apt process started as root, which keeps the dpkg lock.
+          sudo pkill -KILL -x apt-get || true
+          sudo dpkg --configure --pending || true
+        done
+        sudo cp -n /var/cache/apt/archives/*.deb ~/apt-archives/ 2>/dev/null || true
+        sudo chown -R "$USER" ~/apt-archives
+        test "${installed:-false}" = true
