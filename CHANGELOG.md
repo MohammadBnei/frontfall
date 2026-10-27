@@ -8,7 +8,6 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **Remove a player from your lobby.** The host sees a Remove button next to every other player until the game starts (`R-MODE-05`). The player removed is told so, and cannot join that game again from the same network.
 - **Hide a player.** In an online game, a player's menu now has Hide this player: on your screen only, their name becomes "Player 2" (their number) on the map, in the leaderboard and in the events, and their quick messages no longer reach you (`R-DIPLO-08`). The same button shows them again. Nothing changes in the game itself, and they are not told.
-
 - **Play from the keyboard.** Tab reaches the map, a cross marks the middle of the view, the arrows or WASD move it under the cross, Enter or Space clicks where it stands and Shift+Enter (or the menu key) opens that tile's menu. The help lists it.
 - **Accessibility settings** at the bottom of the menu: interface size (100, 125 or 150 %), reduce motion (it already followed your device's setting, and now you can ask for it in the game), and high contrast. They are kept in your browser.
 

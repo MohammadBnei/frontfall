@@ -5,7 +5,7 @@ import {
   type PointerSample,
   wheelZoomFactor,
 } from "./gestures.ts";
-import { KeyboardCamera, isPressable, isTextEntry } from "./keyboard.ts";
+import { KeyboardCamera, isTextEntry } from "./keyboard.ts";
 
 export type { MapCallbacks } from "./gestures.ts";
 
@@ -94,7 +94,8 @@ export class InputController {
         key.preventDefault();
         return;
       }
-      if (isPressable(key.target)) return;
+      // Only with the map itself focused: dialogs and panels keep Enter and Space.
+      if (key.target !== this.element) return;
       const { viewportWidth, viewportHeight } = this.camera;
       const [x, y] = [viewportWidth / 2, viewportHeight / 2];
       if (key.code === "ContextMenu" || (key.code === "Enter" && key.shiftKey)) {

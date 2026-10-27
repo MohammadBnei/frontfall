@@ -153,32 +153,34 @@ describe("InputController", () => {
     camera.resize(1200, 800);
     camera.zoomAt(4, 600, 400);
     const keyboard = new EventTarget();
+    const map = new FakeElement();
     const onTileClick = vi.fn<(tile: number, finger: boolean) => void>();
     const onTileHold = vi.fn<(tile: number) => void>();
     new InputController(
-      new FakeElement() as unknown as HTMLElement,
+      map as unknown as HTMLElement,
       camera,
       { onTileClick, onTileHold },
       keyboard,
     );
     const middle = camera.screenToTile(600, 400);
-    const enter = key("keydown", "Enter", "Enter");
+    const enter = key("keydown", "Enter", "Enter", {}, map);
     keyboard.dispatchEvent(enter);
     expect(enter.defaultPrevented).toBe(true);
-    keyboard.dispatchEvent(key("keydown", " ", "Space"));
+    keyboard.dispatchEvent(key("keydown", " ", "Space", {}, map));
     expect(onTileClick.mock.calls).toEqual([
       [middle, false],
       [middle, false],
     ]);
-    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", { shiftKey: true }));
+    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", { shiftKey: true }, map));
     expect(onTileHold).toHaveBeenCalledExactlyOnceWith(middle);
     expect(onTileClick).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves Enter to buttons and held keys alone", () => {
-    const { keyboard, onTileClick } = setup();
+  it("leaves Enter and Space to dialogs, buttons and held keys", () => {
+    const { element, keyboard, onTileClick } = setup();
     keyboard.dispatchEvent(key("keydown", "Enter", "Enter", {}, { tagName: "BUTTON" }));
-    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", { repeat: true }));
+    keyboard.dispatchEvent(key("keydown", " ", "Space", {}, { tagName: "DIV" }));
+    keyboard.dispatchEvent(key("keydown", "Enter", "Enter", { repeat: true }, element));
     expect(onTileClick).not.toHaveBeenCalled();
   });
 });
