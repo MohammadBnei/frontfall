@@ -304,7 +304,8 @@ export function messageHandler(ctx: MessageContext): {
           return;
         }
         const target = current.room.seatOf(message.player);
-        if (!target || target === current.seat) {
+        // Players of one network share one reference: a report of one of them names the reporter too.
+        if (!target || target === current.seat || target.address === session.address) {
           reply(session, "not_found");
           return;
         }
