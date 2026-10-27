@@ -60,6 +60,8 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   invalid_game_name: "the game name is not allowed",
   not_enough_players: "wait for more players before starting",
   too_many_lobbies: "you already have three games waiting to start",
+  removed: "the host removed you from this game",
+  too_many_seats: "too many players from your network are already in this game",
 };
 
 /**
@@ -146,7 +148,7 @@ export function messageHandler(ctx: MessageContext): {
       reply(session, missing);
       return;
     }
-    const seat = room.join(session.name ?? "", session.peer, Date.now());
+    const seat = room.join(session.name ?? "", session.peer, Date.now(), session.address);
     if (typeof seat === "string") {
       reply(session, seat);
       return;
@@ -285,6 +287,14 @@ export function messageHandler(ctx: MessageContext): {
       }
       case "active":
         return;
+      case "kick": {
+        const error = current
+          ? current.room.kick(current.seat, message.player, Date.now())
+          : "not_in_game";
+        if (error) reply(session, error);
+        else ctx.games.sweep();
+        return;
+      }
       case "leave":
         if (!current) return;
         current.room.leave(current.seat, Date.now());

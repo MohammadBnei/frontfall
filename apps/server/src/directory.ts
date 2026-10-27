@@ -62,6 +62,8 @@ export class Directory {
       if (!waiting(room) || room.settings.visibility !== "public") continue;
       if (room.settings.countdownMs <= 0 || room.isHeld) continue;
       if (room.playerCount >= room.settings.capacity) continue;
+      // A game that would turn the player away is no match for them.
+      if (owner !== undefined && (room.bars(owner) || room.atSeatLimit(owner))) continue;
       if (!best || room.playerCount > best.playerCount) best = room;
     }
     return best ?? this.create({ kind: "quick", name }, owner, false);

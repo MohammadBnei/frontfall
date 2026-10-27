@@ -29,7 +29,7 @@ interface Box {
 interface Label {
   readonly root: HTMLElement;
   readonly troops: HTMLElement;
-  readonly name: string;
+  name: string;
 }
 
 /**
@@ -58,6 +58,12 @@ export class PlayerLabels {
         this.element.append(root);
         label = { root, troops, name: player.name };
         this.labels.set(player.id, label);
+      }
+      // A player hidden or shown again on this screen changes name (R-DIPLO-08).
+      if (label.name !== player.name) {
+        label.name = player.name;
+        const name = label.root.querySelector(".label-name");
+        if (name) name.textContent = player.name;
       }
       label.troops.textContent = formatCount(player.troops);
     }

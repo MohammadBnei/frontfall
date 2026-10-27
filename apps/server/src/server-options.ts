@@ -40,6 +40,8 @@ export interface ServerOptions {
   statusSections?: () => string;
   /** Messages a connection may send per second on average, and at once. */
   messageRate?: { perSecond: number; burst: number };
+  /** WebSockets one address may open per second on average, and at once. */
+  upgradeRate?: { perSecond: number; burst: number };
   /** Public games opened by "play", which start on their own after a countdown. */
   publicGame?: Partial<GameSettings>;
   /** Games a host creates, public or private, and starts themselves. */
@@ -80,5 +82,6 @@ export const DEFAULT_GAME: GameSettings = {
   maxDurationMs: 4 * 60 * 60 * 1000,
   lobbyTimeoutMs: 10 * 60 * 1000,
   maxOrdersPerTurn: 10,
+  seatsPerAddress: 3,
   maxLogBytes: 64 * 1024 * 1024,
 };

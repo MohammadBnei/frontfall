@@ -63,6 +63,8 @@ export interface RoomSettings {
   lobbyTimeoutMs: number;
   /** Orders one player may add to one turn; more are dropped. */
   maxOrdersPerTurn: number;
+  /** Seats players from one address may take in a public game (R-MODE-05); 0 for no limit. */
+  seatsPerAddress: number;
   /** A game whose turn log grows past this many bytes is stopped. */
   maxLogBytes: number;
 }
@@ -76,6 +78,8 @@ export interface Seat {
   id: number;
   readonly name: string;
   readonly token: string;
+  /** Address of the player who took the seat, for per-address limits; unknown after a restart. */
+  readonly address?: string | undefined;
   peer: Peer | undefined;
   /** When the connection dropped, while the seat waits for the player to come back. */
   awaySince: number | undefined;
@@ -135,6 +139,8 @@ export class Room {
   private readonly hashes = new Map<number, Map<Seat, number>>();
   /** Seats found out of step, with the first tick they disagreed on. */
   private readonly desyncs = new Map<Seat, Frame>();
+  /** Addresses of the players the host removed: they cannot join this game again. */
+  private readonly removed = new Set<string>();
   readonly log = new TurnLog();
 
   constructor(
@@ -181,13 +187,16 @@ export class Room {
     return this.startsAt === undefined ? null : Math.max(0, Math.ceil(this.startsAt - now));
   }
 
-  join(name: string, peer: Peer, now: number): Seat | ErrorCode {
+  join(name: string, peer: Peer, now: number, address?: string): Seat | ErrorCode {
     if (this.stateValue === "running" || this.stateValue === "finished") return "game_started";
+    if (address !== undefined && this.removed.has(address)) return "removed";
     if (this.seats.length >= this.settings.capacity) return "game_full";
+    if (address !== undefined && this.atSeatLimit(address)) return "too_many_seats";
     const seat: Seat = {
       id: this.nextLobbyId++,
       name: this.freeName(name),
       token: newToken(),
+      address,
       peer,
       awaySince: undefined,
       gone: false,
@@ -204,6 +213,22 @@ export class Room {
     this.host ??= seat;
     this.lobbyChanged(now);
     return seat;
+  }
+
+  /**
+   * Whether players from `address` hold every seat one address may take.
+   * Only public games count: a private game is shared by invitation, often
+   * with people on the same network.
+   */
+  atSeatLimit(address: string): boolean {
+    const limit = this.settings.seatsPerAddress;
+    if (this.settings.visibility !== "public" || limit <= 0) return false;
+    return this.seats.filter((seat) => seat.address === address).length >= limit;
+  }
+
+  /** Whether the host removed a player from this address (R-MODE-05). */
+  bars(address: string): boolean {
+    return this.removed.has(address);
   }
 
   /**
@@ -293,6 +318,22 @@ export class Room {
     if (from === 0) this.desyncs.delete(seat);
     const desync = this.desyncs.get(seat);
     if (desync !== undefined) peer.send(desync);
+    return undefined;
+  }
+
+  /**
+   * Host, before the start: removes another player, who is told and cannot
+   * join this game again from the same address (R-MODE-05).
+   */
+  kick(seat: Seat, player: number, now: number): ErrorCode | undefined {
+    const refused = this.hostOnly(seat);
+    if (refused) return refused;
+    const target = this.seats.find((other) => other.id === player);
+    if (!target || target === seat) return "not_found";
+    if (target.address !== undefined) this.removed.add(target.address);
+    target.peer?.send(encodeServerMessage({ type: "ended", reason: "removed" }));
+    target.awaySince = undefined;
+    this.leave(target, now);
     return undefined;
   }
 

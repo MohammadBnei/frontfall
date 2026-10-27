@@ -30,6 +30,7 @@ import { REPLAY_MAP_CHANGED } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
 import { Hud, offers } from "./hud.ts";
+import { withHidden } from "./hidden-players.ts";
 import { PlayerLabels } from "./labels.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
@@ -103,6 +104,8 @@ export class GameScreen {
   private drawnView: CameraView | undefined;
   private wrapsX = true;
   private readonly labels = new PlayerLabels();
+  /** Players hidden on this screen (R-DIPLO-08), for this game only. */
+  private readonly hidden = new Set<number>();
   /** Online: evens out the arrival of the server's turns before the worker plays them. */
   private readonly pacer: TurnPacer;
   /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
@@ -210,6 +213,14 @@ export class GameScreen {
       share: () => this.hud.ratio,
       onQuick: (player, phrase) => {
         this.quick(player, phrase);
+      },
+      // Only other people can be hidden: online, and never a nation.
+      hidden: (player) =>
+        this.link === undefined || player >= this.firstNation ? undefined : this.hidden.has(player),
+      onHide: (player, hide) => {
+        if (hide) this.hidden.add(player);
+        else this.hidden.delete(player);
+        this.showNames();
       },
     });
     this.hud.leaderboard.append(this.diplomacy.menu);
@@ -539,6 +550,15 @@ export class GameScreen {
     this.camera.resize(width, height);
   }
 
+  /** Names and messages again after a player was hidden or shown (R-DIPLO-08). */
+  private showNames(): void {
+    if (!this.latest) return;
+    const update = { ...withHidden(this.latest, this.hidden), events: [] };
+    this.labels.update(update.players, undefined);
+    this.hud.update(update, performance.now());
+    this.diplomacy.rename(update);
+  }
+
   private apply(update: GameUpdate): void {
     this.previousShips = new Map([
       ...(this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile] as const),
@@ -577,6 +597,8 @@ export class GameScreen {
     this.placeFallout(update);
     this.placeAllies(update);
     this.latest = update;
+    // What this screen shows from here on: hidden players go by their number.
+    update = withHidden(update, this.hidden);
     this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
     this.diplomacy.update(update, performance.now());

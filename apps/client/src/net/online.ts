@@ -185,6 +185,11 @@ export class OnlineClient {
     this.send({ type: "hold" });
   }
 
+  /** Host: removes the player with this lobby number, who cannot come back (R-MODE-05). */
+  kick(player: number): void {
+    this.send({ type: "kick", player });
+  }
+
   /** The player is at the screen, so the host keeps the role. */
   active(): void {
     this.send({ type: "active" });

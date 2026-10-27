@@ -261,6 +261,7 @@ describe("server under fuzzed connections", () => {
       staticRoot,
       version: "fuzz",
       maxConnectionsPerAddress: 10_000,
+      upgradeRate: { perSecond: 10_000, burst: 10_000 },
       drainMs: 0,
     });
     await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));

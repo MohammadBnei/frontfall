@@ -47,13 +47,16 @@ export interface LobbyActions {
   onConfigure(options: GameOptions, name?: string): void;
   /** Host of a quick game: stop the countdown. */
   onHold(): void;
+  /** Host: remove another player from the game (R-MODE-05). */
+  onKick(player: number): void;
   /** The player touched the page: they are still at the screen. */
   onActive(): void;
   onLeave(): void;
 }
 
 /** Why a game ended before or instead of starting, as the server says it. */
-export type EndReason = "abandoned" | "timeout" | "expired" | "left" | "restart" | "seatLost";
+export type EndReason =
+  "abandoned" | "timeout" | "expired" | "left" | "restart" | "removed" | "seatLost";
 
 /**
  * The room before an online game: its name, who is in and who hosts, the
@@ -185,7 +188,7 @@ export class LobbyScreen {
   private readonly stopWatching: () => void;
 
   constructor(
-    actions: LobbyActions,
+    private readonly actions: LobbyActions,
     private readonly maps: readonly MapInfo[],
   ) {
     const leave = h("button", {
@@ -368,6 +371,7 @@ export class LobbyScreen {
           ...(player.id === lobby.host
             ? [h("span", { class: "lobby-host", "data-i18n": "online.host" }, t("online.host"))]
             : []),
+          ...(host && player.id !== lobby.you ? [this.removeButton(player)] : []),
         ),
       ),
     );
@@ -380,6 +384,26 @@ export class LobbyScreen {
     this.hold.hidden = !host || !lobby.holdable;
     this.showSettings(lobby);
     this.showLobbyStatus(lobby);
+  }
+
+  /** The host's button that removes a player from the lobby. */
+  private removeButton(player: { id: number; name: string }): HTMLButtonElement {
+    const button = h(
+      "button",
+      {
+        type: "button",
+        class: "lobby-remove",
+        "data-player": player.id,
+        "aria-label": t("online.removeLabel", { name: player.name }),
+        title: t("online.removeLabel", { name: player.name }),
+      },
+      t("online.remove"),
+    );
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      this.actions.onKick(player.id);
+    });
+    return button;
   }
 
   /** The game ended before it started, or the player left it. */

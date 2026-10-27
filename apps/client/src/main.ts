@@ -388,6 +388,9 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
       onHold: () => {
         online?.hold();
       },
+      onKick: (player) => {
+        online?.kick(player);
+      },
       onActive: () => {
         online?.active();
       },

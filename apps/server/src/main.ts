@@ -31,6 +31,10 @@ function optionalNumber<T>(name: string, use: (value: number) => T): T | undefin
 const drainSeconds =
   optionalNumber("FRONTFALL_DRAIN_SECONDS", (seconds) => seconds) ?? DEFAULT_DRAIN_SECONDS;
 
+/** Public games on one network, such as a LAN party, need more than three seats from it. */
+const seatsPerAddress =
+  optionalNumber("FRONTFALL_SEATS_PER_ADDRESS", (seats) => ({ seatsPerAddress: seats })) ?? {};
+
 const server = createGameServer({
   staticRoot:
     process.env.FRONTFALL_STATIC ?? fileURLToPath(new URL("../../client/dist", import.meta.url)),
@@ -40,11 +44,17 @@ const server = createGameServer({
   simulation,
   logger,
   dataDir: process.env.FRONTFALL_DATA || undefined,
-  publicGame:
-    optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
+  publicGame: {
+    ...optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
       // A quick game must count down: without it, a lone player would wait for nothing.
       countdownMs: Math.max(1, seconds) * 1000,
-    })) ?? {},
+    })),
+    ...seatsPerAddress,
+  },
+  privateGame: { ...seatsPerAddress },
+  ...optionalNumber("FRONTFALL_CONNECTIONS_PER_MINUTE", (perMinute) => ({
+    upgradeRate: { perSecond: Math.max(1, perMinute) / 60, burst: 40 },
+  })),
   ...optionalNumber("FRONTFALL_MAX_GAMES", (maxRooms) => ({ maxRooms })),
   ...optionalNumber("FRONTFALL_MAX_CONNECTIONS", (maxConnections) => ({ maxConnections })),
   drainMs: drainSeconds * 1000,

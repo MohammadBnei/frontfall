@@ -4,35 +4,39 @@
 
 ## Configuration
 
-| Variable                      | Default                                 | Meaning                                                                                                                                                                                                                                |
-| ----------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                        | `8080`                                  | HTTP and WebSocket port                                                                                                                                                                                                                |
-| `FRONTFALL_STATIC`            | `../../client/dist`                     | Directory of the built client                                                                                                                                                                                                          |
-| `FRONTFALL_ORIGINE`           | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                                                                                                                                      |
-| `FRONTFALL_VERSION`           | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                                                                                                                               |
-| `FRONTFALL_MAX_GAMES`         | `500`                                   | Games open or running at once                                                                                                                                                                                                          |
-| `FRONTFALL_MAX_CONNECTIONS`   | `5000`                                  | Open WebSocket connections at once                                                                                                                                                                                                     |
-| `NODE_OPTIONS`                | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                                                                                                                                   |
-| `FRONTFALL_COUNTDOWN_SECONDS` | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                                                                                                                                            |
-| `FRONTFALL_DRAIN_SECONDS`     | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                                                                                                                                     |
-| `FRONTFALL_DATA`              | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`: the usage counts go in `usage/`, the games running at a restart in `games/` ([Shutdown](#shutdown)). Unset keeps the counts in memory and ends the games with the server |
+| Variable                           | Default                                 | Meaning                                                                                                                                                                                                                                |
+| ---------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                             | `8080`                                  | HTTP and WebSocket port                                                                                                                                                                                                                |
+| `FRONTFALL_STATIC`                 | `../../client/dist`                     | Directory of the built client                                                                                                                                                                                                          |
+| `FRONTFALL_ORIGINE`                | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                                                                                                                                      |
+| `FRONTFALL_VERSION`                | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                                                                                                                               |
+| `FRONTFALL_MAX_GAMES`              | `500`                                   | Games open or running at once                                                                                                                                                                                                          |
+| `FRONTFALL_MAX_CONNECTIONS`        | `5000`                                  | Open WebSocket connections at once                                                                                                                                                                                                     |
+| `NODE_OPTIONS`                     | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                                                                                                                                   |
+| `FRONTFALL_COUNTDOWN_SECONDS`      | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                                                                                                                                            |
+| `FRONTFALL_DRAIN_SECONDS`          | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                                                                                                                                     |
+| `FRONTFALL_DATA`                   | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`: the usage counts go in `usage/`, the games running at a restart in `games/` ([Shutdown](#shutdown)). Unset keeps the counts in memory and ends the games with the server |
+| `FRONTFALL_SEATS_PER_ADDRESS`      | `3`                                     | Seats players from one address may take in a public game; 0 for no limit, as for a LAN party behind one router                                                                                                                         |
+| `FRONTFALL_CONNECTIONS_PER_MINUTE` | `30`                                    | WebSockets one address may open per minute on average, after a first 40 at once                                                                                                                                                        |
 
 ## Games
 
-| Setting                        | Value                      | Notes                                                                                                   |
-| ------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Players per game               | 2 to 16, set by the host   | A game set to start when full (the default) starts as its last seat is taken                            |
-| Players to start a public game | 2                          | The host starts it; any number for a private game                                                       |
-| "Play now" countdown           | 60 seconds                 | From the first player, 30 s at least after the second; alone at the end, the map's default bots fill in |
-| Host away                      | 2 minutes                  | With other players waiting, the role goes to the one seen most recently                                 |
-| Seat kept after a drop         | 5 minutes                  | The player rejoins with their token and every missed turn                                               |
-| Lobby seat kept after a drop   | 30 seconds                 | The player gets their place back, and the host keeps the role (see below)                               |
-| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                                                |
-| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                                               |
-| Bots in a game                 | 25                         | Seats shrink to fit the map's `players.max`, never below the players present                            |
-| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                                                |
-| Lobbies per address            | 3 not yet started          | Public and private; further `create` requests get `too_many_lobbies`                                    |
-| Public games listed            | 100                        | Waiting ones first, the fewest free seats first, then the oldest                                        |
+| Setting                        | Value                      | Notes                                                                                                        |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Players per game               | 2 to 16, set by the host   | A game set to start when full (the default) starts as its last seat is taken                                 |
+| Players to start a public game | 2                          | The host starts it; any number for a private game                                                            |
+| "Play now" countdown           | 60 seconds                 | From the first player, 30 s at least after the second; alone at the end, the map's default bots fill in      |
+| Host away                      | 2 minutes                  | With other players waiting, the role goes to the one seen most recently                                      |
+| Seat kept after a drop         | 5 minutes                  | The player rejoins with their token and every missed turn                                                    |
+| Lobby seat kept after a drop   | 30 seconds                 | The player gets their place back, and the host keeps the role (see below)                                    |
+| Longest game                   | 4 hours                    | Then the game ends with reason `timeout`                                                                     |
+| Games at once                  | 500                        | Further `play` and `create` requests get `too_many_games`                                                    |
+| Bots in a game                 | 25                         | Seats shrink to fit the map's `players.max`, never below the players present                                 |
+| Game not started               | 10 minutes after it opened | Then the game ends with reason `expired`                                                                     |
+| Lobbies per address            | 3 not yet started          | Public and private; further `create` requests get `too_many_lobbies`                                         |
+| Seats per address              | 3 in a public game         | Private games have none; further `join` requests get `too_many_seats`, and "Play now" looks for another game |
+| Removed players                | Until the game starts      | The host removes a player with `kick`; their address then gets `removed` from that game                      |
+| Public games listed            | 100                        | Waiting ones first, the fewest free seats first, then the oldest                                             |
 
 A connection that drops without a close frame, as when a phone goes to sleep or the network fails, keeps its seat in a lobby for 30 seconds: the client takes it back with the token of the `lobby` message, or lands in the game if it started meanwhile. A page that closes its socket itself, on a reload or when the tab closes, gives its lobby seat up at once.
 
@@ -46,18 +50,19 @@ Games offer the maps listed in `maps/index.json` of the built client, read once 
 
 One bad client must not spoil a game or the server. Each limit closes the offending connection with a code listed in [protocol.md](protocol.md#close-codes) and is counted in `frontfall_rejected_messages_total`.
 
-| Limit                   | Value                                                         | On breach                              |
-| ----------------------- | ------------------------------------------------------------- | -------------------------------------- |
-| Connections in all      | 5000                                                          | Upgrade refused with `503`             |
-| Connections per address | 16, for players behind one router or mobile carrier           | Upgrade refused with `429`             |
-| Frame size              | 1 KiB                                                         | Closed with `1009`                     |
-| Messages per connection | 20 per second, bursts of 40                                   | Closed with `4002`                     |
-| Invalid frame           | any frame that fails decoding or checks                       | Closed with `4001`                     |
-| Time to say `hello`     | 10 seconds                                                    | Closed with `4003`                     |
-| Time out of any game    | 5 minutes after `hello` or the last game                      | Closed with `4003`                     |
-| Silence                 | a ping unanswered for 12.5 seconds; pings go every 25 seconds | Connection dropped                     |
-| Orders per player       | 10 per turn                                                   | Further orders of the turn are dropped |
-| Turn log of a game      | 64 MiB                                                        | Game ends with `timeout`               |
+| Limit                       | Value                                                         | On breach                              |
+| --------------------------- | ------------------------------------------------------------- | -------------------------------------- |
+| Connections in all          | 5000                                                          | Upgrade refused with `503`             |
+| Connections per address     | 16, for players behind one router or mobile carrier           | Upgrade refused with `429`             |
+| New connections per address | 30 a minute, bursts of 40                                     | Upgrade refused with `429`             |
+| Frame size                  | 1 KiB                                                         | Closed with `1009`                     |
+| Messages per connection     | 20 per second, bursts of 40                                   | Closed with `4002`                     |
+| Invalid frame               | any frame that fails decoding or checks                       | Closed with `4001`                     |
+| Time to say `hello`         | 10 seconds                                                    | Closed with `4003`                     |
+| Time out of any game        | 5 minutes after `hello` or the last game                      | Closed with `4003`                     |
+| Silence                     | a ping unanswered for 12.5 seconds; pings go every 25 seconds | Connection dropped                     |
+| Orders per player           | 10 per turn                                                   | Further orders of the turn are dropped |
+| Turn log of a game          | 64 MiB                                                        | Game ends with `timeout`               |
 
 The address of a player is the `X-Client-IP` header, which the reverse proxy must set and overwrite. The server believes that header only when the connection itself comes from a private or loopback address, as a proxy on the same host or Docker network does; from any other peer the header is ignored and the TCP peer address is used. Player names follow the rules in [protocol.md](protocol.md#hello).
 

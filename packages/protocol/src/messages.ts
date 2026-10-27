@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 16;
+export const PROTOCOL_VERSION = 17;
 
 /** Ticks per second of the simulation. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -54,6 +54,8 @@ export const ErrorCode = z.enum([
   "invalid_game_name",
   "not_enough_players",
   "too_many_lobbies",
+  "removed",
+  "too_many_seats",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
@@ -151,6 +153,8 @@ export const ClientMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("hold") }).strict(),
   /** The player is at the screen: keeps the host's role while the lobby waits. */
   z.object({ type: z.literal("active") }).strict(),
+  /** Host only, before the start: remove a player, who cannot join this game again. */
+  z.object({ type: z.literal("kick"), player: PlayerNumber }).strict(),
   /** Leave the current game for good. */
   z.object({ type: z.literal("leave") }).strict(),
   /** Hash of the client's game state after running `tick`. */
@@ -228,7 +232,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
   /** The game is over for this connection, which may join another one. */
   z.object({
     type: z.literal("ended"),
-    reason: z.enum(["abandoned", "timeout", "expired", "left", "restart"]),
+    reason: z.enum(["abandoned", "timeout", "expired", "left", "restart", "removed"]),
   }),
   z.object({ type: z.literal("error"), code: ErrorCode, message: z.string() }),
   /**

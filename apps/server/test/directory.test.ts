@@ -35,6 +35,24 @@ describe("Directory", () => {
     expect(games.quickMatch(undefined, "Quick")).toBe(empty);
   });
 
+  it("never sends Play now into a game that would turn the player away (R-MODE-05)", () => {
+    const games = new Directory({
+      maxRooms: 10,
+      publicGame: { ...DEFAULT_GAME, capacity: 8, minPlayers: 2 },
+      privateGame: { ...DEFAULT_GAME, minPlayers: 1, countdownMs: 0 },
+    });
+    const quick = games.quickMatch("10.0.0.1", "Quick");
+    const host = quick?.join("Host", peer, 0, "10.0.0.1");
+    const pest = quick?.join("Pest", peer, 0, "10.0.0.2");
+    if (!quick || typeof host !== "object" || typeof pest !== "object") throw new Error();
+    quick.kick(host, pest.id, 0);
+    expect(games.quickMatch("10.0.0.2", "Quick")).not.toBe(quick);
+    quick.join("B", peer, 0, "10.0.0.1");
+    quick.join("C", peer, 0, "10.0.0.1");
+    expect(games.quickMatch("10.0.0.1", "Quick")).not.toBe(quick);
+    expect(games.quickMatch("10.0.0.3", "Quick")).toBe(quick);
+  });
+
   it("never sends Play now into a game that waits for its host", () => {
     const games = directory();
     const listed = games.create(hosted("Europe 4v4"));

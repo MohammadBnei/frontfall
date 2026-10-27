@@ -4,6 +4,20 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **Remove a player from your lobby.** The host sees a Remove button next to every other player until the game starts (`R-MODE-05`). The player removed is told so, and cannot join that game again from the same network.
+- **Hide a player.** In an online game, a player's menu now has Hide this player: on your screen only, their name becomes "Player 2" (their number) on the map, in the leaderboard and in the events, and their quick messages no longer reach you (`R-DIPLO-08`). The same button shows them again. Nothing changes in the game itself, and they are not told.
+
+### Changed
+
+- A public game takes at most three players from one network, so that nobody fills one with their own tabs. Private games, shared by invitation, keep no such limit. Pages loaded before this update are asked to reload once it is deployed (protocol version 17).
+
+### For self-hosters and contributors
+
+- One address may open 30 WebSockets a minute after a first 40, answered `429` beyond: set `FRONTFALL_CONNECTIONS_PER_MINUTE`. `FRONTFALL_SEATS_PER_ADDRESS` changes the three seats per address of public games, 0 for none, as for a LAN party behind one router ([server](docs/server.md#configuration)).
+- Protocol version 17: `kick`, the `removed` reason of `ended`, the `removed` and `too_many_seats` errors ([protocol](docs/protocol.md#kick)).
+
 ## [0.4.1] - 2026-10-25
 
 Public games, games that survive updates and a fairer start on the maps of the north. Games running when this update is deployed end, once: the server before it could not keep them. After it, updates that leave the rules alone no longer cut games.

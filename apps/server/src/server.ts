@@ -13,7 +13,7 @@ import { addressPseudonym, silentLogger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
 import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
-import { TokenBucket } from "./rate-limit.ts";
+import { AddressRate, TokenBucket } from "./rate-limit.ts";
 import type { RoomObserver } from "./room.ts";
 import { SECURITY_HEADERS, sendCachedJson, sendJson, serveStatic } from "./http-replies.ts";
 import {
@@ -57,6 +57,9 @@ export function createGameServer(options: ServerOptions): GameServer {
   const probeTimeoutMs = options.probeTimeoutMs ?? 5_000;
   const idleTimeoutMs = options.idleTimeoutMs ?? 5 * 60_000;
   const messageRate = options.messageRate ?? { perSecond: 20, burst: 40 };
+  // A whole household reconnecting after a restart fits in the burst; a script
+  // that opens connections in a loop runs dry at one every two seconds.
+  const upgradeRate = options.upgradeRate ?? { perSecond: 0.5, burst: 40 };
   const stallAfterMs = options.stallAfterMs ?? 5000;
   const drainMs = options.drainMs ?? 20_000;
   /** End of the last pass of the turn timer, and whether close() has begun. */
@@ -169,6 +172,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     socket.ping();
   };
   const connectionsByAddress = new Map<string, number>();
+  const upgrades = new AddressRate(upgradeRate.perSecond, upgradeRate.burst, Date.now());
 
   const http = createServer((request, response) => {
     const path = new URL(request.url ?? "/", "http://localhost").pathname;
@@ -258,7 +262,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
     const address = clientAddress(request);
     const connections = connectionsByAddress.get(address) ?? 0;
-    if (connections >= maxConnectionsPerAddress) {
+    if (connections >= maxConnectionsPerAddress || !upgrades.take(address, Date.now())) {
       socket.end("HTTP/1.1 429 Too Many Requests\r\n\r\n");
       return;
     }

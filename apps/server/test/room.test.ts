@@ -22,6 +22,7 @@ const PUBLIC: RoomSettings = {
   maxDurationMs: 3_600_000,
   lobbyTimeoutMs: 600_000,
   maxOrdersPerTurn: 3,
+  seatsPerAddress: 3,
   maxLogBytes: 1_000_000,
 };
 /** Started by its host; `autoStart` off so that a full lobby still waits. */
@@ -403,6 +404,70 @@ describe("public game created by its host (R-MODE-04)", () => {
     const owner = seated(unlisted, "Owner");
     unlisted.configure(owner.seat, { ...options, name: "Asia only" }, 0);
     expect(owner.peer.last("lobby").name).toBeNull();
+  });
+});
+
+describe("removing a player and seats per address (R-MODE-05)", () => {
+  function from(room: Room, name: string, address: string) {
+    const peer = new FakePeer();
+    const seat = room.join(name, peer, 0, address);
+    return { seat, peer };
+  }
+
+  it("lets the host remove a player, who is told and cannot come back from that address", () => {
+    const room = new Room("game0000", HOSTED, 1);
+    const host = from(room, "Host", "10.0.0.1");
+    const guest = from(room, "Pest", "10.0.0.2");
+    const other = from(room, "Fine", "10.0.0.3");
+    if (typeof host.seat === "string" || typeof guest.seat === "string") throw new Error();
+    if (typeof other.seat === "string") throw new Error();
+    expect(room.kick(other.seat, guest.seat.id, 0)).toBe("not_host");
+    expect(room.kick(host.seat, host.seat.id, 0)).toBe("not_found");
+    expect(room.kick(host.seat, 99, 0)).toBe("not_found");
+    expect(room.kick(host.seat, guest.seat.id, 0)).toBeUndefined();
+    expect(guest.peer.last("ended").reason).toBe("removed");
+    expect(room.holds(guest.seat)).toBe(false);
+    expect(other.peer.last("lobby").players.map((p) => p.name)).toEqual(["Host", "Fine"]);
+    expect(room.join("Pest again", new FakePeer(), 0, "10.0.0.2")).toBe("removed");
+    expect(room.bars("10.0.0.2")).toBe(true);
+    expect(typeof room.join("New", new FakePeer(), 0, "10.0.0.4")).toBe("object");
+  });
+
+  it("removes nobody once the game has started", () => {
+    const room = new Room("game0000", HOSTED, 1);
+    const host = from(room, "Host", "10.0.0.1");
+    const guest = from(room, "Guest", "10.0.0.2");
+    if (typeof host.seat === "string" || typeof guest.seat === "string") throw new Error();
+    room.requestStart(host.seat, 0);
+    expect(room.kick(host.seat, guest.seat.id, 0)).toBe("game_started");
+    expect(room.holds(guest.seat)).toBe(true);
+  });
+
+  it("takes three players from one address in a public game, any number in a private one", () => {
+    const listed = new Room("game0000", { ...HOSTED, capacity: 8, autoStart: false }, 1);
+    for (const name of ["A", "B", "C"])
+      expect(typeof from(listed, name, "10.0.0.1").seat).toBe("object");
+    expect(listed.atSeatLimit("10.0.0.1")).toBe(true);
+    expect(from(listed, "D", "10.0.0.1").seat).toBe("too_many_seats");
+    expect(typeof from(listed, "E", "10.0.0.2").seat).toBe("object");
+
+    const unlisted = new Room("game0001", { ...PRIVATE, capacity: 8 }, 1);
+    for (const name of ["A", "B", "C", "D"])
+      expect(typeof from(unlisted, name, "10.0.0.1").seat).toBe("object");
+    expect(unlisted.atSeatLimit("10.0.0.1")).toBe(false);
+
+    const open = new Room("game0002", { ...HOSTED, capacity: 8, seatsPerAddress: 0 }, 1);
+    for (const name of ["A", "B", "C", "D"])
+      expect(typeof from(open, name, "10.0.0.1").seat).toBe("object");
+  });
+
+  it("frees the address's seat when one of its players leaves", () => {
+    const room = new Room("game0000", { ...HOSTED, capacity: 8, autoStart: false }, 1);
+    const seats = ["A", "B", "C"].map((name) => from(room, name, "10.0.0.1").seat);
+    const [first] = seats;
+    if (!first || typeof first === "string") throw new Error();
+    room.leave(first, 0);
+    expect(typeof from(room, "D", "10.0.0.1").seat).toBe("object");
   });
 });
 

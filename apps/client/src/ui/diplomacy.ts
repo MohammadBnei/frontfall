@@ -25,6 +25,10 @@ export interface DiplomacyActions {
   share(): number;
   /** Sends the player a preset quick message, by number (R-DIPLO-07). */
   onQuick(player: number, phrase: number): void;
+  /** Whether the player is hidden on this screen, or undefined when they cannot be (R-DIPLO-08). */
+  hidden(player: number): boolean | undefined;
+  /** Hides the player on this screen, or shows them again. */
+  onHide(player: number, hide: boolean): void;
 }
 
 const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
@@ -143,6 +147,12 @@ export class DiplomacyPanel {
     this.last = update;
     for (const event of update.events) this.addEvent(event, update, now);
     this.render(update, now);
+  }
+
+  /** Redraws with the names of `update`, adding none of its events again. */
+  rename(update: GameUpdate): void {
+    this.last = update;
+    this.render(update, performance.now());
   }
 
   /** Redraws everything in the current language. */
@@ -318,9 +328,24 @@ export class DiplomacyPanel {
       className: "messages",
     });
 
+    const hidden = this.actions.hidden(id);
+    if (hidden !== undefined) {
+      buttons.push({
+        key: hidden ? "diplo.unhide" : "diplo.hide",
+        action: () => {
+          this.actions.onHide(id, !hidden);
+          this.menu.querySelector<HTMLButtonElement>(".hide")?.focus();
+        },
+        enabled: true,
+        className: "hide",
+      });
+    }
+    const hiddenText = hidden ? t("diplo.hiddenNote") : "";
+
     const key = [
       id,
       player.name,
+      hiddenText,
       status,
       traitorText,
       embargoText,
@@ -357,6 +382,7 @@ export class DiplomacyPanel {
       ...(traitorText ? [h("p", { class: "player-menu-traitor" }, traitorText)] : []),
       ...(embargoText ? [h("p", { class: "player-menu-embargo" }, embargoText)] : []),
       ...(warText ? [h("p", { class: "player-menu-war" }, warText)] : []),
+      ...(hiddenText ? [h("p", { class: "player-menu-hidden" }, hiddenText)] : []),
       ...buttons.map(({ key: label, params, action, enabled, className }) => {
         const button = h(
           "button",

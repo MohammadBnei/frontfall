@@ -377,6 +377,23 @@ button.secondary:disabled {
   font-size: 12px;
 }
 
+.lobby-remove {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: transparent;
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lobby-remove:hover,
+.lobby-remove:focus-visible {
+  color: inherit;
+  border-color: var(--ff-slate-300);
+}
+
 .lobby-settings {
   display: grid;
   grid-template-columns: auto 1fr;

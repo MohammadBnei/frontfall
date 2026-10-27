@@ -1,6 +1,6 @@
 # Network protocol
 
-Version 16. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
+Version 17. Clients and the game server talk over one WebSocket per player. The schemas live in [`packages/protocol`](../packages/protocol/src), which the client and the server both import; this page describes them for anyone writing a bot, a replay tool or another client.
 
 The server never simulates the game ([ADR 0001](adr/0001-deterministic-lockstep.md)). It fills games with players, gives every player a number, then closes the orders it receives into one numbered turn every 100 ms and sends the same turns to every player. Each client runs the engine on those turns and reaches the same state.
 
@@ -21,7 +21,7 @@ The server pings every 25 seconds and drops a connection that missed the previou
 
 ```text
 client                                   server
-  | -- hello { version: 16, name } ----------> |
+  | -- hello { version: 17, name } ----------> |
   | <------------------ welcome { version } -- |
   | -- play ---------------------------------> |   or create, or join { game }
   | <-------------- lobby { players, ... } --- |   again after every change
@@ -55,7 +55,7 @@ Before a game starts, a dropped connection keeps its seat for 30 seconds, unless
 ### `hello`
 
 ```json
-{ "type": "hello", "version": 16, "name": "Léa", "build": "0d25e267bbae" }
+{ "type": "hello", "version": 17, "name": "Léa", "build": "0d25e267bbae" }
 ```
 
 First message of every connection. `version` is `PROTOCOL_VERSION`. A server running another version closes the connection with `4000`: the page is out of date and must be reloaded. This message keeps the same shape in every version of the protocol, so the mismatch can always be reported.
@@ -146,6 +146,14 @@ The host of a game opened by `play` stops its countdown, once. The game then wai
 
 The player is at the screen. A host who has sent nothing for two minutes while other players wait hands the role to the player seen most recently, so a lobby never hangs on someone who walked away. The role goes to a connected player when there is one; a host who leaves while nobody else is connected hands it to a player whose seat waits for them. The client of this repository sends it at most every 30 seconds while the player touches the page.
 
+### `kick`
+
+```json
+{ "type": "kick", "player": 3 }
+```
+
+The host removes the player with this lobby number before the game starts (`R-MODE-05`). That player receives `ended` with reason `removed` and their seat is freed; every other player receives the new `lobby`. From then on, `join` from the removed player's address to this game gets `removed`, and `play` no longer sends them to it. The host cannot remove themself.
+
 ### `leave`
 
 ```json
@@ -190,7 +198,7 @@ Tiles are indexes in the map, below 2^31. The server checks only the shape of an
 ### `welcome`
 
 ```json
-{ "type": "welcome", "version": 16 }
+{ "type": "welcome", "version": 17 }
 ```
 
 The hello was accepted.
@@ -285,7 +293,7 @@ This player's hash for `tick` differed from the majority's: its game no longer m
 { "type": "ended", "reason": "abandoned" }
 ```
 
-The game is over for this connection. Reasons: `abandoned` (every player is gone), `timeout` (four hours, or a turn log grown past its size limit), `expired` (not started ten minutes after it opened), `left` (answer to `leave`), `restart` (the server restarted for an update; see [server.md](server.md#shutdown)).
+The game is over for this connection. Reasons: `abandoned` (every player is gone), `timeout` (four hours, or a turn log grown past its size limit), `expired` (not started ten minutes after it opened), `left` (answer to `leave`), `restart` (the server restarted for an update; see [server.md](server.md#shutdown)), `removed` (the host removed this player from the lobby with `kick`).
 
 ### `error`
 
@@ -295,23 +303,25 @@ The game is over for this connection. Reasons: `abandoned` (every player is gone
 
 A request was refused; the connection stays open. `message` is for people, `code` for programs:
 
-| Code                 | Answer to                            | Meaning                                                        |
-| -------------------- | ------------------------------------ | -------------------------------------------------------------- |
-| `invalid_name`       | `hello`                              | The name breaks the name rules                                 |
-| `invalid_game_name`  | `create`, `configure`                | The game name breaks the game name rules                       |
-| `not_found`          | `join`                               | No game has this id                                            |
-| `game_full`          | `join`                               | The game has no free seat                                      |
-| `game_started`       | `join`, `configure`, `start`, `hold` | The game has already started                                   |
-| `already_in_game`    | `play`, `create`, `join`             | Leave the current game first                                   |
-| `not_in_game`        | `configure`, `start`, `hold`         | The connection is not in a game                                |
-| `not_host`           | `configure`, `start`, `hold`         | Only the host can change, start or hold the game               |
-| `not_enough_players` | `start`                              | A public game needs a second player                            |
-| `invalid_settings`   | `configure`                          | No published map has this id, or too many bots or seats for it |
-| `too_many_games`     | `play`, `create`                     | The server holds as many games as it can                       |
-| `too_many_lobbies`   | `create`                             | This address already holds three games that have not started   |
-| `token_invalid`      | `rejoin`                             | The game is over or the seat was given up                      |
-| `token_in_use`       | `rejoin`                             | Another connection holds the seat; retry in 1 s                |
-| `restarting`         | `play`, `create`, `join`             | The server is about to restart; try again in a minute          |
+| Code                 | Answer to                                    | Meaning                                                                |
+| -------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| `invalid_name`       | `hello`                                      | The name breaks the name rules                                         |
+| `invalid_game_name`  | `create`, `configure`                        | The game name breaks the game name rules                               |
+| `not_found`          | `join`, `kick`                               | No game has this id, or no other player has this number                |
+| `game_full`          | `join`                                       | The game has no free seat                                              |
+| `too_many_seats`     | `join`                                       | Players from this address already hold three seats of this public game |
+| `removed`            | `join`                                       | The host removed a player from this address from this game             |
+| `game_started`       | `join`, `configure`, `start`, `hold`, `kick` | The game has already started                                           |
+| `already_in_game`    | `play`, `create`, `join`                     | Leave the current game first                                           |
+| `not_in_game`        | `configure`, `start`, `hold`, `kick`         | The connection is not in a game                                        |
+| `not_host`           | `configure`, `start`, `hold`, `kick`         | Only the host can change, start or hold the game, or remove a player   |
+| `not_enough_players` | `start`                                      | A public game needs a second player                                    |
+| `invalid_settings`   | `configure`                                  | No published map has this id, or too many bots or seats for it         |
+| `too_many_games`     | `play`, `create`                             | The server holds as many games as it can                               |
+| `too_many_lobbies`   | `create`                                     | This address already holds three games that have not started           |
+| `token_invalid`      | `rejoin`                                     | The game is over or the seat was given up                              |
+| `token_in_use`       | `rejoin`                                     | Another connection holds the seat; retry in 1 s                        |
+| `restarting`         | `play`, `create`, `join`                     | The server is about to restart; try again in a minute                  |
 
 ### `maintenance`
 
@@ -378,7 +388,7 @@ A turn with 32 orders takes about a tenth of its JSON size (214 bytes against 2,
 
 ## Versioning
 
-Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`, version 16 `visibility` and `name` in `create` for public games of one's own, `name` in `play` and `configure`, `capacity` and `autoStart` in the game options, `hold` and `active`, and `seq` in `configure`, and `name`, `autoStart`, `minPlayers`, `holdable`, `configured` and a host for every game in `lobby`. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between simulation builds: an older page of another one is always sent away.
+Client and server ship together in one image, so a mismatch only affects pages loaded before a deployment. Two checks catch them, both answered with close code `4000` and a reload. `PROTOCOL_VERSION` changes when a message changes shape or an order kind is added: version 2 added `retreat` and `embark`, version 3 the game options (`configure`, `bots` and `difficulty` in `lobby`, `difficulty` in `started`), version 4 the hashes in `desync`, version 5 `build` and `demolish`, version 6 `ally` and `betray`, version 7 `nations` in the game options, `lobby` and `started`, version 8 `teams` in the same three places, version 9 `embargo`, version 10 `warship` and `patrol`, version 11 `missile`, version 12 `gift` and `disabled` in the game options, `lobby` and `started`, version 13 `quick`, version 14 `token` in `lobby`, `rejoin` before the start, the `restart` reason of `ended`, the `restarting` error and `maintenance`, version 15 `5`, the palace, among the structures of `build`, version 16 `visibility` and `name` in `create` for public games of one's own, `name` in `play` and `configure`, `capacity` and `autoStart` in the game options, `hold` and `active`, and `seq` in `configure`, and `name`, `autoStart`, `minPlayers`, `holdable`, `configured` and a host for every game in `lobby`, version 17 `kick`, the `removed` reason of `ended`, and the `removed` and `too_many_seats` errors. The `build` sent in `hello` catches everything else, such as a change of the engine or the balance, which leaves the protocol as it is but would desynchronise an older page. The protocol makes no promise of compatibility between simulation builds: an older page of another one is always sent away.
 
 ### Simulation build
 

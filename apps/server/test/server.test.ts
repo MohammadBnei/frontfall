@@ -843,6 +843,39 @@ describe("WebSocket", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("limits how fast one address opens connections", async () => {
+    const host = await start({ upgradeRate: { perSecond: 0.001, burst: 2 } });
+    const headers = { "x-client-ip": "203.0.113.9" };
+    for (let i = 0; i < 2; i++) {
+      const client = open(host, headers);
+      await opened(client.socket);
+      client.socket.close();
+      await closed(client.socket);
+    }
+    await expect(opened(open(host, headers).socket)).rejects.toThrow("429");
+    await expect(
+      opened(open(host, { "x-client-ip": "198.51.100.4" }).socket),
+    ).resolves.toBeUndefined();
+  });
+
+  it("lets the host remove a player, who cannot join that game again (R-MODE-05)", async () => {
+    const host = await start();
+    const alice = await player(host, "Alice");
+    alice.send({ type: "create" });
+    const { game } = await alice.next("lobby");
+    const bob = await player(host, "Bob");
+    bob.send({ type: "join", game });
+    const seated = await bob.next("lobby");
+    await alice.next("lobby");
+    bob.send({ type: "kick", player: 1 });
+    expect((await bob.next("error")).code).toBe("not_host");
+    alice.send({ type: "kick", player: seated.you });
+    expect((await bob.next("ended")).reason).toBe("removed");
+    expect((await alice.next("lobby")).players.map((p) => p.name)).toEqual(["Alice"]);
+    bob.send({ type: "join", game });
+    expect((await bob.next("error")).code).toBe("removed");
+  });
+
   it("refuses connections beyond the server-wide cap", async () => {
     const host = await start({ maxConnections: 1 });
     const first = open(host);
