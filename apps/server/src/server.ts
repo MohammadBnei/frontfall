@@ -7,6 +7,8 @@ import {
   type Frame,
 } from "@frontfall/protocol";
 import { WebSocketServer, type WebSocket } from "ws";
+import { Accounts, accountsFile } from "./accounts.ts";
+import { createAuth, type Auth } from "./auth.ts";
 import { loadMapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger } from "./log.ts";
@@ -183,6 +185,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   const reports = usageInbox(usage, logger, (origin) =>
     isAllowedOrigin(origin, options.allowedOrigin),
   );
+  const auth = startAuth();
   /** When the oldest ping a socket has not answered yet was sent. */
   const unanswered = new WeakMap<WebSocket, number>();
   const ping = (socket: WebSocket, now: number): void => {
@@ -221,6 +224,12 @@ export function createGameServer(options: ServerOptions): GameServer {
       else if (path === "/admin/reports") reportsAnswer(request, response);
       else if (path === "/admin/bans") bansAnswer(request, response);
       else response.writeHead(404).end();
+      return;
+    }
+    if (auth?.handle(request, response, path)) return;
+    if (path === "/api/me" && (request.method === "GET" || request.method === "HEAD")) {
+      // Guests only: the page shows no sign-in button.
+      sendJson(response, { providers: [], account: null });
       return;
     }
     if (path === "/api/usage") {
@@ -304,6 +313,7 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   const { handle, reject, seatOf } = messageHandler({
     games,
+    accounts: auth?.accounts,
     maps,
     maxBots,
     simulation,
@@ -324,6 +334,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       socket,
       address: clientAddress(request),
       client: pseudonym(clientAddress(request)),
+      account: auth?.accountOf(request)?.id,
       messages: new TokenBucket(messageRate.perSecond, messageRate.burst, Date.now()),
       name: undefined,
       room: undefined,
@@ -510,6 +521,23 @@ export function createGameServer(options: ServerOptions): GameServer {
       for (const session of sessions) if (!session.closing && turnAwayBanned(session)) closed++;
     }
     sendJson(response, { bans: moderation.list(now), closed });
+  }
+
+  /** Sign-in, when a service is set up and accounts have somewhere to be kept. */
+  function startAuth(): Auth | undefined {
+    const settings = options.auth;
+    if (!settings || Object.keys(settings.clients).length === 0) return undefined;
+    if (options.dataDir === undefined) {
+      logger.warn("accounts_off", { reason: "no data directory" });
+      return undefined;
+    }
+    const accounts = new Accounts(accountsFile(options.dataDir), settings.sessionSecret);
+    const error = accounts.load();
+    if (error) logger.warn("accounts_not_loaded", { error: error.message });
+    logger.info("accounts_loaded", { accounts: accounts.size });
+    return createAuth(settings, accounts, logger, (origin) =>
+      isAllowedOrigin(origin, options.allowedOrigin),
+    );
   }
 
   function status(): ServerStatus {

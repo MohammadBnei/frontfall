@@ -16,6 +16,7 @@ import {
 import { MAX_GAME_NAME_LENGTH, PublicGame, normalizeGameName } from "@frontfall/protocol";
 import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
+import { AccountBox } from "./account.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
 import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
@@ -61,6 +62,9 @@ export class Menu {
     name.value = this.setup.playerName;
     name.addEventListener("input", () => {
       this.setup.playerName = cleanName(name.value);
+    });
+    const account = new AccountBox(name, (chosen) => {
+      this.setup.playerName = cleanName(chosen);
     });
 
     const maps = h("div", {
@@ -178,6 +182,7 @@ export class Menu {
         { class: "field" },
         h("label", { for: "player-name", "data-i18n": "menu.name" }),
         name,
+        account.element,
       ),
       h(
         "div",

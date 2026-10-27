@@ -4,7 +4,7 @@ Frontfall counts how it is played, to know which maps and modes people use, wher
 
 ## Nothing that points to you
 
-- No account, no cookie, no advertising service: the game's reports go to the game's own server and nowhere else. The public server at nclsmgr.com sits behind Cloudflare, whose Web Analytics counts page views without cookies; that is the site's, not the game's, and a self-hosted server has none of it.
+- No account unless you ask for one, no cookie unless you sign in, no advertising service: the game's reports go to the game's own server and nowhere else. The public server at nclsmgr.com sits behind Cloudflare, whose Web Analytics counts page views without cookies; that is the site's, not the game's, and a self-hosted server has none of it.
 - No player name, no address, no identifier that outlives a game. The page draws a random number for each game, only so that the same game is not counted twice; it is never stored in the browser.
 - The server reads each report, adds one to a few counters, and forgets the report. Only the counters are kept: how many games were played on a phone yesterday, not who played them.
 - Your network address is held in memory for a few minutes to limit how often one address can report, and is never written down. The server's logs follow the rules in [server.md](server.md#logs).
@@ -18,6 +18,16 @@ The game keeps a few things in your browser, for you and nobody else. None of it
 - **Your profile:** the colour you want in solo games, and the last ten games you finished (map, mode, how it ended, minutes played and the day). The menu's **Your profile** panel shows them, and **Forget my profile and achievements** erases the profile, your setup with your name, your achievements and any game in progress from the device. Clearing the site's data in the browser does the same.
 - **Your achievements:** which you have earned and the counts behind them, kept the same way.
 - **Your seat in an online game,** and a snapshot of it, so that a reload brings you back; both are dropped when you leave the game.
+
+## If you sign in
+
+Signing in with Discord or Google is optional; it keeps your name for you. The game asks Discord only who you are (`identify`), and Google only your profile (`openid profile`), once, at sign-in. Of what they answer, the server keeps:
+
+- the name you play under, which starts as your first name or display name there and which you can change;
+- your id at that service, scrambled with a secret key (HMAC-SHA256), so that it finds your account next time but the file alone does not say who you are;
+- which service, and the day the account was made and last used.
+
+No email, no picture, no friends list, and the service's token is forgotten at once. A cookie, `frontfall_session`, keeps you signed in for 30 days; it holds your account number and is used for nothing else. Sign out removes it. **Delete my account**, under your name in the menu, erases the account from the server at once, and your name becomes free again. Your games and reports are never linked to your account: the reports below stay as anonymous as a guest's.
 
 ## Reports
 
