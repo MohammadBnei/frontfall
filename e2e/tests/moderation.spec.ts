@@ -40,6 +40,9 @@ test("the host removes a player, who cannot join that game again (R-MODE-05)", a
   await guest.locator("#join-submit").click();
   await expect(guest.locator("#lobby-status")).toContainText("you cannot join it again");
   await expect(host.locator("#lobby-players li")).toHaveCount(1);
+  // Every test shares one address: a lobby left open counts against the three it may hold.
+  await host.close();
+  await guest.close();
 });
 
 test("a player hides another one, whose name and messages leave their screen (R-DIPLO-08)", async ({
@@ -82,4 +85,6 @@ test("a player hides another one, whose name and messages leave their screen (R-
   await host.getByRole("button", { name: "Diplomacy with Player 2" }).click();
   await menu.locator(".menu-action.hide").click();
   await expect(host.locator(".leaderboard")).toContainText("Guest");
+  await host.close();
+  await guest.close();
 });
