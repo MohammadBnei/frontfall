@@ -3,8 +3,7 @@ import type { GameRules } from "../game/messages.ts";
 import type { BuildView, ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
-import { betaBadge } from "./beta.ts";
-import { h, present, swatch } from "./dom.ts";
+import { h, swatch } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
 
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
@@ -12,6 +11,8 @@ export const MIN_RATIO = 5;
 export const DEFAULT_RATIO = 30;
 /** The HUD is redrawn at most this often; the map keeps its own pace. */
 const REFRESH_MS = 250;
+/** Leaders listed at rest, then when the player opens the leaderboard. */
+const LEADERBOARD_SHORT = 3;
 const LEADERBOARD_SIZE = 10;
 /** A press held this long on a build button explains it, as the long press on the map does. */
 const HOLD_MS = 500;
@@ -106,7 +107,7 @@ export class Hud {
     { class: "banner", role: "status", "aria-live": "polite" },
     t("game.loading"),
   );
-  private readonly leaders = h("ol", { class: "leaderboard-list" });
+  private readonly leaders = h("ol", { class: "leaderboard-list", id: "leaderboard-list" });
   /** The leaderboard panel: the menu of a player picked in it opens at its foot. */
   readonly leaderboard: HTMLElement;
   private readonly ratioInput = h("input", {
@@ -147,6 +148,9 @@ export class Hud {
   private readonly heavyMissileCost = h("span", { class: "build-cost" });
   private readonly cityCount = h("span", { class: "build-count" });
   private mode: ClickMode = "attack";
+  private leaderboardOpen = false;
+  private readonly buildPanel: HTMLElement;
+  private readonly buildToggle: HTMLButtonElement;
   /** What a build button does, after a long press on it. */
   private readonly tip = h("p", {
     class: "build-tip",
@@ -213,7 +217,7 @@ export class Hud {
 
     const buildPanel = h(
       "section",
-      { class: "panel build", "data-i18n-attr": "aria-label:hud.build" },
+      { class: "panel build", id: "build-panel", "data-i18n-attr": "aria-label:hud.build" },
       ...BUILD_MODES.map(({ mode, key }) => {
         const costs: Partial<Record<ClickMode, HTMLElement>> = {
           palace: this.palaceCost,
@@ -239,10 +243,15 @@ export class Hud {
             "aria-keyshortcuts": key,
           },
           h("span", { class: "build-icon", "aria-hidden": "true" }),
-          h("span", { class: "build-name", "data-i18n": `hud.${mode}` }),
-          // The key, for players with a keyboard; hidden on touch screens (styles.css).
-          h("kbd", { class: "build-key", "aria-hidden": "true" }, key),
-          ...extra,
+          // Name, key and cost: a bubble over the button on hover or focus, the cost only in the tray.
+          h(
+            "span",
+            { class: "build-info" },
+            h("span", { class: "build-name", "data-i18n": `hud.${mode}` }),
+            // The key, for players with a keyboard; hidden on touch screens (styles.css).
+            h("kbd", { class: "build-key", "aria-hidden": "true" }, key),
+            ...extra,
+          ),
         );
         // A finger has no tooltip: holding the button explains it instead.
         let hold: ReturnType<typeof setTimeout> | undefined;
@@ -276,16 +285,32 @@ export class Hud {
             return;
           }
           actions.onMode(mode);
+          // On a narrow screen the tray gives the map back once a choice is made.
+          this.setBuildOpen(false);
         });
         this.buildButtons.set(mode, button);
         return button;
       }),
     );
 
+    const leaderboardToggle = h("button", {
+      type: "button",
+      class: "leaderboard-toggle",
+      id: "leaderboard-toggle",
+      "aria-expanded": "false",
+      "aria-controls": "leaderboard-list",
+      "data-i18n": "hud.leaderboard",
+    });
+    leaderboardToggle.addEventListener("click", () => {
+      this.leaderboardOpen = !this.leaderboardOpen;
+      leaderboardToggle.setAttribute("aria-expanded", String(this.leaderboardOpen));
+      this.leaderboard.classList.toggle("open", this.leaderboardOpen);
+      if (this.last) this.renderLeaders(this.last);
+    });
     this.leaderboard = h(
       "section",
       { class: "panel leaderboard", "aria-labelledby": "leaderboard-title" },
-      h("h2", { id: "leaderboard-title", "data-i18n": "hud.leaderboard" }),
+      h("h2", { id: "leaderboard-title" }, leaderboardToggle),
       this.leaders,
       h(
         "div",
@@ -296,6 +321,19 @@ export class Hud {
         this.clock,
       ),
     );
+    // Narrow screens keep the buildings behind this button (styles.css).
+    this.buildToggle = h("button", {
+      type: "button",
+      class: "icon-button icon-build",
+      id: "build-toggle",
+      "aria-expanded": "false",
+      "aria-controls": "build-panel",
+      "data-i18n-attr": "aria-label:hud.build;title:hud.build",
+    });
+    this.buildToggle.addEventListener("click", () => {
+      this.setBuildOpen(!this.buildPanel.classList.contains("open"));
+    });
+    this.buildPanel = buildPanel;
     this.element = h(
       "div",
       { class: "hud", id: "hud" },
@@ -318,10 +356,15 @@ export class Hud {
       this.attackPanel,
       buildPanel,
       this.tip,
-      h("div", { class: "toolbar" }, help, ...(pausable ? [pause] : []), menu),
-      ...present(betaBadge("beta-hud")),
+      h("div", { class: "toolbar" }, this.buildToggle, help, ...(pausable ? [pause] : []), menu),
     );
     applyTranslations(this.element);
+  }
+
+  /** Opens or closes the tray of buildings where it is a tray (narrow screens). */
+  private setBuildOpen(open: boolean): void {
+    this.buildPanel.classList.toggle("open", open);
+    this.buildToggle.setAttribute("aria-expanded", String(open));
   }
 
   /** Shows what a build button does for a few seconds. */
@@ -527,9 +570,10 @@ export class Hud {
     const ranked = players
       .filter((player) => player.alive)
       .sort((a, b) => b.tiles - a.tiles || a.id - b.id);
-    const shown = ranked.slice(0, LEADERBOARD_SIZE);
+    const size = this.leaderboardOpen ? LEADERBOARD_SIZE : LEADERBOARD_SHORT;
+    const shown = ranked.slice(0, size);
     const humanRank = ranked.findIndex((player) => player.id === you);
-    if (humanRank >= LEADERBOARD_SIZE) shown.push(ranked[humanRank] as PlayerView);
+    if (humanRank >= size) shown.push(ranked[humanRank] as PlayerView);
     const allies = new Set(diplomacy.allies.map((ally) => ally.id));
     const teammates = new Set(diplomacy.teammates);
     const traitors = new Set(diplomacy.traitors.map((traitor) => traitor.id));

@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **A lighter screen in play.** The buildings are now a row of icons at the foot of the map: hover or focus one to see its name, key and cost. On a phone they sit behind a Build button next to the other buttons and close once you pick one. The leaderboard lists the three leaders and you, and opens to ten when you tap its title. The Beta badge no longer sits on the map.
+
 ### Fixed
 
 - The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of the site next door.
