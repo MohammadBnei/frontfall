@@ -1878,3 +1878,92 @@ kbd {
     padding-right: 8px;
   }
 }
+
+/* Achievements */
+
+.badge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+}
+
+.achievements {
+  width: min(480px, 100%);
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: 24px;
+  overflow-y: auto;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 10px;
+  background: var(--ff-night-700);
+}
+
+.achievements h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.achievements-count {
+  color: var(--ff-slate-300);
+}
+
+.achievement-list,
+.end-achievements ul {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.achievement-list li,
+.end-achievements li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.achievement-list li.locked strong {
+  color: var(--ff-slate-300);
+}
+
+.achievement-list span,
+.end-achievements span {
+  display: grid;
+}
+
+.achievement-list small,
+.end-achievements small {
+  color: var(--ff-slate-300);
+}
+
+.achievement-list em {
+  color: var(--ff-slate-400);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.achievement-list li.earned em {
+  color: var(--ff-warning);
+}
+
+.end-achievements {
+  margin: 0 0 16px;
+}
+
+.end-achievements h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ff-warning);
+}
+
+.achievement-list em.progress {
+  color: var(--ff-slate-300);
+}
+
+.end-achievements em {
+  color: var(--ff-warning);
+  font-size: 12px;
+  font-style: normal;
+}

@@ -21,6 +21,8 @@ import {
   type Renderer,
   type ViewKind,
 } from "../render/renderer.ts";
+import { AchievementStore, type Gain } from "../achievements/store.ts";
+import { AchievementTracker } from "../achievements/tracker.ts";
 import { endScreen } from "./end-screen.ts";
 // The help and the guide load when first shown, out of the first download.
 import type { Guide } from "./guide.ts";
@@ -98,6 +100,11 @@ export class GameScreen {
   private disabled = 0;
   private ownableTiles = 1;
   private peakTiles = 0;
+  /** Watches the game for achievements; none for a replay. */
+  private achievements: AchievementTracker | undefined;
+  private readonly achievementStore = new AchievementStore(safeStorage());
+  /** What this game earned the player for the first time. */
+  private readonly earned: Gain[] = [];
   private frameHandle = 0;
   private readonly marks = new ClickMarks();
   private previousShips = new Map<number, number>();
@@ -259,6 +266,15 @@ export class GameScreen {
           this.showMap(info.map, info.you, info.maxPlayer);
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
+          if (!options.record) {
+            this.achievements = new AchievementTracker({
+              ticksPerSecond: info.rules.ticksPerSecond,
+              ownableTiles: info.rules.ownableTiles,
+              disabled: info.rules.disabled,
+              difficulty: link ? undefined : options.difficulty,
+              teamGame: info.rules.teams.length > 0,
+            });
+          }
           this.hud.setRules(info.rules);
           // Fetched while the game starts, so H opens the help at once.
           void import("./help.ts");
@@ -599,6 +615,7 @@ export class GameScreen {
     this.lightHovered();
     const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
+    this.earn(update);
     if (human && this.guide) this.followGuide(update, human.tiles);
     if (!this.focused && human && human.tiles > 0) {
       // Once, when the player's start appears, picked or placed by the game:
@@ -633,6 +650,13 @@ export class GameScreen {
       this.tracker?.end(won ? "victory" : "defeat", Date.now());
       this.showEnd(update);
     }
+  }
+
+  /** Keeps what the game just earned, at once: a closed tab loses nothing. */
+  private earn(update: GameUpdate): void {
+    const delta = this.achievements?.observe(update);
+    if (!delta || (delta.fresh.length === 0 && Object.keys(delta.counts).length === 0)) return;
+    this.earned.push(...this.achievementStore.record(delta, Date.now()));
   }
 
   private click(tile: number, finger = false): void {
@@ -974,6 +998,7 @@ export class GameScreen {
           ticksPerSecond: this.ticksPerSecond,
           ownableTiles: this.ownableTiles,
           peakTiles: this.peakTiles,
+          achievements: this.earned,
           // Only a published map can be pinned in a record.
           canRecord: this.published,
           teams: this.teams,

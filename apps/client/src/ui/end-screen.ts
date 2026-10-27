@@ -1,6 +1,9 @@
 import type { GameUpdate } from "../game/solo-game.ts";
 import { applyTranslations, t, type MessageKey } from "../i18n/index.ts";
 import type { GameTracker } from "../usage.ts";
+import { CATALOGUE, badgeLevel } from "../achievements/catalog.ts";
+import type { Gain } from "../achievements/store.ts";
+import { badge } from "../achievements/badge.ts";
 import { h } from "./dom.ts";
 import { feedbackBlock } from "./feedback.ts";
 import { formatDuration, formatPercent } from "./format.ts";
@@ -19,6 +22,8 @@ export interface GameSummary {
   ownableTiles: number;
   /** Most land the human held at any time, in tiles. */
   peakTiles: number;
+  /** Achievements this game earned for the first time. */
+  achievements: readonly Gain[];
   /** Whether the game can be saved as a replay. */
   canRecord: boolean;
   /** Team of each player by id, in a team game. */
@@ -78,6 +83,7 @@ export function endScreen(
       ...row("end.duration", formatDuration(seconds)),
       ...row("end.peak", formatPercent(summary.peakTiles / Math.max(1, summary.ownableTiles))),
     ),
+    ...(summary.achievements.length > 0 ? [newAchievements(summary.achievements)] : []),
     // A thumbs up or down, once per game played (not for a replay).
     ...(tracker ? [feedbackBlock(tracker, summary.details)] : []),
     h(
@@ -107,4 +113,33 @@ export function endScreen(
   );
   applyTranslations(dialog);
   return h("div", { class: "overlay" }, dialog);
+}
+
+/** The achievements this game unlocked, each with its badge and, for a tiered one, the tier. */
+function newAchievements(gains: readonly Gain[]): HTMLElement {
+  return h(
+    "section",
+    { class: "end-achievements", "aria-labelledby": "end-achievements-title" },
+    h("h2", { id: "end-achievements-title", "data-i18n": "end.achievements" }),
+    h(
+      "ul",
+      {},
+      ...gains.map(({ id, level }) => {
+        const achievement = CATALOGUE.find((candidate) => candidate.id === id);
+        return h(
+          "li",
+          {},
+          badge(id, achievement ? badgeLevel(achievement, level) : 3),
+          h(
+            "span",
+            {},
+            h("strong", { "data-i18n": `achievement.${id}.name` as MessageKey }),
+            achievement?.tiers
+              ? h("em", { "data-i18n": `achievements.tier.${String(level)}` as MessageKey })
+              : h("small", { "data-i18n": `achievement.${id}.text` as MessageKey }),
+          ),
+        );
+      }),
+    ),
+  );
 }

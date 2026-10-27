@@ -1,4 +1,5 @@
 import { accessibilityPanel } from "./accessibility.ts";
+import { CATALOGUE } from "../achievements/catalog.ts";
 import { REPLAY_EXTENSION } from "../game/replay-file.ts";
 import { MAP_GROUPS, generateMap, suggestedBots, type MapInfo } from "../game/maps.ts";
 import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
@@ -16,6 +17,7 @@ import { MAX_GAME_NAME_LENGTH, PublicGame, normalizeGameName } from "@frontfall/
 import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
+import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
 import { h, present } from "./dom.ts";
 import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
@@ -238,7 +240,13 @@ export class Menu {
       ),
       form,
       online,
-      h("footer", { class: "menu-footer" }, replayPicker(onReplay), language),
+      h(
+        "footer",
+        { class: "menu-footer" },
+        replayPicker(onReplay),
+        achievementsButton(this.cleanups),
+        language,
+      ),
       accessibilityPanel(),
       feedbackLinks(),
     );
@@ -513,4 +521,32 @@ function replayPicker(onReplay: (file: File) => void): HTMLElement {
     input.click();
   });
   return h("div", { class: "replay-picker" }, button, input);
+}
+
+/** Opens the page of achievements over the menu. */
+function achievementsButton(cleanups: (() => void)[]): HTMLElement {
+  const button = h("button", {
+    type: "button",
+    class: "secondary achievements-open",
+    id: "achievements-open",
+  });
+  const label = (): void => {
+    button.textContent = t("achievements.open", {
+      earned: earnedCount(),
+      total: CATALOGUE.length,
+    });
+  };
+  label();
+  cleanups.push(onLanguageChange(label));
+  button.addEventListener("click", () => {
+    const close = (): void => {
+      panel.remove();
+      label();
+      button.focus();
+    };
+    const panel = achievementsPanel(close);
+    document.body.append(panel);
+    panel.querySelector<HTMLButtonElement>("button")?.focus();
+  });
+  return button;
 }
