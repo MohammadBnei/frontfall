@@ -73,6 +73,14 @@ export class Menu {
       });
       this.cleanups.push(box.dispose);
       account.replaceWith(box.element);
+      // A sign-in that failed says so in the profile card: open it.
+      new MutationObserver(() => {
+        if (box.element.querySelector(".account-error")) {
+          for (const panel of this.element.querySelectorAll<HTMLDetailsElement>(".menu-panel")) {
+            panel.open = panel.id === "menu-profile";
+          }
+        }
+      }).observe(box.element, { childList: true });
     });
 
     const maps = h("div", {
@@ -214,7 +222,6 @@ export class Menu {
         { class: "field" },
         h("label", { for: "player-name", "data-i18n": "menu.name" }),
         name,
-        account,
       ),
       h(
         "details",
@@ -274,6 +281,7 @@ export class Menu {
       "details",
       { class: "menu-panel menu-profile", id: "menu-profile" },
       h("summary", { "data-i18n": "profile.heading" }),
+      account,
     );
     // Its code comes with the first opening, not with the first visit.
     profileSection.addEventListener("toggle", () => {
@@ -338,8 +346,6 @@ export class Menu {
       barButton("open-profile", "profile.heading", ICON_PROFILE, profileSection),
       achievementsButton(this.cleanups),
       barButton("open-accessibility", "a11y.title", ICON_SETTINGS, settings),
-      // Where the sign-in button goes, once there is one.
-      h("span", { class: "menu-account", id: "menu-account" }),
       language,
     );
     this.element = h(
@@ -438,12 +444,17 @@ export class Menu {
       const info = mapList.find((candidate) => candidate.id === id);
       return info?.name?.[getLanguage()] ?? id;
     };
+    const more = h("details", { class: "online-more", id: "online-more" });
+    // Until the player opens or closes it themselves, it opens by itself when there are games to show.
+    let moreTouched = false;
     let shown: readonly PublicGame[] = [];
     const show = (found: readonly PublicGame[]): void => {
       shown = found;
       games.hidden = false;
       empty.hidden = found.length > 0;
       list.replaceChildren(...found.map((game) => this.gameRow(game, mapLabel, enter)));
+      // The games of others are what a visitor looks for: show them, unless the player closed the list.
+      if (!moreTouched && found.length > 0) more.open = true;
     };
     this.cleanups.push(
       onLanguageChange(() => {
@@ -485,6 +496,25 @@ export class Menu {
     }));
     quick.setAttribute("aria-describedby", "online-quick-hint");
     quick.setAttribute("data-i18n-attr", "title:online.quickHint");
+    more.append(
+      h("summary", { "data-i18n": "online.games" }),
+      h(
+        "div",
+        { class: "field" },
+        h("label", { for: "online-game-name", "data-i18n": "online.gameName" }),
+        h(
+          "div",
+          { class: "online-actions" },
+          gameName,
+          button("online-create-public", "online.createPublic", createPublic),
+        ),
+        nameError,
+      ),
+      games,
+    );
+    more.querySelector("summary")?.addEventListener("click", () => {
+      moreTouched = true;
+    });
     return h(
       "section",
       { class: "menu-online", "aria-labelledby": "online-heading" },
@@ -501,24 +531,7 @@ export class Menu {
         button("online-create", "online.create", () => ({ type: "create", visibility: "private" })),
         replay,
       ),
-      h(
-        "details",
-        { class: "online-more", id: "online-more" },
-        h("summary", { "data-i18n": "online.games" }),
-        h(
-          "div",
-          { class: "field" },
-          h("label", { for: "online-game-name", "data-i18n": "online.gameName" }),
-          h(
-            "div",
-            { class: "online-actions" },
-            gameName,
-            button("online-create-public", "online.createPublic", createPublic),
-          ),
-          nameError,
-        ),
-        games,
-      ),
+      more,
     );
   }
 
@@ -656,7 +669,8 @@ function achievementsButton(cleanups: (() => void)[]): HTMLElement {
     const text = t("achievements.open", { earned: earnedCount(), total: CATALOGUE.length });
     button.setAttribute("aria-label", text);
     button.title = text;
-    count.textContent = `${String(earnedCount())}/${String(CATALOGUE.length)}`;
+    // Numbers only, as in the label above.
+    count.replaceChildren(String(earnedCount()), new Text("/"), String(CATALOGUE.length));
   };
   label();
   cleanups.push(onLanguageChange(label));

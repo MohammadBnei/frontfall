@@ -195,6 +195,8 @@ test("four players see the same game, without a desync", async ({ browser, baseU
     return rows.sort((a, b) => a.name.localeCompare(b.name));
   };
   for (const page of pages) {
+    // The leaderboard lists the first three at rest: open it for all four.
+    await page.locator("#leaderboard-toggle").click({ timeout: GAME_START_TIMEOUT });
     await expect(page.locator(".leaderboard-list li")).toHaveCount(4, {
       timeout: GAME_START_TIMEOUT,
     });
@@ -247,6 +249,7 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   await guest.reload();
   await expect(guest.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
   await expect(land).not.toHaveText("0%", { timeout: 10_000 });
+  await guest.locator("#leaderboard-toggle").click({ timeout: GAME_START_TIMEOUT });
   await expect(guest.locator(".leaderboard-list li")).toHaveCount(4);
   await expect.poll(async () => (await clockOf(host)) - (await clockOf(guest))).toBeLessThan(3);
   // Two more rounds of state hashes, compared with the guest's replayed game.
@@ -395,7 +398,8 @@ test("a host names a public game, others find it in the list, the host starts it
 
   await host.goto(baseURL);
   await host.locator("#player-name").fill("Host");
-  await host.locator("#online-more > summary").click();
+  // Open by itself when there are games, so set it rather than toggle it.
+  await host.evaluate(`document.querySelector("#online-more").open = true`);
   await host.locator("#online-game-name").fill(name);
   await host.locator("#online-create-public").click();
   await expect(host.locator("#lobby-title")).toHaveText(name, { timeout: 15_000 });
