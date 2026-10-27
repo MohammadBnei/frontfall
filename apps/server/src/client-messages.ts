@@ -10,6 +10,7 @@ import {
   type GameOptions,
 } from "@frontfall/protocol";
 import type { RawData, WebSocket } from "ws";
+import type { Accounts } from "./accounts.ts";
 import type { MapLimits } from "./catalog.ts";
 import type { Directory } from "./directory.ts";
 import type { Logger } from "./log.ts";
@@ -90,6 +91,8 @@ export interface Session {
   /** Pseudonym of the client address, for the logs. */
   readonly client: string;
   readonly messages: TokenBucket;
+  /** Id of the account signed in when the socket opened: it plays under the account's name. */
+  readonly account: string | undefined;
   name: string | undefined;
   room: Room | undefined;
   seat: Seat | undefined;
@@ -102,6 +105,8 @@ export interface Session {
 /** What the handling of messages needs from the server around it. */
 export interface MessageContext {
   readonly games: Directory;
+  /** Accounts, when players may sign in: their names are theirs alone. */
+  readonly accounts?: Accounts | undefined;
   readonly maps: MapLimits;
   /** Bots the host of a game may add, within the map's player count. */
   readonly maxBots: number;
@@ -175,9 +180,15 @@ export function messageHandler(ctx: MessageContext): {
         );
         return;
       }
-      const name = normalizeName(message.name);
+      const account =
+        session.account === undefined ? undefined : ctx.accounts?.get(session.account);
+      const name = normalizeName(account?.name ?? message.name);
       if (!name.ok) {
         reply(session, "invalid_name", name.error);
+        return;
+      }
+      if (!account && ctx.accounts?.owner(name.name)) {
+        reply(session, "invalid_name", "this name belongs to an account");
         return;
       }
       session.name = name.name;

@@ -1,4 +1,6 @@
 import { fileURLToPath } from "node:url";
+import { PROVIDERS } from "./accounts.ts";
+import type { AuthOptions } from "./auth.ts";
 import { jsonLogger } from "./log.ts";
 import { createGameServer } from "./server.ts";
 
@@ -35,6 +37,32 @@ const drainSeconds =
 const seatsPerAddress =
   optionalNumber("FRONTFALL_SEATS_PER_ADDRESS", (seats) => ({ seatsPerAddress: seats })) ?? {};
 
+/**
+ * Sign-in with Discord or Google: each service whose application id and
+ * secret are set, as long as the game knows its public address and has a
+ * secret to sign sessions with. See docs/self-hosting.md.
+ */
+function authSettings(): AuthOptions | undefined {
+  const publicUrl = process.env.FRONTFALL_PUBLIC_URL;
+  const sessionSecret = process.env.FRONTFALL_SESSION_SECRET;
+  const clients: AuthOptions["clients"] = {};
+  for (const provider of PROVIDERS) {
+    const prefix = `FRONTFALL_OAUTH_${provider.toUpperCase()}`;
+    const id = process.env[`${prefix}_ID`];
+    const secret = process.env[`${prefix}_SECRET`];
+    if (id && secret) clients[provider] = { id, secret };
+  }
+  if (Object.keys(clients).length === 0) return undefined;
+  if (!publicUrl || !sessionSecret || sessionSecret.length < 32) {
+    logger.warn("accounts_off", {
+      reason:
+        "FRONTFALL_PUBLIC_URL and a FRONTFALL_SESSION_SECRET of 32 characters or more are needed",
+    });
+    return undefined;
+  }
+  return { publicUrl, sessionSecret, clients };
+}
+
 const server = createGameServer({
   staticRoot:
     process.env.FRONTFALL_STATIC ?? fileURLToPath(new URL("../../client/dist", import.meta.url)),
@@ -44,6 +72,7 @@ const server = createGameServer({
   simulation,
   logger,
   dataDir: process.env.FRONTFALL_DATA || undefined,
+  auth: authSettings(),
   publicGame: {
     ...optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
       // A quick game must count down: without it, a lone player would wait for nothing.

@@ -1,3 +1,4 @@
+import type { AuthOptions } from "./auth.ts";
 import type { Logger } from "./log.ts";
 import type { RoomSettings } from "./room.ts";
 
@@ -54,6 +55,12 @@ export interface ServerOptions {
    * in memory only, and running games end with the server.
    */
   dataDir?: string | undefined;
+  /**
+   * Sign-in with Discord or Google (docs/server.md#accounts). Needs `dataDir`,
+   * where the accounts are kept; without it, or without any service, the
+   * game is played as a guest only and the page shows no sign-in button.
+   */
+  auth?: AuthOptions | undefined;
   /** How often the usage counts are written to the data directory. */
   usageSaveIntervalMs?: number;
 }

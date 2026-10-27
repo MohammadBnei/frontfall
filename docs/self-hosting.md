@@ -36,6 +36,19 @@ The usage counts also keep a copy of the previous save and one file per month in
 
 Every setting the server reads is listed in [server.md](server.md#configuration).
 
+### Sign-in with Discord or Google
+
+Optional: without it, players play as guests and the menu shows no sign-in. To offer it, create an application at the [Discord developer portal](https://discord.com/developers/applications) (OAuth2, redirect `https://<your address>/auth/discord/callback`) or an OAuth client of type "Web application" in the [Google Cloud console](https://console.cloud.google.com/apis/credentials) (redirect `https://<your address>/auth/google/callback`), then set, next to `FRONTFALL_DATA`:
+
+```yaml
+FRONTFALL_PUBLIC_URL: https://games.example.org
+FRONTFALL_SESSION_SECRET: ${FRONTFALL_SESSION_SECRET} # openssl rand -base64 48, kept in an .env file
+FRONTFALL_OAUTH_DISCORD_ID: "123456789012345678"
+FRONTFALL_OAUTH_DISCORD_SECRET: ${FRONTFALL_OAUTH_DISCORD_SECRET}
+```
+
+The Google pair is `FRONTFALL_OAUTH_GOOGLE_ID` and `FRONTFALL_OAUTH_GOOGLE_SECRET`. The container must reach Discord and Google over HTTPS. Never change the session secret: the accounts are keyed by it ([server.md](server.md#accounts)).
+
 To update: `docker compose pull && docker compose up -d`. To build the image from the source instead: `docker build -t frontfall .`, then set `FRONTFALL_IMAGE=frontfall` when running `docker compose`.
 
 ## HTTPS and a domain
