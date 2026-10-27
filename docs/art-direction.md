@@ -1,0 +1,110 @@
+# Art direction
+
+How Frontfall should look and feel from v0.7 on. The identity (logo, ember and front blue, Inter, the twenty player colours) is unchanged and lives in [`brand.md`](brand.md) and `assets/brand/tokens.json`. This page covers what happens inside the game: terrain, territories, pictograms, interface, motion and sound.
+
+The direction is called **Relief**: a lit table-top map, with hill-shaded land, depth-shaded sea and shaded game pieces standing on it.
+
+![World view on a laptop](assets/art-direction/world-laptop-C.png)
+
+The mock-ups are drawn for this page with generated terrain. They fix the look, not the exact pixels.
+
+## Intentions
+
+- **A map you want to look at.** Land and sea have volume and light, so a quiet moment in a game is still pleasant to watch.
+- **Readable first.** Ownership, fronts and what is built where must be clear at a glance, on a phone in daylight, with up to twenty players.
+- **Pieces, not icons.** A city, a fort or a ship looks like an object placed on the map, with its own silhouette.
+- **Original.** Shapes, palette and layout are our own. No asset, glyph or layout is taken from another game.
+
+## Terrain
+
+Light comes from the north-west. Land is shaded from the height of each tile; the same height field drives both the shading and the colour.
+
+| Part         | Treatment                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| Lowland      | `land` (`#3D4A3B`), the dark low-saturation green already used for unclaimed land                |
+| Highland     | Blends toward a warm olive (`#8A8E68`) with height, so ridges and plateaus read without textures |
+| Shading      | Brightness varies from 0.55 to 1.1 of the base colour with the slope facing the light            |
+| Shallow sea  | `#1F5878` next to the coast                                                                      |
+| Deep sea     | Fades to `ocean-deep` (`#0A1A28`) over about 30 tiles of depth                                   |
+| Coast        | One-tile foam line, white-blue at 55 % opacity, on the water side of every owned coast tile      |
+| Edge of view | A soft dark vignette, stronger on phones, to keep the interface readable                         |
+
+Unclaimed land stays dark and quiet so that every territory colour stands out from it (at least 2.7:1, as in the brand guide). New tokens are added to `tokens.json` under `map` when this is built: `land-light`, `sea-shallow`, `foam`.
+
+## Territories
+
+- The owner colour is tinted over the relief, never painted flat: the fill is the owner colour multiplied by the land shading, at about 84 % opacity. Hills stay visible under a territory.
+- The player's own territory gets no special colour; it is marked by the name label and the border highlight.
+- Names and troop counts sit on the territory in a bold sans with a soft shadow, sized by territory area, and fade out when a territory is too small to hold them.
+
+## Borders and fronts
+
+Three kinds of edge, each drawn differently so they can be told apart without colour.
+
+| Edge                         | Look                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------- |
+| Border with unclaimed land   | Thin line in the owner colour at 38 % brightness                                          |
+| Coast                        | The same line plus the foam line on the water side                                        |
+| Front (two players in touch) | Line 1.7 times thicker, with a light ridge of the owner colour on top, so it looks raised |
+
+When a front is under attack the ridge pulses slowly; see Motion.
+
+## Pictograms
+
+Every building and unit has its own pictogram: city, fort, port, Micho Palace, missile silo, warship, trade ship, missile. The set is drawn in-house; the SVG sources are in [`assets/art-direction/icons/`](assets/art-direction/icons/).
+
+![Icon sheet](assets/art-direction/icons-C.png)
+
+Rules:
+
+1. **One silhouette each.** The glyph alone, in a single colour, must tell the eight apart: a skyline for the city, a battlemented tower for the fort, an anchor for the port, a dome with a flag for the Palace, a hatch with a nose cone for the silo, a hull with a gun for the warship, a hull with stacked boxes for the trade ship, a finned body on a diagonal for the missile.
+2. **Drawn on a 24-unit grid**, stroke-free where possible, with at least 1.2 units between details. Details are cut out of the shape, never added as hairlines.
+3. **Readable at 16 px**, the smallest size on screen. Anything that disappears at 16 px is removed from the glyph, not from the plate.
+4. **Token plate.** A rounded square (corner radius 6 of 24) with a top-to-bottom gradient of the owner colour (28 % lighter at the top, 38 % darker at the bottom), a soft highlight on the upper half and a short drop shadow. The glyph is white with details in a dark shade of the owner colour; accent parts (flag, flame) use one warm yellow.
+5. **Owner colour on the plate** so ownership reads at a glance; colour-blind players rely on the glyph and the label.
+6. **Sizes.** 16 to 20 px at World zoom, 32 to 40 px up close, 28 px in menus. The Palace is drawn 20 % larger than other buildings.
+7. **No text on plates**, no numbers. Counts go in labels next to them.
+
+## Interface
+
+- Panels keep the `night` palette from the brand guide, with a vertical gradient, a 1 px inner highlight on the top edge and a soft shadow, so they sit above the map like raised pieces.
+- Corner radius 14 px for panels, 10 px for buttons and chips, never mixed inside one panel.
+- Numbers use tabular figures; labels are small uppercase with letter-spacing.
+- Ember is reserved for the primary action, the timer bar and the Beta badge. Prices use the warning yellow.
+- Laptop: stats top left, leaderboard top right, build list on the right edge, attack slider at the bottom centre, round buttons bottom right. Phone: stats across the top, build row under it as five icon buttons, leaderboard folded into a one-line chip, attack slider and buttons in a bottom bar.
+
+![Close-up on a phone](assets/art-direction/near-phone-C.png)
+
+## Motion
+
+Motion explains what is happening; it never decorates.
+
+- Territory edges ease over about 150 ms when land is taken.
+- A front under attack pulses its ridge at 1 Hz; a quiet front stays still.
+- Ships and missiles move along their route with a short fading trail. Missiles leave a dotted arc that fades after landing.
+- New buildings drop onto their tile in 120 ms with a small bounce, and the plate shadow shortens as it lands.
+- Everything honours the reduced-motion setting: pulses and bounces become static states, trails stay.
+
+## Sound
+
+Planned for the same release, in the same spirit: soft, tactile, never shrill.
+
+- Short wooden or stone-like sounds for placing a building, a deeper one for a front breaking.
+- A low horn for a ship at sea, a rising whistle for a missile in flight.
+- Interface clicks are quiet and short. Sound is off until the player turns it on, with separate sliders for effects and ambience.
+- All sounds are recorded or synthesised for the project, or come from sources whose licence allows commercial use, and are listed in `CREDITS.md`.
+
+## Accessibility
+
+- Every colour in a territory is paired with a name label and a darker border; fronts are told apart by thickness and ridge, not hue.
+- Pictograms are told apart by outline alone (rule 1 above).
+- Text on panels keeps at least 4.5:1 contrast; map labels keep a shadow so they stay readable over any territory colour.
+- A setting reduces shading and foam for players who want a flatter map, and one removes motion.
+
+## Performance
+
+Shading is computed once per tile when the map loads and again only where the terrain changes. Foam and vignette are single textures. The look must keep to the budgets in [`performance.md`](performance.md) on the reference laptop and phone; a flatter setting exists for devices that cannot.
+
+## Not covered here
+
+Tutorial and onboarding screens, the title screen and the globe view get their own pass in later v0.7 and v0.11 work, using the rules above.
