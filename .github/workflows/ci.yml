@@ -81,6 +81,9 @@ jobs:
           for attempt in 1 2 3; do
             timeout -k 10 180 pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit && exit 0
             echo "::warning title=Browser install::attempt $attempt did not finish, trying again"
+            # timeout cannot reach the apt process started as root, which keeps the dpkg lock.
+            sudo pkill -KILL -x apt-get || true
+            sudo dpkg --configure --pending || true
           done
           exit 1
       - run: pnpm build
@@ -174,6 +177,9 @@ jobs:
           for attempt in 1 2 3; do
             timeout -k 10 180 pnpm --filter @frontfall/e2e exec playwright install --with-deps chromium firefox webkit && exit 0
             echo "::warning title=Browser install::attempt $attempt did not finish, trying again"
+            # timeout cannot reach the apt process started as root, which keeps the dpkg lock.
+            sudo pkill -KILL -x apt-get || true
+            sudo dpkg --configure --pending || true
           done
           exit 1
       # Ten thousand ticks of bots on World, twice in Node and once in a Chromium, a Firefox
