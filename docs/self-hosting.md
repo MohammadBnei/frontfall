@@ -21,16 +21,16 @@ docker compose ps          # "healthy" after a few seconds
 
 What it sets, and why:
 
-| Line                                        | Why                                                                                                                                                                                  |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `image`                                     | `latest` follows each release of `main`. To choose when to update, pin a commit tag such as `ghcr.io/nic0lasm/frontfall:0d25e267bbae`, or a release tag such as `0.4.0`              |
-| `FRONTFALL_DATA` and the volume             | The usage counts survive restarts in the `frontfall-data` volume, and so do the games in progress, unless the new image changes the [simulation build](protocol.md#simulation-build) |
-| `FRONTFALL_ORIGINE`                         | The address players open, such as `https://games.example.org`: other sites then cannot open games on your server from their pages                                                    |
-| `FRONTFALL_SEATS_PER_ADDRESS`, not set      | A public game takes at most 3 players from one address. Players behind one router, as at a LAN party, share it: set 0 to lift the limit, or a higher number                          |
-| `FRONTFALL_CONNECTIONS_PER_MINUTE`, not set | One address opens at most 30 connections a minute after a first 40. Raise it if many players reach the server through one address                                                    |
-| `read_only` and `tmpfs`                     | The server writes only to its data volume and `/tmp`                                                                                                                                 |
-| `stop_grace_period`                         | On a stop, running games get 20 seconds to end, and players are told why                                                                                                             |
-| `restart` and `mem_limit`                   | Back after a crash or a reboot; the image keeps its heap at 512 MB, well inside 1 GB                                                                                                 |
+| Line                                        | Why                                                                                                                                                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `image`                                     | `latest` follows each release of `main`. To choose when to update, pin a commit tag such as `ghcr.io/nic0lasm/frontfall:0d25e267bbae`, or a release tag such as `0.4.0`                                |
+| `FRONTFALL_DATA` and the volume             | The usage counts, reports and bans survive restarts in the `frontfall-data` volume, and so do the games in progress, unless the new image changes the [simulation build](protocol.md#simulation-build) |
+| `FRONTFALL_ORIGINE`                         | The address players open, such as `https://games.example.org`: other sites then cannot open games on your server from their pages                                                                      |
+| `FRONTFALL_SEATS_PER_ADDRESS`, not set      | A public game takes at most 3 players from one address. Players behind one router, as at a LAN party, share it: set 0 to lift the limit, or a higher number                                            |
+| `FRONTFALL_CONNECTIONS_PER_MINUTE`, not set | One address opens at most 30 connections a minute after a first 40. Raise it if many players reach the server through one address                                                                      |
+| `read_only` and `tmpfs`                     | The server writes only to its data volume and `/tmp`                                                                                                                                                   |
+| `stop_grace_period`                         | On a stop, running games get 20 seconds to end, and players are told why                                                                                                                               |
+| `restart` and `mem_limit`                   | Back after a crash or a reboot; the image keeps its heap at 512 MB, well inside 1 GB                                                                                                                   |
 
 Every setting the server reads is listed in [server.md](server.md#configuration).
 
@@ -74,6 +74,8 @@ A proxy that closes quiet connections must allow at least 30 seconds: the server
 | `/healthz` | `ok`, with the build in `X-Frontfall-Version`; `503` when the server is stuck or stopping                |
 | `/status`  | A page with the players online, the games running and the version                                        |
 | `/metrics` | Prometheus metrics, only from the host: `docker compose exec frontfall wget -qO- localhost:8080/metrics` |
+
+Players can report each other from their menu. Read the reports and ban an abusive player's network, without a restart, as [server.md](server.md#reports-and-bans) shows; reports and bans are kept in the data volume.
 
 Logs are one JSON object per line: `docker compose logs -f`. [operations.md](operations.md) describes how the public server is run, from restarts to rollbacks; most of its commands work on yours with the name of your container.
 

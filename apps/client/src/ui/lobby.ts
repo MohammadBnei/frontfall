@@ -335,6 +335,11 @@ export class LobbyScreen {
     this.stopped("online.rejected");
   }
 
+  /** The operator of the server banned this network. */
+  banned(): void {
+    this.stopped("online.banned");
+  }
+
   /** The game started on a map this page does not have. */
   unknownMap(): void {
     this.stopped("online.unknownMap");

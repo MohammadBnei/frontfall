@@ -321,6 +321,11 @@ export class Room {
     return undefined;
   }
 
+  /** The seat of player number `player`, gone or not, if this game has one. */
+  seatOf(player: number): Seat | undefined {
+    return this.seats.find((seat) => seat.id === player);
+  }
+
   /**
    * Host, before the start: removes another player, who is told and cannot
    * join this game again from the same address (R-MODE-05).

@@ -876,6 +876,81 @@ describe("WebSocket", () => {
     expect((await bob.next("error")).code).toBe("removed");
   });
 
+  it("takes a report of another player, and shows it to the operator only (R-MODE-06)", async () => {
+    // Every test client shares 127.0.0.1, and so one budget of two reports.
+    const host = await start({ reportRate: { perSecond: 0.001, burst: 2 } });
+    const alice = await player(host, "Alice");
+    alice.send({ type: "report", player: 1, reason: "abuse" });
+    expect((await alice.next("error")).code).toBe("not_in_game");
+    alice.send({ type: "create" });
+    const { game, you } = await alice.next("lobby");
+    const bob = await player(host, "Bob");
+    bob.send({ type: "join", game });
+    const seated = await bob.next("lobby");
+    const carol = await player(host, "Carol");
+    carol.send({ type: "join", game });
+    const third = await carol.next("lobby");
+    alice.send({ type: "report", player: you, reason: "abuse" });
+    expect((await alice.next("error")).code).toBe("not_found");
+    alice.send({ type: "report", player: seated.you, reason: "name" });
+    expect(await alice.next("reported")).toEqual({ type: "reported", player: seated.you });
+    // The same report again is taken without counting twice.
+    alice.send({ type: "report", player: seated.you, reason: "name" });
+    expect((await alice.next("reported")).player).toBe(seated.you);
+    bob.send({ type: "report", player: you, reason: "other" });
+    expect((await bob.next("reported")).player).toBe(you);
+    alice.send({ type: "report", player: third.you, reason: "cheating" });
+    expect((await alice.next("error")).code).toBe("too_many_reports");
+
+    const url = `http://${host}/admin/reports`;
+    expect((await fetch(url, { headers: { "x-client-ip": "1.2.3.4" } })).status).toBe(404);
+    const { reports, targets } = (await (await fetch(url)).json()) as {
+      reports: { reason: string; name: string; target: string }[];
+      targets: { target: string; reporters: number }[];
+    };
+    expect(reports.map((r) => [r.reason, r.name])).toEqual([
+      ["other", "Alice"],
+      ["name", "Bob"],
+    ]);
+    // Alice and Bob share one address here: the operator sees one target under both names.
+    expect(targets).toMatchObject([{ reports: 2, reporters: 1, names: ["Alice", "Bob"] }]);
+    expect(JSON.stringify(reports)).not.toContain("127.0.0.1");
+  });
+
+  it("lets the operator ban an address, closing its connections (R-MODE-06)", async () => {
+    const host = await start();
+    const troll = open(host, { "x-client-ip": "203.0.113.9" });
+    await opened(troll.socket);
+    const url = `http://${host}/admin/bans`;
+    expect(
+      (
+        await fetch(`${url}?target=203.0.113.9`, {
+          method: "POST",
+          headers: { "x-client-ip": "1.2.3.4" },
+        })
+      ).status,
+    ).toBe(404);
+    expect((await fetch(`${url}?target=nobody`, { method: "POST" })).status).toBe(400);
+    const gone = closed(troll.socket);
+    const answer = await fetch(`${url}?target=203.0.113.9&days=7&note=insults`, { method: "POST" });
+    expect(await answer.json()).toMatchObject({
+      bans: [{ target: "203.0.113.9", note: "insults" }],
+      closed: 1,
+    });
+    expect(await gone).toBe(CloseCode.banned);
+
+    const again = open(host, { "x-client-ip": "203.0.113.9" });
+    expect(await closed(again.socket)).toBe(CloseCode.banned);
+    const other = open(host, { "x-client-ip": "198.51.100.4" });
+    await opened(other.socket);
+
+    expect((await fetch(`${url}?target=203.0.113.9`, { method: "DELETE" })).status).toBe(200);
+    expect((await fetch(`${url}?target=203.0.113.9`, { method: "DELETE" })).status).toBe(404);
+    await expect(
+      opened(open(host, { "x-client-ip": "203.0.113.9" }).socket),
+    ).resolves.toBeUndefined();
+  });
+
   it("refuses connections beyond the server-wide cap", async () => {
     const host = await start({ maxConnections: 1 });
     const first = open(host);
@@ -1076,6 +1151,29 @@ describe("WebSocket", () => {
     });
   });
 
+  it("reads a ban list edited by hand when asked to, keeping the old one if it does not read", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    try {
+      const host = await start({ dataDir });
+      const url = `http://${host}/admin/bans`;
+      mkdirSync(join(dataDir, "moderation"), { recursive: true });
+      const file = join(dataDir, "moderation", "bans.json");
+      writeFileSync(file, JSON.stringify({ bans: [{ target: "203.0.113.9" }] }));
+      expect(await (await fetch(url, { method: "POST" })).json()).toEqual({
+        bans: [{ target: "203.0.113.9", until: null }],
+        closed: 0,
+      });
+      expect(await closed(open(host, { "x-client-ip": "203.0.113.9" }).socket)).toBe(
+        CloseCode.banned,
+      );
+      writeFileSync(file, "{ not json");
+      expect((await fetch(url, { method: "POST" })).status).toBe(422);
+      expect(((await (await fetch(url)).json()) as { bans: unknown[] }).bans).toHaveLength(1);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("keeps a lobby seat across a dropped connection, host role included", async () => {
     const host = await start();
     const alice = await player(host, "Alice");
@@ -1104,7 +1202,7 @@ describe("WebSocket", () => {
     const url = `http://${host}/admin/maintenance?minutes=5`;
     expect(
       (await fetch(url, { method: "POST", headers: { "x-client-ip": "1.2.3.4" } })).status,
-    ).toBe(405);
+    ).toBe(404);
     expect((await fetch(url)).status).toBe(400);
     const answer = await fetch(url, { method: "POST" });
     expect(await answer.json()).toEqual({ minutes: 5, running: 0 });

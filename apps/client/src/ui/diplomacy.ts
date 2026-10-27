@@ -1,4 +1,5 @@
 import { Disable, QUICK_MESSAGES } from "@frontfall/engine";
+import { ReportReason } from "@frontfall/protocol";
 import type { GameRules } from "../game/messages.ts";
 import type { DiplomacyEvent, GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
@@ -29,6 +30,10 @@ export interface DiplomacyActions {
   hidden(player: number): boolean | undefined;
   /** Hides the player on this screen, or shows them again. */
   onHide(player: number, hide: boolean): void;
+  /** Whether the player was reported from here, or undefined when they cannot be (R-MODE-06). */
+  reported(player: number): boolean | undefined;
+  /** Reports the player to the operator of the server. */
+  onReport(player: number, reason: ReportReason): void;
 }
 
 const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
@@ -70,6 +75,8 @@ export class DiplomacyPanel {
   private confirming = false;
   /** The player menu shows its quick messages. */
   private messaging = false;
+  /** The player menu shows the reasons of a report. */
+  private reporting = false;
   private last: GameUpdate | undefined;
   private readonly events: { at: number; element: HTMLElement }[] = [];
   /** Requests answered or set aside here: the stack hides them until they run out. */
@@ -113,6 +120,7 @@ export class DiplomacyPanel {
     this.picked = player;
     this.confirming = false;
     this.messaging = false;
+    this.reporting = false;
     this.menuKey = "";
     this.render(update, performance.now());
     const first = this.menu.querySelector<HTMLButtonElement>(".menu-action:not([disabled])");
@@ -125,6 +133,7 @@ export class DiplomacyPanel {
     this.picked = undefined;
     this.confirming = false;
     this.messaging = false;
+    this.reporting = false;
     this.menu.hidden = true;
     this.menu.replaceChildren();
     this.menuKey = "";
@@ -342,6 +351,21 @@ export class DiplomacyPanel {
     }
     const hiddenText = hidden ? t("diplo.hiddenNote") : "";
 
+    const reported = this.actions.reported(id);
+    if (reported !== undefined) {
+      buttons.push({
+        key: reported ? "diplo.reported" : this.reporting ? "diplo.reportCancel" : "diplo.report",
+        action: () => {
+          this.reporting = !this.reporting;
+          this.menuKey = "";
+          this.renderMenu(update);
+          this.menu.querySelector<HTMLButtonElement>(".report")?.focus();
+        },
+        enabled: !reported,
+        className: "report",
+      });
+    }
+
     const key = [
       id,
       player.name,
@@ -352,6 +376,7 @@ export class DiplomacyPanel {
       warText,
       this.confirming,
       this.messaging,
+      this.reporting,
       ...buttons.map((b) => `${b.key}:${JSON.stringify(b.params ?? {})}:${String(b.enabled)}`),
     ].join("|");
     if (key === this.menuKey) return;
@@ -391,10 +416,12 @@ export class DiplomacyPanel {
         );
         button.disabled = !enabled;
         if (className === "messages") button.setAttribute("aria-expanded", String(this.messaging));
+        if (className === "report") button.setAttribute("aria-expanded", String(this.reporting));
         button.addEventListener("click", action);
         return button;
       }),
       ...(this.messaging && playing ? [this.phrases(id, update)] : []),
+      ...(this.reporting && reported === false ? [this.reasons(id, update)] : []),
     );
     this.menu.hidden = false;
     if (focused) refocus(this.menu, focused);
@@ -422,6 +449,30 @@ export class DiplomacyPanel {
           this.menuKey = "";
           this.renderMenu(update);
           this.menu.querySelector<HTMLButtonElement>(".messages")?.focus();
+        });
+        return button;
+      }),
+    );
+  }
+
+  /** Why the player is reported, one button each: a click sends the report and folds them away. */
+  private reasons(id: number, update: GameUpdate): HTMLElement {
+    return h(
+      "div",
+      { class: "report-reasons", role: "group", "aria-label": t("diplo.report") },
+      h("p", { class: "report-note" }, t("diplo.reportNote")),
+      ...ReportReason.options.map((reason) => {
+        const button = h(
+          "button",
+          { type: "button", class: "report-reason", "data-kind": `report-${reason}` },
+          t(`report.${reason}`),
+        );
+        button.addEventListener("click", () => {
+          this.actions.onReport(id, reason);
+          this.reporting = false;
+          this.menuKey = "";
+          this.renderMenu(update);
+          this.menu.querySelector<HTMLButtonElement>(".report")?.focus();
         });
         return button;
       }),

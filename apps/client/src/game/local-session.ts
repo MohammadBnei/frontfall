@@ -1,4 +1,5 @@
 import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
+import type { ReportReason } from "@frontfall/protocol";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import { fetchManifest, type MapInfo } from "./maps.ts";
@@ -12,6 +13,8 @@ export interface ServerLink {
   snapshot?(snapshot: GameSnapshot): void;
   /** The game could not start from its snapshot: every turn from the first one is needed. */
   replayFromStart?(): void;
+  /** Reports another player of the game to the server's operator (R-MODE-06). */
+  report?(player: number, reason: ReportReason): void;
 }
 
 /**

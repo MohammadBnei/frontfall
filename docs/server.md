@@ -4,20 +4,20 @@
 
 ## Configuration
 
-| Variable                           | Default                                 | Meaning                                                                                                                                                                                                                                |
-| ---------------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                             | `8080`                                  | HTTP and WebSocket port                                                                                                                                                                                                                |
-| `FRONTFALL_STATIC`                 | `../../client/dist`                     | Directory of the built client                                                                                                                                                                                                          |
-| `FRONTFALL_ORIGINE`                | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                                                                                                                                      |
-| `FRONTFALL_VERSION`                | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                                                                                                                               |
-| `FRONTFALL_MAX_GAMES`              | `500`                                   | Games open or running at once                                                                                                                                                                                                          |
-| `FRONTFALL_MAX_CONNECTIONS`        | `5000`                                  | Open WebSocket connections at once                                                                                                                                                                                                     |
-| `NODE_OPTIONS`                     | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                                                                                                                                   |
-| `FRONTFALL_COUNTDOWN_SECONDS`      | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                                                                                                                                            |
-| `FRONTFALL_DRAIN_SECONDS`          | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                                                                                                                                     |
-| `FRONTFALL_DATA`                   | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`: the usage counts go in `usage/`, the games running at a restart in `games/` ([Shutdown](#shutdown)). Unset keeps the counts in memory and ends the games with the server |
-| `FRONTFALL_SEATS_PER_ADDRESS`      | `3`                                     | Seats players from one address may take in a public game; 0 for no limit, as for a LAN party behind one router                                                                                                                         |
-| `FRONTFALL_CONNECTIONS_PER_MINUTE` | `30`                                    | WebSockets one address may open per minute on average, after a first 40 at once                                                                                                                                                        |
+| Variable                           | Default                                 | Meaning                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                             | `8080`                                  | HTTP and WebSocket port                                                                                                                                                                                                                                                                                           |
+| `FRONTFALL_STATIC`                 | `../../client/dist`                     | Directory of the built client                                                                                                                                                                                                                                                                                     |
+| `FRONTFALL_ORIGINE`                | unset                                   | Only pages from this origin may open a WebSocket, such as `https://nclsmgr.com`. Unset allows any                                                                                                                                                                                                                 |
+| `FRONTFALL_VERSION`                | `dev`                                   | Build identifier returned by `/healthz`; the image sets it to the commit                                                                                                                                                                                                                                          |
+| `FRONTFALL_MAX_GAMES`              | `500`                                   | Games open or running at once                                                                                                                                                                                                                                                                                     |
+| `FRONTFALL_MAX_CONNECTIONS`        | `5000`                                  | Open WebSocket connections at once                                                                                                                                                                                                                                                                                |
+| `NODE_OPTIONS`                     | `--max-old-space-size=512` in the image | Caps the JavaScript heap; raise it with the container's memory limit                                                                                                                                                                                                                                              |
+| `FRONTFALL_COUNTDOWN_SECONDS`      | `60`                                    | Countdown of a game opened by "Play now", from its first player; 1 at least                                                                                                                                                                                                                                       |
+| `FRONTFALL_DRAIN_SECONDS`          | `20`                                    | After `SIGTERM`, how long running games may go on; keep it below the container's stop grace period                                                                                                                                                                                                                |
+| `FRONTFALL_DATA`                   | unset                                   | Directory kept across restarts, such as `/var/lib/frontfall`: the usage counts go in `usage/`, the games running at a restart in `games/` ([Shutdown](#shutdown)), reports and bans in `moderation/` ([Reports and bans](#reports-and-bans)). Unset keeps the counts in memory and ends the games with the server |
+| `FRONTFALL_SEATS_PER_ADDRESS`      | `3`                                     | Seats players from one address may take in a public game; 0 for no limit, as for a LAN party behind one router                                                                                                                                                                                                    |
+| `FRONTFALL_CONNECTIONS_PER_MINUTE` | `30`                                    | WebSockets one address may open per minute on average, after a first 40 at once                                                                                                                                                                                                                                   |
 
 ## Games
 
@@ -66,6 +66,37 @@ One bad client must not spoil a game or the server. Each limit closes the offend
 
 The address of a player is the `X-Client-IP` header, which the reverse proxy must set and overwrite. The server believes that header only when the connection itself comes from a private or loopback address, as a proxy on the same host or Docker network does; from any other peer the header is ignored and the TCP peer address is used. Player names follow the rules in [protocol.md](protocol.md#hello).
 
+## Reports and bans
+
+A player can report another one of the same game from their menu, with one reason out of four (`R-MODE-06`, [protocol.md](protocol.md#report)). The server never acts on reports by itself: they are for the operator to read. A report holds its time, the game, the reason, the number and name the reported player played under, and two references: one for the address of the reporter, one for the address of the reported player. A reference is a keyed hash of the address, 16 characters long. The key is drawn once and kept in `moderation/key` under the data directory, so the same address keeps the same reference across restarts, while nobody without the key can link a reference to an address. Reports are kept 30 days, 500 at most, in `moderation/reports.json`. One address sends 5 reports at once and one every two minutes after that; reporting the same player of the same game again counts once.
+
+The ban list, `moderation/bans.json`, names addresses or references, each banned until a date or for good. A banned address cannot connect: its WebSocket closes with code `4005` and the page says the operator banned the network. A ban takes effect at once, on the connections already open too, without a restart. Mind that one address can be a whole household, a school, or many phones of one mobile carrier: prefer a ban of a few days.
+
+From the host, inside the container (the name may differ on yours):
+
+```sh
+admin() { docker exec frontfall-frontfall-1 node -e "fetch('http://127.0.0.1:8080/admin/'+process.argv[2],{method:process.argv[1]}).then(async(r)=>console.log(r.status,await r.text()))" "$@"; }
+admin GET 'reports?days=7'                            # newest first, then the players most reported
+admin POST 'bans?target=Jm0pQ2xvd2Zy4kTe&days=7&note=insults'  # a reference from a report, for 7 days
+admin POST 'bans?target=203.0.113.7'                  # an address, for good
+admin DELETE 'bans?target=203.0.113.7'                # lifts it
+admin POST bans                                       # reads bans.json again, after an edit by hand
+admin GET bans
+```
+
+`/admin/reports` gives `reports`, newest first, and `targets`: for each reference reported, the number of reports and of different addresses that sent them, the names used, the reasons and whether it is banned. A ban added this way is written to `bans.json`; the file can also be edited by hand, then read again with `POST /admin/bans`:
+
+```json
+{
+  "bans": [
+    { "target": "Jm0pQ2xvd2Zy4kTe", "until": "2026-12-01T00:00:00.000Z", "note": "insults" },
+    { "target": "203.0.113.7", "until": null }
+  ]
+}
+```
+
+A file that does not read is refused with `422` and the bans in force stay as they were; at start, the server then runs with no ban and logs `bans_not_loaded`. Without a data directory, reports and bans live in memory, and the references change at every start.
+
 ## Logs
 
 The server writes one JSON object per line on standard output, read with `docker logs`:
@@ -98,6 +129,11 @@ The server writes one JSON object per line on standard output, read with `docker
 | `usage_in_memory`     | warn  | `reason`: no data directory, the usage counts are lost at the next restart                |
 | `usage_not_loaded`    | warn  | `error`: the counts kept by the last run could not be read                                |
 | `usage_not_saved`     | warn  | `error`                                                                                   |
+| `player_reported`     | info  | `game`, `player`, `reason` ([Reports and bans](#reports-and-bans))                        |
+| `player_banned`       | info  | `days`, `null` for good                                                                   |
+| `ban_lifted`          | info  |                                                                                           |
+| `bans_reloaded`       | info  | `bans`: entries now in force                                                              |
+| `bans_not_loaded`     | warn  | `error`: the ban file does not read; the server starts with no ban                        |
 
 Client addresses never appear in clear. `client` is a keyed hash of the address: stable while the process runs, so repeated abuse from one address can be spotted, and impossible to link to the address or across restarts, because the key is drawn at random on start. Player names are not logged.
 
@@ -109,37 +145,40 @@ Client addresses never appear in clear. `client` is a keyed hash of the address:
 curl -s localhost:8080/metrics
 ```
 
-| Metric                                                | Type      | Meaning                                                            |
-| ----------------------------------------------------- | --------- | ------------------------------------------------------------------ |
-| `frontfall_games{state}`                              | gauge     | Games `open`, `starting` (counting down) and `running`             |
-| `frontfall_players`                                   | gauge     | Players seated in a game with an open connection                   |
-| `frontfall_connections`                               | gauge     | Open WebSocket connections                                         |
-| `frontfall_games_started_total{visibility,map,teams}` | counter   | Games that started                                                 |
-| `frontfall_games_finished_total{reason}`              | counter   | Games that finished: `abandoned`, `timeout`, `expired`, `empty`    |
-| `frontfall_desyncs_total`                             | counter   | Games in which a client's state hash differed from the majority's  |
-| `frontfall_rejoins_total`                             | counter   | Players who took their seat back after a dropped connection        |
-| `frontfall_messages_received_total`                   | counter   | Messages received from clients                                     |
-| `frontfall_rejected_messages_total{reason}`           | counter   | Connections closed: `invalid`, `oversized`, `rate_limited`, `idle` |
-| `frontfall_game_duration_minutes`                     | histogram | Length of the games that finished                                  |
-| `frontfall_turn_duration_seconds`                     | histogram | Time to close and send one turn of every running game              |
-| `frontfall_usage_total{dimension,value}`              | counter   | Reports of players' pages ([privacy.md](privacy.md))               |
-| `process_resident_memory_bytes`                       | gauge     | Resident memory of the process                                     |
-| `process_cpu_seconds_total`                           | counter   | CPU time used by the process                                       |
+| Metric                                                | Type      | Meaning                                                                      |
+| ----------------------------------------------------- | --------- | ---------------------------------------------------------------------------- |
+| `frontfall_games{state}`                              | gauge     | Games `open`, `starting` (counting down) and `running`                       |
+| `frontfall_players`                                   | gauge     | Players seated in a game with an open connection                             |
+| `frontfall_connections`                               | gauge     | Open WebSocket connections                                                   |
+| `frontfall_games_started_total{visibility,map,teams}` | counter   | Games that started                                                           |
+| `frontfall_games_finished_total{reason}`              | counter   | Games that finished: `abandoned`, `timeout`, `expired`, `empty`              |
+| `frontfall_desyncs_total`                             | counter   | Games in which a client's state hash differed from the majority's            |
+| `frontfall_rejoins_total`                             | counter   | Players who took their seat back after a dropped connection                  |
+| `frontfall_messages_received_total`                   | counter   | Messages received from clients                                               |
+| `frontfall_rejected_messages_total{reason}`           | counter   | Connections closed: `invalid`, `oversized`, `rate_limited`, `idle`, `banned` |
+| `frontfall_reports_total{reason}`                     | counter   | Reports of a player by another                                               |
+| `frontfall_game_duration_minutes`                     | histogram | Length of the games that finished                                            |
+| `frontfall_turn_duration_seconds`                     | histogram | Time to close and send one turn of every running game                        |
+| `frontfall_usage_total{dimension,value}`              | counter   | Reports of players' pages ([privacy.md](privacy.md))                         |
+| `process_resident_memory_bytes`                       | gauge     | Resident memory of the process                                               |
+| `process_cpu_seconds_total`                           | counter   | CPU time used by the process                                                 |
 
 ## HTTP routes
 
-| Path                 | Answer                                                                                                                      |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `/healthz`           | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release`     |
-| `/api/games`         | Public games that have not started, and the number of games running, as JSON                                                |
-| `/status`            | A page for people: players online, games running, lobbies, an announced restart, release and build                          |
-| `/api/status`        | The same as JSON: `version`, `release`, `simulation`, `keepsGames`, `state`, `players`, `running`, `lobbies`, `restartInMs` |
-| `/admin/maintenance` | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only        |
-| `/api/stats`         | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`                |
-| `/api/usage`         | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`            |
-| `/metrics`           | Metrics, from the host only                                                                                                 |
-| `/ws`                | WebSocket upgrade                                                                                                           |
-| anything else        | Files of the built client                                                                                                   |
+| Path                 | Answer                                                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `/healthz`           | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release`           |
+| `/api/games`         | Public games that have not started, and the number of games running, as JSON                                                      |
+| `/status`            | A page for people: players online, games running, lobbies, an announced restart, release and build                                |
+| `/api/status`        | The same as JSON: `version`, `release`, `simulation`, `keepsGames`, `state`, `players`, `running`, `lobbies`, `restartInMs`       |
+| `/admin/maintenance` | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only              |
+| `/admin/reports`     | `GET ?days=N`: the reports of the last N days, 30 at most; from inside the container only ([Reports and bans](#reports-and-bans)) |
+| `/admin/bans`        | `GET` lists the bans, `POST` adds one or reads the file again, `DELETE` lifts one; from inside the container only                 |
+| `/api/stats`         | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`                      |
+| `/api/usage`         | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`                  |
+| `/metrics`           | Metrics, from the host only                                                                                                       |
+| `/ws`                | WebSocket upgrade                                                                                                                 |
+| anything else        | Files of the built client                                                                                                         |
 
 HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Every file carries an `ETag` drawn from its content; maps and other files without a hashed name are sent with `no-cache`, so browsers revalidate them and get `304 Not Modified` until they change. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
 

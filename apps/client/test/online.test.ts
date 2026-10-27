@@ -530,6 +530,22 @@ describe("OnlineClient", () => {
     }
   });
 
+  it("stops for good when the server's operator banned the network (R-MODE-06)", () => {
+    client();
+    welcomed().drop(CloseCode.banned);
+    expect(log.at(-1)).toBe("banned");
+    expect(timers).toEqual([]);
+  });
+
+  it("sends a report and passes on the server's receipt (R-MODE-06)", () => {
+    const online = client({ reported: (player) => log.push(`reported:${String(player)}`) });
+    const socket = welcomed();
+    online.report(2, "abuse");
+    expect(socket.sent.at(-1)).toEqual({ type: "report", player: 2, reason: "abuse" });
+    socket.receive({ type: "reported", player: 2 });
+    expect(log.at(-1)).toBe("reported:2");
+  });
+
   it("refuses an invitation id the protocol cannot carry, without sending it", () => {
     const online = client();
     const socket = welcomed();

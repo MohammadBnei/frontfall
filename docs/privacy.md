@@ -39,6 +39,10 @@ A page sends three kinds of report to `POST /api/usage`, as JSON of at most 1 kB
 
 **A vote**, if you give one on the end screen: thumbs `up` or `down`, the game's `mode` and `outcome`, and, after a thumbs down, one reason if you pick it: `too_hard`, `too_long`, `unclear` (you did not know what to do) or `slow_or_buggy`. There is no free text. One vote per game.
 
+## Reporting a player
+
+The player menu of an online game has **Report this player**, with four reasons to pick from: insults or harassment, an offensive name, cheating, something else. There is no text to type. The server keeps the report for 30 days for its operator to read, and shows it to nobody else; the player reported is not told. A report holds its time, the game, the reason, the number and the name the reported player played under, and for both players a reference drawn from their network address with a secret key that never leaves the server. The address itself is not written down. The operator can ban a network by its address or by such a reference, to keep someone who abuses others away from the server; the details are in [server.md](server.md#reports-and-bans).
+
 ## What is published
 
 `GET /api/stats` returns the counters as JSON, for every day of the last 90 days (UTC) and in total, for anyone to read or export:
