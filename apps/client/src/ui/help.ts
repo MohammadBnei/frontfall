@@ -4,6 +4,7 @@ import type { BuildView } from "../game/solo-game.ts";
 import { applyTranslations, type MessageKey } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 import { formatCount } from "./format.ts";
+import { icon } from "./icons.ts";
 import { BUILD_MODES, costOf, offers } from "./hud.ts";
 
 export interface HelpOptions {
@@ -60,7 +61,7 @@ export function helpPanel(options: HelpOptions): HTMLElement {
       return h(
         "li",
         { class: `help-build build-${mode}` },
-        h("span", { class: "build-icon", "aria-hidden": "true" }),
+        h("span", { class: "build-icon", "aria-hidden": "true" }, icon(mode)),
         h(
           "span",
           { class: "help-build-text" },

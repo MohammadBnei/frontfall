@@ -5,6 +5,7 @@ import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts"
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
+import { icon } from "./icons.ts";
 
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
 export const MIN_RATIO = 5;
@@ -193,6 +194,7 @@ export class Hud {
       id: "pause",
       "data-i18n-attr": "aria-label:hud.pause;title:hud.pauseKey",
     });
+    pause.append(icon("pause"));
     pause.addEventListener("click", () => {
       actions.onPause();
     });
@@ -202,6 +204,7 @@ export class Hud {
       id: "help",
       "data-i18n-attr": "aria-label:help.title;title:help.title",
     });
+    help.append(icon("help"));
     help.addEventListener("click", () => {
       actions.onHelp();
     });
@@ -211,6 +214,7 @@ export class Hud {
       id: "leave",
       "data-i18n-attr": "aria-label:hud.menu;title:hud.menu",
     });
+    menu.append(icon("leave"));
     menu.addEventListener("click", () => {
       actions.onMenu();
     });
@@ -242,7 +246,7 @@ export class Hud {
             "data-i18n-attr": `title:hud.${mode}Hint`,
             "aria-keyshortcuts": key,
           },
-          h("span", { class: "build-icon", "aria-hidden": "true" }),
+          h("span", { class: "build-icon", "aria-hidden": "true" }, icon(mode)),
           // Name, key and cost: a bubble over the button on hover or focus, the cost only in the tray.
           h(
             "span",
@@ -330,6 +334,7 @@ export class Hud {
       "aria-controls": "build-panel",
       "data-i18n-attr": "aria-label:hud.build;title:hud.build",
     });
+    this.buildToggle.append(icon("build"));
     this.buildToggle.addEventListener("click", () => {
       this.setBuildOpen(!this.buildPanel.classList.contains("open"));
     });

@@ -6,6 +6,7 @@ import { t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
 import { formatPercent } from "./format.ts";
+import { icon } from "./icons.ts";
 
 /** An event stays in the feed this long. */
 const EVENT_MS = 8000;
@@ -406,6 +407,7 @@ export class DiplomacyPanel {
       "aria-label": t("diplo.close"),
       title: t("diplo.close"),
     });
+    close.append(icon("close"));
     close.addEventListener("click", () => {
       this.close();
     });

@@ -13,6 +13,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **A lighter screen in play.** The buildings are now a row of icons at the foot of the map: hover or focus one to see its name, key and cost. On a phone they sit behind a Build button next to the other buttons and close once you pick one. The leaderboard lists the three leaders and you, and opens to ten when you tap its title. The Beta badge no longer sits on the map.
 - **A lighter menu.** The first screen is now your name, a line that sums up the game (map, bots, difficulty) and Play solo. Tap that line to change the map and the rules. Your profile, achievements, accessibility settings and language moved to a row of buttons at the top. Play now, a private game and watching a replay sit together, and the public games and their names are one tap away.
 
+- **Clearer icons.** Buildings, missiles and the buttons for help, pause, menu and close now have drawn icons, each with its own shape, instead of plain squares and triangles. They stay legible on a phone.
+
 ### Fixed
 
 - The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of the site next door.
