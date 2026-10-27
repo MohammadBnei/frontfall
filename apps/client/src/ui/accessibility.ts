@@ -85,7 +85,7 @@ function apply(settings: AccessibilitySettings): void {
 }
 
 /** The "Accessibility" disclosure of the menu: interface size, motion and contrast. */
-export function accessibilityPanel(): HTMLElement {
+export function accessibilityPanel(): HTMLDetailsElement {
   const scale = h("select", { id: "ui-scale", "data-i18n-attr": "aria-label:a11y.scale" });
   for (const value of SCALES) {
     const option = h("option", { value: String(value) }, `${String(value)} %`);

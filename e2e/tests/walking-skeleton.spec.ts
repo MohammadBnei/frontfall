@@ -395,6 +395,7 @@ test("a host names a public game, others find it in the list, the host starts it
 
   await host.goto(baseURL);
   await host.locator("#player-name").fill("Host");
+  await host.locator("#online-more > summary").click();
   await host.locator("#online-game-name").fill(name);
   await host.locator("#online-create-public").click();
   await expect(host.locator("#lobby-title")).toHaveText(name, { timeout: 15_000 });

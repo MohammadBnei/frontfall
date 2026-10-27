@@ -32,6 +32,7 @@ test("plays a team game: a teammate is an ally for the whole game (R-MODE-02)", 
 test("offers the mode in the menu, and keeps a free-for-all link as it was", async ({ page }) => {
   await page.goto("./?map=skirmish");
   await expect(page.locator('input[name="teams"][value="0"]')).toBeChecked();
+  await page.locator("#menu-options > summary").click();
   await page.locator('input[name="teams"][value="3"]').check({ force: true });
   await page.locator("#play").click();
   await expect(page).toHaveURL(/teams=3/);

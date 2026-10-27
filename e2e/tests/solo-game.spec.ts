@@ -192,6 +192,7 @@ test("plays against the nations of the map, named and on the board (R-BOT-07)", 
   // Unticked, the next game has none, and the choice is remembered.
   await page.goto("./");
   await expect(page.locator("#nations")).toBeChecked();
+  await page.locator("#menu-options > summary").click();
   await page.locator("#nations").uncheck();
   await page.locator("#play").click();
   await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
@@ -232,6 +233,7 @@ test("offers the World first and starts a game on it", async ({ page }) => {
   page.on("pageerror", (error) => pageErrors.push(error));
   await page.goto("./");
   await expect(page.locator('input[name="map"]').first()).toHaveValue("world");
+  await page.locator("#menu-options > summary").click();
   await page.locator('input[name="map"][value="world"]').check({ force: true });
   await page.locator("#play").click();
   await expect(page.locator(".banner")).toContainText("choose where you start", {

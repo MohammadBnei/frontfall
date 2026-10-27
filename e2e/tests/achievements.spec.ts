@@ -16,7 +16,10 @@ test("lists the achievements in the menu, the earned ones lit", async ({ page })
     [KEY],
   );
   await page.goto("./");
-  await expect(page.locator("#achievements-open")).toHaveText("Achievements 1/20");
+  await expect(page.locator("#achievements-open")).toHaveAttribute(
+    "aria-label",
+    "Achievements 1/20",
+  );
   await page.locator("#achievements-open").click();
   await expect(page.locator("#achievements-count")).toContainText("1 of 20");
   await expect(page.locator(".achievement-list li")).toHaveCount(20);
@@ -40,5 +43,8 @@ test("keeps an achievement earned in a game, and shows it in the menu", async ({
     .poll(() => page.evaluate((key) => localStorage.getItem(key), KEY), { timeout: 60_000 })
     .toContain("harbor");
   await page.reload();
-  await expect(page.locator("#achievements-open")).toHaveText(/Achievements [1-9]\/20/);
+  await expect(page.locator("#achievements-open")).toHaveAttribute(
+    "aria-label",
+    /Achievements [1-9]\/20/,
+  );
 });

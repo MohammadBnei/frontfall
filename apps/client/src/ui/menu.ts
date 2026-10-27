@@ -10,13 +10,14 @@ import {
   onLanguageChange,
   setLanguage,
   t,
+  plural,
   type Language,
   type MessageKey,
 } from "../i18n/index.ts";
 import { MAX_GAME_NAME_LENGTH, PublicGame, normalizeGameName } from "@frontfall/protocol";
 import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
-import { betaBadge, betaNotice } from "./beta.ts";
+import { betaBadge } from "./beta.ts";
 import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
 import { h, present } from "./dom.ts";
@@ -94,6 +95,7 @@ export class Menu {
       input.addEventListener("change", () => {
         this.setup.map = info.id;
         suggestBots();
+        refreshSummary();
       });
       lists.get(info.group)?.append(
         h(
@@ -111,6 +113,7 @@ export class Menu {
       );
     }
 
+    let refreshSummary = (): void => {};
     let botsTouched = false;
     const bots = h("input", {
       id: "bot-count",
@@ -125,6 +128,7 @@ export class Menu {
       botsTouched = true;
       this.setup.bots = Number(bots.value);
       botsValue.textContent = bots.value;
+      refreshSummary();
     });
 
     const difficulty = h("div", {
@@ -137,6 +141,7 @@ export class Menu {
       input.checked = level === this.setup.difficulty;
       input.addEventListener("change", () => {
         this.setup.difficulty = level;
+        refreshSummary();
       });
       const label = h("span", { "data-i18n": `difficulty.${level}` });
       difficulty.append(h("label", {}, input, label));
@@ -155,6 +160,7 @@ export class Menu {
       this.setup.bots = suggestedBots(info, this.setup.nations ?? true);
       bots.value = String(this.setup.bots);
       botsValue.textContent = bots.value;
+      refreshSummary();
     };
 
     const mode = h("div", {
@@ -167,6 +173,7 @@ export class Menu {
       input.checked = teams === (this.setup.teams ?? 0);
       input.addEventListener("change", () => {
         this.setup.teams = teams;
+        refreshSummary();
       });
       mode.append(h("label", {}, input, h("span", { "data-i18n": `mode.${String(teams)}` })));
     }
@@ -181,6 +188,24 @@ export class Menu {
       setLanguage(language.value as Language);
     });
 
+    // What the folded game options come to, one chip each, redrawn on every change.
+    const optionsChips = h("span", { class: "options-chips" });
+    const mapNameOf = (id: string): string => {
+      const info = mapList.find((candidate) => candidate.id === id);
+      return info?.name?.[getLanguage()] ?? t(`map.${id}` as MessageKey);
+    };
+    refreshSummary = (): void => {
+      const chips = [
+        mapNameOf(this.setup.map),
+        plural("menu.summaryBots", this.setup.bots),
+        t(`difficulty.${this.setup.difficulty}` as MessageKey),
+      ];
+      if (this.setup.teams) chips.push(t(`mode.${String(this.setup.teams)}` as MessageKey));
+      optionsChips.replaceChildren(...chips.map((chip) => h("span", { class: "chip" }, chip)));
+    };
+    refreshSummary();
+    this.cleanups.push(onLanguageChange(refreshSummary));
+
     const form = h(
       "form",
       { class: "menu-form" },
@@ -192,53 +217,62 @@ export class Menu {
         account,
       ),
       h(
-        "div",
-        { class: "field" },
-        h("span", { id: "map-label", class: "field-label", "data-i18n": "menu.map" }),
-        maps,
-      ),
-      h(
-        "div",
-        { class: "field-row" },
+        "details",
+        { class: "menu-options", id: "menu-options" },
+        h("summary", { class: "options-summary" }, optionsChips),
         h(
           "div",
-          { class: "field" },
-          h("label", { for: "bot-count", "data-i18n": "menu.bots" }),
-          h("div", { class: "range" }, bots, botsValue),
-        ),
-        h(
-          "div",
-          { class: "field" },
-          h("span", {
-            id: "difficulty-label",
-            class: "field-label",
-            "data-i18n": "menu.difficulty",
-          }),
-          difficulty,
-        ),
-        h(
-          "div",
-          { class: "field" },
-          h("span", { class: "field-label", "data-i18n": "menu.nations" }),
+          { class: "options-body" },
           h(
-            "label",
-            { class: "toggle", for: "nations" },
-            nations,
-            h("span", { "data-i18n": "menu.nationsHint" }),
+            "div",
+            { class: "field" },
+            h("span", { id: "map-label", class: "field-label", "data-i18n": "menu.map" }),
+            maps,
+          ),
+          h(
+            "div",
+            { class: "field-row" },
+            h(
+              "div",
+              { class: "field" },
+              h("label", { for: "bot-count", "data-i18n": "menu.bots" }),
+              h("div", { class: "range" }, bots, botsValue),
+            ),
+            h(
+              "div",
+              { class: "field" },
+              h("span", {
+                id: "difficulty-label",
+                class: "field-label",
+                "data-i18n": "menu.difficulty",
+              }),
+              difficulty,
+            ),
+            h(
+              "div",
+              { class: "field" },
+              h("span", { class: "field-label", "data-i18n": "menu.nations" }),
+              h(
+                "label",
+                { class: "toggle", for: "nations" },
+                nations,
+                h("span", { "data-i18n": "menu.nationsHint" }),
+              ),
+            ),
+          ),
+          h(
+            "div",
+            { class: "field" },
+            h("span", { id: "mode-label", class: "field-label", "data-i18n": "menu.mode" }),
+            mode,
           ),
         ),
-      ),
-      h(
-        "div",
-        { class: "field" },
-        h("span", { id: "mode-label", class: "field-label", "data-i18n": "menu.mode" }),
-        mode,
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),
     );
     const profileSection = h(
       "details",
-      { class: "menu-profile", id: "menu-profile" },
+      { class: "menu-panel menu-profile", id: "menu-profile" },
       h("summary", { "data-i18n": "profile.heading" }),
     );
     // Its code comes with the first opening, not with the first visit.
@@ -262,38 +296,71 @@ export class Menu {
         },
       );
     });
-    const online = this.onlineSection(mapList, (entry) => {
-      onOnline(entry, { ...this.setup });
-    });
+    const online = this.onlineSection(
+      mapList,
+      (entry) => {
+        onOnline(entry, { ...this.setup });
+      },
+      replayPicker(onReplay),
+    );
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       onPlay({ ...this.setup });
     });
 
+    // The accessibility settings and the profile open as cards under the bar.
+    const settings = accessibilityPanel();
+    settings.classList.add("menu-panel");
+    const panels = [profileSection, settings];
+    const togglePanel = (target: HTMLDetailsElement | undefined): void => {
+      for (const panel of panels) panel.open = panel === target && !panel.open;
+    };
+    const barButton = (id: string, key: MessageKey, icon: string, panel: HTMLDetailsElement) => {
+      const button = h("button", {
+        type: "button",
+        class: "bar-button",
+        id,
+        "aria-expanded": "false",
+        "data-i18n-attr": `aria-label:${key};title:${key}`,
+      });
+      button.append(barIcon(icon));
+      button.addEventListener("click", () => {
+        togglePanel(panel);
+      });
+      panel.addEventListener("toggle", () => {
+        button.setAttribute("aria-expanded", String(panel.open));
+      });
+      return button;
+    };
+    const bar = h(
+      "div",
+      { class: "menu-bar" },
+      barButton("open-profile", "profile.heading", ICON_PROFILE, profileSection),
+      achievementsButton(this.cleanups),
+      barButton("open-accessibility", "a11y.title", ICON_SETTINGS, settings),
+      // Where the sign-in button goes, once there is one.
+      h("span", { class: "menu-account", id: "menu-account" }),
+      language,
+    );
     this.element = h(
       "main",
       { class: "menu", id: "menu" },
+      bar,
+      h("div", { class: "menu-panels" }, ...panels),
       h(
         "header",
         { class: "menu-header" },
         h("img", { class: "logo", src: "./logo-horizontal-on-dark.svg", alt: "Frontfall" }),
         ...present(betaBadge("beta-menu")),
         h("p", { class: "tagline", "data-i18n": "menu.tagline" }),
-        ...present(betaNotice()),
       ),
       form,
-      profileSection,
       online,
-      h(
-        "footer",
-        { class: "menu-footer" },
-        replayPicker(onReplay),
-        achievementsButton(this.cleanups),
-        language,
-      ),
-      accessibilityPanel(),
       feedbackLinks(),
     );
+    this.element.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && panels.some((panel) => panel.open)) togglePanel(undefined);
+    });
     applyTranslations(this.element);
   }
 
@@ -311,6 +378,7 @@ export class Menu {
   private onlineSection(
     mapList: readonly MapInfo[],
     enter: (entry: OnlineEntry) => void,
+    replay: HTMLElement,
   ): HTMLElement {
     const gameName = h("input", {
       id: "online-game-name",
@@ -411,39 +479,46 @@ export class Menu {
       stopped = true;
       clearTimeout(timer);
     });
+    const quick = button("online-play", "online.quick", () => ({
+      type: "play",
+      name: defaultName(),
+    }));
+    quick.setAttribute("aria-describedby", "online-quick-hint");
+    quick.setAttribute("data-i18n-attr", "title:online.quickHint");
     return h(
       "section",
       { class: "menu-online", "aria-labelledby": "online-heading" },
-      h("h2", { id: "online-heading", "data-i18n": "online.heading" }),
-      h(
-        "div",
-        { class: "online-quick" },
-        button(
-          "online-play",
-          "online.quick",
-          () => ({ type: "play", name: defaultName() }),
-          "primary",
-        ),
-        h("p", { class: "hint", "data-i18n": "online.quickHint" }),
-      ),
-      h(
-        "div",
-        { class: "field" },
-        h("label", { for: "online-game-name", "data-i18n": "online.gameName" }),
-        h(
-          "div",
-          { class: "online-actions" },
-          gameName,
-          button("online-create-public", "online.createPublic", createPublic),
-        ),
-        nameError,
-      ),
+      h("h2", { id: "online-heading", class: "visually-hidden", "data-i18n": "online.heading" }),
+      h("p", {
+        class: "visually-hidden",
+        id: "online-quick-hint",
+        "data-i18n": "online.quickHint",
+      }),
       h(
         "div",
         { class: "online-actions" },
+        quick,
         button("online-create", "online.create", () => ({ type: "create", visibility: "private" })),
+        replay,
       ),
-      games,
+      h(
+        "details",
+        { class: "online-more", id: "online-more" },
+        h("summary", { "data-i18n": "online.games" }),
+        h(
+          "div",
+          { class: "field" },
+          h("label", { for: "online-game-name", "data-i18n": "online.gameName" }),
+          h(
+            "div",
+            { class: "online-actions" },
+            gameName,
+            button("online-create-public", "online.createPublic", createPublic),
+          ),
+          nameError,
+        ),
+        games,
+      ),
     );
   }
 
@@ -572,14 +647,16 @@ function replayPicker(onReplay: (file: File) => void): HTMLElement {
 function achievementsButton(cleanups: (() => void)[]): HTMLElement {
   const button = h("button", {
     type: "button",
-    class: "secondary achievements-open",
+    class: "bar-button achievements-open",
     id: "achievements-open",
   });
+  const count = h("span", { class: "bar-count" });
+  button.append(barIcon(ICON_STAR), count);
   const label = (): void => {
-    button.textContent = t("achievements.open", {
-      earned: earnedCount(),
-      total: CATALOGUE.length,
-    });
+    const text = t("achievements.open", { earned: earnedCount(), total: CATALOGUE.length });
+    button.setAttribute("aria-label", text);
+    button.title = text;
+    count.textContent = `${String(earnedCount())}/${String(CATALOGUE.length)}`;
   };
   label();
   cleanups.push(onLanguageChange(label));
@@ -598,4 +675,21 @@ function achievementsButton(cleanups: (() => void)[]): HTMLElement {
     panel.querySelector<HTMLButtonElement>("button")?.focus();
   });
   return button;
+}
+
+const ICON_PROFILE = "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c0-4 4-6 8-6s8 2 8 6";
+const ICON_SETTINGS =
+  "M4 7h8M18 7h2M4 17h2M12 17h8M15 7m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0M9 17m-3 0a3 3 0 1 0 6 0 3 3 0 1 0-6 0";
+const ICON_STAR = "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z";
+
+/** A line icon of the menu bar: one path on a 24 unit square, drawn in the text colour. */
+function barIcon(path: string): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", "bar-icon");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  line.setAttribute("d", path);
+  svg.append(line);
+  return svg;
 }

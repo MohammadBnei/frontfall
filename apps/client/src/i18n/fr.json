@@ -392,5 +392,7 @@
   "achievement.generous.text": "Offrir des troupes ou de l'or à un autre joueur.",
   "achievement.crowded.name": "Monde bondé",
   "achievement.crowded.text": "Gagner une partie à dix joueurs ou plus.",
-  "profile.heading": "Votre profil"
+  "profile.heading": "Votre profil",
+  "menu.summaryBots.one": "{count} bot",
+  "menu.summaryBots.other": "{count} bots"
 }
