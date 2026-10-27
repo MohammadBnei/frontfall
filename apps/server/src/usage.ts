@@ -1,4 +1,12 @@
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { UsageReport } from "@frontfall/protocol";
@@ -194,6 +202,19 @@ export class UsageStats {
     return true;
   }
 
+  /** The days counted, grouped by month (`2026-10`), oldest first. */
+  months(now: number): Map<string, Map<string, Tally>> {
+    this.prune(now);
+    const months = new Map<string, Map<string, Tally>>();
+    for (const day of [...this.days.keys()].sort()) {
+      const month = day.slice(0, 7);
+      const inMonth = months.get(month) ?? new Map<string, Tally>();
+      inMonth.set(day, this.days.get(day) ?? {});
+      months.set(month, inMonth);
+    }
+    return months;
+  }
+
   private day(now: number): Tally {
     const key = dayOf(now);
     let tally = this.days.get(key);
@@ -223,8 +244,19 @@ export function usageFile(dataDir: string): string {
   return join(dataDir, "usage", "usage.json");
 }
 
-/** Reads the counts kept by an earlier run; an error says why they could not be read. */
+/** Reads the counts kept by an earlier run, or the copy made before the last save. */
 export function loadUsage(stats: UsageStats, file: string): Error | undefined {
+  const error = loadUsageFile(stats, file);
+  if (error === undefined) return undefined;
+  if (!existsSync(`${file}.bak`)) return error;
+  // The copy stands in for the damaged file; the error still says what happened to it.
+  return loadUsageFile(stats, `${file}.bak`) === undefined
+    ? new Error(`${error.message}; went on with the copy made before the last save`)
+    : error;
+}
+
+/** Reads one file of counts; an error says why they could not be read. */
+function loadUsageFile(stats: UsageStats, file: string): Error | undefined {
   let text: string;
   try {
     text = readFileSync(file, "utf8");
@@ -250,7 +282,55 @@ export function saveUsage(stats: UsageStats, file: string, now: number): void {
   const temporary = `${file}.tmp`;
   writeFileSync(temporary, stats.serialize(now), { mode: 0o600 });
   chmodSync(temporary, 0o600);
+  try {
+    // The last good counts stay beside the new ones, in case the new file is damaged.
+    copyFileSync(file, `${file}.bak`);
+  } catch {
+    // A first save has nothing to copy.
+  }
   renameSync(temporary, file);
+}
+
+/** Where the months are exported, beside the counts: `usage/months/2026-10.json`. */
+export function monthsDirectory(file: string): string {
+  return join(file, "..", "months");
+}
+
+const MonthFile = z.object({
+  version: z.literal(1),
+  month: z.string(),
+  days: z.record(z.string(), StoredTally),
+});
+
+/**
+ * Writes one file per month with the counts of each day, for the months
+ * that changed. Days that left the 90 kept in memory stay in a month's
+ * file: an existing file is added to, never cut down.
+ */
+export function exportMonths(stats: UsageStats, directory: string, now: number): void {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  for (const [month, days] of stats.months(now)) {
+    const file = join(directory, `${month}.json`);
+    let kept: Record<string, Tally> = {};
+    let before = "";
+    try {
+      before = readFileSync(file, "utf8");
+      const parsed = MonthFile.safeParse(JSON.parse(before));
+      if (parsed.success) kept = parsed.data.days;
+    } catch {
+      // No file yet, or one that cannot be read: written afresh.
+    }
+    const merged = { ...kept, ...Object.fromEntries(days) };
+    const text = JSON.stringify({
+      version: 1,
+      month,
+      days: Object.fromEntries(Object.entries(merged).sort(([a], [b]) => a.localeCompare(b))),
+    });
+    if (text === before) continue;
+    const temporary = `${file}.tmp`;
+    writeFileSync(temporary, text, { mode: 0o600 });
+    renameSync(temporary, file);
+  }
 }
 
 function escapeHtml(text: string): string {

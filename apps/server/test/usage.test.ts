@@ -5,6 +5,7 @@ import type { GameReport } from "@frontfall/protocol";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   botsRange,
+  exportMonths,
   humansRange,
   loadUsage,
   minutesRange,
@@ -212,5 +213,33 @@ describe("usageTable", () => {
     expect(usageTable(stats().export(NOW))).toContain(
       "No games counted yet / Aucune partie comptée",
     );
+  });
+
+  it("goes on with the copy of the last save when the file is damaged", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const file = usageFile(directory);
+    const usage = stats();
+    usage.record(GAME, NOW);
+    saveUsage(usage, file, NOW);
+    saveUsage(usage, file, NOW);
+    writeFileSync(file, "{ not json");
+    const again = stats();
+    expect(loadUsage(again, file)).toBeInstanceOf(Error);
+    expect(again.export(NOW)).toEqual(usage.export(NOW));
+  });
+
+  it("exports one file per month and never cuts an old one down", () => {
+    directory = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const months = join(directory, "months");
+    const usage = stats();
+    usage.record(GAME, NOW);
+    exportMonths(usage, months, NOW);
+    const file = join(months, `${new Date(NOW).toISOString().slice(0, 7)}.json`);
+    const first = JSON.parse(readFileSync(file, "utf8")) as { days: Record<string, unknown> };
+    expect(Object.keys(first.days)).toEqual([new Date(NOW).toISOString().slice(0, 10)]);
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    // A restart that lost the days still leaves the month as it was.
+    exportMonths(stats(), months, NOW);
+    expect(readFileSync(file, "utf8")).toBe(JSON.stringify({ ...first }));
   });
 });

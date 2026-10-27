@@ -26,7 +26,15 @@ import { messageHandler, toFrame, type Session } from "./client-messages.ts";
 import { gamesDirectory, loadGames, saveGame } from "./saved-games.ts";
 import { statusPage, type ServerStatus } from "./status-page.ts";
 import { usageInbox } from "./usage-http.ts";
-import { loadUsage, saveUsage, usageFile, UsageStats, usageTable } from "./usage.ts";
+import {
+  exportMonths,
+  loadUsage,
+  monthsDirectory,
+  saveUsage,
+  usageFile,
+  UsageStats,
+  usageTable,
+} from "./usage.ts";
 
 export { closeReason } from "./client-messages.ts";
 export { DEFAULT_GAME, type ServerOptions } from "./server-options.ts";
@@ -156,6 +164,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     if (usageAt === undefined) return;
     try {
       saveUsage(usage, usageAt, Date.now());
+      exportMonths(usage, monthsDirectory(usageAt), Date.now());
     } catch (error) {
       logger.warn("usage_not_saved", { error: (error as Error).message });
     }
