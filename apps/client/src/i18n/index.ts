@@ -1,8 +1,5 @@
-import en from "./en.json" with { type: "json" };
-import fr from "./fr.json" with { type: "json" };
-
 /** English is the reference catalogue: every other language has exactly its keys. */
-export type MessageKey = keyof typeof en;
+export type MessageKey = keyof typeof import("./en.json");
 
 /** Keys that take a count, written in the catalogues as `key.one`, `key.other`, … */
 export type PluralKey = {
@@ -11,9 +8,25 @@ export type PluralKey = {
 
 export type Params = Readonly<Record<string, string | number>>;
 
-const CATALOGUES = { en, fr } satisfies Record<string, Record<MessageKey, string>>;
+type Catalogue = Readonly<Record<MessageKey, string>>;
+
+/**
+ * Each catalogue is its own chunk: a page downloads the language it shows,
+ * and another one only when the player picks it (bench/client/budget.json).
+ */
+const CATALOGUES = {
+  en: () => import("./en.json").then((module) => module.default),
+  fr: () => import("./fr.json").then((module) => module.default),
+} satisfies Record<string, () => Promise<Catalogue>>;
 
 export type Language = keyof typeof CATALOGUES;
+
+const loaded: Partial<Record<Language, Catalogue>> = {};
+
+/** Downloads the catalogue of `lang`, the current language by default, if not yet there. */
+export async function loadLanguage(lang: Language = current): Promise<void> {
+  loaded[lang] ??= await CATALOGUES[lang]();
+}
 
 /** Supported languages, each named in itself so a lost player can find their own. */
 export const LANGUAGES: readonly { readonly id: Language; readonly label: string }[] = [
@@ -68,12 +81,20 @@ export function getLanguage(): Language {
   return current;
 }
 
-/** Switches language in place, remembers the choice and notifies listeners. */
+/**
+ * Switches language in place, remembers the choice and notifies listeners:
+ * at once when its catalogue is already there, otherwise once it arrives.
+ * A catalogue that fails to download leaves the language as it was.
+ */
 export function setLanguage(lang: Language): void {
   if (!isLanguage(lang) || lang === current) return;
-  current = lang;
-  store(lang);
-  for (const listener of listeners) listener(lang);
+  const apply = (): void => {
+    current = lang;
+    store(lang);
+    for (const listener of listeners) listener(lang);
+  };
+  if (loaded[lang]) apply();
+  else loadLanguage(lang).then(apply, () => undefined);
 }
 
 /** Calls `listener` after each language change; the returned function unsubscribes. */
@@ -89,9 +110,8 @@ function format(template: string, params: Params): string {
 }
 
 function lookup(key: string): string | undefined {
-  const catalogue: Record<string, string> = CATALOGUES[current];
-  const fallback: Record<string, string> = CATALOGUES.en;
-  return catalogue[key] ?? fallback[key];
+  const catalogue: Readonly<Record<string, string>> | undefined = loaded[current];
+  return catalogue?.[key];
 }
 
 /** Translates `key` into the current language, replacing `{name}` placeholders. */

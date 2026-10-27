@@ -1,7 +1,7 @@
 [
   {
-    "name": "First visit: page, code, styles, Latin font",
-    "files": "^(index\\.html|assets/index-[^/]+\\.(js|css)|assets/inter-latin-wght-normal-[^/]+\\.woff2)$",
+    "name": "First visit: page, code, styles, English texts, Latin font",
+    "files": "^(index\\.html|assets/index-[^/]+\\.(js|css)|assets/en-[^/]+\\.js|assets/inter-latin-wght-normal-[^/]+\\.woff2)$",
     "kB": 275
   },
   { "name": "Simulation worker", "files": "^assets/sim\\.worker-[^/]+\\.js$", "kB": 50 },

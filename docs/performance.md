@@ -13,27 +13,27 @@ Every budget names the scenario it is measured on and how to measure it.
 Those marked **CI** fail the build when they are missed; the others are
 checked by hand on the machines below until CI can measure them.
 
-| Area                              | Budget                                   | Scenario                                                  | Measure with                               | Enforced                 |
-| --------------------------------- | ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------ | ------------------------ |
-| Simulation tick, full lobby       | p95 ≤ 30 ms                              | Reference game: 64 normal bots on World, 3,000 ticks      | `pnpm perf:engine`                         | **CI**                   |
-| Simulation tick, against `main`   | Not slower: a 10 % slowdown fails        | Reference game, alternated with the merge base            | `pnpm perf:engine -- --base <checkout>`    | **CI**                   |
-| Simulation tick, scripted attacks | p95 ≤ 30 ms                              | 16 scripted players, generated 2048 × 1024, 3,000 ticks   | `pnpm sim -- … --budget 30`                | **CI**                   |
-| Simulation tick, largest map      | p95 ≤ 30 ms                              | Synthetic expansion on 4096 × 2048                        | `pnpm bench`                               | Exit status, run by hand |
-| Simulation memory, largest map    | ≤ 96 MiB of typed arrays                 | Synthetic expansion on 4096 × 2048                        | `pnpm bench` (Engine memory column)        | By hand                  |
-| Allocation per tick               | None in the hot loops once warm          | Synthetic expansion                                       | `pnpm bench` (heap growth per scenario)    | By hand                  |
-| Download, first visit             | ≤ 275 kB sent                            | Page, code, styles and Latin font of the production build | `pnpm perf:client`                         | **CI**                   |
-| Download, simulation worker       | ≤ 50 kB sent                             | Production build                                          | `pnpm perf:client`                         | **CI**                   |
-| Download, World map               | ≤ 175 kB sent                            | Production build                                          | `pnpm perf:client`                         | **CI**                   |
-| Download, every map               | ≤ 520 kB sent                            | Production build                                          | `pnpm perf:client`                         | **CI**                   |
-| Download, whole build but maps    | ≤ 850 kB sent                            | Production build, icons and preview image included        | `pnpm perf:client`                         | **CI**                   |
-| Load, menu and game screen        | Trend only                               | Solo game on World with 63 bots, headless Chromium        | `pnpm perf:client -- --trend`              | Reported in CI           |
-| Frame rate in a game              | Trend only                               | Same game, camera panning, software rendering             | `pnpm perf:client -- --trend`              | Reported in CI           |
-| Frame time, desktop GPU           | ≤ 16.7 ms (60 fps)                       | Same game, or `bench:render` on a laptop                  | `pnpm bench:render -- --gpu`, then by hand | By hand                  |
-| Frame time, mid-range phone       | ≤ 33 ms (30 fps)                         | `bench:render` page opened on the phone                   | `pnpm bench:render -- --serve`             | By hand                  |
-| Draw calls for map and units      | ≤ 10                                     | Synthetic renderer, 10,000 units                          | `pnpm bench:render`                        | By hand                  |
-| Territory upload per tick         | ≤ 1 MiB typical, full map only on resync | Synthetic renderer                                        | `pnpm bench:render`                        | By hand                  |
-| GPU memory for map and units      | ≤ 64 MiB at 4096 × 2048                  | Synthetic renderer                                        | `pnpm bench:render`                        | By hand                  |
-| Main-thread CPU to issue a frame  | ≤ 2 ms                                   | Synthetic renderer                                        | `pnpm bench:render`                        | By hand                  |
+| Area                              | Budget                                   | Scenario                                                                 | Measure with                               | Enforced                 |
+| --------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------ | ------------------------ |
+| Simulation tick, full lobby       | p95 ≤ 30 ms                              | Reference game: 64 normal bots on World, 3,000 ticks                     | `pnpm perf:engine`                         | **CI**                   |
+| Simulation tick, against `main`   | Not slower: a 10 % slowdown fails        | Reference game, alternated with the merge base                           | `pnpm perf:engine -- --base <checkout>`    | **CI**                   |
+| Simulation tick, scripted attacks | p95 ≤ 30 ms                              | 16 scripted players, generated 2048 × 1024, 3,000 ticks                  | `pnpm sim -- … --budget 30`                | **CI**                   |
+| Simulation tick, largest map      | p95 ≤ 30 ms                              | Synthetic expansion on 4096 × 2048                                       | `pnpm bench`                               | Exit status, run by hand |
+| Simulation memory, largest map    | ≤ 96 MiB of typed arrays                 | Synthetic expansion on 4096 × 2048                                       | `pnpm bench` (Engine memory column)        | By hand                  |
+| Allocation per tick               | None in the hot loops once warm          | Synthetic expansion                                                      | `pnpm bench` (heap growth per scenario)    | By hand                  |
+| Download, first visit             | ≤ 275 kB sent                            | Page, code, styles, English texts and Latin font of the production build | `pnpm perf:client`                         | **CI**                   |
+| Download, simulation worker       | ≤ 50 kB sent                             | Production build                                                         | `pnpm perf:client`                         | **CI**                   |
+| Download, World map               | ≤ 175 kB sent                            | Production build                                                         | `pnpm perf:client`                         | **CI**                   |
+| Download, every map               | ≤ 520 kB sent                            | Production build                                                         | `pnpm perf:client`                         | **CI**                   |
+| Download, whole build but maps    | ≤ 850 kB sent                            | Production build, icons and preview image included                       | `pnpm perf:client`                         | **CI**                   |
+| Load, menu and game screen        | Trend only                               | Solo game on World with 63 bots, headless Chromium                       | `pnpm perf:client -- --trend`              | Reported in CI           |
+| Frame rate in a game              | Trend only                               | Same game, camera panning, software rendering                            | `pnpm perf:client -- --trend`              | Reported in CI           |
+| Frame time, desktop GPU           | ≤ 16.7 ms (60 fps)                       | Same game, or `bench:render` on a laptop                                 | `pnpm bench:render -- --gpu`, then by hand | By hand                  |
+| Frame time, mid-range phone       | ≤ 33 ms (30 fps)                         | `bench:render` page opened on the phone                                  | `pnpm bench:render -- --serve`             | By hand                  |
+| Draw calls for map and units      | ≤ 10                                     | Synthetic renderer, 10,000 units                                         | `pnpm bench:render`                        | By hand                  |
+| Territory upload per tick         | ≤ 1 MiB typical, full map only on resync | Synthetic renderer                                                       | `pnpm bench:render`                        | By hand                  |
+| GPU memory for map and units      | ≤ 64 MiB at 4096 × 2048                  | Synthetic renderer                                                       | `pnpm bench:render`                        | By hand                  |
+| Main-thread CPU to issue a frame  | ≤ 2 ms                                   | Synthetic renderer                                                       | `pnpm bench:render`                        | By hand                  |
 
 Why these numbers:
 
@@ -330,6 +330,13 @@ and 71 forts.
 | World map                                   | 2103.5 kB | 150.0 kB    | 137.1 kB | 175.0 kB |
 | Every map                                   | 7194.7 kB | 442.2 kB    | 390.4 kB | 520.0 kB |
 | Whole build but maps                        | 1356.2 kB | 730.0 kB    | 709.3 kB | 850.0 kB |
+
+Each language's texts are a file of their own since 2026-10-27: a page
+downloads the catalogue of the language it shows, and another one only when
+the player picks it in the menu. The first visit went from 274.8 kB to
+268.8 kB sent, with the English texts counted; a French page downloads the
+French ones instead, about the same size. The catalogue comes after the
+page's code, in parallel with the map list, so the menu does not wait longer.
 
 The worker had reached 50.0 kB, more than half of it the schema library
 (zod), which came in with the map manifest it checked. The page now checks

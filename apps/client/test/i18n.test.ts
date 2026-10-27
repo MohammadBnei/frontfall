@@ -10,7 +10,9 @@ type I18n = typeof import("../src/i18n/index.ts");
 /** Imports a fresh copy so the initial language is read again from storage and navigator. */
 async function load(): Promise<I18n> {
   vi.resetModules();
-  return import("../src/i18n/index.ts");
+  const i18n = await import("../src/i18n/index.ts");
+  await Promise.all([i18n.loadLanguage("en"), i18n.loadLanguage("fr")]);
+  return i18n;
 }
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {

@@ -1,6 +1,13 @@
 import type { GameRecord } from "@frontfall/engine";
 import type { GameOptions, Teams } from "@frontfall/protocol";
-import { applyTranslations, onLanguageChange, plural, t, type MessageKey } from "./i18n/index.ts";
+import {
+  applyTranslations,
+  loadLanguage,
+  onLanguageChange,
+  plural,
+  t,
+  type MessageKey,
+} from "./i18n/index.ts";
 import { fetchMaps, type MapInfo } from "./game/maps.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
 import { BUILD } from "./net/build.ts";
@@ -331,8 +338,6 @@ document.addEventListener("gesturestart", (event) => {
   event.preventDefault();
 });
 
-applyTranslations(document);
-
 onLanguageChange(() => {
   applyTranslations(document);
   lobby?.refresh();
@@ -646,6 +651,8 @@ function startOnline(
 const query = new URLSearchParams(location.search);
 const invited = query.get("game");
 const ready = Promise.all([
+  // The page's own language: until it is there, the page shows its English markup.
+  loadLanguage(),
   fetchMaps(location.href).then((list) => {
     maps = list;
     setup = initialSetup(location.search, storage, maps);
@@ -658,6 +665,7 @@ const ready = Promise.all([
     : undefined,
 ]);
 void ready.then(() => {
+  applyTranslations(document);
   // An invitation link joins its game; ?online, the next public one.
   if (invited) {
     const token = seatIn(invited);
