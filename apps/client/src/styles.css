@@ -1967,3 +1967,80 @@ kbd {
   font-size: 12px;
   font-style: normal;
 }
+
+/* The profile in the menu (ui/profile-panel.ts). */
+
+.profile-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.menu-profile {
+  width: min(640px, 100%);
+  box-sizing: border-box;
+  padding: 16px 24px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 10px;
+  background: var(--ff-night-700);
+}
+
+.menu-profile summary {
+  cursor: pointer;
+  color: var(--ff-slate-300);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.menu-profile .hint {
+  text-align: left;
+}
+
+.color-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.color-choice {
+  position: relative;
+  display: inline-flex;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: var(--ff-radius);
+  cursor: pointer;
+}
+
+.color-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.color-choice .swatch {
+  width: 28px;
+  height: 28px;
+}
+
+.color-choice:has(input:checked) {
+  border-color: var(--ff-text);
+}
+
+.color-choice:has(input:focus-visible) {
+  outline: 2px solid var(--ff-ember);
+  outline-offset: 2px;
+}
+
+.recent-games {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}

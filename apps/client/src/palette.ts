@@ -102,7 +102,20 @@ export function colorOf(id: number, firstNation: number, teams: readonly number[
     for (let other = 1; other < id; other++) if (teams[other] === team) rank++;
     return teamColor(team, rank);
   }
-  return id >= firstNation ? nationColor(id - firstNation) : playerColor(id - 1).hex;
+  if (id >= firstNation) return nationColor(id - firstNation);
+  if (preferred) {
+    // The player and whoever would have had the wanted colour trade places.
+    if (id === preferred.id) return playerColor(preferred.index).hex;
+    if (id - 1 === preferred.index) return playerColor(preferred.id - 1).hex;
+  }
+  return playerColor(id - 1).hex;
+}
+
+let preferred: { id: number; index: number } | undefined;
+
+/** Gives player `id` the palette colour `index` in `colorOf` (solo games); undefined clears it. */
+export function preferColor(id: number, index: number | undefined): void {
+  preferred = index === undefined || index === id - 1 ? undefined : { id, index };
 }
 
 function farthestTones(count: number): string[] {

@@ -10,6 +10,14 @@ Frontfall counts how it is played, to know which maps and modes people use, wher
 - Your network address is held in memory for a few minutes to limit how often one address can report, and is never written down. The server's logs follow the rules in [server.md](server.md#logs).
 - A browser set to **Do Not Track** or **Global Privacy Control** sends nothing at all.
 
+## What stays on your device
+
+The game keeps a few things in your browser, for you and nobody else. None of it is ever sent to the server, and none of it is in the reports below.
+
+- **Your setup:** the name you typed, the last map, bots, difficulty, mode and whether nations play, so the menu starts where you left it. The language you picked is kept the same way.
+- **Your profile:** the colour you want in solo games, and the last ten games you finished (map, mode, how it ended, minutes played and the day). The menu's **Your profile** panel shows them, and **Forget my profile** erases the profile and your name from the device. Clearing the site's data in the browser does the same.
+- **Your seat in an online game,** and a snapshot of it, so that a reload brings you back; both are dropped when you leave the game.
+
 ## Reports
 
 A page sends three kinds of report to `POST /api/usage`, as JSON of at most 1 kB. The server accepts the exact fields below and refuses anything else.

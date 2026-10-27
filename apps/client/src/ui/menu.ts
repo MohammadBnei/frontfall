@@ -20,6 +20,7 @@ import { betaBadge, betaNotice } from "./beta.ts";
 import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
 import { h, present } from "./dom.ts";
+import { profilePanel, type ProfileControl } from "./profile-panel.ts";
 import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
@@ -42,6 +43,8 @@ export class Menu {
     onOnline: (entry: OnlineEntry, setup: GameSetup) => void,
     /** A replay file the player picked, to watch. */
     onReplay: (file: File) => void,
+    /** The profile kept on this device. */
+    profile: ProfileControl,
   ) {
     this.setup = { ...initial };
 
@@ -219,6 +222,15 @@ export class Menu {
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),
     );
+    const profileSection = profilePanel(
+      profile,
+      (id) => mapList.find((candidate) => candidate.id === id)?.name?.[getLanguage()] ?? id,
+      () => {
+        this.setup.playerName = "";
+        name.value = "";
+      },
+      this.cleanups,
+    );
     const online = this.onlineSection(mapList, (entry) => {
       onOnline(entry, { ...this.setup });
     });
@@ -239,6 +251,7 @@ export class Menu {
         ...present(betaNotice()),
       ),
       form,
+      profileSection,
       online,
       h(
         "footer",

@@ -13,8 +13,9 @@ import { RELEASE } from "./release.ts";
 
 /**
  * What the page tells its own server about the games played on it
- * (docs/privacy.md): counts, never who played. Nothing is kept in the
- * browser, and nothing is sent when the browser asks sites not to track.
+ * (docs/privacy.md): counts, never who played. The reports are not kept in
+ * the browser (the player's own profile, in ui/profile.ts, is), and nothing
+ * is sent when the browser asks sites not to track.
  */
 
 /** Error reports one page load sends at most. */
@@ -106,12 +107,14 @@ export class GameTracker {
   end(outcome: Outcome, now: number): void {
     if (this.outcome) return;
     this.outcome = outcome;
+    const minutes = Math.min(24 * 60, Math.max(0, (now - this.startedAt) / 60_000));
+    this.usage.ended({ map: this.facts.map, mode: this.facts.mode, outcome, minutes, at: now });
     this.usage.send({
       kind: "game",
       release: RELEASE,
       game: this.key,
       ...this.facts,
-      minutes: Math.min(24 * 60, Math.max(0, (now - this.startedAt) / 60_000)),
+      minutes,
       outcome,
       ...this.usage.device(),
       lang: getLanguage(),
@@ -134,8 +137,18 @@ export class GameTracker {
   }
 }
 
+/** A game that has ended for the player, as the page itself may want to remember it. */
+export interface EndedGame {
+  map: string;
+  mode: UsageMode;
+  outcome: Outcome;
+  minutes: number;
+  at: number;
+}
+
 export class Usage {
   private errors = 0;
+  private readonly endListeners: ((game: EndedGame) => void)[] = [];
   private readonly url: string;
 
   constructor(private readonly env: UsageEnvironment = browser()) {
@@ -158,6 +171,15 @@ export class Usage {
       device: deviceOf(this.env.coarsePointer, this.env.screenSide),
       touch: this.env.coarsePointer,
     };
+  }
+
+  /** Calls `listener` when a game ends, whether or not anything is sent: for the page's own use. */
+  onGameEnd(listener: (game: EndedGame) => void): void {
+    this.endListeners.push(listener);
+  }
+
+  ended(game: EndedGame): void {
+    for (const listener of this.endListeners) listener(game);
   }
 
   /** A game that starts now. */

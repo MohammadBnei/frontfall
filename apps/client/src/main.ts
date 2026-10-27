@@ -26,6 +26,9 @@ import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
 import { Menu } from "./ui/menu.ts";
+import { forgetProfile, loadProfile, saveProfile, withGame, type Profile } from "./ui/profile.ts";
+import { HUMAN_ID } from "./game/simulation.ts";
+import { preferColor } from "./palette.ts";
 import { initialSetup, safeStorage, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 import { usage } from "./usage.ts";
 
@@ -35,8 +38,15 @@ let maps: readonly MapInfo[] = [];
 let menu: Menu | undefined;
 let game: GameScreen | undefined;
 let setup: GameSetup;
+let profile: Profile = loadProfile(storage);
 let lobby: LobbyScreen | undefined;
 let online: OnlineClient | undefined;
+
+// The games the player finished stay in the profile, on this device only.
+usage().onGameEnd((ended) => {
+  profile = withGame(profile, ended);
+  saveProfile(profile, storage);
+});
 
 // Errors the game did not catch, counted to find the ones players run into (docs/privacy.md).
 window.addEventListener("error", (event) => {
@@ -64,6 +74,19 @@ function showMenu(): void {
     },
     (file) => {
       void watch(file);
+    },
+    {
+      read: () => profile,
+      setColor: (color) => {
+        profile = { ...profile, color };
+        saveProfile(profile, storage);
+      },
+      forget: () => {
+        profile = loadProfile(undefined);
+        forgetProfile(storage);
+        setup = { ...setup, playerName: "" };
+        saveSetup(setup, storage);
+      },
     },
   );
   document.body.prepend(menu.element);
@@ -112,6 +135,8 @@ function play(chosen: GameSetup): void {
   const map = maps.find((candidate) => candidate.id === setup.map);
   if (!map) return;
   game?.dispose();
+  // Your colour is yours alone: online, every page shows the colours the game gives.
+  preferColor(HUMAN_ID, profile.color);
   const seed = Math.floor(Math.random() * 0x7fffffff);
   game = new GameScreen(
     { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed, ...testing },
@@ -190,6 +215,7 @@ async function watch(file: File): Promise<void> {
     return;
   }
   game?.dispose();
+  preferColor(HUMAN_ID, undefined);
   game = new GameScreen(
     { ...setup, map: map.id, seed: record.seed, record },
     map,
@@ -535,6 +561,7 @@ function startOnline(
     history.replaceState(null, "", setupQuery(setup));
     showMenu();
   };
+  preferColor(HUMAN_ID, undefined);
   game = new GameScreen(
     {
       map: start.map,
