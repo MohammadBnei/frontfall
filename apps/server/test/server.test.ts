@@ -877,44 +877,59 @@ describe("WebSocket", () => {
   });
 
   it("takes a report of another player, and shows it to the operator only (R-MODE-06)", async () => {
-    // Every test client shares 127.0.0.1, and so one budget of two reports.
-    const host = await start({ reportRate: { perSecond: 0.001, burst: 2 } });
-    const alice = await player(host, "Alice");
+    const host = await start({ reportRate: { perSecond: 0.001, burst: 1 } });
+    /** A player at their own address, as the proxy reports it. */
+    const at = async (name: string, ip: string) => {
+      const client = open(host, { "x-client-ip": ip });
+      await opened(client.socket);
+      client.send({ type: "hello", version: PROTOCOL_VERSION, name });
+      await client.next("welcome");
+      return client;
+    };
+    const alice = await at("Alice", "198.51.100.1");
     alice.send({ type: "report", player: 1, reason: "abuse" });
     expect((await alice.next("error")).code).toBe("not_in_game");
     alice.send({ type: "create" });
     const { game, you } = await alice.next("lobby");
-    const bob = await player(host, "Bob");
+    const bob = await at("Bob", "198.51.100.2");
     bob.send({ type: "join", game });
     const seated = await bob.next("lobby");
-    const carol = await player(host, "Carol");
+    const carol = await at("Carol", "198.51.100.3");
     carol.send({ type: "join", game });
     const third = await carol.next("lobby");
+    // Alice's housemate shares her address, and so her reference: no report between them.
+    const dave = await at("Dave", "198.51.100.1");
+    dave.send({ type: "join", game });
+    await dave.next("lobby");
+    dave.send({ type: "report", player: you, reason: "abuse" });
+    expect((await dave.next("error")).code).toBe("not_found");
     alice.send({ type: "report", player: you, reason: "abuse" });
     expect((await alice.next("error")).code).toBe("not_found");
     alice.send({ type: "report", player: seated.you, reason: "name" });
     expect(await alice.next("reported")).toEqual({ type: "reported", player: seated.you });
-    // The same report again is taken without counting twice.
+    // The same report again is taken without counting twice; another one is over the rate.
     alice.send({ type: "report", player: seated.you, reason: "name" });
     expect((await alice.next("reported")).player).toBe(seated.you);
-    bob.send({ type: "report", player: you, reason: "other" });
-    expect((await bob.next("reported")).player).toBe(you);
     alice.send({ type: "report", player: third.you, reason: "cheating" });
     expect((await alice.next("error")).code).toBe("too_many_reports");
+    bob.send({ type: "report", player: you, reason: "other" });
+    expect((await bob.next("reported")).player).toBe(you);
 
     const url = `http://${host}/admin/reports`;
     expect((await fetch(url, { headers: { "x-client-ip": "1.2.3.4" } })).status).toBe(404);
     const { reports, targets } = (await (await fetch(url)).json()) as {
       reports: { reason: string; name: string; target: string }[];
-      targets: { target: string; reporters: number }[];
+      targets: { target: string; reports: number; names: string[] }[];
     };
     expect(reports.map((r) => [r.reason, r.name])).toEqual([
       ["other", "Alice"],
       ["name", "Bob"],
     ]);
-    // Alice and Bob share one address here: the operator sees one target under both names.
-    expect(targets).toMatchObject([{ reports: 2, reporters: 1, names: ["Alice", "Bob"] }]);
-    expect(JSON.stringify(reports)).not.toContain("127.0.0.1");
+    expect(targets.map((t) => [t.names, t.reports])).toEqual([
+      [["Alice"], 1],
+      [["Bob"], 1],
+    ]);
+    expect(JSON.stringify(reports)).not.toContain("198.51.100");
   });
 
   it("lets the operator ban an address, closing its connections (R-MODE-06)", async () => {

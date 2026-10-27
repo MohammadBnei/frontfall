@@ -59,12 +59,29 @@ describe("Moderation (R-MODE-06)", () => {
         banned: false,
       },
     ]);
+    moderation.flush();
     const file = readFileSync(join(dir, "moderation", "reports.json"), "utf8");
     expect(file).not.toContain("198.51.100");
     expect(file).not.toContain("203.0.113");
     // Kept across a restart, and forgotten after 30 days.
     expect(new Moderation(dir, T0 + DAY).read(T0 + DAY).reports).toHaveLength(3);
     expect(new Moderation(dir, T0 + 31 * DAY).read(T0 + 31 * DAY).reports).toHaveLength(0);
+  });
+
+  it("counts one address once a day against one player, and keeps 20 reports about a player", () => {
+    const moderation = new Moderation(undefined, T0, { perSecond: 1, burst: 100 });
+    moderation.report(report, "198.51.100.1", "203.0.113.7", T0);
+    // The same player met again in another game, the same day.
+    moderation.report({ ...report, game: "ijklmnop" }, "198.51.100.1", "203.0.113.7", T0 + 1000);
+    expect(moderation.read(T0 + 1000).reports).toHaveLength(1);
+    moderation.report({ ...report, game: "ijklmnop" }, "198.51.100.1", "203.0.113.7", T0 + DAY);
+    expect(moderation.read(T0 + DAY).reports).toHaveLength(2);
+
+    for (let i = 0; i < 30; i++) {
+      moderation.report(report, `192.0.2.${String(i)}`, "198.51.100.9", T0 + DAY + i);
+    }
+    const { targets } = moderation.read(T0 + DAY + 30);
+    expect(targets.find((t) => t.target === moderation.ref("198.51.100.9"))?.reports).toBe(20);
   });
 
   it("bans an address or a reference, for a while or for good", () => {

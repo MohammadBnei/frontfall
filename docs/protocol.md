@@ -160,7 +160,7 @@ The host removes the player with this lobby number before the game starts (`R-MO
 { "type": "report", "player": 3, "reason": "abuse" }
 ```
 
-Tells the operator of the server that another player of the current game misbehaves (`R-MODE-06`), in the lobby or during play. `reason` is one of `abuse` (insults or harassment), `name` (an offensive name), `cheating` and `other`; a report carries no text of its own. The server answers `reported`, and again for a player this address already reported in this game, which counts once. One address may send 5 reports at once and one every two minutes after that, answered `too_many_reports` beyond. Nobody else is told, the reported player included. What the server keeps is in [server.md](server.md#reports-and-bans).
+Tells the operator of the server that another player of the current game misbehaves (`R-MODE-06`), in the lobby or during play. `reason` is one of `abuse` (insults or harassment), `name` (an offensive name), `cheating` and `other`; a report carries no text of its own. The server answers `reported`, and again for a player this address already reported in this game or, under any number, during the last day, which counts once. A player from the reporter's own address gets `not_found`. One address may send 5 reports at once and one every two minutes after that, answered `too_many_reports` beyond. Nobody else is told, the reported player included. What the server keeps is in [server.md](server.md#reports-and-bans).
 
 ### `leave`
 

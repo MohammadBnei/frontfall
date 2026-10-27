@@ -589,6 +589,11 @@ export function createGameServer(options: ServerOptions): GameServer {
         const finish = (): void => {
           clearInterval(usageSaver);
           keepUsage();
+          try {
+            moderation.flush();
+          } catch (error) {
+            logger.warn("reports_not_saved", { error: (error as Error).message });
+          }
           clearInterval(heartbeat);
           clearInterval(ticker);
           keepGames();

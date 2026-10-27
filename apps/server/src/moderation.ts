@@ -9,6 +9,12 @@ import { AddressRate } from "./rate-limit.ts";
 export const REPORT_DAYS = 30;
 /** Reports kept at most, the oldest dropped first. */
 const MAX_REPORTS = 500;
+/** Reports kept about one player, so that a campaign against one fills no more. */
+const MAX_REPORTS_PER_TARGET = 20;
+/** How long one address counts once against one player, whatever the game. */
+const SAME_TARGET_MS = 24 * 60 * 60 * 1000;
+/** Reports are written this long after the last one, off the path of the message. */
+const SAVE_DELAY_MS = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** One report of a player by another, as the operator reads it. */
@@ -82,6 +88,7 @@ export class Moderation {
   private reports: Report[] = [];
   private bans: Ban[] = [];
   private readonly rate: AddressRate;
+  private saveTimer: ReturnType<typeof setTimeout> | undefined;
 
   /**
    * @param directory where the key, the reports and the ban list are kept;
@@ -118,8 +125,9 @@ export class Moderation {
   }
 
   /**
-   * Records a report, once per reporter, game and player. False when the
-   * reporter's address has sent too many lately.
+   * Records a report, once per reporter, game and player, and once a day
+   * per reporter and reported address. False when the reporter's address
+   * has sent too many lately.
    */
   report(
     report: Omit<Report, "at" | "from" | "target">,
@@ -128,8 +136,14 @@ export class Moderation {
     now: number,
   ): boolean {
     const fromRef = this.ref(from);
+    const targetRef = target === undefined ? null : this.ref(target);
     const twice = this.reports.some(
-      (r) => r.from === fromRef && r.game === report.game && r.player === report.player,
+      (r) =>
+        r.from === fromRef &&
+        ((r.game === report.game && r.player === report.player) ||
+          (targetRef !== null &&
+            r.target === targetRef &&
+            now - Date.parse(r.at) < SAME_TARGET_MS)),
     );
     if (twice) return true;
     if (!this.rate.take(from, now)) return false;
@@ -137,10 +151,17 @@ export class Moderation {
       at: new Date(now).toISOString(),
       ...report,
       from: fromRef,
-      target: target === undefined ? null : this.ref(target),
+      target: targetRef,
     });
+    if (targetRef !== null) {
+      const about = this.reports.filter((r) => r.target === targetRef);
+      if (about.length > MAX_REPORTS_PER_TARGET) {
+        const oldest = about[0];
+        this.reports = this.reports.filter((r) => r !== oldest);
+      }
+    }
     this.prune(now);
-    this.save("reports.json", { reports: this.reports });
+    this.saveReportsSoon();
     return true;
   }
 
@@ -213,7 +234,33 @@ export class Moderation {
   reload(): void {
     if (this.directory === undefined) return;
     const text = readIfAny(this.file("bans.json"));
-    this.bans = text === undefined ? [] : parseBans(text);
+    const now = Date.now();
+    // Bans that ran out are dropped, and leave the file at its next write.
+    this.bans =
+      text === undefined
+        ? []
+        : parseBans(text).filter((ban) => ban.until === null || Date.parse(ban.until) > now);
+  }
+
+  /** Writes the reports not yet written, as the server stops. */
+  flush(): void {
+    if (this.saveTimer === undefined) return;
+    clearTimeout(this.saveTimer);
+    this.saveTimer = undefined;
+    this.save("reports.json", { reports: this.reports });
+  }
+
+  private saveReportsSoon(): void {
+    if (this.directory === undefined || this.saveTimer !== undefined) return;
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = undefined;
+      try {
+        this.save("reports.json", { reports: this.reports });
+      } catch {
+        // Tried again with the next report, or at the stop.
+      }
+    }, SAVE_DELAY_MS);
+    this.saveTimer.unref();
   }
 
   private prune(now: number): void {
