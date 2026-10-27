@@ -164,11 +164,15 @@ export function messageHandler(ctx: MessageContext): {
         reject(session, CloseCode.invalidMessage, "hello was already sent", "invalid");
         return;
       }
+      // Not reject(): a stale page is not misbehaving, so it is not counted as
+      // rejected, but nothing it sends while the close completes is handled.
       if (message.build && !sameBuild(message.build, ctx.simulation)) {
+        session.closing = true;
         session.socket.close(CloseCode.versionMismatch, `build ${ctx.simulation} required`);
         return;
       }
       if (message.version !== PROTOCOL_VERSION) {
+        session.closing = true;
         session.socket.close(
           CloseCode.versionMismatch,
           `protocol ${String(PROTOCOL_VERSION)} required`,
