@@ -76,6 +76,15 @@ export class AchievementStore {
     return progress;
   }
 
+  /** Erases everything earned from the device. */
+  clear(): void {
+    try {
+      this.storage?.removeItem(ACHIEVEMENTS_KEY);
+    } catch {
+      // Nothing to forget where nothing could be kept.
+    }
+  }
+
   /** Adds what a game earned; returns the achievements and tiers that are new. */
   record(delta: Delta, now: number): Gain[] {
     const progress = this.load();

@@ -27,6 +27,7 @@ test("the menu keeps a name, a colour and the last games on the device, until th
   await expect(page.getByLabel("Jade")).toBeChecked();
   await expect(page.locator("#recent-games li")).toHaveCount(1);
 
+  await expect(page.locator("#profile-forget")).toHaveText("Forget my profile and achievements");
   await page.locator("#profile-forget").click();
   await expect(page.locator("#player-name")).toHaveValue("");
   await expect(page.locator("#recent-games li")).toHaveCount(0);

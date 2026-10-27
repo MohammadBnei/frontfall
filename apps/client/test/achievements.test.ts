@@ -246,6 +246,18 @@ describe("AchievementStore", () => {
     expect(earned.size).toBe(3);
   });
 
+  it("erases everything earned from the device", () => {
+    const storage = memoryStorage();
+    const store = new AchievementStore(storage);
+    store.record({ fresh: ["ally"], counts: { wins: 2 } }, 1000);
+    store.clear();
+    expect(storage.getItem(ACHIEVEMENTS_KEY)).toBeNull();
+    expect(store.load().earned.size).toBe(0);
+    expect(() => {
+      new AchievementStore(undefined).clear();
+    }).not.toThrow();
+  });
+
   it("raises a tiered achievement as its count passes each goal", () => {
     const store = new AchievementStore(memoryStorage());
     expect(store.record({ fresh: [], counts: { wins: 1 } }, 1)).toEqual([

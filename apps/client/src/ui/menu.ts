@@ -23,6 +23,8 @@ import { h, present } from "./dom.ts";
 import { profilePanel, type ProfileControl } from "./profile-panel.ts";
 import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
 
+/** Sent on the document once the profile is erased, so that what shows it can change. */
+const PROFILE_FORGOTTEN = "frontfall:profile-forgotten";
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 /** How often the list of public games is fetched again while the menu shows. */
 const GAMES_REFRESH_MS = 3_000;
@@ -228,6 +230,7 @@ export class Menu {
       () => {
         this.setup.playerName = "";
         name.value = "";
+        document.dispatchEvent(new Event(PROFILE_FORGOTTEN));
       },
       this.cleanups,
     );
@@ -551,6 +554,10 @@ function achievementsButton(cleanups: (() => void)[]): HTMLElement {
   };
   label();
   cleanups.push(onLanguageChange(label));
+  document.addEventListener(PROFILE_FORGOTTEN, label);
+  cleanups.push(() => {
+    document.removeEventListener(PROFILE_FORGOTTEN, label);
+  });
   button.addEventListener("click", () => {
     const close = (): void => {
       panel.remove();

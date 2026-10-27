@@ -15,7 +15,8 @@ Frontfall counts how it is played, to know which maps and modes people use, wher
 The game keeps a few things in your browser, for you and nobody else. None of it is ever sent to the server, and none of it is in the reports below.
 
 - **Your setup:** the name you typed, the last map, bots, difficulty, mode and whether nations play, so the menu starts where you left it. The language you picked is kept the same way.
-- **Your profile:** the colour you want in solo games, and the last ten games you finished (map, mode, how it ended, minutes played and the day). The menu's **Your profile** panel shows them, and **Forget my profile** erases the profile and your name from the device. Clearing the site's data in the browser does the same.
+- **Your profile:** the colour you want in solo games, and the last ten games you finished (map, mode, how it ended, minutes played and the day). The menu's **Your profile** panel shows them, and **Forget my profile and achievements** erases the profile, your setup with your name, your achievements and any game in progress from the device. Clearing the site's data in the browser does the same.
+- **Your achievements:** which you have earned and the counts behind them, kept the same way.
 - **Your seat in an online game,** and a snapshot of it, so that a reload brings you back; both are dropped when you leave the game.
 
 ## Reports

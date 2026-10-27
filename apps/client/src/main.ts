@@ -25,6 +25,7 @@ import { GameScreen } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
+import { AchievementStore } from "./achievements/store.ts";
 import { Menu } from "./ui/menu.ts";
 import { forgetProfile, loadProfile, saveProfile, withGame, type Profile } from "./ui/profile.ts";
 import { HUMAN_ID } from "./game/simulation.ts";
@@ -93,6 +94,10 @@ function showMenu(): void {
         forgetProfile(storage);
         setup = { ...setup, playerName: "" };
         forgetSetup(storage);
+        new AchievementStore(storage).clear();
+        // A game in progress cannot be resumed either.
+        forgetSeat();
+        void forgetSnapshot();
       },
     },
   );
