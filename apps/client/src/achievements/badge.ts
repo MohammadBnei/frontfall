@@ -1,3 +1,4 @@
+import { installSprite, type IconName } from "../ui/icons.ts";
 import { CATALOGUE, type AchievementId } from "./catalog.ts";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -20,6 +21,19 @@ const PLATES = [
   { top: "#e3ecf4", bottom: "#8097ad", shadow: "#475a6b", glyph: "#fff" },
   { top: "#ffc766", bottom: "#c4701c", shadow: "#7a4310", glyph: "#fff" },
 ] as const;
+
+/** Achievements drawn with a glyph of the interface sprite, so a building looks the same in play and on its badge. */
+const SPRITE_GLYPHS: Partial<Record<AchievementId, IconName>> = {
+  builder: "city",
+  palace: "palace",
+  fortress: "fort",
+  harbor: "port",
+  admiral: "warship",
+  merchant: "trade",
+  missile: "missile",
+  generous: "gift",
+  ally: "alliance",
+};
 
 /** Tier names, by level: locked, bronze, silver, gold. */
 const NAMES = ["locked", "bronze", "silver", "gold"] as const;
@@ -78,11 +92,28 @@ export function badge(id: AchievementId, level: number): SVGSVGElement {
       fill: "#fff",
       "fill-opacity": ".14",
     }),
-    svg(
-      "g",
-      { transform: "translate(4.1 3.6) scale(.66)" },
-      svg("path", { d: entry?.glyph ?? "", fill: colors.glyph, "fill-rule": "evenodd" }),
-    ),
+    glyphOf(id, entry?.glyph ?? "", colors.glyph),
   );
   return root;
+}
+
+function glyphOf(id: AchievementId, path: string, color: string): SVGElement {
+  const shared = SPRITE_GLYPHS[id];
+  if (shared === undefined) {
+    return svg(
+      "g",
+      { transform: "translate(4.1 3.6) scale(.66)" },
+      svg("path", { d: path, fill: color, "fill-rule": "evenodd" }),
+    );
+  }
+  installSprite();
+  return svg("use", {
+    href: `#i-${shared}`,
+    x: "4.1",
+    y: "3.6",
+    width: "15.8",
+    height: "15.8",
+    fill: color,
+    color,
+  });
 }
