@@ -16,7 +16,6 @@ import {
 import { MAX_GAME_NAME_LENGTH, PublicGame, normalizeGameName } from "@frontfall/protocol";
 import type { OnlineEntry } from "../net/online.ts";
 import { MAP_COLORS, hexToRgb } from "../palette.ts";
-import { AccountBox } from "./account.ts";
 import { betaBadge, betaNotice } from "./beta.ts";
 import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
@@ -38,6 +37,7 @@ export class Menu {
   readonly element: HTMLElement;
   private setup: GameSetup;
   private readonly cleanups: (() => void)[] = [];
+  private disposed = false;
 
   constructor(
     initial: GameSetup,
@@ -63,8 +63,15 @@ export class Menu {
     name.addEventListener("input", () => {
       this.setup.playerName = cleanName(name.value);
     });
-    const account = new AccountBox(name, (chosen) => {
-      this.setup.playerName = cleanName(chosen);
+    // Sign-in comes after the menu shows: its code is no part of the first visit.
+    const account = h("div", { class: "account", hidden: true });
+    void import("./account.ts").then(({ AccountBox }) => {
+      if (this.disposed) return;
+      const box = new AccountBox(name, (chosen) => {
+        this.setup.playerName = cleanName(chosen);
+      });
+      this.cleanups.push(box.dispose);
+      account.replaceWith(box.element);
     });
 
     const maps = h("div", {
@@ -182,7 +189,7 @@ export class Menu {
         { class: "field" },
         h("label", { for: "player-name", "data-i18n": "menu.name" }),
         name,
-        account.element,
+        account,
       ),
       h(
         "div",
@@ -291,6 +298,7 @@ export class Menu {
   }
 
   dispose(): void {
+    this.disposed = true;
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.element.remove();
   }
