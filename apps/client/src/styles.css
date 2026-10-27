@@ -39,6 +39,12 @@ body {
   -webkit-touch-callout: none;
 }
 
+/* Outside a game the menus and the lobby may be pinched; the map handles its own gestures. */
+:root:not(:has(.map-surface)),
+body:not(:has(.map-surface)) {
+  touch-action: manipulation;
+}
+
 canvas {
   display: block;
   touch-action: none;
