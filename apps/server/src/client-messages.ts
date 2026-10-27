@@ -10,6 +10,7 @@ import {
   type GameOptions,
 } from "@frontfall/protocol";
 import type { RawData, WebSocket } from "ws";
+import { isPrivateAddress } from "./address.ts";
 import type { MapLimits } from "./catalog.ts";
 import type { Directory } from "./directory.ts";
 import type { Logger } from "./log.ts";
@@ -304,8 +305,11 @@ export function messageHandler(ctx: MessageContext): {
           return;
         }
         const target = current.room.seatOf(message.player);
-        // Players of one network share one reference: a report of one of them names the reporter too.
-        if (!target || target === current.seat || target.address === session.address) {
+        // Players of one public address share one reference: a report of one of them names
+        // the reporter too. A LAN without a proxy, or a test on one machine, has only that one.
+        const sameAddress =
+          target?.address === session.address && !isPrivateAddress(session.address);
+        if (!target || target === current.seat || sameAddress) {
           reply(session, "not_found");
           return;
         }
