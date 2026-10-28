@@ -268,3 +268,19 @@ test("plays a World game against 8 bots to its end screen", async ({ page }, tes
 
   expect(pageErrors).toEqual([]);
 });
+
+test("Play again starts the same game anew from the end screen", async ({ page }) => {
+  await page.goto("./?map=world&bots=8&difficulty=hard&nations=0&speed=30&minutes=3");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+
+  const end = page.locator(".end-screen");
+  await expect(end).toBeVisible({ timeout: 200_000 });
+  await end.getByRole("button", { name: "Play again" }).click();
+  await expect(end).toHaveCount(0);
+  // The same map and settings: a game of 3 minutes again, from its start.
+  await expect(page.locator("#map")).toBeVisible();
+  await expect(page.locator(".goal-clock")).toContainText("of 3:00", { timeout: 30_000 });
+  await expect(page).toHaveURL(/map=world/);
+  await expect(page).toHaveURL(/bots=8/);
+});

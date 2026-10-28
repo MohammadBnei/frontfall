@@ -30,7 +30,16 @@ export interface GameSummary {
   teams: readonly number[];
   /** The map and the device, for a bug report. */
   details: string;
+  /** Where the game was played: the first button plays it again or goes back to the lobby. */
+  kind: "solo" | "online" | "replay";
 }
+
+/** One click on from the end: the same game again, the online lobby, or a new choice. */
+const REMATCH_LABEL = {
+  solo: "end.replay",
+  online: "end.lobby",
+  replay: "end.newGame",
+} as const satisfies Record<GameSummary["kind"], MessageKey>;
 
 /** Who won, how long it took, how far the player got, and a way to play again. */
 export function endScreen(
@@ -90,7 +99,7 @@ export function endScreen(
       "div",
       { class: "end-actions" },
       button(
-        "end.newGame",
+        REMATCH_LABEL[summary.kind],
         () => {
           actions.onNewGame();
         },

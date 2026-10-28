@@ -50,6 +50,8 @@
   "end.duration": "Duration",
   "end.peak": "Your largest territory",
   "end.newGame": "New game",
+  "end.replay": "Play again",
+  "end.lobby": "Back to the lobby",
   "end.watch": "Keep watching",
   "end.menu": "Main menu",
   "end.download": "Save the replay",
