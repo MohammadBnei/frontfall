@@ -5,7 +5,7 @@ import { applyTranslations, getLanguage, type MessageKey } from "../i18n/index.t
 import { h } from "./dom.ts";
 import { formatCount } from "./format.ts";
 import { icon } from "./icons.ts";
-import { BUILD_MODES, costOf, offers } from "./hud.ts";
+import { BUILD_MODES, costOf, offers } from "./build-modes.ts";
 
 export interface HelpOptions {
   /** The player's current costs, when the game has started. */

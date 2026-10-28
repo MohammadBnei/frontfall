@@ -1,11 +1,16 @@
-import { DEFAULT_BALANCE, Disable } from "@frontfall/engine";
+import { DEFAULT_BALANCE } from "@frontfall/engine";
 import type { GameRules } from "../game/messages.ts";
-import type { BuildView, ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
+import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
-import { h, swatch } from "./dom.ts";
+import { h } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
+import { LeaderList } from "./leader-list.ts";
+import { BUILD_MODES, costOf, offers } from "./build-modes.ts";
+
+// Also found here, where it was first defined.
+export { offers };
 
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
 export const MIN_RATIO = 5;
@@ -45,54 +50,6 @@ const MODE_BANNERS = {
   demolish: "hud.modeDemolish",
 } as const;
 
-/** The build buttons, with their shortcut keys (game-screen.ts), in the order the HUD and the help list them. */
-export const BUILD_MODES = [
-  { mode: "city", key: "C" },
-  { mode: "palace", key: "B" },
-  { mode: "fort", key: "F" },
-  { mode: "port", key: "O" },
-  { mode: "silo", key: "L" },
-  { mode: "airDefense", key: "K" },
-  { mode: "warship", key: "V" },
-  { mode: "missile", key: "M" },
-  { mode: "heavyMissile", key: "N" },
-  { mode: "demolish", key: "X" },
-] as const satisfies readonly { mode: ClickMode; key: string }[];
-
-/** The `Disable` bit that leaves a build mode out of a game (R-MODE-03); missiles go with silos. */
-const MODE_BITS: Partial<Record<ClickMode, number>> = {
-  city: Disable.City,
-  palace: Disable.City,
-  fort: Disable.Fort,
-  port: Disable.Port,
-  silo: Disable.Silo,
-  airDefense: Disable.AirDefense,
-  warship: Disable.Warships,
-  missile: Disable.Silo,
-  heavyMissile: Disable.Silo,
-};
-
-/** Gold the next one costs the player; none for demolish. */
-export function costOf(mode: ClickMode, build: BuildView): number | undefined {
-  const costs: Partial<Record<ClickMode, number>> = {
-    city: build.cityCost,
-    palace: build.palaceCost,
-    fort: build.fortCost,
-    port: build.portCost,
-    silo: build.siloCost,
-    airDefense: build.airDefenseCost,
-    warship: build.warshipCost,
-    missile: build.missileCost,
-    heavyMissile: build.heavyMissileCost,
-  };
-  return costs[mode];
-}
-
-/** Whether a game that leaves out `disabled` has this build mode. */
-export function offers(mode: ClickMode, disabled: number): boolean {
-  return (disabled & (MODE_BITS[mode] ?? 0)) === 0;
-}
-
 /**
  * Numbers the player plays by: their troops, gold and land, the attack
  * ratio, what the game expects of them now, and the leading players.
@@ -108,7 +65,7 @@ export class Hud {
     { class: "banner", role: "status", "aria-live": "polite" },
     t("game.loading"),
   );
-  private readonly leaders = h("ol", { class: "leaderboard-list", id: "leaderboard-list" });
+  private readonly leaders: LeaderList;
   /** The leaderboard panel: the menu of a player picked in it opens at its foot. */
   readonly leaderboard: HTMLElement;
   private readonly ratioInput = h("input", {
@@ -134,9 +91,6 @@ export class Hud {
   /** One row per attack under way, kept across renders so a button under the pointer stays put. */
   private readonly attackRows = new Map<number, { row: HTMLElement; text: HTMLElement }>();
   private readonly onRetreat: (attack: number) => void;
-  private readonly onPlayer: (player: number) => void;
-  /** Leaderboard rows by player id, kept across renders so focus stays on a picked row. */
-  private readonly leaderRows = new Map<number, LeaderRow>();
   private readonly buildButtons = new Map<ClickMode, HTMLButtonElement>();
   private readonly cityCost = h("span", { class: "build-cost" });
   private readonly palaceCost = h("span", { class: "build-cost" });
@@ -177,9 +131,9 @@ export class Hud {
     this.onRetreat = (attack) => {
       actions.onRetreat(attack);
     };
-    this.onPlayer = (player) => {
+    this.leaders = new LeaderList((player) => {
       actions.onPlayer(player);
-    };
+    });
     this.ratioInput.addEventListener("input", () => {
       this.setRatio(Number(this.ratioInput.value));
     });
@@ -315,7 +269,7 @@ export class Hud {
       "section",
       { class: "panel leaderboard", "aria-labelledby": "leaderboard-title" },
       h("h2", { id: "leaderboard-title" }, leaderboardToggle),
-      this.leaders,
+      this.leaders.element,
       h(
         "div",
         { class: "goal" },
@@ -406,7 +360,7 @@ export class Hud {
     this.rules = { ...rules, ownableTiles: Math.max(1, rules.ownableTiles) };
     for (const [mode, button] of this.buildButtons) button.hidden = !offers(mode, rules.disabled);
     // Colours depend on the rules (nations): rows are made again.
-    this.leaderRows.clear();
+    this.leaders.clear();
   }
 
   /** Takes every update; draws only a few times per second, or at once when forced. */
@@ -527,6 +481,15 @@ export class Hud {
       : formatPercent(share);
   }
 
+  private renderLeaders(update: GameUpdate): void {
+    this.leaders.render(
+      update,
+      this.leaderboardOpen ? LEADERBOARD_SIZE : LEADERBOARD_SHORT,
+      (id) => colorOf(id, this.rules.firstNation, this.rules.teams),
+      (tiles) => this.share(tiles),
+    );
+  }
+
   /** How far the leader and the player are from winning, and the time left. */
   private renderGoal(update: GameUpdate, human: PlayerView | undefined): void {
     const { ownableTiles, ticksPerSecond, winSharePercent, maxDurationTicks } = this.rules;
@@ -570,107 +533,4 @@ export class Hud {
     }
     return t("hud.playHint");
   }
-
-  /**
-   * The leading players, and the player at this screen if lower. Every other
-   * player's row is a button that opens their menu; allies and traitors are
-   * marked. Rows are reused, so a row with focus keeps it.
-   */
-  private renderLeaders(update: GameUpdate): void {
-    const { players, you, diplomacy } = update;
-    const ranked = players
-      .filter((player) => player.alive)
-      .sort((a, b) => b.tiles - a.tiles || a.id - b.id);
-    const size = this.leaderboardOpen ? LEADERBOARD_SIZE : LEADERBOARD_SHORT;
-    const shown = ranked.slice(0, size);
-    const humanRank = ranked.findIndex((player) => player.id === you);
-    if (humanRank >= size) shown.push(ranked[humanRank] as PlayerView);
-    const allies = new Set(diplomacy.allies.map((ally) => ally.id));
-    const teammates = new Set(diplomacy.teammates);
-    const traitors = new Set(diplomacy.traitors.map((traitor) => traitor.id));
-    const rows = shown.map((player) => {
-      let row = this.leaderRows.get(player.id);
-      if (!row) {
-        row = leaderRow(
-          player,
-          player.id === you,
-          colorOf(player.id, this.rules.firstNation, this.rules.teams),
-          this.onPlayer,
-        );
-        this.leaderRows.set(player.id, row);
-      }
-      row.item.value = ranked.indexOf(player) + 1;
-      row.name.textContent = player.name;
-      // Set here, not once, so it follows a change of language.
-      row.button?.setAttribute("aria-label", t("diplo.playerMenu", { name: player.name }));
-      row.land.textContent = this.share(player.tiles);
-      const teammate = teammates.has(player.id);
-      row.ally.hidden = !teammate && !allies.has(player.id);
-      row.ally.textContent = t(teammate ? "diplo.teammateBadge" : "diplo.allyBadge");
-      row.traitor.hidden = !traitors.has(player.id);
-      return row.item;
-    });
-    for (const [id, row] of this.leaderRows) {
-      if (!shown.some((player) => player.id === id)) {
-        row.item.remove();
-        this.leaderRows.delete(id);
-      }
-    }
-    const order = [...this.leaders.children];
-    if (rows.length !== order.length || rows.some((row, i) => row !== order[i])) {
-      // Moving a row drops its focus: give it back.
-      const focused = document.activeElement;
-      this.leaders.replaceChildren(...rows);
-      if (focused instanceof HTMLElement && this.leaders.contains(focused)) focused.focus();
-    }
-  }
-}
-
-interface LeaderRow {
-  item: HTMLLIElement;
-  name: HTMLElement;
-  land: HTMLElement;
-  ally: HTMLElement;
-  traitor: HTMLElement;
-  /** Opens the player's menu; none on the row of the player at this screen. */
-  button?: HTMLElement;
-}
-
-function leaderRow(
-  player: PlayerView,
-  you: boolean,
-  color: string,
-  onPick: (player: number) => void,
-): LeaderRow {
-  const name = h("span", { class: "leader-name" });
-  const land = h("span", { class: "leader-land" });
-  const ally = h("span", {
-    class: "badge badge-ally",
-    "data-i18n": "diplo.allyBadge",
-    hidden: true,
-  });
-  const traitor = h("span", {
-    class: "badge badge-traitor",
-    "data-i18n": "diplo.traitorBadge",
-    hidden: true,
-  });
-  ally.textContent = t("diplo.allyBadge");
-  traitor.textContent = t("diplo.traitorBadge");
-  const content = [swatch(color), name, ally, traitor, land];
-  if (you) {
-    return { item: h("li", { class: "leader you" }, ...content), name, land, ally, traitor };
-  }
-  const button = h(
-    "button",
-    {
-      type: "button",
-      class: "leader-button",
-      "data-player": player.id,
-    },
-    ...content,
-  );
-  button.addEventListener("click", () => {
-    onPick(player.id);
-  });
-  return { item: h("li", { class: "leader" }, button), name, land, ally, traitor, button };
 }
