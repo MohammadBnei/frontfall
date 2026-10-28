@@ -51,15 +51,15 @@ jobs:
       - run: pnpm sim -- --width 2048 --height 1024 --players 16 --ticks 3000 --interval 10 --budget 30
 
   unit:
-    name: Unit tests (${{ matrix.shard }}/3)
+    name: Unit tests (${{ matrix.shard }}/6)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     # The tests are bound by the processor (the golden replays play thousands of ticks), so
-    # three runners share them; each keeps its coverage in a report that "Coverage" merges.
+    # six runners share them; each keeps its coverage in a report that "Coverage" merges.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -70,10 +70,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # A third of the tests cannot reach the thresholds on their own: they are held to them
+      # A sixth of the tests cannot reach the thresholds on their own: they are held to them
       # once the reports are merged.
       - run: >-
-          pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/3
+          pnpm exec vitest run --coverage --shard=${{ matrix.shard }}/6
           --reporter=blob --outputFile=.vitest-reports/blob-${{ matrix.shard }}.json
           --coverage.thresholds.lines=0 --coverage.thresholds.functions=0
           --coverage.thresholds.branches=0 --coverage.thresholds.statements=0
