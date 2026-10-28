@@ -82,3 +82,40 @@
   margin-top: 6px;
   font-size: 12px;
 }
+
+.account-sign-in.email {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-email-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+/* As the name field above it. */
+.account-email {
+  flex: 1 1 200px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: var(--ff-radius);
+  background: var(--ff-night-600);
+}
+
+.account .account-finish {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--ff-text);
+}
+
+.account-note {
+  color: var(--ff-text);
+}

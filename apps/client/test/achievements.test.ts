@@ -5,6 +5,7 @@ import {
   isAchievementId,
   type AchievementId,
 } from "../src/achievements/catalog.ts";
+import { absorbAchievements, deviceAchievements } from "../src/achievements/account-sync.ts";
 import { ACHIEVEMENTS_KEY, AchievementStore } from "../src/achievements/store.ts";
 import { AchievementTracker, type AchievementGame } from "../src/achievements/tracker.ts";
 import type { GameUpdate, StructureView } from "../src/game/game-view.ts";
@@ -288,6 +289,57 @@ describe("AchievementStore", () => {
     ).load();
     expect([...earned.keys()]).toEqual(["harbor"]);
     expect(counts).toEqual({ wins: 2, cities: 0, games: 0 });
+  });
+
+  it("joins achievements kept with an account, losing none of either", () => {
+    const storage = memoryStorage();
+    const store = new AchievementStore(storage);
+    store.record({ fresh: ["ally"], counts: { wins: 1, games: 4 } }, 500);
+    expect(deviceAchievements(storage)).toEqual({
+      earned: {
+        ally: { at: 500, level: 1 },
+        conqueror: { at: 500, level: 1 },
+        veteran: { at: 500, level: 1 },
+      },
+      counts: { wins: 1, cities: 0, games: 4 },
+    });
+    absorbAchievements(
+      {
+        earned: {
+          ally: { at: 900, level: 1 },
+          conqueror: { at: 9, level: 2 },
+          harbor: { at: 100, level: 1 },
+        },
+        counts: { wins: 3, games: 2 },
+      },
+      storage,
+    );
+    const { earned, counts } = store.load();
+    expect(earned.get("ally")).toEqual({ at: 500, level: 1 });
+    expect(earned.get("conqueror")).toEqual({ at: 9, level: 2 });
+    expect(earned.get("harbor")).toEqual({ at: 100, level: 1 });
+    expect(counts).toEqual({ wins: 3, cities: 0, games: 4 });
+  });
+
+  it("sends the account only entries it takes", () => {
+    const stored = JSON.stringify({
+      v: 1,
+      earned: {
+        harbor: { at: 5 },
+        ally: { at: "x" },
+        Bad_Id: { at: 1, level: 1 },
+        fort: { at: 2, level: 7 },
+      },
+      counts: { wins: 2, games: -4, cities: 1.5 },
+    });
+    expect(deviceAchievements(memoryStorage({ [ACHIEVEMENTS_KEY]: stored }))).toEqual({
+      earned: { harbor: { at: 5, level: 1 } },
+      counts: { wins: 2 },
+    });
+    expect(deviceAchievements(memoryStorage({ [ACHIEVEMENTS_KEY]: "{" }))).toEqual({
+      earned: {},
+      counts: {},
+    });
   });
 
   it("does not throw where storage refuses to write", () => {

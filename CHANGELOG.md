@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **Sign in by email, and keep your achievements.** No Discord or Google account? Sign in with email under your name in the menu: type your address, open the link it sends on any device within 15 minutes, press Finish signing in, and that is it. No password to remember; the link works once. And whichever way you sign in, your achievements now go with your account: sign in on another phone or computer and they are there, nothing is ever lost from either side. The game keeps no email address, only a scrambled version of it to find your account again ([what is kept](docs/privacy.md#if-you-sign-in)).
+
 ### Changed
 
 - **A raised, lit look for the interface.** Panels, the build dock, the menu and the end screen now sit above the map like raised pieces: a soft gradient, a light edge on top and a shadow, with rounder corners. The main button is a lit ember, your own row in the leaderboard and the build tool you picked are highlighted, gold is yellow, the buttons at the bottom right are round, and the end screen has a glow (ember for a win, blue for a defeat) and its figures in a recessed box. Nothing moves and every setting for interface size and contrast still applies.
@@ -12,6 +16,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### For self-hosters and contributors
 
 - **The game's styles load when a game starts.** The styles of the in-game interface, the end screen, diplomacy and the replay bar moved to their own file, fetched while the menu is open, so the first visit is 1.5 kB lighter.
+- Sign-in by email is off unless `FRONTFALL_SMTP_FILE` points at the JSON of a mailbox (`hote`, `port` 465 or 587, `utilisateur`, `motDePasse`, `expediteur`, the format nclsmgr.com's mail service already reads), with `FRONTFALL_PUBLIC_URL`, `FRONTFALL_SESSION_SECRET` and `FRONTFALL_DATA`; Discord and Google may stay unset. New routes `POST /auth/email`, `POST /auth/email/confirm` and `POST /api/me/achievements`. Links hold a 256-bit token kept only as a hash, in memory, for 15 minutes; limits per network, per address and per day (`FRONTFALL_EMAIL_DAILY_LIMIT`, 150 by default); the answer never tells whether an address has an account, and no address reaches the logs ([server](docs/server.md#sign-in-by-email), [self-hosting](docs/self-hosting.md#sign-in-by-email)). The protocol does not change. The server now depends on `nodemailer`.
+- `accounts/accounts.json` may now hold accounts made by email and achievements. A release before this one sets such a file aside as `accounts.json.broken-<time>` and starts with no accounts: keep that file if you go back, and restore it when you come forward again.
 
 ## [0.6.4] - 2026-10-28
 

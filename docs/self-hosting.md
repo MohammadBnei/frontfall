@@ -49,6 +49,19 @@ FRONTFALL_OAUTH_DISCORD_SECRET: ${FRONTFALL_OAUTH_DISCORD_SECRET}
 
 The Google pair is `FRONTFALL_OAUTH_GOOGLE_ID` and `FRONTFALL_OAUTH_GOOGLE_SECRET`. The container must reach Discord and Google over HTTPS. Changing the session secret signs every player out and does nothing else; the accounts live in the data volume ([server.md](server.md#accounts)).
 
+### Sign-in by email
+
+Optional too: a link sent by email, no password. Give the server a mailbox it may send from: any SMTP account on port 465 or 587, such as the one of your domain. Write its JSON in a file readable by the container's user (uid 1000) only, mount it and point `FRONTFALL_SMTP_FILE` at it, with `FRONTFALL_PUBLIC_URL` and `FRONTFALL_SESSION_SECRET` as above:
+
+```yaml
+environment:
+  FRONTFALL_SMTP_FILE: /run/secrets/smtp
+volumes:
+  - ./smtp.json:/run/secrets/smtp:ro # {"hote", "port", "utilisateur", "motDePasse", "expediteur"}
+```
+
+The container must reach that host on that port. The game sends at most 150 links a day (`FRONTFALL_EMAIL_DAILY_LIMIT`), and keeps no address: see [server.md](server.md#sign-in-by-email) for the format, the limits and what is logged. With email alone, the Discord and Google settings may stay unset.
+
 To update: `docker compose pull && docker compose up -d`. To build the image from the source instead: `docker build -t frontfall .`, then set `FRONTFALL_IMAGE=frontfall` when running `docker compose`.
 
 ## Backing up and restoring

@@ -29,8 +29,8 @@
       <h1>Politique de confidentialité</h1>
       <p class="lead">
         Frontfall est un jeu gratuit. En invité, il ne sait rien de vous. Si vous vous connectez, il
-        garde un nom et un identifiant brouillé, rien d'autre. Dernière mise à jour : 28 octobre
-        2026.
+        garde un nom, un identifiant brouillé et vos succès, rien d'autre. Dernière mise à jour : 28
+        octobre 2026.
       </p>
 
       <h2>Qui est responsable</h2>
@@ -51,37 +51,52 @@
         son propre serveur et nulle part ailleurs.
       </p>
 
-      <h2>Si vous vous connectez avec Discord ou Google</h2>
+      <h2>Si vous vous connectez</h2>
       <p>
-        La connexion est facultative ; elle garde votre nom pour vous. Le jeu demande à Discord
-        seulement qui vous êtes (<code>identify</code>) et à Google seulement votre profil (<code
-          >openid profile</code
-        >), une fois, à la connexion. Le serveur garde :
+        La connexion est facultative ; elle garde votre nom et vos succès pour vous. Vous pouvez
+        vous connecter avec Discord ou Google, ou avec un lien envoyé à votre adresse e-mail.
+      </p>
+      <p>
+        Avec Discord ou Google, le jeu demande à Discord seulement qui vous êtes
+        (<code>identify</code>) et à Google seulement votre profil (<code>openid profile</code>),
+        une fois, à la connexion. Par e-mail, le serveur envoie un seul message à l'adresse que vous
+        saisissez, avec un lien qui ne sert qu'une fois, pendant 15 minutes ; l'adresse ne sert qu'à
+        ce message. Le serveur garde :
       </p>
       <ul>
         <li>
-          le nom sous lequel vous jouez, qui est d'abord votre prénom ou nom d'affichage là-bas ;
+          le nom sous lequel vous jouez, qui est d'abord votre prénom ou nom d'affichage chez le
+          service, ou le nom du menu si vous vous connectez par e-mail ;
         </li>
         <li>
-          votre identifiant chez ce service, brouillé avec une clé aléatoire gardée sur le serveur
-          (HMAC-SHA256) : il retrouve votre compte la fois suivante, mais le fichier seul ne dit pas
-          qui vous êtes ;
+          votre identifiant chez ce service, ou votre adresse e-mail, brouillé avec une clé
+          aléatoire gardée sur le serveur (HMAC-SHA256) : il retrouve votre compte la fois suivante,
+          mais le fichier seul ne dit pas qui vous êtes ;
         </li>
         <li>
-          le service utilisé, le jour de création du compte et celui de la dernière utilisation.
+          la façon dont vous vous êtes connecté, le jour de création du compte et celui de la
+          dernière utilisation ;
+        </li>
+        <li>
+          vos succès et les compteurs qui les sous-tendent, pour qu'ils vous suivent sur un autre
+          appareil.
         </li>
       </ul>
       <p>
-        Il ne garde jamais votre adresse e-mail, votre image ni vos contacts, et oublie aussitôt le
-        jeton du service. Ces données servent à vous reconnaître et à garder votre nom, et à rien
-        d'autre. Elles sont conservées jusqu'à la suppression de votre compte. Vos parties et vos
-        signalements n'y sont jamais liés.
+        Il ne garde jamais votre adresse e-mail en clair, ni votre image ni vos contacts, et oublie
+        aussitôt le jeton du service. Votre adresse n'est pas écrite dans les journaux du jeu ; le
+        code du lien n'est gardé qu'en hachage, en mémoire, jusqu'à son usage ou son expiration. Le
+        message part de la boîte du site chez OVH, dans l'Union européenne. Ces données servent à
+        vous reconnaître et à garder votre nom et vos succès, et à rien d'autre. Elles sont
+        conservées jusqu'à la suppression de votre compte. Vos parties et vos signalements n'y sont
+        jamais liés.
       </p>
       <p>
         <strong>Pour supprimer votre compte,</strong> ouvrez le menu et choisissez
-        <strong>Supprimer mon compte</strong> sous votre nom : il est effacé du serveur aussitôt et
-        votre nom redevient libre. Si vous ne pouvez pas, demandez-le par le formulaire de contact.
-        Discord et Google gardent leurs propres données sur vous, selon leurs propres règles.
+        <strong>Supprimer mon compte</strong> sous votre nom : il est effacé du serveur aussitôt,
+        avec ses succès, et votre nom redevient libre. Si vous ne pouvez pas, demandez-le par le
+        formulaire de contact. Discord et Google gardent leurs propres données sur vous, selon leurs
+        propres règles.
       </p>
 
       <h2>Cookies et navigateur</h2>
@@ -91,11 +106,12 @@
         déconnecter y met fin partout. Il est strictement nécessaire : il n'y a donc pas de bandeau.
       </p>
       <p>
-        Le jeu garde aussi dans votre navigateur, pour vous seul et sans jamais l'envoyer au serveur
-        : votre nom et vos derniers réglages, votre langue, votre profil et vos succès, et votre
-        place dans une partie en ligne pour qu'un rechargement vous y ramène.
-        <strong>Oublier mon profil et mes succès</strong> dans le menu les efface, tout comme vider
-        les données du site.
+        Le jeu garde aussi dans votre navigateur, pour vous seul : votre nom et vos derniers
+        réglages, votre langue, votre profil et vos succès, et votre place dans une partie en ligne
+        pour qu'un rechargement vous y ramène. Rien de cela n'est envoyé au serveur, sauf vos succès
+        une fois connecté. <strong>Oublier mon profil et mes succès</strong> dans le menu les efface
+        du navigateur, tout comme vider les données du site ; ceux de votre compte reviennent à la
+        prochaine connexion.
       </p>
 
       <h2>Compteurs anonymes</h2>

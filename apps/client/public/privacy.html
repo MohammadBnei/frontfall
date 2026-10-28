@@ -29,7 +29,7 @@
       <h1>Privacy policy</h1>
       <p class="lead">
         Frontfall is a free game. As a guest it knows nothing about you. If you sign in, it keeps a
-        name and a scrambled id, and nothing else. Last updated 28 October 2026.
+        name, a scrambled id and your achievements, and nothing else. Last updated 28 October 2026.
       </p>
 
       <h2>Who is responsible</h2>
@@ -49,31 +49,45 @@
         only. The game's anonymous reports (below) go to its own server and nowhere else.
       </p>
 
-      <h2>If you sign in with Discord or Google</h2>
+      <h2>If you sign in</h2>
       <p>
-        Signing in is optional; it keeps your name for you. The game asks Discord only who you are
-        (<code>identify</code>) and Google only your profile (<code>openid profile</code>), once, at
-        sign-in. The server keeps:
+        Signing in is optional; it keeps your name and your achievements for you. You can sign in
+        with Discord or Google, or with a link sent to your email address.
+      </p>
+      <p>
+        With Discord or Google, the game asks Discord only who you are (<code>identify</code>) and
+        Google only your profile (<code>openid profile</code>), once, at sign-in. With email, the
+        server sends one message to the address you type, with a link that works once and for 15
+        minutes; the address serves for that message only. The server keeps:
       </p>
       <ul>
-        <li>the name you play under, which starts as your first or display name there;</li>
         <li>
-          your id at that service, scrambled with a random key kept on the server (HMAC-SHA256), so
-          that it finds your account next time but the file alone does not say who you are;
+          the name you play under, which starts as your first or display name at the service, or the
+          name in the menu when you sign in by email;
         </li>
-        <li>which service you used, and the day the account was made and last used.</li>
+        <li>
+          your id at that service, or your email address, scrambled with a random key kept on the
+          server (HMAC-SHA256), so that it finds your account next time but the file alone does not
+          say who you are;
+        </li>
+        <li>how you signed in, and the day the account was made and last used;</li>
+        <li>
+          your achievements and the counts behind them, so that they follow you to another device.
+        </li>
       </ul>
       <p>
-        It never keeps your email address, your picture or your contacts, and forgets the service's
-        token at once. This is used to recognise you and to keep your name yours, and for nothing
-        else. It is kept until you delete your account. Your games and reports are never linked to
-        it.
+        It never keeps your email address in clear, nor your picture or your contacts, and forgets
+        the service's token at once. Your address is not written in the game's logs; the link's code
+        is kept only as a hash, in memory, until it is used or expires. The message goes out through
+        the site's mailbox at OVH, in the European Union. This is used to recognise you and to keep
+        your name and achievements yours, and for nothing else. It is kept until you delete your
+        account. Your games and reports are never linked to it.
       </p>
       <p>
         <strong>To delete your account,</strong> open the menu and choose
-        <strong>Delete my account</strong> under your name: it is erased from the server at once and
-        your name becomes free again. If you cannot, ask through the contact form. Discord and
-        Google keep their own data about you, under their own policies.
+        <strong>Delete my account</strong> under your name: it is erased from the server at once,
+        with its achievements, and your name becomes free again. If you cannot, ask through the
+        contact form. Discord and Google keep their own data about you, under their own policies.
       </p>
 
       <h2>Cookies and your browser</h2>
@@ -83,10 +97,12 @@
         everywhere. It is strictly necessary, so there is no banner.
       </p>
       <p>
-        The game also keeps in your browser, for you alone and never sent to the server: your name
-        and last settings, your language, your profile and achievements, and your seat in an online
-        game so that a reload brings you back. <strong>Forget my profile and achievements</strong>
-        in the menu erases them, as does clearing the site's data.
+        The game also keeps in your browser, for you alone: your name and last settings, your
+        language, your profile and achievements, and your seat in an online game so that a reload
+        brings you back. None of it is sent to the server, except your achievements once you sign
+        in. <strong>Forget my profile and achievements</strong> in the menu erases them from the
+        browser, as does clearing the site's data; those of your account come back when you sign in
+        again.
       </p>
 
       <h2>Anonymous counters</h2>

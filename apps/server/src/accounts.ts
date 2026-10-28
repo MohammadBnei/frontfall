@@ -11,15 +11,42 @@ export function isProvider(value: string): value is Provider {
   return (PROVIDERS as readonly string[]).includes(value);
 }
 
+/** How a player signed in: at a service, or with a link sent to their email address. */
+export type SignInMethod = Provider | "email";
+
+function isSignInMethod(value: string): value is SignInMethod {
+  return value === "email" || isProvider(value);
+}
+
+/**
+ * Achievements of an account, as the page counts them: the level and first
+ * day of each one earned, and the counts behind the tiers. Kept so that they
+ * follow the player from one device to another.
+ */
+export interface AccountAchievements {
+  earned: Record<string, { at: number; level: number }>;
+  counts: Record<string, number>;
+}
+
+/** An achievement id or a count's name, as the page writes them. */
+const ACHIEVEMENT_KEY = /^[a-z][a-z0-9-]{0,39}$/;
+const MAX_ACHIEVEMENTS = 64;
+const MAX_COUNTERS = 8;
+const MAX_LEVEL = 3;
+const MAX_COUNT = 1_000_000_000;
+
 /**
  * A player who signed in. The server knows them by a keyed hash of the id
- * the service gave them, and keeps nothing else from that service: no email,
- * no picture, no name but the one they play under.
+ * the service gave them, or of their email address, and keeps nothing else:
+ * no address, no picture, no name but the one they play under.
  */
 export interface Account {
   readonly id: string;
-  readonly provider: Provider;
-  /** HMAC of the service's id, keyed by the file's salt: the file alone does not tell who it is. */
+  readonly provider: SignInMethod;
+  /**
+   * HMAC of the service's id or of the email address, keyed by the file's
+   * salt: the file alone does not tell who it is.
+   */
   readonly subject: string;
   /** The name the player plays under, reserved for them. */
   name: string;
@@ -28,6 +55,8 @@ export interface Account {
   seenAt: number;
   /** Raised on every sign-out: the session cookies made before it no longer count. */
   sessions: number;
+  /** Achievements the page has sent, once it has. */
+  achievements?: AccountAchievements;
 }
 
 export type RenameResult =
@@ -113,8 +142,12 @@ export class Accounts {
    * The account of this player at this service, made on their first sign-in
    * under the name they have there, cleaned, or another free one.
    */
-  signIn(provider: Provider, providerId: string, suggested: string, now: number): Account {
-    const subject = this.subject(provider, providerId);
+  signIn(provider: SignInMethod, providerId: string, suggested: string, now: number): Account {
+    return this.signInAs(provider, this.subject(provider, providerId), suggested, now);
+  }
+
+  /** As `signIn`, for a subject already hashed with `subject`. */
+  signInAs(provider: SignInMethod, subject: string, suggested: string, now: number): Account {
     const found = this.bySubject.get(subject);
     if (found) {
       // Written at most once a day, not at every sign-in.
@@ -172,7 +205,43 @@ export class Accounts {
     return true;
   }
 
-  private subject(provider: Provider, providerId: string): string {
+  /**
+   * Adds what the page sends to the achievements of the account, and returns
+   * them all. Nothing is ever taken away: a level only rises, a first day
+   * only moves earlier, a count only grows. Two devices played apart between
+   * two syncs keep the larger count of the two, not their sum.
+   */
+  mergeAchievements(id: string, sent: AccountAchievements): AccountAchievements | undefined {
+    const account = this.byId.get(id);
+    if (!account) return undefined;
+    const kept: AccountAchievements = account.achievements ?? { earned: {}, counts: {} };
+    let changed = account.achievements === undefined;
+    for (const [key, { at, level }] of Object.entries(sent.earned)) {
+      const before = Object.hasOwn(kept.earned, key) ? kept.earned[key] : undefined;
+      if (!before && Object.keys(kept.earned).length >= MAX_ACHIEVEMENTS) continue;
+      const merged = before
+        ? { at: Math.min(before.at, at), level: Math.max(before.level, level) }
+        : { at, level };
+      if (!before || merged.at !== before.at || merged.level !== before.level) {
+        kept.earned[key] = merged;
+        changed = true;
+      }
+    }
+    for (const [key, count] of Object.entries(sent.counts)) {
+      const before = Object.hasOwn(kept.counts, key) ? kept.counts[key] : undefined;
+      if (before === undefined && Object.keys(kept.counts).length >= MAX_COUNTERS) continue;
+      if (before === undefined || count > before) {
+        kept.counts[key] = count;
+        changed = true;
+      }
+    }
+    account.achievements = kept;
+    if (changed) this.save();
+    return kept;
+  }
+
+  /** The hash an account of this method and id is known by. */
+  subject(provider: SignInMethod, providerId: string): string {
     return createHmac("sha256", this.salt)
       .update(`account:${provider}:${providerId}`)
       .digest("base64url");
@@ -262,16 +331,64 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && !Array.isArray(value);
+}
+
 function isAccount(value: unknown): value is Account {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
     typeof value.provider === "string" &&
-    isProvider(value.provider) &&
+    isSignInMethod(value.provider) &&
     typeof value.subject === "string" &&
     typeof value.name === "string" &&
     typeof value.createdAt === "number" &&
     typeof value.seenAt === "number" &&
-    Number.isInteger(value.sessions)
+    Number.isInteger(value.sessions) &&
+    (value.achievements === undefined || parseAchievements(value.achievements) !== undefined)
   );
+}
+
+/**
+ * Achievements as the page sends them, checked: known shapes and sizes only,
+ * so that an account's share of the file stays small. Undefined when they
+ * are not achievements at all.
+ */
+export function parseAchievements(value: unknown): AccountAchievements | undefined {
+  if (!isRecord(value) || !isPlainRecord(value.earned) || !isPlainRecord(value.counts))
+    return undefined;
+  const earned: AccountAchievements["earned"] = {};
+  const counts: AccountAchievements["counts"] = {};
+  const earnedEntries = Object.entries(value.earned);
+  const countEntries = Object.entries(value.counts);
+  if (earnedEntries.length > MAX_ACHIEVEMENTS || countEntries.length > MAX_COUNTERS)
+    return undefined;
+  for (const [key, entry] of earnedEntries) {
+    if (!ACHIEVEMENT_KEY.test(key) || !isPlainRecord(entry)) return undefined;
+    const { at, level } = entry;
+    if (
+      typeof at !== "number" ||
+      !Number.isFinite(at) ||
+      at < 0 ||
+      typeof level !== "number" ||
+      !Number.isInteger(level) ||
+      level < 1 ||
+      level > MAX_LEVEL
+    )
+      return undefined;
+    earned[key] = { at, level };
+  }
+  for (const [key, count] of countEntries) {
+    if (
+      !ACHIEVEMENT_KEY.test(key) ||
+      typeof count !== "number" ||
+      !Number.isInteger(count) ||
+      count < 0 ||
+      count > MAX_COUNT
+    )
+      return undefined;
+    counts[key] = count;
+  }
+  return { earned, counts };
 }

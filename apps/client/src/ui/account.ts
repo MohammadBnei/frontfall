@@ -1,3 +1,8 @@
+import {
+  absorbAchievements,
+  deviceAchievements,
+  type SavedAchievements,
+} from "../achievements/account-sync.ts";
 import { getLanguage, onLanguageChange, type Language } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 import "./account.css";
@@ -7,7 +12,9 @@ type Provider = "discord" | "google";
 /** What the server says at `/api/me`: which services to offer, and who is signed in. */
 interface Me {
   providers: Provider[];
-  account: { name: string; provider: Provider } | null;
+  /** Whether the server can send a sign-in link by email; older servers leave it out. */
+  email?: boolean;
+  account: { name: string; provider: Provider | "email" } | null;
 }
 
 /**
@@ -16,9 +23,21 @@ interface Me {
  */
 const TEXT = {
   en: {
-    offer: "Optional: sign in to keep your name for yourself.",
+    offer: "Optional: sign in to keep your name and achievements.",
     signInWith: "Sign in with {service}",
-    signedIn: "Signed in with {service}. Your name is yours alone.",
+    signedIn: "Signed in with {service}. Your name and achievements are yours alone.",
+    signedInEmail: "Signed in by email. Your name and achievements are yours alone.",
+    emailOpen: "Sign in with email",
+    emailLabel: "Email address",
+    emailSend: "Send me a link",
+    linkSent:
+      "If this address is right, a link is on its way. Open it on this device or another within 15 minutes.",
+    finishPrompt: "You opened a sign-in link.",
+    finish: "Finish signing in",
+    expired: "This link no longer works. You can ask for a new one.",
+    rate: "Too many links asked for from here. Try again in a few minutes.",
+    busy: "No more links can be sent today. Try again tomorrow, or play as a guest.",
+    badEmail: "This does not look like an email address.",
     signOut: "Sign out",
     delete: "Delete my account",
     deleteConfirm: "Delete your account? Your name will be free for anyone to take.",
@@ -29,9 +48,21 @@ const TEXT = {
     terms: "Terms",
   },
   fr: {
-    offer: "Facultatif : connectez-vous pour garder votre nom.",
+    offer: "Facultatif : connectez-vous pour garder votre nom et vos succès.",
     signInWith: "Se connecter avec {service}",
-    signedIn: "Connecté avec {service}. Ce nom n'est qu'à vous.",
+    signedIn: "Connecté avec {service}. Ce nom et vos succès ne sont qu'à vous.",
+    signedInEmail: "Connecté par e-mail. Ce nom et vos succès ne sont qu'à vous.",
+    emailOpen: "Se connecter par e-mail",
+    emailLabel: "Adresse e-mail",
+    emailSend: "M'envoyer un lien",
+    linkSent:
+      "Si cette adresse est la bonne, un lien est en route. Ouvrez-le sur cet appareil ou un autre dans les 15 minutes.",
+    finishPrompt: "Vous avez ouvert un lien de connexion.",
+    finish: "Terminer la connexion",
+    expired: "Ce lien ne marche plus. Vous pouvez en demander un autre.",
+    rate: "Trop de liens demandés d'ici. Réessayez dans quelques minutes.",
+    busy: "Plus aucun lien ne peut partir aujourd'hui. Réessayez demain, ou jouez en invité.",
+    badEmail: "Cette adresse e-mail ne semble pas valide.",
     signOut: "Se déconnecter",
     delete: "Supprimer mon compte",
     deleteConfirm: "Supprimer votre compte ? Votre nom redeviendra libre pour tout le monde.",
@@ -44,6 +75,9 @@ const TEXT = {
 } satisfies Record<Language, Record<string, string>>;
 
 type TextKey = keyof (typeof TEXT)["en"];
+
+/** Messages that are news, not errors. */
+const NOTES: ReadonlySet<TextKey> = new Set(["linkSent"]);
 
 function text(key: TextKey, service = ""): string {
   return TEXT[getLanguage()][key].replace("{service}", service);
@@ -113,14 +147,27 @@ function isMe(value: unknown): value is Me {
 }
 
 /**
- * Optional sign-in, under the name field: a player who signs in with Discord
- * or Google keeps their name for themselves. Shows nothing when the server
- * offers no service, or cannot be reached: the game is played as a guest.
+ * Optional sign-in, under the name field: a player who signs in with Discord,
+ * Google or a link sent by email keeps their name and achievements for
+ * themselves. Shows nothing when the server offers no way to sign in, or
+ * cannot be reached: the game is played as a guest.
  */
 export class AccountBox {
   readonly element = h("div", { class: "account", hidden: true, "aria-live": "polite" });
   private me: Me | undefined;
   private message: TextKey | undefined;
+  /** The token of a sign-in link the player opened, until they finish or it fails. */
+  private linkToken: string | undefined;
+  private emailOpen = false;
+  /** Kept across redraws, so that a language change does not erase what was typed. */
+  private readonly emailInput = h("input", {
+    type: "email",
+    class: "account-email",
+    autocomplete: "email",
+    required: true,
+    maxlength: 254,
+    spellcheck: false,
+  });
   /** Stops following the language once the menu is gone. */
   readonly dispose: () => void;
 
@@ -133,6 +180,12 @@ export class AccountBox {
     private readonly setName: (name: string) => void,
   ) {
     const query = new URLSearchParams(location.search);
+    // The link of the email: its token stays out of the address bar and the history.
+    const linked = /^#signin=([\w-]{20,64})$/.exec(location.hash);
+    if (linked) {
+      this.linkToken = linked[1];
+      history.replaceState(history.state, "", `${location.pathname}${location.search}`);
+    }
     if (query.get("signin") === "failed") {
       this.message = "failed";
       query.delete("signin");
@@ -151,6 +204,61 @@ export class AccountBox {
   private async load(): Promise<void> {
     const me = await this.request("GET");
     if (me) this.show(me);
+    if (me?.account) void syncAchievements();
+  }
+
+  /** Posts to a route of the sign-in by email; the answer's status, 0 when it failed. */
+  private async post(path: string, body: unknown): Promise<Response | undefined> {
+    try {
+      return await fetch(new URL(path, location.href), {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async sendLink(): Promise<void> {
+    const response = await this.post("auth/email", {
+      email: this.emailInput.value,
+      name: this.name.value,
+      language: getLanguage(),
+    });
+    this.message =
+      response?.status === 202
+        ? "linkSent"
+        : response?.status === 400
+          ? "badEmail"
+          : response?.status === 429
+            ? "rate"
+            : response?.status === 503
+              ? "busy"
+              : "failed";
+    if (this.message === "linkSent") this.emailOpen = false;
+    this.show(this.me);
+  }
+
+  private async finish(): Promise<void> {
+    const response = await this.post("auth/email/confirm", { token: this.linkToken });
+    this.linkToken = undefined;
+    let me: unknown;
+    try {
+      me = response?.ok ? await response.json() : undefined;
+    } catch {
+      me = undefined;
+    }
+    if (isMe(me)) {
+      this.message = undefined;
+      this.show(me);
+      void syncAchievements();
+    } else {
+      this.message = response?.status === 400 ? "expired" : "failed";
+      this.show(this.me);
+    }
   }
 
   /** Sends a request to `/api/me` or `/auth/logout`; undefined when it fails. */
@@ -233,11 +341,14 @@ export class AccountBox {
         text("terms"),
       ),
     );
+    const email = me.email === true && !account;
     const status = account
       ? h(
           "p",
           { class: "account-status" },
-          text("signedIn", PROVIDER_NAMES[account.provider]),
+          account.provider === "email"
+            ? text("signedInEmail")
+            : text("signedIn", PROVIDER_NAMES[account.provider]),
           " ",
           signOut,
           " · ",
@@ -256,11 +367,83 @@ export class AccountBox {
               h("span", {}, text("signInWith", PROVIDER_NAMES[provider])),
             ),
           ),
+          ...(email && !this.emailOpen && !this.linkToken ? [this.emailButton()] : []),
         );
+    this.element.hidden = this.element.hidden && !email;
     this.element.replaceChildren(
       status,
+      ...(email && this.emailOpen ? [this.emailForm()] : []),
+      ...(this.linkToken && !account ? [this.finishPrompt()] : []),
+      ...(this.message
+        ? [
+            h(
+              "p",
+              { class: NOTES.has(this.message) ? "account-note" : "account-error" },
+              text(this.message),
+            ),
+          ]
+        : []),
       legal,
-      ...(this.message ? [h("p", { class: "account-error" }, text(this.message))] : []),
     );
+  }
+
+  private emailButton(): HTMLButtonElement {
+    const open = h("button", { type: "button", class: "account-sign-in email" }, text("emailOpen"));
+    open.addEventListener("click", () => {
+      this.emailOpen = true;
+      this.message = undefined;
+      this.show(this.me);
+      this.emailInput.focus();
+    });
+    return open;
+  }
+
+  private emailForm(): HTMLFormElement {
+    this.emailInput.setAttribute("aria-label", text("emailLabel"));
+    this.emailInput.placeholder = text("emailLabel");
+    const form = h(
+      "form",
+      { class: "account-email-form" },
+      this.emailInput,
+      h("button", { type: "submit", class: "secondary" }, text("emailSend")),
+    );
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void this.sendLink();
+    });
+    return form;
+  }
+
+  /** Finishing takes a press: a mail filter that opens links must not sign anyone in. */
+  private finishPrompt(): HTMLParagraphElement {
+    // In the profile card of the menu, which opens to show it.
+    const card = this.element.closest("details");
+    if (card) card.open = true;
+    const finish = h("button", { type: "button", class: "primary" }, text("finish"));
+    finish.addEventListener("click", () => void this.finish());
+    return h("p", { class: "account-finish" }, text("finishPrompt"), " ", finish);
+  }
+}
+
+/**
+ * Sends the achievements of this device to the account and keeps what comes
+ * back: those earned elsewhere join them. Nothing is lost either way, and a
+ * failure leaves them as they were.
+ */
+async function syncAchievements(): Promise<void> {
+  try {
+    const response = await fetch(new URL("api/me/achievements", location.href), {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(deviceAchievements()),
+    });
+    if (!response.ok) return;
+    const kept = (await response.json()) as Partial<SavedAchievements> | null;
+    if (typeof kept?.earned === "object" && typeof kept.counts === "object")
+      absorbAchievements({ earned: kept.earned, counts: kept.counts });
+  } catch {
+    // Kept on this device; the next menu tries again.
   }
 }
