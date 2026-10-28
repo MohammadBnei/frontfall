@@ -32,6 +32,12 @@ Play solo against bots, or online with friends through an invitation link or in 
   <img src="docs/assets/screenshot-world.png" alt="A game on the World map: a dozen empires spread across the continents, with their names and troops, the leaderboard and the attack slider" width="100%">
 </p>
 
+<p align="center">
+  <img src="docs/assets/gameplay.gif" alt="Time-lapse of a World game: one empire spreads across Eurasia while the others grow around it" width="100%">
+</p>
+
+New here? [About the game and how to play](https://nclsmgr.com/frontfall/about.html), or press H in a game.
+
 ## Supported browsers
 
 Chrome and Edge 111, Firefox 114 (121 for the full look), Safari and iOS 16.4 or newer, with WebGL 2. CI plays the game in Chromium, Firefox and WebKit on every change. [The full table](docs/browsers.md) says what each version needs and what has only been assumed. A browser that cannot run the game says so instead of showing a blank page.
