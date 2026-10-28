@@ -1019,21 +1019,6 @@ kbd {
   align-items: center;
 }
 
-.event {
-  padding: 4px 8px;
-  border-left: 3px solid var(--ff-front);
-  border-radius: 0 var(--ff-radius) var(--ff-radius) 0;
-  background: rgb(10 19 28 / 80%);
-  font-size: 13px;
-}
-
-/* Phones and short windows: the build row takes the space under the stats. */
-@media (width < 720px), (height < 560px) {
-  .event:nth-child(n + 3) {
-    display: none;
-  }
-}
-
 /* Phones: the requests go under the banner. */
 @media (width < 720px) {
   .requests {

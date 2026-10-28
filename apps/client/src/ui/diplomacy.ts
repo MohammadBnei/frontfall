@@ -1,16 +1,18 @@
 import { Disable, QUICK_MESSAGES } from "@frontfall/engine";
 import type { ReportReason } from "@frontfall/protocol";
 import type { GameRules } from "../game/messages.ts";
-import type { DiplomacyEvent, GameUpdate } from "../game/solo-game.ts";
+import type { GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
 import { formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
 
-/** An event stays in the feed this long. */
-const EVENT_MS = 8000;
-const EVENTS_SHOWN = 4;
+type FactsLine = (
+  update: GameUpdate,
+  id: number,
+  rules: Pick<GameRules, "ticksPerSecond" | "firstNation" | "teams" | "ownableTiles">,
+) => string;
 
 export interface DiplomacyActions {
   /**
@@ -37,19 +39,6 @@ export interface DiplomacyActions {
   onReport(player: number, reason: ReportReason): void;
 }
 
-const EVENT_TEXT: Readonly<Record<DiplomacyEvent["type"], MessageKey>> = {
-  allied: "diplo.eventAllied",
-  ended: "diplo.eventEnded",
-  betrayed: "diplo.eventBetrayed",
-  embargo: "diplo.eventEmbargo",
-  lifted: "diplo.eventLifted",
-  captured: "diplo.eventCaptured",
-  missile: "diplo.eventMissile",
-  stopped: "diplo.eventStopped",
-  gift: "diplo.eventGift",
-  quick: "diplo.eventQuick",
-};
-
 /**
  * Diplomacy on screen: the menu of one player, opened from the leaderboard
  * or from their land, the requests waiting for an answer, and a feed of
@@ -69,8 +58,6 @@ export class DiplomacyPanel {
     "data-i18n-attr": "aria-label:diplo.requests",
     hidden: true,
   });
-  /** Polite, so a screen reader hears it after what it is reading. */
-  readonly feed = h("ul", { class: "event-feed", "aria-live": "polite" });
   private picked: number | undefined;
   /** The player menu asks once more before a betrayal. */
   private confirming = false;
@@ -83,19 +70,26 @@ export class DiplomacyPanel {
   /** The reasons of a report, loaded when first asked for. */
   private reasonsPanel: typeof import("./report-panel.ts") | undefined;
   private last: GameUpdate | undefined;
-  private readonly events: { at: number; element: HTMLElement }[] = [];
   /** Requests answered or set aside here: the stack hides them until they run out. */
   private readonly ignored = new Set<number>();
   private rules: Pick<
     GameRules,
-    "ticksPerSecond" | "allianceRequestTicks" | "firstNation" | "teams" | "disabled"
+    | "ticksPerSecond"
+    | "allianceRequestTicks"
+    | "firstNation"
+    | "teams"
+    | "disabled"
+    | "ownableTiles"
   > = {
     ticksPerSecond: 10,
     allianceRequestTicks: 200,
     firstNation: Infinity,
     teams: [],
     disabled: 0,
+    ownableTiles: 1,
   };
+  /** Troops, gold and land of a player in a line, once its code is fetched (screen/feed-host.ts). */
+  private facts: FactsLine | undefined;
   /** Drawn content of the menu and the stack, to rebuild them only when it changes. */
   private menuKey = "";
   /** What had focus before the menu opened. */
@@ -106,6 +100,11 @@ export class DiplomacyPanel {
 
   get open(): boolean {
     return this.picked !== undefined;
+  }
+
+  setFacts(facts: FactsLine): void {
+    this.facts = facts;
+    this.menuKey = "";
   }
 
   setRules(rules: GameRules): void {
@@ -128,7 +127,7 @@ export class DiplomacyPanel {
     this.reporting = false;
     this.refused = false;
     this.menuKey = "";
-    this.render(update, performance.now());
+    this.render(update);
     const first = this.menu.querySelector<HTMLButtonElement>(".menu-action:not([disabled])");
     (first ?? this.menu.querySelector<HTMLButtonElement>("button"))?.focus();
   }
@@ -148,55 +147,27 @@ export class DiplomacyPanel {
     this.opener = undefined;
   }
 
-  /** Lets old events go even when no update comes, during a pause or after the game. */
-  expire(now: number): void {
-    for (let i = this.events.length - 1; i >= 0; i--) {
-      const event = this.events[i];
-      if (event && now - event.at > EVENT_MS) {
-        event.element.remove();
-        this.events.splice(i, 1);
-      }
-    }
-  }
-
-  update(update: GameUpdate, now: number): void {
+  update(update: GameUpdate): void {
     this.last = update;
-    for (const event of update.events) this.addEvent(event, update, now);
-    this.render(update, now);
+    this.render(update);
   }
 
   /** Redraws with the names of `update`, adding none of its events again. */
   rename(update: GameUpdate): void {
     this.last = update;
-    this.render(update, performance.now());
+    this.render(update);
   }
 
   /** Redraws everything in the current language. */
   refresh(): void {
     this.menuKey = "";
     this.requestsKey = "";
-    if (this.last) this.render(this.last, performance.now());
+    if (this.last) this.render(this.last);
   }
 
-  private render(update: GameUpdate, now: number): void {
+  private render(update: GameUpdate): void {
     this.renderMenu(update);
     this.renderRequests(update);
-    this.expire(now);
-  }
-
-  private addEvent(event: DiplomacyEvent, update: GameUpdate, now: number): void {
-    // A quick message is for its sender and its receiver only (R-DIPLO-07).
-    if (event.type === "quick" && event.a !== update.you && event.b !== update.you) return;
-    const name = (id: number) => update.players.find((p) => p.id === id)?.name ?? "";
-    const text = t(EVENT_TEXT[event.type], {
-      a: name(event.a),
-      b: name(event.b),
-      phrase: event.phrase === undefined ? "" : t(`quick.${String(event.phrase)}` as MessageKey),
-    });
-    const element = h("li", { class: `event event-${event.type}` }, text);
-    this.feed.append(element);
-    this.events.push({ at: now, element });
-    while (this.events.length > EVENTS_SHOWN) this.events.shift()?.element.remove();
   }
 
   private seconds(ticks: number): number {
@@ -394,6 +365,10 @@ export class DiplomacyPanel {
       this.refused,
       ...buttons.map((b) => `${b.key}:${JSON.stringify(b.params ?? {})}:${String(b.enabled)}`),
     ].join("|");
+    // Troops and gold move with every update: the line is rewritten in place, the menu is not.
+    const factsText = this.facts?.(update, id, this.rules) ?? "";
+    const live = this.menu.querySelector(".player-menu-facts");
+    if (live) live.textContent = factsText;
     if (key === this.menuKey) return;
     // Focus stays on the button of the same kind when the menu is redrawn.
     const focused = this.menu.contains(document.activeElement)
@@ -420,6 +395,7 @@ export class DiplomacyPanel {
         close,
       ),
       h("p", { class: "player-menu-status" }, status),
+      h("p", { class: "player-menu-facts" }, factsText),
       ...(traitorText ? [h("p", { class: "player-menu-traitor" }, traitorText)] : []),
       ...(embargoText ? [h("p", { class: "player-menu-embargo" }, embargoText)] : []),
       ...(warText ? [h("p", { class: "player-menu-war" }, warText)] : []),
@@ -491,7 +467,7 @@ export class DiplomacyPanel {
   reportRefused(): void {
     this.refused = true;
     this.menuKey = "";
-    if (this.last) this.render(this.last, performance.now());
+    if (this.last) this.render(this.last);
   }
 
   private renderRequests(update: GameUpdate): void {

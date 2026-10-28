@@ -723,6 +723,7 @@
 }
 
 .player-menu-status,
+.player-menu-facts,
 .player-menu-traitor {
   margin: 0;
   color: var(--ff-slate-300);
@@ -804,36 +805,166 @@
   border-color: var(--ff-front);
 }
 
-/* What happened between players, under the stats; fades out by itself. */
-.event-feed {
+/* What happens in the game, top left under the first steps (docs/hud-layout.md); each line fades by itself
+   (ui/events-feed.ts). The game screen moves it under the guide while one shows. */
+.events-feed {
   position: absolute;
-  top: 80px;
+  top: 12px;
   left: 12px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
-  max-width: min(320px, calc(100vw - 24px));
+  width: min(320px, calc(100vw - 24px));
   margin: 0;
   padding: 0;
   list-style: none;
   pointer-events: none;
 }
 
-.event-betrayed {
+.feed-item.panel {
+  position: static;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border-left: 3px solid var(--ff-slate-400);
+  animation: feed-in 0.18s ease-out;
+  transition: opacity 0.2s;
+  pointer-events: auto;
+}
+
+.feed-item.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.feed-entry {
+  display: block;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  color: var(--ff-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+}
+
+button.feed-entry {
+  cursor: pointer;
+}
+
+button.feed-entry:hover,
+button.feed-entry:focus-visible {
+  text-decoration: underline;
+}
+
+.feed-quiet .feed-entry {
+  color: var(--ff-slate-300);
+}
+
+.tone-bad.feed-item {
   border-left-color: var(--ff-danger);
 }
 
-.event-ended {
-  border-left-color: var(--ff-slate-400);
+.tone-good.feed-item {
+  border-left-color: var(--ff-info);
 }
-@media (width < 720px), (height < 560px) {
-  .event-feed {
-    top: 240px;
+
+.tone-ask.feed-item {
+  border-left-color: var(--ff-warning);
+}
+
+@keyframes feed-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
   }
 }
+
+/* Medium windows: the figures sit top left, the feed is their second row. */
+@media (width < 1240px) {
+  .events-feed {
+    top: 96px;
+  }
+}
+
+/* A short window: beside the figures, one line a row, not past the leaderboard of a landscape phone. */
+@media (height < 560px) {
+  .events-feed {
+    top: 12px;
+    left: 212px;
+    width: calc(100vw - 212px - 244px);
+  }
+  .feed-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .feed-entry {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
+/* A phone held upright: the latest event takes the banner's place for a few seconds, over the
+   banner's width, up to three lines (docs/hud-layout.md). */
 @media (width < 720px) {
-  .event-feed {
-    top: 336px;
+  .events-feed {
+    top: 78px;
+    left: 50%;
+    align-items: center;
+    width: calc(100vw - 24px);
+    transform: translateX(-50%);
   }
+  .feed-text {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  .feed-entry {
+    padding: 6px 12px;
+    font-size: 13px;
+    text-align: center;
+  }
+  .game:has(.feed-item:not(.leaving)) .banner {
+    visibility: hidden;
+  }
+}
+
+/* The card of the player under the mouse (ui/player-tip.ts). */
+.player-tip {
+  position: fixed;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  max-width: 280px;
+  pointer-events: none;
+  font-size: 13px;
+}
+
+.player-tip[hidden] {
+  display: none;
+}
+
+.player-tip p {
+  margin: 0;
+}
+
+.player-tip-name {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.player-tip-line {
+  color: var(--ff-slate-300);
 }
 
 .watching .ratio,

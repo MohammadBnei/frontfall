@@ -30,13 +30,13 @@ test("puts a bot under embargo from its menu, and the feed says so (R-DIPLO-05)"
   const embargo = menu.locator(".menu-action.embargo");
   await expect(embargo).toContainText("Embargo their trade");
   await embargo.click();
-  await expect(page.locator(".event-feed")).toContainText("put an embargo on");
+  await expect(page.locator(".events-feed")).toContainText("put an embargo on");
 
   // Lifted from the same menu.
   await page.locator(".leader-button").first().click();
   await expect(menu.locator(".menu-action.embargo")).toBeVisible();
   await menu.locator(".menu-action.embargo").click();
-  await expect(page.locator(".event-feed")).toContainText("lifted");
+  await expect(page.locator(".events-feed")).toContainText("lifted");
   expect(pageErrors).toEqual([]);
 });
 
