@@ -7,6 +7,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Added
 
 - **Sign in by email, and keep your achievements.** No Discord or Google account? Sign in with email under your name in the menu: type your address, open the link it sends on any device within 15 minutes, press Finish signing in, and that is it. No password to remember; the link works once. And whichever way you sign in, your achievements now go with your account: sign in on another phone or computer and they are there, nothing is ever lost from either side. The game keeps no email address, only a scrambled version of it to find your account again ([what is kept](docs/privacy.md#if-you-sign-in)).
+- **Small effects for attacks, landings and missiles.** A pale dotted arc follows a missile and fades after it lands, where a flash, a ring and a few sparks mark the impact; a ship leaves a short wake; troops landing from a boat make a ring and a few drops on the shore; a trade ship rings the port it leaves and the one it reaches; and tiles that change hands along an attack spark for a moment. They are drawn only where you are looking, and they cost nothing in the first download. With "Reduce motion" on, or when your system asks for less motion, the trails stay and each impact becomes a single disc that fades without growing. Flat map only for now; the globe gets them later.
 
 ### Changed
 
