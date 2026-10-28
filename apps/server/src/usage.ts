@@ -259,13 +259,19 @@ export function usageFile(dataDir: string): string {
 
 /** Reads the counts kept by an earlier run, or the copy made before the last save. */
 export function loadUsage(stats: UsageStats, file: string): Error | undefined {
-  const error = loadUsageFile(stats, file);
+  // A missing file beside a copy was lost, not never written; starting empty
+  // would let the second save write the empty counts over that copy.
+  const error =
+    existsSync(file) || !existsSync(`${file}.bak`)
+      ? loadUsageFile(stats, file)
+      : new Error(`${file} is missing`);
   if (error === undefined) return undefined;
   if (!existsSync(`${file}.bak`)) return error;
   // The copy stands in for the damaged file; the error still says what happened to it.
-  return loadUsageFile(stats, `${file}.bak`) === undefined
+  const backup = loadUsageFile(stats, `${file}.bak`);
+  return backup === undefined
     ? new Error(`${error.message}; went on with the copy made before the last save`)
-    : error;
+    : new Error(`${error.message}; the copy did not read either: ${backup.message}`);
 }
 
 /** Reads one file of counts; an error says why they could not be read. */
