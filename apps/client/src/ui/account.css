@@ -77,3 +77,8 @@
 .account-error {
   color: var(--ff-ember-bright);
 }
+
+.account .account-legal {
+  margin-top: 6px;
+  font-size: 12px;
+}

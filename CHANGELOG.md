@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **Privacy policy and terms of use, in English and French.** What the game keeps about a guest (nothing) and about an account (a name and a scrambled id, never an email), the cookie, reports, logs, hosting and backups, how to delete an account, and a short set of rules for playing, at [/privacy.html](https://nclsmgr.com/frontfall/privacy.html) and [/terms.html](https://nclsmgr.com/frontfall/terms.html) (and `.fr.html`). They are linked from the sign-in box and from the page about the game. Full terms are still planned for 1.0.
+
 ### For self-hosters and contributors
 
 - **Two more server fixes from [@MohammadBnei](https://github.com/MohammadBnei)** (#139, #140). A missing `usage.json` next to its `.bak` now loads the copy instead of starting the counts from zero, which the second save would have written over the backup; to reset the counts, delete both files ([server](docs/server.md#usage-counts)). The end-to-end test that plays a game and sends a thumbs down no longer runs against the public server after a deploy, so it stops adding a test game to the real counts. Thank you.

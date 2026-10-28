@@ -25,6 +25,8 @@ const TEXT = {
     failed: "Signing in did not work. You can try again, or play as a guest.",
     taken: "Another player already holds this name.",
     invalid: "This name is not allowed.",
+    privacy: "Privacy",
+    terms: "Terms",
   },
   fr: {
     offer: "Facultatif : connectez-vous pour garder votre nom.",
@@ -36,6 +38,8 @@ const TEXT = {
     failed: "La connexion n'a pas abouti. Vous pouvez réessayer, ou jouer en invité.",
     taken: "Un autre joueur a déjà ce nom.",
     invalid: "Ce nom n'est pas autorisé.",
+    privacy: "Confidentialité",
+    terms: "Conditions",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -213,6 +217,22 @@ export class AccountBox {
     signOut.addEventListener("click", () => void this.signOut());
     const remove = h("button", { type: "button", class: "link" }, text("delete"));
     remove.addEventListener("click", () => void this.remove());
+    const fr = getLanguage() === "fr";
+    const legal = h(
+      "p",
+      { class: "account-legal" },
+      h(
+        "a",
+        { href: fr ? "privacy.fr.html" : "privacy.html", target: "_blank", rel: "noopener" },
+        text("privacy"),
+      ),
+      " · ",
+      h(
+        "a",
+        { href: fr ? "terms.fr.html" : "terms.html", target: "_blank", rel: "noopener" },
+        text("terms"),
+      ),
+    );
     const status = account
       ? h(
           "p",
@@ -239,6 +259,7 @@ export class AccountBox {
         );
     this.element.replaceChildren(
       status,
+      legal,
       ...(this.message ? [h("p", { class: "account-error" }, text(this.message))] : []),
     );
   }
