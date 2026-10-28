@@ -86,3 +86,10 @@
 .game[data-wide] .guide {
   top: 12px;
 }
+
+/* A short window keeps the whole leaderboard top right: the banner stops short of it. */
+@media (height < 560px) and (width >= 720px) {
+  .guide {
+    right: 264px;
+  }
+}

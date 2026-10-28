@@ -627,7 +627,7 @@
 
 .build-tip {
   position: fixed;
-  bottom: 68px;
+  bottom: calc(14px + 62px * var(--ff-ui-scale, 1));
   left: 50%;
   max-width: min(420px, calc(100vw - 24px));
   margin: 0;
@@ -1486,17 +1486,25 @@ button.feed-entry:focus-visible {
 
 .game[data-wide] .click-note,
 .game[data-wide] .build-tip {
-  bottom: 96px;
+  bottom: calc(30px + 66px * var(--ff-ui-scale, 1));
 }
 
 .game[data-wide] .attacks {
   bottom: 96px;
 }
 
+/* Medium screen at a larger interface size: the attack panel grows, the dock moves right to clear it. */
+@media (width >= 720px) and (height >= 560px) {
+  .game:not([data-wide]) .build {
+    left: calc(50% + 100px * (var(--ff-ui-scale, 1) - 1));
+  }
+}
+
 /* Short windows: the open leaderboard stops above the round tools instead of running under them. */
 @media (height < 560px) and (width >= 720px) {
   .leaderboard {
-    max-height: calc(100% - 84px);
+    box-sizing: border-box;
+    max-height: calc(100dvh - 84px);
   }
 }
 
