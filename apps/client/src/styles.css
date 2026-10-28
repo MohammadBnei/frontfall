@@ -18,7 +18,9 @@
   --ff-danger: #f04c5e;
   --ff-info: #4c9aff;
   --ff-font: "Inter Variable", "Inter", system-ui, sans-serif;
-  --ff-radius: 6px;
+  --ff-radius: 10px;
+  --ff-lift: inset 0 1px 0 rgb(255 255 255 / 8%), 0 6px 16px rgb(0 0 0 / 40%);
+  --ff-raised: linear-gradient(180deg, #162636, var(--ff-night-800));
   color-scheme: dark;
 }
 
@@ -2242,4 +2244,59 @@ kbd {
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+
+/* Relief (docs/art-direction.md): panels sit above the map as raised pieces. */
+
+.panel,
+.banner,
+.menu-form,
+.menu-online,
+.lobby-panel,
+.menu-panel,
+.end-screen,
+.help,
+.notice {
+  border-radius: 14px;
+  background: var(--ff-raised);
+  box-shadow: var(--ff-lift);
+}
+
+.menu-form,
+.menu-online,
+.lobby-panel,
+.menu-panel,
+.end-screen,
+.help {
+  background: linear-gradient(180deg, #1a2d40, var(--ff-night-700));
+}
+
+button.primary {
+  background: linear-gradient(180deg, var(--ff-ember-bright), var(--ff-ember));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 30%);
+}
+
+button.primary:hover {
+  background: var(--ff-ember-bright);
+}
+
+button.secondary,
+.icon-button,
+.bar-button {
+  background: linear-gradient(180deg, var(--ff-night-500), var(--ff-night-600));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.end-screen.won {
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(242 92 42 / 22%), transparent), var(--ff-night-700);
+}
+
+.end-screen.lost {
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgb(47 128 237 / 18%), transparent), var(--ff-night-700);
+}
+
+.end-stats dd {
+  font-size: 18px;
 }
