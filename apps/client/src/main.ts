@@ -26,6 +26,7 @@ import {
   type OnlineEntry,
 } from "./net/online.ts";
 import { loadGlobe, type ViewKind } from "./render/renderer.ts";
+import { FEATURE_LABELS, missingFeatures } from "./compat.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { loadAccessibility } from "./ui/accessibility.ts";
 import { GameScreen } from "./ui/game-screen.ts";
@@ -278,6 +279,30 @@ function showNotice(key: MessageKey): void {
   notice.dataset.i18n = key;
   notice.textContent = t(key);
   document.body.append(notice);
+}
+
+/**
+ * Says at once, in the player's language, what a browser lacks to run the game,
+ * rather than leaving them to find out on a blank map. The menu stays: a replay
+ * file or a setting can still be looked at.
+ */
+function warnIfUnsupported(): void {
+  const missing = missingFeatures();
+  if (missing.length === 0) return;
+  usage().error("webgl");
+  const show = (): void => {
+    document.querySelector(".notice")?.remove();
+    const notice = document.createElement("p");
+    notice.className = "notice";
+    notice.id = "compat-notice";
+    notice.setAttribute("role", "alert");
+    notice.textContent = t("compat.missing", {
+      features: missing.map((feature) => t(FEATURE_LABELS[feature])).join(", "),
+    });
+    document.body.append(notice);
+  };
+  show();
+  onLanguageChange(show);
 }
 
 /**
@@ -674,6 +699,7 @@ const ready = Promise.all([
 ]);
 void ready.then(() => {
   applyTranslations(document);
+  warnIfUnsupported();
   // An invitation link joins its game; ?online, the next public one.
   if (invited) {
     const token = seatIn(invited);

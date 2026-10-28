@@ -32,6 +32,10 @@ Jouez en solo contre des bots, ou en ligne entre amis par un lien d'invitation o
   <img src="docs/assets/screenshot-world.png" alt="Une partie sur la carte du Monde : une douzaine d'empires sur les continents, avec leurs noms et leurs troupes, le classement et le curseur d'attaque" width="100%">
 </p>
 
+## Navigateurs pris en charge
+
+Chrome et Edge 111, Firefox 114 (121 pour l'affichage complet), Safari et iOS 16.4 ou plus récents, avec WebGL 2. La CI joue une partie dans Chromium, Firefox et WebKit à chaque changement. [Le tableau complet](docs/browsers.md) (en anglais) dit ce que demande chaque version et ce qui n'est qu'une hypothèse. Un navigateur qui ne peut pas faire tourner le jeu le dit, au lieu d'afficher une page blanche.
+
 Frontfall est en bêta jusqu'à la v1.0 : règles, équilibrage et visuels changent encore. [La feuille de route](#feuille-de-route) dit ce qui vient ensuite.
 
 ## En un coup d'œil
@@ -42,7 +46,7 @@ Frontfall est en bêta jusqu'à la v1.0 : règles, équilibrage et visuels chang
 | **La différence** | La carte du Monde boucle d'est en ouest, et la v1.0 la pose sur un globe 3D. Aucun bord où se cacher.                                        |
 | **État**          | Bêta. La [v0.5.0](https://github.com/nic0lasm/frontfall/releases/tag/v0.5.0) est publiée ; la v0.6 rend une partie entière jouable au doigt. |
 | **Jouer**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), ou votre propre serveur avec une image Docker.                                      |
-| **Prérequis**     | Un navigateur compatible WebGL 2. Un ordinateur reste le plus confortable.                                                                   |
+| **Prérequis**     | Un navigateur récent compatible WebGL 2 ([lesquels](docs/browsers.md)). Un ordinateur reste le plus confortable.                             |
 | **Licence**       | MIT : libre d'y jouer, de le forker et de l'héberger.                                                                                        |
 
 ## Feuille de route

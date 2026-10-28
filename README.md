@@ -32,6 +32,10 @@ Play solo against bots, or online with friends through an invitation link or in 
   <img src="docs/assets/screenshot-world.png" alt="A game on the World map: a dozen empires spread across the continents, with their names and troops, the leaderboard and the attack slider" width="100%">
 </p>
 
+## Supported browsers
+
+Chrome and Edge 111, Firefox 114 (121 for the full look), Safari and iOS 16.4 or newer, with WebGL 2. CI plays the game in Chromium, Firefox and WebKit on every change. [The full table](docs/browsers.md) says what each version needs and what has only been assumed. A browser that cannot run the game says so instead of showing a blank page.
+
 Frontfall is in beta until v1.0: rules, balance and visuals still change. [The roadmap](#roadmap) says what comes next.
 
 ## At a glance
@@ -42,7 +46,7 @@ Frontfall is in beta until v1.0: rules, balance and visuals still change. [The r
 | **The twist**    | The World map wraps east to west, and v1.0 puts it on a 3D globe. There is no edge to hide behind.                           |
 | **Status**       | Beta. [v0.5.0](https://github.com/nic0lasm/frontfall/releases/tag/v0.5.0) is out; v0.6 makes a whole game playable by touch. |
 | **Play**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), or your own server with one Docker image.                           |
-| **Requirements** | A browser with WebGL 2. Best on a desktop or laptop.                                                                         |
+| **Requirements** | A recent browser with WebGL 2 ([which ones](docs/browsers.md)). Best on a desktop or laptop.                                 |
 | **License**      | MIT, free to play, fork and host.                                                                                            |
 
 ## Roadmap

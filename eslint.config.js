@@ -53,6 +53,7 @@ export default tseslint.config(
       "**/*.config.*",
       "**/build.mjs",
       "tools/simulation-build.mjs",
+      "apps/client/public/**",
       "**/test-results/**",
     ],
   },

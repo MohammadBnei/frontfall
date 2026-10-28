@@ -10,6 +10,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **A clear message on an unsupported browser.** A browser that cannot draw the game (no WebGL 2, or too old to read it) now says so at the top of the menu, in English or French, instead of showing a blank page or failing when you press Play. The supported versions are listed in [Supported browsers](docs/browsers.md).
 - **A lighter screen in play.** The buildings are now a row of icons at the foot of the map: hover or focus one to see its name, key and cost. On a phone they sit behind a Build button next to the other buttons and close once you pick one. The leaderboard lists the three leaders and you, and opens to ten when you tap its title. The Beta badge no longer sits on the map.
 - **A lighter menu.** The first screen is now your name, a line that sums up the game (map, bots, difficulty) and Play solo. Tap that line to change the map and the rules. Your profile, achievements, accessibility settings and language moved to a row of buttons at the top. Play now, a private game and watching a replay sit together, and the public games and their names are one tap away.
 
@@ -21,6 +22,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### For self-hosters and contributors
 
+- The WebKit end-to-end project now also plays the narrow-phone interface, the accessibility settings, the local profile and the achievements, besides the solo game, replays and globe it already ran.
 - **Reports and bans for operators.** `GET /admin/reports` lists the reports of the last 30 days and the players most reported, each named by a keyed hash of their address that stays the same across restarts. `POST /admin/bans?target=…&days=…` bans an address or such a reference, `DELETE` lifts it, and `bans.json` under `FRONTFALL_DATA/moderation/` can be edited by hand and read again without a restart. Banned connections close with code `4005` ([server](docs/server.md#reports-and-bans)).
 - Protocol version 18: `report`, `reported`, the `too_many_reports` error and close code `4005` ([protocol](docs/protocol.md#report)). Pages loaded before the update are asked to reload.
 
