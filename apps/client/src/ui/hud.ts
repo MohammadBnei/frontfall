@@ -8,6 +8,7 @@ import { h } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
 import { LeaderList } from "./leader-list.ts";
+import { PopulationBar } from "./population-bar.ts";
 import { BUILD_MODES, costOf, numberOf, offers } from "./build-modes.ts";
 import { workText } from "./work-text.ts";
 
@@ -76,6 +77,9 @@ export class Hud {
   private readonly gold = h("strong", { class: "stat-value" });
   private readonly goldRate = h("span", { class: "stat-cap gold-rate" });
   private readonly land = h("strong", { class: "stat-value" });
+  private readonly population = new PopulationBar((text) => {
+    this.explain(text);
+  });
   private readonly banner = h(
     "p",
     { class: "banner", role: "status", "aria-live": "polite" },
@@ -166,6 +170,7 @@ export class Hud {
     retreatPenaltyPercent: 0,
     firstNation: Infinity,
     allianceRequestTicks: 200,
+    growthFloorPercent: 100,
     teams: [],
     disabled: 0,
   };
@@ -376,6 +381,7 @@ export class Hud {
           stat("hud.troops", this.troops, this.troopsCap),
           stat("hud.gold", this.gold, this.goldRate),
           stat("hud.land", this.land),
+          this.population.element,
         ),
         // R-ECO-07: what attacks take, and what stays at home to work, side by side.
         h(
@@ -487,6 +493,7 @@ export class Hud {
 
   setRules(rules: GameRules): void {
     this.rules = { ...rules, ownableTiles: Math.max(1, rules.ownableTiles) };
+    this.population.setFloor(rules.growthFloorPercent);
     for (const [mode, button] of this.buildButtons) button.hidden = !offers(mode, rules.disabled);
     // Colours depend on the rules (nations): rows are made again.
     this.leaders.clear();
@@ -521,6 +528,7 @@ export class Hud {
       this.syncWork(human);
       this.renderGold(human);
       this.land.textContent = this.share(human.tiles);
+      this.population.update(human.troops, human.cap, update.economy.growth);
       this.renderBuild(update, human);
     }
     this.banner.textContent = this.bannerText(update, human);

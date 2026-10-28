@@ -15,10 +15,17 @@ import {
   quickAllowedAt,
   sameTeam,
   structureCost,
+  troopGrowth,
   warshipCost,
   type Game,
 } from "@frontfall/engine";
-import type { DiplomacyEvent, DiplomacyView, GameUpdate, StructureType } from "./game-view.ts";
+import type {
+  DiplomacyEvent,
+  DiplomacyView,
+  EconomyView,
+  GameUpdate,
+  StructureType,
+} from "./game-view.ts";
 import { labelAnchors } from "./label-anchors.ts";
 
 const STRUCTURE_TYPES: Readonly<Record<StructureKind, StructureType>> = {
@@ -160,6 +167,7 @@ export function gameUpdate(game: Game, you: number, depth: Uint16Array): GameUpd
       cities: cityShare(game, you),
       cityLimit: cityLimit(game, you),
     },
+    economy: economy(game, you),
     diplomacy: diplomacy(game, you),
     events: diplomacyEvents(game),
   };
@@ -181,4 +189,15 @@ export function gameUpdate(game: Game, you: number, depth: Uint16Array): GameUpd
   if (game.winner !== undefined) update.winner = game.winner;
   if (game.winningTeam !== undefined) update.winningTeam = game.winningTeam;
   return update;
+}
+
+/** R-ECO-02: troops the player at this screen gains each second, as of now. */
+function economy(game: Game, you: number): EconomyView {
+  const player = game.player(you);
+  if (!player?.alive || game.phase !== "play") return { growth: 0 };
+  return {
+    growth:
+      troopGrowth(game.balance, populationCap(game, player), player.troops) *
+      game.balance.ticksPerSecond,
+  };
 }

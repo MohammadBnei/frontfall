@@ -98,6 +98,12 @@ export interface AttackView {
   troops: number;
 }
 
+/** Per second, at the current troops: zero outside play and once eliminated. */
+export interface EconomyView {
+  /** Troops gained (R-ECO-02). */
+  growth: number;
+}
+
 export interface GameUpdate {
   /** The player at this screen. */
   you: number;
@@ -127,6 +133,8 @@ export interface GameUpdate {
   structures: StructureView[];
   /** What the player at this screen can build next. */
   build: BuildView;
+  /** What the player at this screen gains each second. */
+  economy: EconomyView;
   /** Alliances, requests and traitors, as the player at this screen sees them. */
   diplomacy: DiplomacyView;
   /** What changed between players since the last update, for every player to read (R-DIPLO-04). */
