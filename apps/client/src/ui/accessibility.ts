@@ -12,11 +12,18 @@ export interface AccessibilitySettings {
   reduceMotion: boolean;
   /** Lighter text and stronger edges on panels. */
   highContrast: boolean;
+  /** The map in square tiles, without smooth coasts and borders: lighter on older devices. */
+  flatMap: boolean;
 }
 
 export const STORAGE_KEY = "frontfall.accessibility";
 
-const DEFAULTS: AccessibilitySettings = { scale: 100, reduceMotion: false, highContrast: false };
+const DEFAULTS: AccessibilitySettings = {
+  scale: 100,
+  reduceMotion: false,
+  highContrast: false,
+  flatMap: false,
+};
 
 /** What was stored, with anything unreadable or out of range put back to the default. */
 export function parseSettings(raw: string | null | undefined): AccessibilitySettings {
@@ -30,6 +37,7 @@ export function parseSettings(raw: string | null | undefined): AccessibilitySett
     if (scale) settings.scale = scale;
     settings.reduceMotion = stored["reduceMotion"] === true;
     settings.highContrast = stored["highContrast"] === true;
+    settings.flatMap = stored["flatMap"] === true;
   } catch {
     // Not JSON: the defaults stand.
   }
@@ -84,7 +92,7 @@ function apply(settings: AccessibilitySettings): void {
   root.toggleAttribute("data-high-contrast", settings.highContrast);
 }
 
-/** The "Accessibility" disclosure of the menu: interface size, motion, contrast and, from the audio code, sound. */
+/** The "Accessibility" disclosure of the menu: interface size, motion, contrast, the flat map and, from the audio code, sound. */
 export function accessibilityPanel(): HTMLDetailsElement {
   const scale = h("select", { id: "ui-scale", "data-i18n-attr": "aria-label:a11y.scale" });
   for (const value of SCALES) {
@@ -96,7 +104,11 @@ export function accessibilityPanel(): HTMLDetailsElement {
     updateAccessibility({ scale: Number(scale.value) as Scale });
   });
 
-  const toggle = (id: string, key: "reduceMotion" | "highContrast", label: string): HTMLElement => {
+  const toggle = (
+    id: string,
+    key: "reduceMotion" | "highContrast" | "flatMap",
+    label: string,
+  ): HTMLElement => {
     const input = h("input", { type: "checkbox", id });
     input.checked = current[key];
     input.addEventListener("change", () => {
@@ -121,6 +133,7 @@ export function accessibilityPanel(): HTMLDetailsElement {
       ),
       toggle("reduce-motion", "reduceMotion", "a11y.motion"),
       toggle("high-contrast", "highContrast", "a11y.contrast"),
+      toggle("flat-map", "flatMap", "a11y.flatMap"),
       soundControls,
       h("p", { class: "accessibility-note", "data-i18n": "a11y.note" }),
     ),

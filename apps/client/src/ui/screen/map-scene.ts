@@ -13,7 +13,7 @@ import {
   type ViewKind,
 } from "../../render/renderer.ts";
 import { usage } from "../../usage.ts";
-import { motionReduced } from "../accessibility.ts";
+import { accessibility, motionReduced } from "../accessibility.ts";
 import { sailing, shipMarks, shipTiles } from "./ship-motion.ts";
 
 /** Matches the fade of the territory layer, with a frame to spare. */
@@ -152,6 +152,7 @@ export class MapScene {
           wrapsX: map.wrapsX,
           relief: map.relief,
           latitudes: map.latitudes,
+          flat: accessibility().flatMap,
           owners: this.owners,
           maxOwner: maxPlayer,
         },

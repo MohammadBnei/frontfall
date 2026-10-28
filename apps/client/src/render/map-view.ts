@@ -158,6 +158,7 @@ export class MapView implements Renderer {
       wrapsX: options.wrapsX,
       relief: options.relief,
       latitudes: options.latitudes,
+      flat: options.flat,
       maxOwner: options.maxOwner,
     });
     // The layer spans x in [-width, 2 * width) and y in [0, height) from the
