@@ -195,7 +195,7 @@ The rule parts today are `trade` (the open ports in the order they opened: opene
 
 On World with 16 hard bots, a snapshot weighs at most 107 KB (87 KB once compressed) over a whole game; with the 64 nations of the map added, 162 KB. Saving takes under 90 ms and loading under 200 ms. The size follows the map and how divided it is, not how long the game has lasted.
 
-A change to what the state holds changes the format: a new field, a new list or a new rule part means a new `SNAPSHOT_FORMAT`, and the tests of `test/snapshot.test.ts` and `bench/test/snapshots.test.ts` load and play on from snapshots at many ticks to the same hashes as the game that never stopped.
+A change to what the state holds changes the format: a new field, a new list or a new rule part means a new `SNAPSHOT_FORMAT`, and the tests of `test/snapshot.test.ts` and `bench/test/snapshots-*.test.ts` load and play on from snapshots at many ticks to the same hashes as the game that never stopped.
 
 ## Helpers
 

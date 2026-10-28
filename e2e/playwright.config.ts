@@ -16,8 +16,12 @@ const remote = process.env.E2E_BASE_URL;
  */
 const flatMap = {
   cookies: [],
-  origins: [SERVER_PORT, PROXY_PORT].map((port) => ({
-    origin: `http://127.0.0.1:${String(port)}`,
+  origins: [
+    `http://127.0.0.1:${String(SERVER_PORT)}`,
+    `http://127.0.0.1:${String(PROXY_PORT)}`,
+    ...(remote ? [new URL(remote).origin] : []),
+  ].map((origin) => ({
+    origin,
     localStorage: [{ name: "frontfall.accessibility", value: JSON.stringify({ flatMap: true }) }],
   })),
 };
@@ -107,7 +111,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
-  use: { trace: "retain-on-failure", ...(remote ? {} : { storageState: flatMap }) },
+  use: { trace: "retain-on-failure", storageState: flatMap },
   ...(remote
     ? {
         projects: [
