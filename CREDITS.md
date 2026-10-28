@@ -12,6 +12,8 @@ Frontfall is written from scratch. It relies on these open source projects:
 | [Playwright](https://playwright.dev/)  | End-to-end tests            | Apache-2.0 |
 | [Inter](https://rsms.me/inter/)        | Interface and logo typeface | OFL-1.1    |
 
+The end screen's display face, `apps/client/src/ui/fonts/inter-display-800.woff2`, is Inter (from `@fontsource-variable/inter`, `opsz` file) fixed at weight 800 and optical size 32 and cut down to Basic Latin, Latin-1 letters and a few punctuation marks with fontTools, under the same OFL-1.1.
+
 ## Map data
 
 Every map is generated from [Natural Earth](https://www.naturalearthdata.com/), free vector and raster map data in the public domain, by the generator in [`tools/src/mapgen`](tools/src/mapgen). Each map's manifest names its sources again.
