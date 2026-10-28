@@ -31,15 +31,15 @@ A new element is designed for the wide layout first, then given its narrow behav
 +--------------------------------------------------------------+
 ```
 
-| Zone       | Position            | Owns                                                                                                                             | Size and stacking                                                                                                                                    |
-| ---------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TL         | top 12, left 12     | The first-steps guide while it is shown, then the event feed and player cards under it.                                          | Up to 320 wide. A card never goes under the banner. At most three rows of feed; older rows fade out after 8 s.                                       |
-| TC         | top 12, centred     | The banner (one line, 520 wide at most), then answers that are expected from the player (requests) under it at top 60, 380 wide. | Banner and requests never share a row. The maintenance notice sits above both (top 8, z 20).                                                         |
-| TR         | top 12, right 12    | The leaderboard, with the win goal and the clock inside it.                                                                      | 220 wide, folded to the top rows, one tap opens the list. Nothing else sits in this column above 280; the mini-map does not live here.               |
-| BR         | bottom 12, right 12 | The tools: help, pause, speed, menu, round, 40 each, 8 apart. Above them, from bottom 64, the mini-map.                          | Mini-map up to 200 × 130, same panel as the others. Tools grow to the left, never upward.                                                            |
-| Bottom bar | bottom 12, left 12  | Figures, population, attack share, and the buildings. In that order, left to right, separated by 1 px rules.                     | One row, 56 high inside a 6 padding. At 1280 it ends 150 before the tools. A new part of the bar must fit in that gap or replace a part, never wrap. |
-| BL         | bottom 96, left 12  | What the bar acts on: the attacks under way and their retreat buttons, the attack preview figures.                               | 220 wide at most, stacking upward.                                                                                                                   |
-| Map        | the rest            | The map and what is drawn on it: pieces, labels, effects, the build preview, the attack arrow.                                   | The left and right middle stay empty on purpose.                                                                                                     |
+| Zone       | Position            | Owns                                                                                                                                          | Size and stacking                                                                                                                                    |
+| ---------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TL         | top 12, left 12     | The first-steps guide while it is shown, then the event feed and player cards under it.                                                       | Up to 320 wide. A card never goes under the banner. At most three rows of feed; older rows fade out after 8 s.                                       |
+| TC         | top 12, centred     | The banner (one line, 520 wide at most), then answers that are expected from the player (requests) under it at top 60, 380 wide.              | Banner and requests never share a row. The maintenance notice sits above both (top 8, z 20).                                                         |
+| TR         | top 12, right 12    | The leaderboard, with the win goal and the clock inside it.                                                                                   | 220 wide, folded to the top rows, one tap opens the list. Nothing else sits in this column above 280; the mini-map does not live here.               |
+| BR         | bottom 12, right 12 | The tools: help, pause, speed, menu, round, 40 each, 8 apart. Above them, from bottom 64, the mini-map.                                       | Mini-map up to 200 × 130, same panel as the others. Tools grow to the left, never upward.                                                            |
+| Bottom bar | bottom 12, left 12  | Figures, population, attack share with the workers slider under it, and the buildings. In that order, left to right, separated by 1 px rules. | One row, 56 high inside a 6 padding. At 1280 it ends 150 before the tools. A new part of the bar must fit in that gap or replace a part, never wrap. |
+| BL         | bottom 96, left 12  | What the bar acts on: the attacks under way and their retreat buttons, the attack preview figures.                                            | 220 wide at most, stacking upward.                                                                                                                   |
+| Map        | the rest            | The map and what is drawn on it: pieces, labels, effects, the build preview, the attack arrow.                                                | The left and right middle stay empty on purpose.                                                                                                     |
 
 Rules that hold everywhere:
 
@@ -54,7 +54,7 @@ Rules that hold everywhere:
 
 ## Medium layout (720 to 1239)
 
-Same zones, except the bottom bar is split: figures top left (TL becomes the feed's second row, at top 96), attack share bottom left (bottom 12), buildings dock bottom centre. TR, TC and BR are as in the wide layout. A new part of the wide bar goes in the zone nearest to its place in the bar.
+Same zones, except the bottom bar is split: figures top left (TL becomes the feed's second row, at top 96), attack share bottom left (bottom 12), buildings dock bottom centre. TR, TC and BR are as in the wide layout. A new part of the wide bar goes in the zone nearest to its place in the bar. At a larger interface size the dock moves right by 100 px for each extra 100 % so that it clears the attack panel. The build tip sits above whichever of the dock or the bar is there, at `calc(14px + 62px * scale)` (30 + 66 in the wide layout).
 
 ## Narrow layout (phone, and windows shorter than 560)
 
@@ -82,7 +82,7 @@ Same zones, except the bottom bar is split: figures top left (TL becomes the fee
 
 Narrow: the mini-map is a round button, 44, top right (bottom right on a short window), and opens as a sheet centred on the map (z 2), at most 40 % of the screen high, 60 % on a short window. It closes after a jump or with its close button.
 
-When the screen is narrow because it is short (landscape phone), the leaderboard stays top right and stops 84 above the bottom so it never runs under the tools, the banner goes under the figures (top 88), and the first-steps banner keeps bottom 110.
+When the screen is narrow because it is short (landscape phone), the leaderboard stays top right and stops 84 above the bottom so it never runs under the tools, the banner goes under the figures (top 88), and the first-steps banner keeps bottom 110 but stops 264 short of the right edge, so the closed leaderboard stays whole.
 
 ## Adding an element
 
