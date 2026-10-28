@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **Sound effects.** Short, soft sounds for an attack you launch, land you take, a building you finish, a missile you fire, a new alliance, and for victory and defeat. They are made by your browser as you play, so nothing extra is downloaded until the first sound is due. The page stays silent until you have clicked or pressed a key once, as browsers require. In the menu's Accessibility section, a switch mutes them and a slider sets their volume; both are kept between visits. There is no music.
+
 ### Changed
 
 - **Play again, or back to the lobby, in one click.** On the end screen, a solo game now offers "Play again": the same map and the same settings, with a new game started at once. An online game offers "Back to the lobby": a public game takes you to the next one waiting, a private game opens a new private lobby with the same settings, ready to share. The main menu is still one click away.
@@ -12,8 +16,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### For self-hosters and contributors
 
+- **Sound code on demand.** The sound effects live in `apps/client/src/audio/` and load as their own chunk, so the first-visit budget is unchanged. The cues are read from the updates the game screen already gets, and no game rule, replay or message depends on them.
 - The ground colours are baked from the distance to the coast, and `land-light`, `sea-shallow` and `foam` join the map tokens (`assets/brand/tokens.json`, [brand guide](docs/brand.md)). The first download stays under its budget, with less room left.
 - **Shader text is stripped of comments in the build**, which gives the first visit about 1 kB back.
+- **Two more server fixes from [@MohammadBnei](https://github.com/MohammadBnei)** (#139, #140). A missing `usage.json` next to its `.bak` now loads the copy instead of starting the counts from zero, which the second save would have written over the backup; to reset the counts, delete both files ([server](docs/server.md#usage-counts)). The end-to-end test that plays a game and sends a thumbs down no longer runs against the public server after a deploy, so it stops adding a test game to the real counts. Thank you.
 
 ## [0.6.3] - 2026-10-28
 
@@ -22,7 +28,7 @@ A privacy policy and terms of use for the public server.
 ### Added
 
 - **Privacy policy and terms of use, in English and French.** What the game keeps about a guest (nothing) and about an account (a name and a scrambled id, never an email), the cookie, reports, logs, hosting and backups, how to delete an account, and a short set of rules for playing, at [/privacy.html](https://nclsmgr.com/frontfall/privacy.html) and [/terms.html](https://nclsmgr.com/frontfall/terms.html) (and `.fr.html`). They are linked from the sign-in box and from the page about the game. Full terms are still planned for 1.0.
-- **Two more server fixes from [@MohammadBnei](https://github.com/MohammadBnei)** (#139, #140). A missing `usage.json` next to its `.bak` now loads the copy instead of starting the counts from zero, which the second save would have written over the backup; to reset the counts, delete both files ([server](docs/server.md#usage-counts)). The end-to-end test that plays a game and sends a thumbs down no longer runs against the public server after a deploy, so it stops adding a test game to the real counts. Thank you.
+
 
 ## [0.6.2] - 2026-10-28
 
