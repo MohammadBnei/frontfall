@@ -23,6 +23,7 @@ export type GameKey =
   | { readonly type: "mode"; readonly mode: ClickMode }
   | { readonly type: "ratio"; readonly percent: number }
   | { readonly type: "pause" }
+  | { readonly type: "speed" }
   | { readonly type: "switchView" }
   | { readonly type: "help" };
 
@@ -59,6 +60,7 @@ export function gameKey(
     return { type: "ratio", percent: digit === 0 ? 100 : digit * 10 };
   }
   if (command === "KeyP" || event.code === "Escape") return { type: "pause" };
+  if (command === "KeyT" && !state.watching) return { type: "speed" };
   if (command === "KeyG" && state.globeAllowed) return { type: "switchView" };
   if (command === "KeyH" || command === "?") return { type: "help" };
   return undefined;

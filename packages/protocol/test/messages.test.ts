@@ -55,6 +55,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     disabled: 0,
     capacity: 16,
     autoStart: true,
+    speed: 1,
     minPlayers: 2,
     players: [
       { id: 1, name: "Nico" },
@@ -78,6 +79,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     teams: 4,
     disabled: 32,
     tickRate: 10,
+    speed: 2,
     players: [{ id: 1, name: "Nico" }],
     you: 1,
     token: "0123456789abcdefABCDEF",
@@ -150,6 +152,33 @@ describe("client messages", () => {
     expect(configure(63).ok).toBe(true);
     expect(configure(64).ok).toBe(false);
     expect(configure(-1).ok).toBe(false);
+  });
+
+  it("takes the speeds 1, 2 and 4 only, or none (R-MODE-07)", () => {
+    const options = {
+      map: "world",
+      bots: 0,
+      difficulty: "easy",
+      nations: true,
+      teams: 0,
+      disabled: 0,
+      capacity: 16,
+      autoStart: true,
+    };
+    const configure = (speed?: number) =>
+      parseClientMessage(JSON.stringify({ type: "configure", options: { ...options, speed } }));
+    expect([undefined, 1, 2, 4].map((speed) => configure(speed).ok)).toEqual([
+      true,
+      true,
+      true,
+      true,
+    ]);
+    expect([0, 3, 8, 1.5].map((speed) => configure(speed).ok)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 
   it("keeps seats between 2 and 16 and names of a sane size", () => {

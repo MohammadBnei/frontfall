@@ -82,6 +82,7 @@ export const DEFAULT_GAME: GameSettings = {
   nations: true,
   teams: 0,
   disabled: 0,
+  speed: 1,
   minPlayers: 2,
   countdownMs: 60_000,
   hostIdleMs: 2 * 60_000,

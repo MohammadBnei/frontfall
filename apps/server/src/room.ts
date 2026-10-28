@@ -6,6 +6,7 @@ import {
   TICK_RATE,
   type Difficulty,
   type ErrorCode,
+  type GameSpeed,
   type Frame,
   type GameOptions,
   type Order,
@@ -41,6 +42,8 @@ export interface RoomSettings {
   teams: Teams;
   /** What every client leaves out of the game (R-MODE-03). */
   disabled: number;
+  /** Turns closed at each tick of the server (R-MODE-07); 1 in a public game. */
+  speed: GameSpeed;
   /** Players needed before the host can start, and before the countdown runs. */
   minPlayers: number;
   /** Wait after reaching minPlayers before starting on its own; 0 waits for the host. */
@@ -115,7 +118,8 @@ export interface RoomObserver {
 
 /**
  * Ticks during which hashes for one tick are collected. Clients that are
- * behind report late; whoever has not reported by then is left out.
+ * behind report late; whoever has not reported by then is left out. At speed
+ * 1: a faster game waits as long, for more ticks.
  */
 const HASH_WINDOW_TICKS = 600;
 
@@ -415,7 +419,7 @@ export class Room {
    */
   reportHash(seat: Seat, tick: number, hash: number): void {
     if (this.stateValue !== "running" || !this.holds(seat) || tick % HASH_INTERVAL !== 0) return;
-    if (tick >= this.log.length || tick < this.log.length - HASH_WINDOW_TICKS) return;
+    if (tick >= this.log.length || tick < this.log.length - this.hashWindow) return;
     let reports = this.hashes.get(tick);
     if (!reports) {
       reports = new Map();
@@ -475,7 +479,7 @@ export class Room {
         }
         return;
       case "running":
-        this.closeTurn();
+        this.closeTurns(this.settings.speed);
         this.compareLateHashes();
         this.expireSeats(now);
         return;
@@ -535,7 +539,7 @@ export class Room {
   save(now: number): SavedRoom | undefined {
     if (this.stateValue !== "running") return undefined;
     // Orders sent since the last turn would be lost: they make one more turn.
-    if (this.pending.length > 0) this.closeTurn();
+    if (this.pending.length > 0) this.closeTurns(1);
     return {
       id: this.id,
       seed: this.seed,
@@ -597,17 +601,24 @@ export class Room {
     this.observer.started?.(this);
   }
 
-  private closeTurn(): void {
+  /** Closes `count` turns, the orders received since the last one in the first, and sends them in one frame. */
+  private closeTurns(count: number): void {
     const tick = this.log.length;
-    const body = this.log.append(this.pending);
+    const bodies = [this.log.append(this.pending)];
+    for (let i = 1; i < count; i++) bodies.push(this.log.append([]));
     this.pending = [];
     for (const seat of this.seats) seat.orders = 0;
-    this.broadcast(encodeTurnsFrame(tick, [body]));
+    this.broadcast(encodeTurnsFrame(tick, bodies));
+  }
+
+  /** Ticks a late hash is waited for: the same time at every speed. */
+  private get hashWindow(): number {
+    return HASH_WINDOW_TICKS * this.settings.speed;
   }
 
   private compareLateHashes(): void {
     for (const tick of this.hashes.keys()) {
-      if (tick >= this.log.length - HASH_WINDOW_TICKS) continue;
+      if (tick >= this.log.length - this.hashWindow) continue;
       this.compare(tick);
     }
   }
@@ -678,6 +689,7 @@ export class Room {
       disabled: this.settings.disabled,
       capacity: this.settings.capacity,
       autoStart: this.settings.autoStart,
+      speed: this.settings.speed,
       minPlayers: this.settings.minPlayers,
       players,
       you: seat.id,
@@ -701,6 +713,7 @@ export class Room {
       teams: this.settings.teams,
       disabled: this.settings.disabled,
       tickRate: TICK_RATE,
+      speed: this.settings.speed,
       players: this.players(),
       you: seat.id,
       token: seat.token,

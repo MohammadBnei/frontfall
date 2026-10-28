@@ -15,10 +15,18 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 18;
+export const PROTOCOL_VERSION = 19;
 
-/** Ticks per second of the simulation. The server closes one turn per tick. */
+/** Ticks per second of the simulation at speed 1. The server closes one turn per tick. */
 export const TICK_RATE = 10;
+
+/**
+ * Paces a game can run at (R-MODE-07): ticks per beat of the clock, a beat
+ * lasting 1 / TICK_RATE seconds. Only the cadence changes, never the rules.
+ */
+export const GAME_SPEEDS = [1, 2, 4] as const;
+export const GameSpeed = z.union([z.literal(1), z.literal(2), z.literal(4)]);
+export type GameSpeed = z.infer<typeof GameSpeed>;
 
 /** Clients send a hash of their state after every tick that is a multiple of this. */
 export const HASH_INTERVAL = 50;
@@ -111,6 +119,8 @@ export const GameOptions = z
     capacity: z.number().int().min(MIN_SEATS).max(MAX_SEATS),
     /** Start as soon as every seat is taken. */
     autoStart: z.boolean(),
+    /** Pace of a private game (R-MODE-07); left out, it stays as it was, 1 at first. */
+    speed: GameSpeed.optional(),
   })
   .strict();
 export type GameOptions = z.infer<typeof GameOptions>;
@@ -193,6 +203,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     disabled: Disabled,
     capacity: z.number().int().positive(),
     autoStart: z.boolean(),
+    /** Ticks per beat (R-MODE-07): always 1 in a public game. */
+    speed: GameSpeed,
     /** Players the host needs before starting. */
     minPlayers: z.number().int().positive(),
     players: z.array(PlayerInfo),
@@ -223,7 +235,10 @@ export const ServerMessage = z.discriminatedUnion("type", [
     teams: Teams,
     /** What every client leaves out of the game (R-MODE-03). */
     disabled: Disabled,
+    /** Beats per second; the server closes `speed` turns at each one. */
     tickRate: z.number().int().positive(),
+    /** Ticks per beat (R-MODE-07): turns come `tickRate` × `speed` per second. */
+    speed: GameSpeed,
     players: z.array(PlayerInfo),
     you: PlayerNumber,
     /** Secret that lets this player rejoin after a dropped connection. */

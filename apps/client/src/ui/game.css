@@ -261,6 +261,10 @@
     width: auto;
     transform: none;
   }
+  /* One more button in the toolbar: the pace of a solo game. */
+  .speedable .ratio {
+    right: 216px;
+  }
 
   .icon-button {
     width: 36px;
@@ -1168,5 +1172,36 @@
 @media (pointer: coarse) and (width >= 360px) and (width < 720px) {
   .ratio {
     right: 218px;
+  }
+
+  /* A solo game's fifth tool, its pace. */
+  .speedable .ratio {
+    right: 268px;
+  }
+}
+
+/* The pace of a solo game (R-MODE-07), among the tools after pause, with its key. */
+.speed-button {
+  position: relative;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool-key {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  padding: 1px 4px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 4px;
+  background: var(--ff-night-800);
+  color: var(--ff-slate-300);
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+@media (pointer: coarse), (width < 720px), (height < 560px) {
+  .tool-key {
+    display: none;
   }
 }

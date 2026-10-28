@@ -269,7 +269,10 @@ export function messageHandler(ctx: MessageContext): {
           }
         };
         const seats = seatsFor(message.options, ctx.maps, ctx.maxBots, current.room.playerCount);
-        if (seats === undefined) {
+        // A public game runs at the pace everyone expects (R-MODE-07).
+        const fast =
+          (message.options.speed ?? 1) !== 1 && current.room.settings.visibility === "public";
+        if (seats === undefined || fast) {
           refuse("invalid_settings");
           return;
         }

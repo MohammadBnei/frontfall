@@ -366,6 +366,22 @@ describe("WebSocket", () => {
       capacity: 8,
       autoStart: false,
     });
+    // A public game stays at speed 1 (R-MODE-07).
+    alice.send({
+      type: "configure",
+      options: {
+        map: "world",
+        bots: 0,
+        difficulty: "normal",
+        nations: true,
+        teams: 2,
+        disabled: 0,
+        capacity: 8,
+        autoStart: false,
+        speed: 2,
+      },
+    });
+    expect((await alice.next("error")).code).toBe("invalid_settings");
     alice.send({ type: "start" });
     expect((await bob.next("started")).teams).toBe(2);
     const listed = (await (await fetch(`http://${host}/api/games`)).json()) as {
@@ -409,8 +425,26 @@ describe("WebSocket", () => {
     await bob.next("lobby");
     bob.send({ type: "start" });
     expect((await bob.next("error")).code).toBe("not_host");
+    // Its host may speed it up (R-MODE-07).
+    alice.send({
+      type: "configure",
+      options: {
+        map: "world",
+        bots: 0,
+        difficulty: "normal",
+        nations: true,
+        teams: 0,
+        disabled: 0,
+        capacity: 16,
+        autoStart: false,
+        speed: 4,
+      },
+    });
+    expect((await bob.next("lobby")).speed).toBe(4);
     alice.send({ type: "start" });
-    expect((await bob.next("started")).players).toEqual([
+    const started = await bob.next("started");
+    expect(started.speed).toBe(4);
+    expect(started.players).toEqual([
       { id: 1, name: "Alice" },
       { id: 2, name: "Bob" },
     ]);

@@ -23,6 +23,7 @@ import { DiplomacyPanel } from "./diplomacy.ts";
 import { Hud } from "./hud.ts";
 import { withHidden } from "./hidden-players.ts";
 import { PlayerLabels } from "./labels.ts";
+import { SpeedControl } from "./speed-control.ts";
 import { GameAchievements } from "./screen/game-achievements.ts";
 import { gameKey } from "./screen/game-keys.ts";
 import { GuideHost } from "./screen/guide-host.ts";
@@ -67,6 +68,8 @@ export class GameScreen {
   private readonly surface: HTMLElement;
   private input: InputController;
   private readonly hud: Hud;
+  /** Solo only (R-MODE-07): online, the host picked the pace in the lobby. */
+  private readonly speed: SpeedControl | undefined;
   private readonly session: LocalSession;
   private readonly orders: Orders;
   private readonly overlays: Overlays;
@@ -207,6 +210,14 @@ export class GameScreen {
         this.lastReport = player;
       },
     });
+    if (!link && !options.record) {
+      this.speed = new SpeedControl(options.speed ?? 1, (speed) => {
+        this.session.setSpeed(speed);
+      });
+      // Help, pause, speed, menu (docs/hud-layout.md).
+      this.hud.element.querySelector("#pause")?.after(this.speed.element);
+      this.hud.element.classList.add("speedable");
+    }
     this.hud.leaderboard.append(this.diplomacy.menu);
     this.hud.element.append(this.diplomacy.requests, this.diplomacy.feed);
     this.guide = new GuideHost(
@@ -324,14 +335,21 @@ export class GameScreen {
       this.scene.setMotion(!motionReduced());
     };
     const stopMotion = onMotionChange(motion);
-    this.pacer = new TurnPacer((turns) => {
-      this.session.pushTurns(turns);
-      const mine = turns.reduce(
-        (count, turn) => count + turn.orders.filter((entry) => entry.player === options.you).length,
-        0,
-      );
-      if (mine > 0) this.marks.arrived(mine, performance.now());
-    }, 1000 / TICK_RATE);
+    // Online, the host's pace: `speed` turns at each beat of the server (R-MODE-07).
+    const speed = options.speed ?? 1;
+    this.pacer = new TurnPacer(
+      (turns) => {
+        this.session.pushTurns(turns);
+        const mine = turns.reduce(
+          (count, turn) =>
+            count + turn.orders.filter((entry) => entry.player === options.you).length,
+          0,
+        );
+        if (mine > 0) this.marks.arrived(mine, performance.now());
+      },
+      1000 / TICK_RATE / speed,
+      speed,
+    );
     if (link) {
       // A timer rather than frames: a hidden tab draws nothing but must keep playing.
       const pacing = setInterval(() => {
@@ -357,6 +375,7 @@ export class GameScreen {
       onLanguageChange(() => {
         applyTranslations(this.surface);
         this.hud.refresh();
+        this.speed?.show();
         this.diplomacy.refresh();
         this.guide.refresh();
       }),
@@ -496,6 +515,7 @@ export class GameScreen {
     else if (action.type === "mode") this.setMode(action.mode);
     else if (action.type === "ratio") this.hud.setRatio(action.percent);
     else if (action.type === "pause") this.togglePause();
+    else if (action.type === "speed") this.speed?.next();
     else if (action.type === "switchView") this.switchView();
     else this.showHelp();
     event.preventDefault();
