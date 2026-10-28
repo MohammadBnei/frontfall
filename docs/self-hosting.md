@@ -51,6 +51,29 @@ The Google pair is `FRONTFALL_OAUTH_GOOGLE_ID` and `FRONTFALL_OAUTH_GOOGLE_SECRE
 
 To update: `docker compose pull && docker compose up -d`. To build the image from the source instead: `docker build -t frontfall .`, then set `FRONTFALL_IMAGE=frontfall` when running `docker compose`.
 
+## Backing up and restoring
+
+Everything worth keeping is in the data volume (`frontfall-data` in the sample `compose.yaml`, prefixed by the project name: see `docker volume ls`; the commands below use `frontfall_frontfall-data`): `usage/` (counts and monthly files), `accounts/accounts.json` (sign-in accounts: it holds personal data, so keep any copy encrypted), `moderation/` (reports and bans, and the `key` that keeps report references stable). `games/` only lets running games resume after a restart; leave it out. The sign-in secrets live in your own env file, not in the volume: back it up too.
+
+The server writes each file by renaming a finished copy, so copying the volume while the game runs gives consistent files. For example, a nightly encrypted copy with [restic](https://restic.net/):
+
+```sh
+restic backup --exclude games --exclude '*.tmp*' \
+  "$(docker volume inspect frontfall_frontfall-data --format '{{ .Mountpoint }}')"
+```
+
+To restore, stop the game, empty the volume, put the files back with their owner (the `node` user of the container), and start it again:
+
+```sh
+docker compose stop
+restic restore latest --target /tmp/restore
+docker run --rm -v frontfall_frontfall-data:/data -v /tmp/restore:/restore alpine \
+  sh -c 'rm -rf /data/* && cp -a /restore/*/. /data/ && chown -R 1000:1000 /data'
+docker compose up -d
+```
+
+Rehearse it once on a spare machine and time it: a backup you have never restored is a guess. Checking afterwards is quick: `/status` shows the usage table again, and a player signs in with the same account.
+
 ## HTTPS and a domain
 
 Browsers need HTTPS for anything but `localhost`, so put a reverse proxy in front. It must forward WebSocket upgrades on `/ws`, and set the `X-Client-IP` header to the player's address, which the server uses for its limits per address. The server trusts that header only from a private or loopback address, as a proxy on the same host or Docker network is.
