@@ -61,6 +61,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### For self-hosters and contributors
 
+- **Announce public games on Discord.** `pnpm announce`, run next to a server with `FRONTFALL_URL` and `DISCORD_WEBHOOK_URL`, posts each public game once, when it opens, with its map, its seats and a link to join. It mentions nobody, escapes the names players type, and never prints the webhook address ([self-hosting.md](docs/self-hosting.md#announce-public-games-on-discord)).
 - **Errors of players, grouped.** The errors players' pages report are grouped on the server by kind, message and place in the code, and counted by day, release, browser family, device and screen, for 30 days. `/admin/errors?days=N`, from inside the container, lists them, the most reported first ([server.md](docs/server.md#errors-of-players)); `client_error` log lines name their group. Error reports carry, optionally, the file, line and column of the game's own code they came from, the browser family, the device and the screen; a game a page could not take back from its snapshot is reported as the new kind `snapshot` ([privacy.md](docs/privacy.md#reports)). The game protocol does not change.
 
 ### For self-hosters and contributors
