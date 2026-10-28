@@ -2055,3 +2055,86 @@ button.feed-entry:focus-visible {
 .requests {
   z-index: 3;
 }
+
+/* Population (R-ECO-02): the army against its cap, the band where it grows
+   fastest, and what it gains each second. Wide, it is the part of the bar after
+   the figures; narrower, a thin line along the foot of the figures panel, and
+   the whole panel is the button, big enough to tap, whose press shows the figures. */
+.pop-bar {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0;
+  padding: 0 12px 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: help;
+}
+
+.pop-track {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ff-night-600);
+  overflow: hidden;
+}
+
+.pop-band {
+  position: absolute;
+  inset: 0 auto;
+  background: rgb(60 203 127 / 45%);
+}
+
+.pop-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  background: var(--ff-slate-300);
+}
+
+.pop-bar.in-band .pop-fill {
+  background: var(--ff-success);
+}
+
+.pop-bar.in-band .pop-rate {
+  color: var(--ff-success);
+}
+
+.pop-bar.full .pop-fill {
+  background: var(--ff-warning);
+}
+
+.pop-figures {
+  display: none;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (width >= 1240px) and (height >= 560px) {
+  .bar .pop-bar {
+    position: static;
+    justify-content: center;
+    width: 64px;
+    padding: 0 0 0 12px;
+    border-left: 1px solid var(--ff-night-500);
+  }
+
+  .bar .pop-track {
+    height: 6px;
+    border-radius: 3px;
+  }
+
+  .bar .pop-figures {
+    display: flex;
+  }
+}
