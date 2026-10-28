@@ -299,6 +299,12 @@
 
 .pause-speeds {
   justify-content: center;
+  gap: 8px;
+}
+
+.pause-speeds .replay-speed {
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .paused-text {
@@ -1186,7 +1192,10 @@
   }
 }
 
-/* A phone held upright keeps its attack slider: the pace is set in the pause banner. */
+/*
+ * A phone held upright keeps its attack slider, and one held sideways its
+ * leaderboard: the pace is set in the pause banner.
+ */
 @media (pointer: coarse) {
   .pause-speeds .replay-speed {
     min-width: 44px;
@@ -1194,17 +1203,21 @@
   }
 }
 
-@media (pointer: coarse) and (width < 480px) {
+@media (pointer: coarse) and (width < 480px), (pointer: coarse) and (height < 560px) {
   #speed {
     display: none;
   }
+}
 
+@media (pointer: coarse) and (width < 480px),
+  (pointer: coarse) and (width < 720px) and (height < 560px) {
   .speedable .ratio {
     right: 174px;
   }
 }
 
-@media (pointer: coarse) and (width >= 360px) and (width < 480px) {
+@media (pointer: coarse) and (width >= 360px) and (width < 480px),
+  (pointer: coarse) and (width >= 360px) and (width < 720px) and (height < 560px) {
   .speedable .ratio {
     right: 218px;
   }
