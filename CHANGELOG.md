@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-28
+
+A first look at the new Frontfall: a map with relief, countries you can read at a glance, sound effects and a one-click rematch.
+
 ### Added
 
 - **Sound effects.** Short, soft sounds for an attack you launch, land you take, a building you finish, a missile you fire, a new alliance, and for victory and defeat. They are made by your browser as you play, so nothing extra is downloaded until the first sound is due. The page stays silent until you have clicked or pressed a key once, as browsers require. In the menu's Accessibility section, a switch mutes them and a slider sets their volume; both are kept between visits. There is no music.
@@ -295,7 +299,8 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/nic0lasm/frontfall/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/nic0lasm/frontfall/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/nic0lasm/frontfall/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/nic0lasm/frontfall/compare/v0.6.0...v0.6.1
