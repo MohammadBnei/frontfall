@@ -50,7 +50,7 @@ Frontfall is in beta until v1.0: rules, balance and visuals still change. [The r
 | ---------------- | ------------------------------------------------------------------------------------------------------------ |
 | **What it is**   | Spread from a single tile, outgrow your neighbours, hold the map. Short rounds, no install.                  |
 | **The twist**    | The World map wraps east to west, and v1.0 puts it on a 3D globe. There is no edge to hide behind.           |
-| **Status**       | Beta. [v0.6.1](https://github.com/nic0lasm/frontfall/releases/tag/v0.6.1) is out; v0.7 is the look and feel. |
+| **Status**       | Beta. [v0.6.2](https://github.com/nic0lasm/frontfall/releases/tag/v0.6.2) is out; v0.7 is the look and feel. |
 | **Play**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), or your own server with one Docker image.           |
 | **Requirements** | A recent browser with WebGL 2 ([which ones](docs/browsers.md)). Best on a desktop or laptop.                 |
 | **License**      | MIT, free to play, fork and host.                                                                            |

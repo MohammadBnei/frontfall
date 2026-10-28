@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-28
+
+A harder game on normal and hard, a longer first-steps guide, a page about the game and the sign-in buttons with their logos.
+
 ### Added
 
 - **A page about the game, in English and French.** What Frontfall is, how to play in six steps, where and with whom, and where the code and the credits are, at [/about.html](https://nclsmgr.com/frontfall/about.html) and [/about.fr.html](https://nclsmgr.com/frontfall/about.fr.html). It loads on its own, apart from the game.
@@ -11,16 +15,17 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Changed
 
 - **Normal and hard nations fight back.** Nations at normal and hard now play every second, keep fewer troops at home, give you less time before they attack (2 minutes at normal, 1 and a half at hard instead of 2 and a half) and gang up on whoever holds a fifth of the map, when they can win the fight. A player who used to win every game on normal in about 7 minutes now wins about half of them, and hard is meant to beat you. Easy is unchanged and is the level for a first game. Games with bots only play as before.
-
 - **First steps cover attack and defence.** The first-steps card now has two more steps: what the share of troops you send means (the ones you keep earn gold and defend your land, and a running attack can be called back), and how to hold a border that is attacked, with a fort. The help has a new Defend section, a tip for phones (long press a building button to read what it does) and a link to the About page.
-
 - **The sign-in buttons wear the Discord and Google logos.** In Your profile, the buttons now read "Sign in with Discord" and "Sign in with Google" (in French, "Se connecter avec …") with each service's own logo, in the colours the services ask for.
 - **Better reading of first games.** The anonymous game report now also says how long a player took to give a first order, and the counters separate games left within two minutes from games lost within two minutes. Nothing is added that could name a player, and no game rule or difficulty changes ([what is sent](docs/privacy.md#reports)).
-
 - **A better preview when you share the link.** In a chat or on a social network, the game now shows a new picture taken from a real game, with its title and a description, instead of the old placeholder. Search engines and people without JavaScript also get a short description of the game.
 
 ### For self-hosters and contributors
 
+- **Two server fixes from [@MohammadBnei](https://github.com/MohammadBnei)** (#137, #138): the per-address connection slot is freed when a WebSocket handshake is refused, and a hello from another build no longer lets later messages of that connection through. Thank you.
+- **Back up and restore.** The data volume and the public server now have a documented backup and restore ([self-hosting](docs/self-hosting.md)).
+- The first download is lighter: the end screen, the replay bar and the replay reader load when first needed, and the engine package is marked free of side effects. The first-visit budget now counts everything the page loads up front.
+- The game screen of the client is split into modules (map scene, ships, dialogs, keys, orders, achievements, first steps) with no change of behaviour.
 - The share image `og-image.png` (1200 x 630) and the README screenshot and time-lapse (`docs/assets/`) come from a current build. `apps/client/public/about*.html` are plain pages with their own stylesheet: they stay out of the first-visit budget and need no change in the server.
 - `pnpm balance -- --average` plays a scripted average player, stronger than `--casual`, to measure the difficulty levels; nations take their own pace, attack ratio and reserve from `NATION_DIFFICULTIES` (`B-NATION-INTERVAL`, `B-NATION-ATTACK-RATIO`, `B-NATION-RESERVE`, `B-NATION-HUNT`, rule `R-BOT-14`), and the `world-nations` golden replay was recorded again.
 
