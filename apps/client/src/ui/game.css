@@ -1299,7 +1299,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.tool-key {
+.speed-button::after {
+  content: attr(data-key);
   position: absolute;
   top: -5px;
   right: -5px;
@@ -1313,7 +1314,7 @@
 }
 
 @media (pointer: coarse), (width < 720px), (height < 560px) {
-  .tool-key {
+  .speed-button::after {
     display: none;
   }
 }
