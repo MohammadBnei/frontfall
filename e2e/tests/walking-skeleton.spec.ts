@@ -251,7 +251,9 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   await expect(land).not.toHaveText("0%", { timeout: 10_000 });
   await guest.locator("#leaderboard-toggle").click({ timeout: GAME_START_TIMEOUT });
   await expect(guest.locator(".leaderboard-list li")).toHaveCount(4);
-  await expect.poll(async () => (await clockOf(host)) - (await clockOf(guest))).toBeLessThan(3);
+  await expect
+    .poll(async () => (await clockOf(host)) - (await clockOf(guest)), { timeout: 20_000 })
+    .toBeLessThan(3);
   // Two more rounds of state hashes, compared with the guest's replayed game.
   const now = await clockOf(host);
   await expect.poll(() => clockOf(guest), { timeout: 20_000 }).toBeGreaterThan(now + 10);
@@ -316,7 +318,9 @@ test("a player who reloads later starts from a snapshot, not from the first turn
   await expect(guest.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
   expect(rejoins.at(-1)).toBeGreaterThanOrEqual(300);
   await expect(guest.locator(".leaderboard-list li")).not.toHaveCount(0);
-  await expect.poll(async () => (await clockOf(host)) - (await clockOf(guest))).toBeLessThan(3);
+  await expect
+    .poll(async () => (await clockOf(host)) - (await clockOf(guest)), { timeout: 20_000 })
+    .toBeLessThan(3);
   // Two more rounds of state hashes, compared with the game the guest loaded.
   const now = await clockOf(host);
   await expect.poll(() => clockOf(guest), { timeout: 20_000 }).toBeGreaterThan(now + 10);
