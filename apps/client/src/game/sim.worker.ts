@@ -1,7 +1,7 @@
 import type { Order, Turn } from "@frontfall/engine";
 import { transferables, type WorkerReply, type WorkerRequest } from "./messages.ts";
 import { fetchMapData } from "./maps.ts";
-import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS, sameReplayMap } from "./replay-file.ts";
+import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS, sameReplayMap } from "./replay-rules.ts";
 import { SoloGame } from "./solo-game.ts";
 
 interface WorkerScope {
