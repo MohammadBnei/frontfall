@@ -9,6 +9,19 @@ const DESYNC_TEST = "desync.spec.ts";
 /** A deployed game to test instead of the local build, such as https://nclsmgr.com/frontfall/. */
 const remote = process.env.E2E_BASE_URL;
 
+/**
+ * The flat map (one colour a tile, no relief or shading) for the tests that play a game and
+ * look at the rules, not at the picture: a software renderer draws it about three times faster.
+ * A spec about the picture turns it off with `test.use({ storageState: undefined })`.
+ */
+const flatMap = {
+  cookies: [],
+  origins: [SERVER_PORT, PROXY_PORT].map((port) => ({
+    origin: `http://127.0.0.1:${String(port)}`,
+    localStorage: [{ name: "frontfall.accessibility", value: JSON.stringify({ flatMap: true }) }],
+  })),
+};
+
 const local = {
   projects: [
     {
@@ -94,7 +107,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
-  use: { trace: "retain-on-failure" },
+  use: { trace: "retain-on-failure", ...(remote ? {} : { storageState: flatMap }) },
   ...(remote
     ? {
         projects: [
