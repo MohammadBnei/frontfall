@@ -4,6 +4,12 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-28
+
+### Fixed
+
+- **The Discord and Google sign-in buttons can be seen.** In Your profile, the button at the top right of the menu, they showed as plain grey text that nobody took for buttons. They are real buttons now.
+
 ## [0.6.0] - 2026-10-28
 
 A lighter screen, a game you can play from the keyboard, things to earn and a way to keep your name. Nothing here changes how a game plays.
@@ -239,7 +245,10 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/nic0lasm/frontfall/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/nic0lasm/frontfall/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/nic0lasm/frontfall/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/nic0lasm/frontfall/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/nic0lasm/frontfall/compare/v0.2.0...v0.4.0
 [0.2.0]: https://github.com/nic0lasm/frontfall/compare/v0.1.0...v0.2.0
