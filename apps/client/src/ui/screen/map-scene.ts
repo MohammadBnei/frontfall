@@ -303,15 +303,17 @@ export class MapScene {
     const key = update.structures
       .map((s) => `${String(s.id)}:${String(s.player)}:${s.ready ? "1" : "0"}`)
       .join(",");
-    if (!this.view || key === this.drawnStructures) return;
+    if (!this.view || !this.shown || key === this.drawnStructures) return;
     this.drawnStructures = key;
     const { width } = this.mapSize;
+    const { firstNation, teams } = this.shown;
     this.view.setStructures(
       update.structures.map((structure) => ({
         x: structure.tile % width,
         y: Math.floor(structure.tile / width),
         type: structure.type,
         ready: structure.ready,
+        color: colorOf(structure.player, firstNation, teams),
       })),
     );
     this.dirty = true;

@@ -1,5 +1,5 @@
 import { FlatCamera, type CameraView, type ViewCamera } from "./camera.ts";
-import type * as Globe from "./globe.ts";
+import type * as Lazy from "./lazy.ts";
 import { MapView } from "./map-view.ts";
 
 export { FRONT_SECONDS } from "./territory-layer.ts";
@@ -24,6 +24,8 @@ export interface StructureMark {
   readonly x: number;
   readonly y: number;
   readonly type: "city" | "palace" | "fort" | "port" | "silo" | "airDefense";
+  /** Colour of the player who owns it, for the plate; white when left out. */
+  readonly color?: string;
   /** Drawn faded while it is being built. */
   readonly ready: boolean;
 }
@@ -75,25 +77,29 @@ export interface Renderer {
   dispose(): void;
 }
 
-/** The globe's code, once loadGlobe has fetched it. */
-let globe: typeof Globe | undefined;
+/** The globe's and the pieces' code, once loadGlobe or loadPieces has fetched it. */
+let lazy: typeof Lazy | undefined;
 
 /**
- * Fetches the globe's code, kept out of the main bundle since only
- * `?view=globe` uses it. Until it resolves, every view is flat.
+ * Fetches the code the first visit leaves out: the globe, used only by
+ * `?view=globe`, and the pieces of the flat map. Until it resolves, every
+ * view is flat and the pieces are drawn as plain shapes.
  */
 export async function loadGlobe(): Promise<void> {
-  globe ??= await import("./globe.ts");
+  lazy ??= await import("./lazy.ts");
 }
+
+/** The same chunk as loadGlobe's, asked for by the flat map. */
+export const loadPieces = loadGlobe;
 
 /** Whether loadGlobe has completed, so that a globe can be made. */
 export function globeLoaded(): boolean {
-  return globe !== undefined;
+  return lazy !== undefined;
 }
 
 /** The renderer for a map; throws if WebGL 2 is missing or refused. A globe needs loadGlobe first. */
 export function createRenderer(options: RendererOptions, kind: ViewKind = "flat"): Renderer {
-  return kind === "globe" && globe ? new globe.GlobeView(options) : new MapView(options);
+  return kind === "globe" && lazy ? new lazy.GlobeView(options) : new MapView(options, lazy);
 }
 
 /** The camera that goes with a renderer of the same kind. */
@@ -101,8 +107,8 @@ export function createCamera(
   map: { readonly width: number; readonly height: number; readonly wrapsX: boolean },
   kind: ViewKind = "flat",
 ): ViewCamera {
-  return kind === "globe" && globe
-    ? new globe.GlobeCamera({ width: map.width, height: map.height })
+  return kind === "globe" && lazy
+    ? new lazy.GlobeCamera({ width: map.width, height: map.height })
     : new FlatCamera({ width: map.width, height: map.height, wrapsX: map.wrapsX });
 }
 

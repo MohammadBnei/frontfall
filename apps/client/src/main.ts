@@ -737,12 +737,10 @@ const ready = Promise.all([
     maps = list;
     setup = initialSetup(location.search, storage, maps);
   }),
-  // Without the globe's code, the game shows the flat map.
-  startView === "globe"
-    ? loadGlobe().catch((error: unknown) => {
-        console.error(error);
-      })
-    : undefined,
+  // Without this code, the map draws its pieces as plain shapes and shows no globe.
+  loadGlobe().catch((error: unknown) => {
+    console.error(error);
+  }),
 ]);
 void ready.then(() => {
   applyTranslations(document);

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { MAP_COLORS, STRUCTURE_COLORS } from "../palette.ts";
 import type { CameraView } from "./camera.ts";
 import { applyView } from "./orthographic.ts";
+import type * as Pieces from "./pieces.ts";
 import type { Renderer, RendererOptions, StructureMark, UnitMark } from "./renderer.ts";
 import { TerritoryLayer } from "./territory-layer.ts";
 import { UnitLayer } from "./unit-layer.ts";
@@ -37,18 +38,42 @@ export function shipScale(
 /** Missiles in flight at once: one per silo, with room to spare. */
 const MISSILE_CAPACITY = 256;
 
-/** Smallest size of a structure on screen, in CSS pixels, however far the view is zoomed out. */
-const STRUCTURE_MIN_PIXELS = 9;
+/**
+ * Smallest size of a piece on screen, in CSS pixels, however far the view is
+ * zoomed out: the art direction's 16 to 20 px at world zoom, where a glyph
+ * is still told from the others, with the Palace drawn larger.
+ */
+const PIECE_MIN_PIXELS = {
+  transport: 13,
+  trade: 12,
+  warship: 16,
+  missile: 14,
+  heavyMissile: 18,
+  structure: 16,
+  palace: 19,
+} as const;
 
 /** Structures drawn at once; each player's land rarely holds more than a few. */
 const STRUCTURE_CAPACITY = 1024;
 
-/** One kind of structure: a dark shape with a lighter one on top. */
+/** What the map draws pieces with: plain shapes (UnitLayer) or token plates (PieceLayer). */
+interface Marker {
+  readonly mesh: THREE.Object3D;
+  count: number;
+  set(index: number, x: number, y: number, color: THREE.ColorRepresentation, built?: boolean): void;
+  setScale(scale: number): void;
+  update(cameraX: number): unknown;
+  dispose(): void;
+}
+
+/** One kind of structure: a token plate, or without the pieces a dark shape with a lighter one on top. */
 interface StructureLayers {
-  readonly outline: UnitLayer;
-  readonly fill: UnitLayer;
+  readonly outline?: Marker;
+  readonly fill: Marker;
   /** Footprint of the fill in tiles. */
   readonly size: number;
+  /** Smallest size on screen, in CSS pixels. */
+  readonly minPixels: number;
 }
 
 /** Darkness of the corners of the view, on a laptop and on a narrow phone screen. */
@@ -100,18 +125,22 @@ export class MapView implements Renderer {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera();
   private readonly territory: TerritoryLayer;
-  private readonly ships: UnitLayer;
-  private readonly tradeShips: UnitLayer;
-  private readonly warships: UnitLayer;
-  private readonly missiles: UnitLayer;
-  private readonly heavyMissiles: UnitLayer;
+  private readonly ships: Marker;
+  private readonly tradeShips: Marker;
+  private readonly warships: Marker;
+  private readonly missiles: Marker;
+  private readonly heavyMissiles: Marker;
   private readonly structures: Record<StructureMark["type"], StructureLayers>;
   private readonly vignette: Vignette;
   private readonly startedAt = performance.now();
   /** Width of the canvas in CSS pixels, to keep structures readable when zoomed out. */
   private cssWidth = 1;
 
-  constructor(readonly options: RendererOptions) {
+  /** `pieces` is the code loadPieces fetched: without it, pieces are plain shapes. */
+  constructor(
+    readonly options: RendererOptions,
+    pieces?: typeof Pieces,
+  ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setClearColor(MAP_COLORS.oceanDeep);
@@ -129,45 +158,76 @@ export class MapView implements Renderer {
     // south edge; applyView puts the origin at the centre of the middle copy.
     this.territory.mesh.position.set(-options.width / 2, -options.height / 2, 0);
     this.scene.add(this.territory.mesh);
+    const world = {
+      worldWidth: options.width,
+      worldHeight: options.height,
+      wrapsX: options.wrapsX,
+    };
+    // A token plate with its glyph when the pieces are there, else a plain shape.
     const unit = (
+      kind: Pieces.PieceKind,
       capacity: number,
       size: number,
-      shape: { sides?: number; depth?: number } = {},
-    ): UnitLayer => {
-      const layer = new UnitLayer({
-        worldWidth: options.width,
-        worldHeight: options.height,
-        capacity,
-        wrapsX: options.wrapsX,
-        size,
-        ...shape,
-      });
+      sides: number,
+      depth: number,
+      order: number,
+    ): Marker => {
+      const layer: Marker = pieces
+        ? new pieces.PieceLayer({ ...world, capacity, size, kind, order })
+        : new UnitLayer({ ...world, capacity, size, sides, depth });
       layer.mesh.position.copy(this.territory.mesh.position);
       this.scene.add(layer.mesh);
       return layer;
     };
-    this.ships = unit(SHIP_CAPACITY, SHIP_SIZES.transport.tiles);
-    this.tradeShips = unit(TRADE_CAPACITY, SHIP_SIZES.trade.tiles);
-    this.warships = unit(WARSHIP_CAPACITY, SHIP_SIZES.warship.tiles, { sides: 3, depth: 0.15 });
-    // Missiles are diamonds above everything else.
-    const missiles = (size: number): UnitLayer =>
-      unit(MISSILE_CAPACITY, size, { sides: 4, depth: 0.4 });
-    this.missiles = missiles(SHIP_SIZES.missile.tiles);
-    this.heavyMissiles = missiles(SHIP_SIZES.heavyMissile.tiles);
-    // Cities are diamonds, forts triangles, ports hexagons, silos pentagons and
-    // air defenses discs, all larger than a ship.
-    const layers = (sides: number, size: number): StructureLayers => {
-      const layer = (extra: number, depth: number): UnitLayer =>
-        unit(STRUCTURE_CAPACITY, size + extra, { sides, depth });
-      return { outline: layer(1.5, 0.2), fill: layer(0, 0.3), size };
+    this.ships = unit("transport", SHIP_CAPACITY, SHIP_SIZES.transport.tiles, 8, 0.1, 1);
+    this.tradeShips = unit("trade", TRADE_CAPACITY, SHIP_SIZES.trade.tiles, 8, 0.1, 1);
+    this.warships = unit("warship", WARSHIP_CAPACITY, SHIP_SIZES.warship.tiles, 3, 0.15, 2);
+    // Missiles are above everything else.
+    this.missiles = unit("missile", MISSILE_CAPACITY, SHIP_SIZES.missile.tiles, 4, 0.4, 5);
+    this.heavyMissiles = unit(
+      "heavyMissile",
+      MISSILE_CAPACITY,
+      SHIP_SIZES.heavyMissile.tiles,
+      4,
+      0.4,
+      5,
+    );
+    // Without the pieces, cities are diamonds, forts triangles, ports hexagons,
+    // silos pentagons and air defenses discs, all larger than a ship.
+    const layers = (
+      kind: Exclude<
+        Pieces.PieceKind,
+        "transport" | "trade" | "warship" | "missile" | "heavyMissile"
+      >,
+      sides: number,
+      size: number,
+    ): StructureLayers => {
+      const layer = (extra: number, depth: number, order: number): Marker => {
+        const marker: Marker = pieces
+          ? new pieces.PieceLayer({ ...world, capacity: STRUCTURE_CAPACITY, size, kind, order })
+          : new UnitLayer({
+              ...world,
+              capacity: STRUCTURE_CAPACITY,
+              size: size + extra,
+              sides,
+              depth,
+            });
+        marker.mesh.position.copy(this.territory.mesh.position);
+        this.scene.add(marker.mesh);
+        return marker;
+      };
+      const minPixels = kind === "palace" ? PIECE_MIN_PIXELS.palace : PIECE_MIN_PIXELS.structure;
+      return pieces
+        ? { fill: layer(0, 0.3, 3), size, minPixels }
+        : { outline: layer(1.5, 0.2, 0), fill: layer(0, 0.3, 0), size, minPixels };
     };
     this.structures = {
-      city: layers(4, 4),
-      palace: layers(8, 5.5),
-      fort: layers(3, 4.5),
-      port: layers(6, 4),
-      silo: layers(5, 4.5),
-      airDefense: layers(12, 4),
+      city: layers("city", 4, 4),
+      palace: layers("palace", 8, 5.5),
+      fort: layers("fort", 3, 4.5),
+      port: layers("port", 6, 4),
+      silo: layers("silo", 5, 4.5),
+      airDefense: layers("airDefense", 12, 4),
     };
     this.vignette = addVignette(this.scene);
     this.camera.position.z = 10;
@@ -240,16 +300,20 @@ export class MapView implements Renderer {
       let count = 0;
       for (const structure of structures) {
         if (structure.type !== type || count >= STRUCTURE_CAPACITY) continue;
-        outline.set(count, structure.x, structure.y, STRUCTURE_COLORS.outline);
-        fill.set(
-          count,
-          structure.x,
-          structure.y,
-          structure.ready ? STRUCTURE_COLORS.fill : STRUCTURE_COLORS.building,
-        );
+        if (outline) {
+          outline.set(count, structure.x, structure.y, STRUCTURE_COLORS.outline);
+          fill.set(
+            count,
+            structure.x,
+            structure.y,
+            structure.ready ? STRUCTURE_COLORS.fill : STRUCTURE_COLORS.building,
+          );
+        } else {
+          fill.set(count, structure.x, structure.y, structure.color ?? "#ffffff", structure.ready);
+        }
         count++;
       }
-      outline.count = count;
+      if (outline) outline.count = count;
       fill.count = count;
     }
   }
@@ -265,21 +329,26 @@ export class MapView implements Renderer {
     this.territory.setTime(this.clock());
     this.territory.flush();
     const tilesPerPixel = (2 * view.halfWidth) / this.cssWidth;
-    this.ships.setScale(shipScale(SHIP_SIZES.transport, tilesPerPixel));
-    this.tradeShips.setScale(shipScale(SHIP_SIZES.trade, tilesPerPixel));
-    this.warships.setScale(shipScale(SHIP_SIZES.warship, tilesPerPixel));
-    this.missiles.setScale(shipScale(SHIP_SIZES.missile, tilesPerPixel));
-    this.heavyMissiles.setScale(shipScale(SHIP_SIZES.heavyMissile, tilesPerPixel));
+    const sized = (kind: keyof typeof SHIP_SIZES): number =>
+      shipScale(
+        { tiles: SHIP_SIZES[kind].tiles, minPixels: PIECE_MIN_PIXELS[kind] },
+        tilesPerPixel,
+      );
+    this.ships.setScale(sized("transport"));
+    this.tradeShips.setScale(sized("trade"));
+    this.warships.setScale(sized("warship"));
+    this.missiles.setScale(sized("missile"));
+    this.heavyMissiles.setScale(sized("heavyMissile"));
     this.missiles.update(this.camera.position.x);
     this.heavyMissiles.update(this.camera.position.x);
     this.ships.update(this.camera.position.x);
     this.tradeShips.update(this.camera.position.x);
     this.warships.update(this.camera.position.x);
-    for (const { outline, fill, size } of Object.values(this.structures)) {
-      const scale = Math.max(1, (STRUCTURE_MIN_PIXELS * tilesPerPixel) / size);
-      outline.setScale(scale);
+    for (const { outline, fill, size, minPixels } of Object.values(this.structures)) {
+      const scale = Math.max(1, (minPixels * tilesPerPixel) / size);
+      outline?.setScale(scale);
       fill.setScale(scale);
-      outline.update(this.camera.position.x);
+      outline?.update(this.camera.position.x);
       fill.update(this.camera.position.x);
     }
     this.renderer.render(this.scene, this.camera);
@@ -299,7 +368,7 @@ export class MapView implements Renderer {
     this.missiles.dispose();
     this.heavyMissiles.dispose();
     for (const { outline, fill } of Object.values(this.structures)) {
-      outline.dispose();
+      outline?.dispose();
       fill.dispose();
     }
     this.renderer.dispose();
