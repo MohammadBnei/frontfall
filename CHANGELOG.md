@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **Play again, or back to the lobby, in one click.** On the end screen, a solo game now offers "Play again": the same map and the same settings, with a new game started at once. An online game offers "Back to the lobby": a public game takes you to the next one waiting, a private game opens a new private lobby with the same settings, ready to share. The main menu is still one click away.
+
 ## [0.6.3] - 2026-10-28
 
 A privacy policy and terms of use for the public server.

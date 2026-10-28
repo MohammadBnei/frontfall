@@ -627,6 +627,28 @@ function startOnline(
     history.replaceState(null, "", setupQuery(setup));
     showMenu();
   };
+  /** Back to the lobby: the next public game, or a new private one with this game's settings. */
+  const rematch = (): void => {
+    if (visibility === "public") {
+      goOnline({
+        type: "play",
+        name: t("online.defaultName", { name: setup.playerName || t("menu.namePlaceholder") }),
+      });
+      return;
+    }
+    goOnline(
+      { type: "create", visibility: "private" },
+      {
+        ...setup,
+        map: start.map,
+        bots: start.bots,
+        difficulty: start.difficulty,
+        nations: start.nations,
+        teams: start.teams,
+        disabled: start.disabled,
+      },
+    );
+  };
   preferColor(HUMAN_ID, undefined);
   game = new GameScreen(
     {
@@ -645,7 +667,7 @@ function startOnline(
     },
     map,
     {
-      onNewGame: leave,
+      onNewGame: rematch,
       onMenu: leave,
       onFailure: (key) => {
         leave();

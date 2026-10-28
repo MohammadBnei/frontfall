@@ -50,6 +50,8 @@
   "end.duration": "Durée",
   "end.peak": "Votre plus grand territoire",
   "end.newGame": "Nouvelle partie",
+  "end.replay": "Rejouer",
+  "end.lobby": "Retour au salon",
   "end.watch": "Continuer à regarder",
   "end.menu": "Menu principal",
   "end.download": "Enregistrer le replay",

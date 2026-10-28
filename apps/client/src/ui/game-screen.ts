@@ -616,6 +616,7 @@ export class GameScreen {
           canRecord: this.published,
           teams: this.teams,
           details: `${this.options.map}, ${usage().device().device}`,
+          kind: this.link ? "online" : this.options.record ? "replay" : "solo",
         },
         this.tracker,
         {
