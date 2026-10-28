@@ -41,7 +41,9 @@ export type Order =
   /** Sends player `target` troops and gold (R-DIPLO-06); either may be 0. */
   | { type: "gift"; target: number; troops: number; gold: number }
   /** Sends player `target` the preset quick message `phrase` (R-DIPLO-07). */
-  | { type: "quick"; target: number; phrase: number };
+  | { type: "quick"; target: number; phrase: number }
+  /** Puts `share` % of the troops at home to work (R-ECO-07). */
+  | { type: "work"; share: number };
 
 /** Every order accepted during one tick, in the order the server accepted them (R-FAIR-03). */
 export interface Turn {
@@ -99,6 +101,8 @@ export interface Player {
   gold: number;
   /** Fraction of a gold coin earned but not yet paid, in units of the economy's divisor. */
   goldRemainder: number;
+  /** Share of the troops at home, in %, who work rather than fight (R-ECO-07). */
+  workShare: number;
   alive: boolean;
   /** Start tile, once picked or placed during the spawn phase. */
   start: number | undefined;
@@ -234,6 +238,7 @@ export class Game {
         troops: 0,
         gold: 0,
         goldRemainder: 0,
+        workShare: 0,
         alive: true,
         start: undefined,
         traitorUntil: 0,
@@ -318,6 +323,7 @@ export class Game {
         p.troops,
         p.gold,
         p.goldRemainder,
+        p.workShare,
         p.alive ? 1 : 0,
         p.start ?? -1,
         p.traitorUntil,
@@ -582,6 +588,16 @@ function checkBalance(balance: Balance): void {
     if (!Number.isSafeInteger(balance[key]) || balance[key] < 0) {
       throw new RangeError(`balance ${key} must be a non-negative integer`);
     }
+  }
+  if (
+    !Number.isSafeInteger(balance.workMaxPercent) ||
+    balance.workMaxPercent < 0 ||
+    balance.workMaxPercent > 100
+  ) {
+    throw new RangeError("balance workMaxPercent must be from 0 to 100");
+  }
+  if (!Number.isSafeInteger(balance.workGoldFactor) || balance.workGoldFactor < 1) {
+    throw new RangeError("balance workGoldFactor must be a positive integer");
   }
   const chance = balance.airDefenseChancePercent;
   if (!Number.isSafeInteger(chance) || chance < 0 || chance > 100) {

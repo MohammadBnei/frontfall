@@ -281,6 +281,8 @@ function order(value: unknown): Order {
         target: readInteger(raw.target, "order target"),
         phrase: readInteger(raw.phrase, "quick message"),
       };
+    case "work":
+      return { type: "work", share: readInteger(raw.share, "work share") };
     default:
       throw new DesyncReportError(`unknown order type ${String(raw.type)}`);
   }

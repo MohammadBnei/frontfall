@@ -153,7 +153,7 @@ A snapshot is the whole state of a game between two ticks, in a compact binary f
 The checks come in this order, and nothing of the state is read before the first five pass:
 
 1. at most `SNAPSHOT_MAX_BYTES` (1 MiB);
-2. the four magic bytes and format `SNAPSHOT_FORMAT`, now 1;
+2. the four magic bytes and format `SNAPSHOT_FORMAT`, now 2 (version 2 added each player's work share);
 3. the same `build` as the reader's;
 4. the game from `create()` has not started, and its `game.setupDigest()` matches: seed, balance, map, players, teams and what the game leaves out;
 5. the checksum of the state's bytes;
@@ -170,7 +170,7 @@ The header:
 | Field    | Encoding                                             |
 | -------- | ---------------------------------------------------- |
 | magic    | `70 70 83 78` (`FFSN`), each as a number             |
-| format   | number, `1`                                          |
+| format   | number, `2`                                          |
 | build    | text                                                 |
 | setup    | word: `setupDigest()` of the game                    |
 | tick     | number: ticks run; the next turn to play is this one |
@@ -182,7 +182,7 @@ The state follows, to the last byte:
 | Part        | Content                                                                                                                                                                                                                                                |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | random      | the four words of `game.random`, each as a signed number, as the generator holds them                                                                                                                                                                  |
-| players     | in id order: `troops`, `gold`, `goldRemainder` (signed), `alive` (0 or 1), `start` (optional), `traitorUntil`                                                                                                                                          |
+| players     | in id order: `troops`, `gold`, `goldRemainder` (signed), `workShare`, `alive` (0 or 1), `start` (optional), `traitorUntil`                                                                                                                             |
 | owners      | the owner of every tile, as runs: a count, then `owner, length` for each run                                                                                                                                                                           |
 | borders     | for each player id from 1 to the highest: the border list, its count then its tiles, in list order                                                                                                                                                     |
 | fallout map | `falloutUntil` of every tile, as runs like the owners                                                                                                                                                                                                  |

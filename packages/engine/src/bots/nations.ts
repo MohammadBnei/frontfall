@@ -1,5 +1,5 @@
 import { isAllied } from "../diplomacy.ts";
-import { populationCap } from "../economy.ts";
+import { populationCap, soldiers } from "../economy.ts";
 import type { Game, Player } from "../game.ts";
 import { divFloor, percentOf } from "../integer-math.ts";
 import { MissileSize, missileCost, missileError } from "../missiles.ts";
@@ -29,6 +29,12 @@ import {
 
 /** Troops, in % of its population cap, from which a nation attacks as boldly as a bot: its army can grow no more. */
 export const NATION_FULL_PERCENT = 90; // B-NATION-FULL
+
+/**
+ * Share of its troops at home, in %, a nation puts to work while nobody
+ * threatens it and its army is full (R-BOT-15, R-ECO-07).
+ */
+export const NATION_WORK_PERCENT = 40; // B-NATION-WORK
 
 /** Seconds of play during which a nation opens no front against a player already under attack by `NATION_PILE_MAX` nations, unless that player leads. */
 export const NATION_PILE_SECONDS = 600; // B-NATION-PILE-TIME
@@ -154,13 +160,31 @@ export function installNations(
     defendCoast(game, nation);
     arm(nation);
     const cap = populationCap(game, nation);
-    const reserve = percentOf(cap, reservePercent);
-    const troops = Math.min(
-      percentOf(nation.troops, nationParams.attackRatioPercent),
-      nation.troops - reserve,
-    );
-
     const attacker = mainAttacker(nation.id);
+    // R-BOT-09: one war at a time. Alliances (#47) will narrow this further.
+    const enemies = new Set<number>();
+    for (const attack of game.attacks) {
+      if (attack.player === nation.id && attack.target !== NEUTRAL) enemies.add(attack.target);
+    }
+    // Troops past the cap would be wasted: a full army takes the odds a bot would.
+    const full = nation.troops * 100 >= cap * NATION_FULL_PERCENT;
+    // R-BOT-15: at work while full and at peace.
+    work(nation, attacker === NEUTRAL && full && enemies.size === 0 ? NATION_WORK_PERCENT : 0);
+    const reserve = percentOf(cap, reservePercent);
+    // R-ECO-07: only soldiers leave; workers count towards the reserve at home.
+    const sendable = (): number =>
+      Math.min(
+        percentOf(soldiers(nation), nationParams.attackRatioPercent),
+        nation.troops - reserve,
+        soldiers(nation),
+      );
+    const troops = sendable();
+    // R-BOT-15: everyone back under arms before turning on a player.
+    const armed = (): number => {
+      work(nation, 0);
+      return sendable();
+    };
+
     // R-BOT-08: hold the border, and answer the attacker alone once strong enough.
     const front = attacker === NEUTRAL ? -1 : borderWith(nation, attacker);
     if (front >= 0) {
@@ -174,11 +198,6 @@ export function installNations(
     // Less than the price of one tile would come straight back.
     if (troops < balance.neutralCost) return;
 
-    // R-BOT-09: one war at a time. Alliances (#47) will narrow this further.
-    const enemies = new Set<number>();
-    for (const attack of game.attacks) {
-      if (attack.player === nation.id && attack.target !== NEUTRAL) enemies.add(attack.target);
-    }
     // R-BOT-09: early on, free land only; an attacker is still answered above (R-BOT-08).
     // So is a nation whose attacker holds no land along its border yet, as when a ship has not landed.
     const settling = game.tick < balance.spawnPhaseTicks + graceTicks || attacker !== NEUTRAL;
@@ -189,19 +208,29 @@ export function installNations(
       : game.tick < pileTicks
         ? (owner) => (open?.(owner) ?? true) && (enemies.has(owner) || spared(owner))
         : open;
+    // Its workers come back at once when it fights: its strength is all of its troops.
     const ownDensity = divFloor(nation.troops, tiles);
     // R-BOT-14: once settled, the leader comes first when it borders the nation and the odds allow.
-    if (!settling && hunt(nation, ownDensity, troops, open)) return;
+    if (!settling && hunt(nation, ownDensity, armed, open)) return;
     const { neutral, enemy, enemyDensity } = scanBorder(game, nation, accept);
-    // Troops past the cap would be wasted: a full army takes the odds a bot would.
-    const full = nation.troops * 100 >= cap * NATION_FULL_PERCENT;
     const odds = full ? params.boldnessPercent : nationParams.oddsPercent;
     const weak = enemy >= 0 && enemyDensity * 100 <= ownDensity * odds;
     // Free land is cheaper than a fight, unless the neighbour is much weaker.
     const muchWeaker = weak && enemyDensity * 200 <= ownDensity * odds;
     const target = neutral >= 0 && !muchWeaker ? neutral : weak ? enemy : -1;
-    if (target >= 0) game.apply(nation.id, { type: "attack", target, troops });
-    else sail(game, nation, troops, odds, seaCooldowns, retryTicks, accept);
+    if (target >= 0) {
+      const sent = target === enemy ? armed() : troops;
+      game.apply(nation.id, { type: "attack", target, troops: sent });
+    } else sail(game, nation, troops, odds, seaCooldowns, retryTicks, accept);
+  }
+
+  /**
+   * R-BOT-15: puts B-NATION-WORK of the troops at home to work while its
+   * army is full and it is at peace, and calls them all back to arms as soon
+   * as someone threatens it or it turns on a player.
+   */
+  function work(nation: Player, share: number): void {
+    if (nation.workShare !== share) game.apply(nation.id, { type: "work", share });
   }
 
   /**
@@ -213,7 +242,7 @@ export function installNations(
   function hunt(
     nation: Player,
     ownDensity: number,
-    troops: number,
+    armed: () => number,
     open: OwnerFilter | undefined,
   ): boolean {
     if (nationParams.huntPercent === 0) return false;
@@ -233,7 +262,7 @@ export function installNations(
     if (open && !open(top)) return false;
     const { enemy, enemyDensity } = scanBorder(game, nation, (owner) => owner === top);
     if (enemy < 0 || enemyDensity * 100 > ownDensity * params.boldnessPercent) return false;
-    game.apply(nation.id, { type: "attack", target: enemy, troops });
+    game.apply(nation.id, { type: "attack", target: enemy, troops: armed() });
     return true;
   }
 

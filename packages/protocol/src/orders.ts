@@ -29,6 +29,7 @@ export const ORDER_KINDS = [
   { type: "missile", fields: ["target", "size"] },
   { type: "gift", fields: ["target", "troops", "gold"] },
   { type: "quick", fields: ["target", "phrase"] },
+  { type: "work", fields: ["share"] },
 ] as const;
 
 /** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
@@ -68,6 +69,8 @@ export const Order = z.discriminatedUnion("type", [
       phrase: z.number().int().min(0).max(255),
     })
     .strict(),
+  /** `share`: % of the troops at home put to work, which the engine checks against B-WORK-MAX. */
+  z.object({ type: z.literal("work"), share: z.number().int().min(0).max(100) }).strict(),
 ]);
 export type Order = z.infer<typeof Order>;
 

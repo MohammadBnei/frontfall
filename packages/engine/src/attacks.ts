@@ -1,6 +1,7 @@
 import type { Game, Player } from "./game.ts";
 import { divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 import { isAllied, isTraitor } from "./diplomacy.ts";
+import { soldiers } from "./economy.ts";
 import { fortified } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
 import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
@@ -310,7 +311,7 @@ export function captureCost(game: Game, tile: number, defender: Player | undefin
   const kind = terrain.kind(tile);
   const relief =
     balance.reliefCostTenths[kind === TileKind.Mountains ? 2 : kind === TileKind.Hills ? 1 : 0];
-  const density = defender ? troopsPerTile(game, defender) : 0;
+  const density = defender ? defensePerTile(game, defender) : 0;
   const base = balance.neutralCost + mulDiv(density, balance.defenseDensityTenths, 10);
   let cost = Math.max(1, mulDiv(base, relief, 10));
   if (!defender) return cost;
@@ -327,7 +328,13 @@ export function defenderLoss(game: Game, tile: number, defender: Player): number
   return Math.min(defender.troops, loss);
 }
 
-/** A defender's troops spread over their land: what they lose with each tile taken. */
+/** A defender's soldiers spread over their land: what an attacker pays for on top of the land's price (R-ECO-07). */
+export function defensePerTile(game: Game, defender: Player): number {
+  const tiles = game.territory.tileCount(defender.id);
+  return tiles === 0 ? 0 : divFloor(soldiers(defender), tiles);
+}
+
+/** A defender's troops, workers included, spread over their land: what they lose with each tile taken. */
 export function troopsPerTile(game: Game, defender: Player): number {
   const tiles = game.territory.tileCount(defender.id);
   return tiles === 0 ? 0 : divFloor(defender.troops, tiles);

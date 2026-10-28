@@ -1,6 +1,7 @@
 import type { Game, Order, Player } from "./game.ts";
 import { DiplomacyError, allyError, betrayError, embargoError, isAllied } from "./diplomacy.ts";
 import { BuildError, isStructureKind, placementError } from "./structures.ts";
+import { soldiers, workError } from "./economy.ts";
 import { giftError } from "./gifts.ts";
 import { missileError } from "./missiles.ts";
 import { quickError } from "./quick-messages.ts";
@@ -22,7 +23,8 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       const error = tileError(game, order.target);
       if (error) return error;
       if (!Number.isSafeInteger(order.troops) || order.troops < 1) return "invalid troop count";
-      if (order.troops > player.troops) return "not enough troops";
+      // R-ECO-07: workers stay at home.
+      if (order.troops > soldiers(player)) return "not enough troops";
       if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
       // R-DIPLO-02: an ally is attacked only after betraying them.
       if (isAllied(game, player.id, game.territory.ownerOf(order.target)))
@@ -34,7 +36,7 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       const error = tileError(game, order.target);
       if (error) return error;
       if (!Number.isSafeInteger(order.troops) || order.troops < 1) return "invalid troop count";
-      if (order.troops > player.troops) return "not enough troops";
+      if (order.troops > soldiers(player)) return "not enough troops";
       if (game.territory.ownerOf(order.target) === player.id) return "the target is already owned";
       if (isAllied(game, player.id, game.territory.ownerOf(order.target)))
         return DiplomacyError.Ally;
@@ -81,6 +83,8 @@ export function orderError(game: Game, player: Player, order: Order): string | u
       );
     case "quick":
       return playerError(order.target) ?? quickError(game, player, order.target, order.phrase);
+    case "work":
+      return workError(game, order.share);
   }
 }
 
