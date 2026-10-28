@@ -728,7 +728,7 @@ const ready = Promise.all([
     maps = list;
     setup = initialSetup(location.search, storage, maps);
   }),
-  // Without this code, the map draws its pieces as plain shapes and shows no globe.
+  // The territory layer, the pieces and the globe: without them no game can be drawn.
   loadGlobe().catch((error: unknown) => {
     console.error(error);
   }),

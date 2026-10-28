@@ -2,7 +2,7 @@ import { FlatCamera, type CameraView, type ViewCamera } from "./camera.ts";
 import type * as Lazy from "./lazy.ts";
 import { MapView } from "./map-view.ts";
 
-export { FRONT_SECONDS } from "./territory-layer.ts";
+export { FRONT_SECONDS } from "./fronts.ts";
 
 /** How the map is shown: flat, or on a globe for a map of the whole planet (a prototype, ADR 0005). */
 export type ViewKind = "flat" | "globe";
@@ -85,13 +85,14 @@ export interface Renderer {
   dispose(): void;
 }
 
-/** The globe's and the pieces' code, once loadGlobe or loadPieces has fetched it. */
+/** The territories', the globe's and the pieces' code, once loadGlobe or loadPieces has fetched it. */
 let lazy: typeof Lazy | undefined;
 
 /**
- * Fetches the code the first visit leaves out: the globe, used only by
- * `?view=globe`, and the pieces of the flat map. Until it resolves, every
- * view is flat and the pieces are drawn as plain shapes.
+ * Fetches the code the first visit leaves out: the territory layer and its
+ * shaders, the globe, used only by `?view=globe`, and the pieces of the flat
+ * map. The page waits for it before the menu shows, so no game starts
+ * without it.
  */
 export async function loadGlobe(): Promise<void> {
   lazy ??= await import("./lazy.ts");
@@ -105,9 +106,10 @@ export function globeLoaded(): boolean {
   return lazy !== undefined;
 }
 
-/** The renderer for a map; throws if WebGL 2 is missing or refused. A globe needs loadGlobe first. */
+/** The renderer for a map; throws if WebGL 2 is missing or refused, or before loadGlobe has completed. */
 export function createRenderer(options: RendererOptions, kind: ViewKind = "flat"): Renderer {
-  return kind === "globe" && lazy ? new lazy.GlobeView(options) : new MapView(options, lazy);
+  if (!lazy) throw new Error("the map's drawing code is not loaded (loadGlobe)");
+  return kind === "globe" ? new lazy.GlobeView(options) : new MapView(options, lazy, lazy);
 }
 
 /** The camera that goes with a renderer of the same kind. */

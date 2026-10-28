@@ -11,6 +11,19 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **Smooth coasts and borders.** Coasts and the borders between countries now run in curves instead of stepping from square to square, with a fine line of foam along every shore. The blurred glow around coasts and the diamond shapes around islands are gone: the sea darkens over a narrow shelf instead. Clicks still pick the same tile, and no rule changes.
+- **Climates on the map.** Land takes its colour from its latitude and its distance to the sea: sand in the Sahara, Arabia and the heart of Australia, forest in the tropics, steppe in between, then taiga, tundra and ice toward the poles and on the highest peaks. Hills are lit from the north-west over smoothed relief, with a fine grain when zoomed in.
+
+### Added
+
+- **Flat map setting.** In the menu's Accessibility section, "Flat map" draws the map in square tiles without the smoothing, which is lighter for older devices. It applies from the next game.
+
+### For self-hosters and contributors
+
+- The ground texture now holds each tile's signed distance to the coast in its alpha channel and is drawn with linear filtering and mipmaps; the renderer gets the map's latitudes from its manifest. Building the ground at the start of a game takes longer (about 2.3 s instead of 1.4 s for World on a slow cloud machine), and the map's textures take about a third more GPU memory. The first download is unchanged apart from the setting's label.
+
+### Changed
+
 - **A raised, lit look for the interface.** Panels, the build dock, the menu and the end screen now sit above the map like raised pieces: a soft gradient, a light edge on top and a shadow, with rounder corners. The main button is a lit ember, your own row in the leaderboard and the build tool you picked are highlighted, gold is yellow, the buttons at the bottom right are round, and the end screen has a glow (ember for a win, blue for a defeat) and its figures in a recessed box. Nothing moves and every setting for interface size and contrast still applies.
 - **Buildings and units are pieces you can tell apart on the map.** Cities, forts, ports, missile silos, air defenses, the Micho Palace, transport and trade ships, warships and missiles are now small tokens in their owner's colour, each with its own white silhouette (a skyline, a tower with battlements, an anchor, a dome with a flag, a boat with sails, a gun on a hull, a rocket), instead of white dots and triangles. They stay at least 16 pixels wide however far you zoom out, and one still being built is drawn faded. Each token has a dark edge and a light colour gets a darker plate, so a piece stays readable on land of its own colour, even white on white.
 - **The online buttons stack on a phone.** "Play now", "Create a private game" and "Watch a replay" now sit one under the other at full width instead of wrapping unevenly.
