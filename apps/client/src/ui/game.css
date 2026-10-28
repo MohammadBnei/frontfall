@@ -303,6 +303,10 @@
 }
 
 .feedback-links {
+  /* Room for a link's focus ring on each side of the dot, which it must not cover. */
+  display: flex;
+  gap: 10px;
+  justify-content: center;
   margin: 12px 0 0;
   color: var(--ff-slate-300);
   font-size: 13px;
@@ -1610,19 +1614,28 @@ button.feed-entry:focus-visible {
 
 /* Land and troops over the game (ui/stats-chart.ts). */
 
+.end-screen {
+  display: flex;
+  flex-direction: column;
+  /* The overlay's padding on both sides. */
+  max-height: calc(100dvh - 32px);
+}
+
 .end-screen:has(.end-stats-chart) {
   width: min(520px, 100%);
-  max-height: 100%;
+}
+
+/* What scrolls on a tall panel is the body: the buttons stay under it, never over it. */
+.end-body {
+  min-height: 0;
+  margin: 0 -24px;
+  padding: 0 24px;
   overflow-y: auto;
 }
 
-/* The buttons stay in sight while the rest of the panel scrolls. */
-.end-screen:has(.end-stats-chart) .end-actions {
-  position: sticky;
-  bottom: -24px;
-  margin: 0 -24px -24px;
-  padding: 12px 24px 24px;
-  background: linear-gradient(180deg, transparent, var(--ff-night-700) 12px);
+.end-actions {
+  flex: none;
+  padding-top: 12px;
 }
 
 .end-stats-chart {
@@ -1691,7 +1704,9 @@ button.feed-entry:focus-visible {
 }
 
 .stats-axis {
-  fill: var(--ff-slate-300);
+  /* Colour and fill together: the contrast audit reads the colour. */
+  color: var(--ff-text);
+  fill: currentcolor;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
 }
@@ -1855,13 +1870,21 @@ button.feed-entry:focus-visible {
 
 /* A short screen has no room to keep the buttons in sight: they follow the content, in two columns. */
 @media (max-height: 560px) {
-  .end-screen:has(.end-stats-chart) .end-actions {
-    position: static;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .end-screen {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .end-body {
     margin: 0;
     padding: 0;
-    background: none;
+    overflow: visible;
+  }
+
+  .end-screen:has(.end-stats-chart) .end-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-top: 0;
   }
 }
 

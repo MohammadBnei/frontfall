@@ -87,38 +87,42 @@ export function endScreen(
       "aria-modal": "true",
       "aria-labelledby": "end-title",
     },
-    h("h1", { id: "end-title", "data-i18n": won ? "end.victory" : "end.defeat" }),
     h(
-      "p",
-      { class: "end-winner" },
-      team === undefined
-        ? t("end.winner", { name: winner?.name ?? "" })
-        : t("end.teamWinner", { team, name: winner?.name ?? "" }),
-    ),
-    // The high point of the game: the most land the player held at once.
-    h(
-      "p",
-      { class: "end-hero" },
+      "div",
+      { class: "end-body" },
+      h("h1", { id: "end-title", "data-i18n": won ? "end.victory" : "end.defeat" }),
       h(
-        "strong",
-        { class: "end-hero-value" },
-        formatPercent(summary.peakTiles / Math.max(1, summary.ownableTiles)),
+        "p",
+        { class: "end-winner" },
+        team === undefined
+          ? t("end.winner", { name: winner?.name ?? "" })
+          : t("end.teamWinner", { team, name: winner?.name ?? "" }),
       ),
-      h("span", { class: "end-hero-label", "data-i18n": "end.peak" }),
+      // The high point of the game: the most land the player held at once.
+      h(
+        "p",
+        { class: "end-hero" },
+        h(
+          "strong",
+          { class: "end-hero-value" },
+          formatPercent(summary.peakTiles / Math.max(1, summary.ownableTiles)),
+        ),
+        h("span", { class: "end-hero-label", "data-i18n": "end.peak" }),
+      ),
+      h("dl", { class: "end-stats" }, ...row("end.duration", formatDuration(seconds))),
+      ...present(
+        statsChart({
+          history: summary.stats,
+          you: update.you,
+          ownableTiles: summary.ownableTiles,
+          winShare: summary.winShare,
+          color: summary.color,
+        }),
+      ),
+      ...(summary.achievements.length > 0 ? [newAchievements(summary.achievements)] : []),
+      // A thumbs up or down, once per game played (not for a replay).
+      ...(tracker ? [feedbackBlock(tracker, summary.details)] : []),
     ),
-    h("dl", { class: "end-stats" }, ...row("end.duration", formatDuration(seconds))),
-    ...present(
-      statsChart({
-        history: summary.stats,
-        you: update.you,
-        ownableTiles: summary.ownableTiles,
-        winShare: summary.winShare,
-        color: summary.color,
-      }),
-    ),
-    ...(summary.achievements.length > 0 ? [newAchievements(summary.achievements)] : []),
-    // A thumbs up or down, once per game played (not for a replay).
-    ...(tracker ? [feedbackBlock(tracker, summary.details)] : []),
     h(
       "div",
       { class: "end-actions" },
