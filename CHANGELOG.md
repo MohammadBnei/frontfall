@@ -12,14 +12,17 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **A raised, lit look for the interface.** Panels, the build dock, the menu and the end screen now sit above the map like raised pieces: a soft gradient, a light edge on top and a shadow, with rounder corners. The main button is a lit ember, your own row in the leaderboard and the build tool you picked are highlighted, gold is yellow, the buttons at the bottom right are round, and the end screen has a glow (ember for a win, blue for a defeat) and its figures in a recessed box. Nothing moves and every setting for interface size and contrast still applies.
 - **Buildings and units are pieces you can tell apart on the map.** Cities, forts, ports, missile silos, air defenses, the Micho Palace, transport and trade ships, warships and missiles are now small tokens in their owner's colour, each with its own white silhouette (a skyline, a tower with battlements, an anchor, a dome with a flag, a boat with sails, a gun on a hull, a rocket), instead of white dots and triangles. They stay at least 16 pixels wide however far you zoom out, and one still being built is drawn faded.
-
 - **The online buttons stack on a phone.** "Play now", "Create a private game" and "Watch a replay" now sit one under the other at full width instead of wrapping unevenly.
+- **A coloured build dock, with the price in sight.** Each building has its colour (blue for the economy, green for defence, ember for arms) and its price sits under its icon, so you no longer hover to read it. The name and key still show on hover.
+- **On a phone, a lighter screen.** The leaderboard folds into a one-line chip with your own row (tap the arrow for the whole list), and the first steps become a banner above the bottom bar instead of a card over the map.
+- **A high point on the end screen.** The most land you held at once is now the big figure, in a larger display face fetched only when a game ends, and the thumbs up and down are drawn instead of system emoji.
 
 ### For self-hosters and contributors
 
 - **The game's styles load when a game starts.** The styles of the in-game interface, the end screen, diplomacy and the replay bar moved to their own file, fetched while the menu is open, so the first visit is 1.5 kB lighter.
 - Sign-in by email is off unless `FRONTFALL_SMTP_FILE` points at the JSON of a mailbox (`hote`, `port` 465 or 587, `utilisateur`, `motDePasse`, `expediteur`, the format nclsmgr.com's mail service already reads), with `FRONTFALL_PUBLIC_URL`, `FRONTFALL_SESSION_SECRET` and `FRONTFALL_DATA`; Discord and Google may stay unset. New routes `POST /auth/email`, `POST /auth/email/confirm` and `POST /api/me/achievements`. Links hold a 256-bit token kept only as a hash, in memory, for 15 minutes; limits per network, per address and per day (`FRONTFALL_EMAIL_DAILY_LIMIT`, 150 by default); the answer never tells whether an address has an account, and no address reaches the logs ([server](docs/server.md#sign-in-by-email), [self-hosting](docs/self-hosting.md#sign-in-by-email)). The protocol does not change. The server now depends on `nodemailer`.
 - `accounts/accounts.json` may now hold accounts made by email and achievements. A release before this one sets such a file aside as `accounts.json.broken-<time>` and starts with no accounts: keep that file if you go back, and restore it when you come forward again.
+- **The vote on the end screen loads with the end screen.** The thumbs and their reasons moved out of the first-visit code (`ui/vote.ts`), and the end screen's display face (Inter at its large optical size, about 73 kB) is only fetched after a game.
 
 ## [0.6.4] - 2026-10-28
 

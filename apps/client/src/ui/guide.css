@@ -52,20 +52,27 @@
   color: var(--ff-text);
 }
 
-/* Phones and short windows: under the banner, across the screen; a refused
-   click's reason then shows at the bottom instead of over it. */
+/* Phones and short windows: a banner above the bottom bar, the title in line
+   with the text; a refused click's reason shows under the banner of the game. */
 @media (width < 720px), (height < 560px) {
-  /* Clear of a banner of three lines. */
   .guide {
-    top: 272px;
+    top: auto;
     right: 12px;
+    bottom: 110px;
     width: auto;
+    padding: 8px 12px;
   }
 
-  .game:has(.guide) .click-note {
-    top: auto;
-    bottom: 76px;
-    z-index: 2;
-    background: var(--ff-night-800);
+  .guide-title,
+  .guide-text {
+    display: inline;
+  }
+
+  .guide-title {
+    margin-right: 6px;
+  }
+
+  .guide-actions {
+    margin-top: 6px;
   }
 }
