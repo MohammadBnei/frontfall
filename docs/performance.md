@@ -43,7 +43,10 @@ Why these numbers:
 - **Memory, 96 MiB.** A 4 GB phone kills the tab well before the device limit.
 - **Download.** "Sent" is what the game server sends: gzip for text, code
   and maps, as is for fonts and images. A CDN with Brotli sends a little less;
-  `perf:client` prints both. The budgets leave about 15 % of room over the
+  `perf:client` prints both. The first visit also counts every script and
+  style index.html loads up front, so a chunk the bundler splits off the
+  entry, or the old-browser check, cannot slip out of it; the favicons,
+  small images the browser keeps, are left out. The budgets leave about 15 % of room over the
   build of 2026-10-24: a new dependency or asset that takes more has to be
   argued for, and the budget raised in [`bench/client/budget.json`](../bench/client/budget.json)
   in the same commit.

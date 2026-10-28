@@ -9,6 +9,12 @@ export interface SizeBudget {
   readonly files: string;
   /** Files matched by `files` that do not count. */
   readonly except?: string;
+  /**
+   * Also counts every script and style that index.html loads up front
+   * (scripts, stylesheets, modulepreload), whatever its name: a chunk the
+   * bundler splits off the entry is still part of the first visit.
+   */
+  readonly loadedByPage?: boolean;
   /** Ceiling on the bytes sent, gzip-compressed where the server compresses, in kB (1,000 bytes). */
   readonly kB: number;
 }
@@ -45,6 +51,15 @@ function listFiles(dir: string): string[] {
   });
 }
 
+/** Scripts and styles of the build that the page loads before anything else. */
+export function loadedByPage(html: string): Set<string> {
+  return new Set(
+    [...html.matchAll(/\s(?:src|href)="(?:\.\/)?([^":?#]+\.(?:js|css))"/g)].map(
+      (match) => match[1] as string,
+    ),
+  );
+}
+
 /** What each budget's files cost in the build in `dist`. */
 export function measureSizes(dist: string, budgets: readonly SizeBudget[]): SizeResult[] {
   const files = listFiles(dist).map((path) => {
@@ -62,7 +77,12 @@ export function measureSizes(dist: string, budgets: readonly SizeBudget[]): Size
   return budgets.map((budget) => {
     const include = new RegExp(budget.files);
     const exclude = budget.except === undefined ? undefined : new RegExp(budget.except);
-    const matched = files.filter((f) => include.test(f.path) && !exclude?.test(f.path));
+    const loaded = budget.loadedByPage
+      ? loadedByPage(readFileSync(join(dist, "index.html"), "utf8"))
+      : new Set<string>();
+    const matched = files.filter(
+      (f) => (include.test(f.path) || loaded.has(f.path)) && !exclude?.test(f.path),
+    );
     if (matched.length === 0)
       throw new Error(`no file of the build matches the budget "${budget.name}"`);
     const sum = (key: "raw" | "sent" | "brotli") => matched.reduce((total, f) => total + f[key], 0);
