@@ -67,10 +67,35 @@ export class SeaRoutes {
     if (this.budget === Number.POSITIVE_INFINITY) this.work();
   }
 
+  /**
+   * What a snapshot keeps: the ports with their routes, in the order they got
+   * them, the ports still waiting, and how far the first one's search has gone
+   * (-1 when it has not started), so `restore` gets every route at the same tick.
+   */
+  state(): { ready: number[]; waiting: number[]; searched: number } {
+    const searched = this.searching >= 0 ? this.search.searched : -1;
+    return { ready: [...this.partners.keys()], waiting: [...this.waiting], searched };
+  }
+
+  /** Back to a `state`, in a fresh instance: the routes are searched again, in the same order. */
+  restore(ready: readonly number[], waiting: readonly number[], searched: number): void {
+    for (const port of ready) {
+      this.waiting.push(port);
+      this.work(Number.POSITIVE_INFINITY);
+    }
+    this.waiting.push(...waiting);
+    const first = this.waiting[0];
+    if (searched >= 0 && first !== undefined) {
+      this.search.from(first);
+      this.searching = first;
+      this.search.advance(searched);
+    }
+  }
+
   /** Searches for the waiting ports' routes, oldest first, up to the budget. */
-  work(): void {
+  work(budget = this.budget): void {
     const { topology } = this.game.terrain;
-    let left = this.budget;
+    let left = budget;
     while (this.waiting.length > 0 && left > 0) {
       const port = this.waiting[0] as number;
       if (this.searching !== port) {
@@ -155,6 +180,11 @@ class SeaSearch {
   /** Whether the search started by `from` has marked all the sea in range. */
   get done(): boolean {
     return this.head >= this.tail;
+  }
+
+  /** Water tiles the current search has gone through: what `advance` took of its budgets. */
+  get searched(): number {
+    return this.head;
   }
 
   /** Starts marking the sea around `port` with each tile's distance from the port's shore; `advance` goes on. */

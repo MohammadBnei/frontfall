@@ -59,16 +59,22 @@ export function installTrade(game: Game): void {
   /** Ready ports by tile, rebuilt every tick. */
   const ports = new Map<number, Structure>();
 
-  // Routes follow from the order ports opened in: opened again in that order, they are the same.
+  // Routes follow from the order ports got them in: searched again in that order, they are the same.
   game.persist("trade", {
     save(out) {
-      const open = routes.openPorts();
-      out.uint(open.length);
-      for (const tile of open) out.uint(tile);
+      const { ready, waiting, searched } = routes.state();
+      for (const list of [ready, waiting]) {
+        out.uint(list.length);
+        for (const tile of list) out.uint(tile);
+      }
+      out.uint(searched + 1);
     },
     load(from) {
       const size = game.terrain.topology.size;
-      for (let n = from.count(); n > 0; n--) routes.open(from.below(size, "port"));
+      const [ready, waiting] = [0, 1].map(() =>
+        Array.from({ length: from.count() }, () => from.below(size, "port")),
+      ) as [number[], number[]];
+      routes.restore(ready, waiting, from.uint() - 1);
     },
   });
 
