@@ -282,6 +282,9 @@ export class GameScreen {
             teams: info.rules.teams,
             ticksPerSecond: info.rules.ticksPerSecond,
           });
+          const minimap = this.scene.minimapElement;
+          // First in the HUD, so that every other panel draws over it.
+          if (minimap) this.hud.element.prepend(minimap);
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.winShare = info.rules.winSharePercent;
           this.stats = new StatsRecorder(info.rules.ticksPerSecond);
