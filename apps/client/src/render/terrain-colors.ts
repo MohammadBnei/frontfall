@@ -164,9 +164,12 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
       out[tile * 4 + 2] = toSrgbByte(color[2] * shade);
     }
   }
-  extendLandColors(out, isWater, width, height, wrapsX);
+  extendLandColors(out, isWater, toLand, width, height, wrapsX);
   return out;
 }
+
+/** Scratch colour of the cold climates. */
+const COLD: [number, number, number] = [0, 0, 0];
 
 type Biomes = Record<keyof typeof BIOME_COLORS, readonly number[]>;
 
@@ -194,8 +197,9 @@ function climate(
   else if (moisture > 0.32)
     mix(biome.steppe, biome.grassland, smoothstep(0.32, 0.62, moisture), out);
   else mix(biome.desert, biome.steppe, smoothstep(0.14, 0.32, moisture), out);
-  const cold: [number, number, number] = [0, 0, 0];
   // The cold north: taiga where it is wet enough, tundra beyond, ice at the end.
+  if (warmth >= 0.4) return;
+  const cold = COLD;
   mix(
     biome.tundra,
     biome.taiga,
@@ -269,13 +273,14 @@ function distanceTo(
 }
 
 /**
- * Gives water tiles near the coast the average colour of the land beside
- * them, two tiles out, so linear filtering on the shore blends land with
+ * Gives water tiles near the coast (`near` holds the squared distance to
+ * land) the average colour of the land beside them, two tiles out, so linear filtering on the shore blends land with
  * land. The sea itself is drawn from the alpha channel.
  */
 function extendLandColors(
   rgba: Uint8Array,
   isWater: Uint8Array,
+  near: Float32Array,
   width: number,
   height: number,
   wrapsX: boolean,
@@ -286,7 +291,7 @@ function extendLandColors(
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const tile = y * width + x;
-        if (filled[tile] === 1) continue;
+        if (filled[tile] === 1 || (near[tile] as number) > 8) continue;
         let r = 0;
         let g = 0;
         let b = 0;
@@ -330,6 +335,10 @@ function blur(
   radius: number,
 ): void {
   const scratch = new Float32Array(field.length);
+  const longest = Math.max(width, height);
+  const padded = new Float32Array(longest + 2 * radius);
+  const span = 2 * radius + 1;
+  // One line: copied with its ends wrapped or repeated, then a running sum.
   const line = (
     from: Float32Array,
     to: Float32Array,
@@ -338,13 +347,16 @@ function blur(
     length: number,
     wraps: boolean,
   ): void => {
-    const index = (i: number): number =>
-      first + step * (wraps ? (i + length) % length : Math.min(length - 1, Math.max(0, i)));
+    for (let i = 0; i < length; i++) padded[i + radius] = from[first + i * step] as number;
+    for (let k = 1; k <= radius; k++) {
+      padded[radius - k] = from[first + (wraps ? length - k : 0) * step] as number;
+      padded[radius + length - 1 + k] = from[first + (wraps ? k - 1 : length - 1) * step] as number;
+    }
     let sum = 0;
-    for (let k = -radius; k <= radius; k++) sum += from[index(k)] as number;
+    for (let k = 0; k < span; k++) sum += padded[k] as number;
     for (let i = 0, tile = first; i < length; i++, tile += step) {
-      to[tile] = sum / (2 * radius + 1);
-      sum += (from[index(i + radius + 1)] as number) - (from[index(i - radius)] as number);
+      to[tile] = sum / span;
+      sum += (padded[i + span] ?? 0) - (padded[i] as number);
     }
   };
   for (let pass = 0; pass < 3; pass++) {
