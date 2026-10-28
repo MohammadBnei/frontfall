@@ -82,27 +82,40 @@ test("plays a solo game from the menu: spawn, then expand", async ({ page }) => 
   expect(pageErrors).toEqual([]);
 });
 
-/** Pixels of the light fill structures are drawn with, around a point of the page. */
-async function structurePixels(page: Page, at: { x: number; y: number }): Promise<number> {
+/** A picture of the page around a point, to compare with a later one. */
+async function look(page: Page, at: { x: number; y: number }): Promise<string> {
   const clip = { x: at.x - 40, y: at.y - 40, width: 80, height: 80 };
-  const png = (await page.screenshot({ scale: "css", clip })).toString("base64");
+  return (await page.screenshot({ scale: "css", clip })).toString("base64");
+}
+
+/** Pixels around a point that differ clearly from an earlier `look`: what a structure adds. */
+async function changedSince(
+  page: Page,
+  at: { x: number; y: number },
+  before: string,
+): Promise<number> {
+  const now = await look(page, at);
   // The suite has no DOM types: the counting runs in the page, as a string.
-  return page.evaluate<number>(`(async (png) => {
-    const image = new Image();
-    image.src = "data:image/png;base64," + png;
-    await image.decode();
-    const canvas = document.createElement("canvas");
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0);
-    const data = context.getImageData(0, 0, image.width, image.height).data;
+  return page.evaluate<number>(`(async (a, b) => {
+    const read = async (png) => {
+      const image = new Image();
+      image.src = "data:image/png;base64," + png;
+      await image.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0);
+      return context.getImageData(0, 0, image.width, image.height).data;
+    };
+    const [x, y] = [await read(a), await read(b)];
     let count = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i] > 225 && data[i + 1] > 220 && data[i + 2] > 210) count++;
+    for (let i = 0; i < x.length; i += 4) {
+      const gap = Math.abs(x[i] - y[i]) + Math.abs(x[i + 1] - y[i + 1]) + Math.abs(x[i + 2] - y[i + 2]);
+      if (gap > 120) count++;
     }
     return count;
-  })(${JSON.stringify(png)})`);
+  })(${JSON.stringify(before)}, ${JSON.stringify(now)})`);
 }
 
 test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
@@ -125,7 +138,7 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   // One generous deadline: how fast the gold comes depends on the machine's speed.
   await expect(city).not.toHaveClass(/unaffordable/, { timeout: 60_000 });
 
-  const before = await structurePixels(page, start);
+  const before = await look(page, start);
   await page.keyboard.press("KeyC");
   await expect(city).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".banner")).toContainText("build a city");
@@ -133,8 +146,8 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   await expect(page.locator("#build-city .build-count")).toContainText("1 of", { timeout: 5_000 });
   await expect(city).toHaveAttribute("aria-pressed", "false");
   await expect
-    .poll(() => structurePixels(page, start), { timeout: 10_000 })
-    .toBeGreaterThan(before);
+    .poll(() => changedSince(page, start, before), { timeout: 10_000 })
+    .toBeGreaterThan(150);
   expect(pageErrors).toEqual([]);
 });
 
@@ -156,7 +169,7 @@ test("builds a Micho Palace, worth two cities (R-BUILD-08)", async ({ page }) =>
   const palace = page.locator("#build-palace");
   await expect(palace).not.toHaveClass(/unaffordable/, { timeout: 60_000 });
 
-  const before = await structurePixels(page, start);
+  const before = await look(page, start);
   await page.keyboard.press("KeyB");
   await expect(palace).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".banner")).toContainText("build a Micho Palace");
@@ -165,8 +178,8 @@ test("builds a Micho Palace, worth two cities (R-BUILD-08)", async ({ page }) =>
   await expect(page.locator("#build-city .build-count")).toContainText("2 of", { timeout: 5_000 });
   await expect(palace).toHaveAttribute("aria-pressed", "false");
   await expect
-    .poll(() => structurePixels(page, start), { timeout: 10_000 })
-    .toBeGreaterThan(before);
+    .poll(() => changedSince(page, start, before), { timeout: 10_000 })
+    .toBeGreaterThan(150);
   expect(pageErrors).toEqual([]);
 });
 
