@@ -1,3 +1,4 @@
+import type { Balance } from "./balance.ts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv, percentOf } from "./integer-math.ts";
 import { spawnSettings } from "./spawn.ts";
@@ -76,13 +77,24 @@ export function installEconomy(game: Game): void {
   });
 }
 
-/** R-ECO-02: fastest far below the cap, zero at the cap. Troops above the cap stay but do not grow. */
-function growTroops(game: Game, player: Player): void {
-  const gap = populationCap(game, player) - player.troops;
-  if (gap <= 0) return;
-  const { growthBasisPoints, ticksPerSecond } = game.balance;
+/**
+ * R-ECO-02: troops an army of `troops` gains in one tick under `cap`. Zero at
+ * the cap; an empty army grows at B-GROWTH-FLOOR of the rate and a larger one
+ * faster, so growth peaks below the cap. Troops above the cap do not grow.
+ */
+export function troopGrowth(balance: Balance, cap: number, troops: number): number {
+  const gap = cap - troops;
+  if (gap <= 0) return 0;
+  const { growthBasisPoints, growthFloorPercent, ticksPerSecond } = balance;
+  // Weight of the army in percent of the cap: B-GROWTH-FLOOR when empty, 100 when full.
+  const weight = growthFloorPercent * cap + (100 - growthFloorPercent) * troops;
+  const gain = mulDiv(gap * growthBasisPoints, weight, 10_000 * ticksPerSecond * 100 * cap);
   // At least one troop, or a player close to the cap would never reach it.
-  player.troops += Math.max(1, mulDiv(gap, growthBasisPoints, 10_000 * ticksPerSecond));
+  return Math.max(1, gain);
+}
+
+function growTroops(game: Game, player: Player): void {
+  player.troops += troopGrowth(game.balance, populationCap(game, player), player.troops);
 }
 
 /** R-ECO-05: an eliminated player keeps nothing. */

@@ -23,6 +23,8 @@ export interface Balance {
   popPerCityPercent: number;
   /** B-GROWTH-RATE, in basis points of the gap to the cap per second (320 = 3.2 %) */
   growthBasisPoints: number;
+  /** B-GROWTH-FLOOR, percent of B-GROWTH-RATE that an empty army grows at; a full rate at any size is 100 */
+  growthFloorPercent: number;
   /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
   goldPerThousandTroops: number;
   /** B-WORK-MAX, the largest share of troops at home, in %, a player may put to work */
@@ -151,7 +153,8 @@ export const DEFAULT_BALANCE: Balance = {
   popFalloffSharePercent: 20,
   popFalloffPercent: 100,
   popPerCityPercent: 5,
-  growthBasisPoints: 320,
+  growthBasisPoints: 800,
+  growthFloorPercent: 20,
   goldPerThousandTroops: 5,
   workMaxPercent: 80,
   workGoldFactor: 4,

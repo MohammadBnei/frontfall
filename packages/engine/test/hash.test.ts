@@ -87,7 +87,7 @@ describe("Game.hash", () => {
   it("matches the pinned value of the scripted game (R-FAIR-01)", () => {
     // Update this value only for a deliberate change to the rules, and say so in the changelog.
     const game = scriptedGame(600);
-    expect(game.players().map((p) => game.territory.tileCount(p.id))).toEqual([0, 900, 192, 186]);
-    expect(game.hash()).toBe(147181785);
+    expect(game.players().map((p) => game.territory.tileCount(p.id))).toEqual([0, 900, 193, 188]);
+    expect(game.hash()).toBe(722011541);
   });
 });

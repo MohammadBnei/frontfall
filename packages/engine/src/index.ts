@@ -45,7 +45,14 @@ export {
   replayGameRecord,
   type GameRecord,
 } from "./game-record.ts";
-export { installEconomy, populationCap, soldiers, workError, workers } from "./economy.ts";
+export {
+  installEconomy,
+  populationCap,
+  soldiers,
+  troopGrowth,
+  workError,
+  workers,
+} from "./economy.ts";
 export { GiftError, giftError, giftedTroops, installGifts } from "./gifts.ts";
 export {
   QUICK_MESSAGES,

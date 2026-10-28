@@ -12,6 +12,7 @@ const balance: Balance = {
   popPerTile: 100,
   popPerCityPercent: 10,
   growthBasisPoints: 1000,
+  growthFloorPercent: 100,
   goldPerThousandTroops: 5,
   // No base population, so caps below are tiles and cities only.
   startTroops: 0,
@@ -88,6 +89,22 @@ describe("economy", () => {
     expect(ada.troops).toBe(1000);
     run(5);
     expect(ada.troops).toBe(1000);
+  });
+
+  it("grows a mid-sized army faster than an empty one under B-GROWTH-FLOOR (R-ECO-02)", () => {
+    const { ada, run } = newGame({ growthFloorPercent: 20 });
+    const gain = (troops: number) => {
+      ada.troops = troops;
+      run();
+      return ada.troops - troops;
+    };
+    // Cap 1000, 1 % of the gap per tick, weighted from 20 % (empty) to 100 % (full).
+    expect(gain(0)).toBe(2);
+    expect(gain(400)).toBe(3);
+    expect(gain(400)).toBeGreaterThan(gain(0));
+    expect(gain(400)).toBeGreaterThan(gain(900));
+    expect(gain(999)).toBe(1);
+    expect(gain(1000)).toBe(0);
   });
 
   it("keeps troops above the cap without growing them", () => {
