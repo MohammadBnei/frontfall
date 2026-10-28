@@ -1140,12 +1140,6 @@ kbd {
   margin-top: 8px;
 }
 
-.beta-notice {
-  margin: 6px 0 0;
-  color: var(--ff-slate-300);
-  font-size: 13px;
-}
-
 .icon-menu::before {
   content: "";
   display: inline-block;

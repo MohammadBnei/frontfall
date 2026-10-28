@@ -74,13 +74,17 @@ export class Menu {
       this.cleanups.push(box.dispose);
       account.replaceWith(box.element);
       // A sign-in that failed says so in the profile card: open it.
-      new MutationObserver(() => {
+      const watch = new MutationObserver(() => {
         if (box.element.querySelector(".account-error")) {
           for (const panel of this.element.querySelectorAll<HTMLDetailsElement>(".menu-panel")) {
             panel.open = panel.id === "menu-profile";
           }
         }
-      }).observe(box.element, { childList: true });
+      });
+      watch.observe(box.element, { childList: true });
+      this.cleanups.push(() => {
+        watch.disconnect();
+      });
     });
 
     const maps = h("div", {

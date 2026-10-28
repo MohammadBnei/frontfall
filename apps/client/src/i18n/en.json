@@ -394,5 +394,6 @@
   "achievement.crowded.text": "Win a game with ten players or more.",
   "profile.heading": "Your profile",
   "menu.summaryBots.one": "{count} bot",
-  "menu.summaryBots.other": "{count} bots"
+  "menu.summaryBots.other": "{count} bots",
+  "hud.buildLabel": "{name}, {cost}"
 }

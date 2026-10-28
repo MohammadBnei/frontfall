@@ -1,7 +1,7 @@
 import { DEFAULT_BALANCE, Disable } from "@frontfall/engine";
 import type { GameRules } from "../game/messages.ts";
 import type { BuildView, ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
-import { applyTranslations, plural, t } from "../i18n/index.ts";
+import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
@@ -473,6 +473,12 @@ export class Hud {
       const allowed = can[mode] === true;
       button.classList.toggle("unaffordable", !allowed);
       button.setAttribute("aria-disabled", String(!allowed));
+      // The name and the cost sit in a bubble only the pointer reaches: say them to the rest.
+      const price = costOf(mode, update.build);
+      const name = t(`hud.${mode}` as MessageKey);
+      const label =
+        price === undefined ? name : t("hud.buildLabel", { name, cost: formatCount(price) });
+      button.setAttribute("aria-label", label);
     }
   }
 

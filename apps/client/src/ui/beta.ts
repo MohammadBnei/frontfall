@@ -14,9 +14,3 @@ export function betaBadge(className: string): HTMLElement | undefined {
     h("span", { class: "beta-version" }, `v${RELEASE}`),
   );
 }
-
-/** One line under the menu title that says what beta means here. */
-export function betaNotice(): HTMLElement | undefined {
-  if (!isBeta()) return undefined;
-  return h("p", { class: "beta-notice", "data-i18n": "beta.notice" });
-}
