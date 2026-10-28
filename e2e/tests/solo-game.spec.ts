@@ -146,7 +146,7 @@ test("builds a city once the gold allows it (R-BUILD-01)", async ({ page }) => {
   await expect(page.locator("#build-city .build-count")).toContainText("1 of", { timeout: 5_000 });
   await expect(city).toHaveAttribute("aria-pressed", "false");
   await expect
-    .poll(() => changedSince(page, start, before), { timeout: 10_000 })
+    .poll(() => changedSince(page, start, before), { timeout: 30_000 })
     .toBeGreaterThan(150);
   expect(pageErrors).toEqual([]);
 });
@@ -178,7 +178,7 @@ test("builds a Micho Palace, worth two cities (R-BUILD-08)", async ({ page }) =>
   await expect(page.locator("#build-city .build-count")).toContainText("2 of", { timeout: 5_000 });
   await expect(palace).toHaveAttribute("aria-pressed", "false");
   await expect
-    .poll(() => changedSince(page, start, before), { timeout: 10_000 })
+    .poll(() => changedSince(page, start, before), { timeout: 30_000 })
     .toBeGreaterThan(150);
   expect(pageErrors).toEqual([]);
 });

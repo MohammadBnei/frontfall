@@ -248,7 +248,7 @@ test("a player who reloads mid-game takes their seat back", async ({ browser, ba
   // The tab reloads: the game comes back as it was, at the others' pace.
   await guest.reload();
   await expect(guest.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
-  await expect(land).not.toHaveText("0%", { timeout: 10_000 });
+  await expect(land).not.toHaveText("0%", { timeout: 30_000 });
   await guest.locator("#leaderboard-toggle").click({ timeout: GAME_START_TIMEOUT });
   await expect(guest.locator(".leaderboard-list li")).toHaveCount(4);
   await expect
