@@ -1348,6 +1348,15 @@
   overflow-y: auto;
 }
 
+/* The buttons stay in sight while the rest of the panel scrolls. */
+.end-screen:has(.end-stats-chart) .end-actions {
+  position: sticky;
+  bottom: -24px;
+  margin: 0 -24px -24px;
+  padding: 12px 24px 24px;
+  background: linear-gradient(180deg, transparent, var(--ff-night-700) 12px);
+}
+
 .end-stats-chart {
   margin: 0 0 16px;
   text-align: left;
@@ -1574,4 +1583,16 @@
 .goal-eta {
   color: var(--ff-text);
   font-variant-numeric: tabular-nums;
+}
+
+/* A short screen has no room to keep the buttons in sight: they follow the content, in two columns. */
+@media (max-height: 560px) {
+  .end-screen:has(.end-stats-chart) .end-actions {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0;
+    padding: 0;
+    background: none;
+  }
 }

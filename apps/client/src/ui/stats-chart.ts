@@ -64,9 +64,11 @@ type Metric = "land" | "troops";
 
 /** Lines drawn: the leaders at the end, and the player at this screen. */
 const LINES = 6;
+/** Rows in the tooltip: the players whose line is closest to the pointer. */
+const TIP_ROWS = 3;
 const WIDTH = 320;
-const HEIGHT = 170;
-const PAD = { left: 34, right: 8, top: 10, bottom: 22 };
+const HEIGHT = 130;
+const PAD = { left: 34, right: 8, top: 8, bottom: 20 };
 const SVG = "http://www.w3.org/2000/svg";
 
 function svg<K extends keyof SVGElementTagNameMap>(
@@ -190,7 +192,7 @@ export function statsChart(options: StatsChartOptions): HTMLElement | undefined 
           svg("text", {
             class: "stats-axis",
             x: PAD.left + plotW * fraction,
-            y: HEIGHT - 6,
+            y: HEIGHT - 5,
             "text-anchor": fraction === 0 ? "start" : fraction === 1 ? "end" : "middle",
           }),
           { textContent: formatDuration(tick / history.ticksPerSecond) },
@@ -279,10 +281,11 @@ export function statsChart(options: StatsChartOptions): HTMLElement | undefined 
   };
 
   /** Moves the cursor to a sample and tells its values. */
-  const move = (index: number, show = true): void => {
+  const move = (index: number, show = true, pointerY?: number): void => {
     cursor = Math.max(0, Math.min(last, index));
     const top = yMax();
     const cx = x(cursor);
+    const y = (v: number): number => PAD.top + plotH - (plotH * v) / top;
     cursorLine.setAttribute("x1", String(cx));
     cursorLine.setAttribute("x2", String(cx));
     dots.replaceChildren(
@@ -297,7 +300,15 @@ export function statsChart(options: StatsChartOptions): HTMLElement | undefined 
         return dot;
       }),
     );
-    const here = [...drawn].sort((a, b) => value(cursor, b) - value(cursor, a));
+    // Few rows, so the box never hides much of the chart: those nearest the pointer, or the leaders.
+    const here = [...drawn]
+      .sort((a, b) =>
+        pointerY === undefined
+          ? value(cursor, b) - value(cursor, a)
+          : Math.abs(y(value(cursor, a)) - pointerY) - Math.abs(y(value(cursor, b)) - pointerY),
+      )
+      .slice(0, TIP_ROWS)
+      .sort((a, b) => value(cursor, b) - value(cursor, a));
     const now = history.ticks[cursor] as number;
     const near = history.marks.filter(
       (mark) =>
@@ -321,7 +332,7 @@ export function statsChart(options: StatsChartOptions): HTMLElement | undefined 
           ),
         ),
       ),
-      ...near.map((mark) => h("em", {}, markText(mark))),
+      ...near.slice(0, 1).map((mark) => h("em", {}, markText(mark))),
     );
     tooltip.hidden = !show;
     // Left of the cursor when it is in the right half, so the box stays inside the frame.
@@ -336,7 +347,7 @@ export function statsChart(options: StatsChartOptions): HTMLElement | undefined 
     const target =
       (history.ticks[0] as number) +
       ((sx - PAD.left) / plotW) * (endTick - (history.ticks[0] as number));
-    move(nearest(target));
+    move(nearest(target), true, ((event.clientY - rect.top) / rect.height) * HEIGHT);
   };
   frame.addEventListener("pointermove", at);
   frame.addEventListener("pointerdown", at);
