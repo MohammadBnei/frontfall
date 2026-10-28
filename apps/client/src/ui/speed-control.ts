@@ -11,9 +11,10 @@ export class SpeedControl {
   private readonly label = h("span", { class: "speed-value" });
   readonly element = h(
     "button",
-    { type: "button", class: "icon-button speed-button", id: "speed" },
+    // The key shows from the styles (`data-key`), outside the text a voice
+    // command matches against the button's name (WCAG 2.5.3).
+    { type: "button", class: "icon-button speed-button", id: "speed", "data-key": "T" },
     this.label,
-    h("kbd", { class: "tool-key", "aria-hidden": "true" }, "T"),
   );
 
   constructor(
