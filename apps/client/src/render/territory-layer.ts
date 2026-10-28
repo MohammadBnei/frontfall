@@ -220,25 +220,38 @@ const fragmentShader = /* glsl */ `
     // country wherever it runs.
     vec2 p = at - 0.5;
     ivec2 base = ivec2(floor(p)) - 1;
-    uint candidates[6] = uint[6](0u, 0u, 0u, 0u, 0u, 0u);
-    float scores[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    ivec2 nearestTile[6];
-    float nearestWeight[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    int count = 0;
-    for (int j = 0; j < 4; j++) {
-      for (int i = 0; i < 4; i++) {
-        ivec2 cell = base + ivec2(i, j);
+    // Most of the map lies inside one owner's land, or nobody's: when the
+    // sixteen tiles agree, the votes are skipped.
+    uint around[16];
+    bool same = true;
+    for (int k = 0; k < 16; k++) {
+      around[k] = texelFetch(owners, wrapTile(base + ivec2(k % 4, k / 4)), 0).r;
+      same = same && around[k] == around[0];
+    }
+    uint owner = around[0];
+    ivec2 tile = wrapTile(ivec2(floor(at)));
+    float ownerEdge = 2.0;
+    float contactEdge = 2.0;
+    if (!same) {
+      uint candidates[6] = uint[6](0u, 0u, 0u, 0u, 0u, 0u);
+      float scores[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+      ivec2 nearestTile[6];
+      float nearestWeight[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+      int count = 0;
+      for (int k = 0; k < 16; k++) {
+        ivec2 cell = base + ivec2(k % 4, k / 4);
         vec2 offset = at - (vec2(cell) + 0.5);
         float d2 = dot(offset, offset);
         float wide = max(0.0, 1.0 - d2 / ${String(KERNEL * KERNEL)});
         float near = max(0.0, 1.0 - d2 / ${String(CORE * CORE)});
         float w = wide * wide + 0.5 * near * near;
+        if (w <= 0.0) continue;
         ivec2 wrapped = wrapTile(cell);
-        bool isLand = texelFetch(ground, wrapped, 0).a > 0.5;
-        if (!isLand) continue;
-        uint who = texelFetch(owners, wrapped, 0).r;
+        uint who = around[k];
+        // Owned tiles are land; only nobody's needs the ground to tell land from sea.
+        if (who == 0u && texelFetch(ground, wrapped, 0).a <= 0.5) continue;
         int slot = count;
-        for (int k = 0; k < 6; k++) if (k < count && candidates[k] == who) slot = k;
+        for (int c = 0; c < 6; c++) if (c < count && candidates[c] == who) slot = c;
         if (slot == count && count < 6) {
           candidates[slot] = who;
           count++;
@@ -251,26 +264,26 @@ const fragmentShader = /* glsl */ `
           }
         }
       }
-    }
-    int best = 0;
-    for (int k = 1; k < 6; k++) if (k < count && scores[k] > scores[best]) best = k;
-    float second = 0.0;
-    uint neighbour = 0u;
-    for (int k = 0; k < 6; k++) {
-      if (k < count && k != best && scores[k] > second) {
-        second = scores[k];
-        neighbour = candidates[k];
+      int best = 0;
+      for (int c = 1; c < 6; c++) if (c < count && scores[c] > scores[best]) best = c;
+      float second = 0.0;
+      uint neighbour = 0u;
+      for (int c = 0; c < 6; c++) {
+        if (c < count && c != best && scores[c] > second) {
+          second = scores[c];
+          neighbour = candidates[c];
+        }
       }
+      owner = count > 0 ? candidates[best] : 0u;
+      if (count > 0) tile = nearestTile[best];
+      // 0 on the border, 1 where nobody else is near. Across a straight border
+      // it grows by about two per tile, so half of it is the distance in tiles,
+      // up to the reach of the votes.
+      float ownerGap = second > 0.0 ? (scores[best] - second) / (scores[best] + second) : 1.0;
+      ownerEdge = ownerGap > 0.99 ? 2.0 : 0.5 * ownerGap;
+      // Where another player's land lies across the border, rather than bare ground or sea.
+      contactEdge = neighbour != 0u ? ownerEdge : 2.0;
     }
-    uint owner = count > 0 ? candidates[best] : 0u;
-    ivec2 tile = count > 0 ? nearestTile[best] : wrapTile(ivec2(floor(at)));
-    // 0 on the border, 1 where nobody else is near. Across a straight border
-    // it grows by about two per tile, so half of it is the distance in tiles,
-    // up to the reach of the votes.
-    float ownerGap = second > 0.0 ? (scores[best] - second) / (scores[best] + second) : 1.0;
-    float ownerEdge = ownerGap > 0.99 ? 2.0 : 0.5 * ownerGap;
-    // Where another player's land lies across the border, rather than bare ground or sea.
-    float contactEdge = neighbour != 0u ? ownerEdge : 2.0;
 
     // The ground, filtered between tile centres so hills and coasts are smooth.
     // Its level of detail follows the zoom, given rather than derived, because
@@ -282,7 +295,8 @@ const fragmentShader = /* glsl */ `
     float landCover = clamp(coastPixels + 0.5, 0.0, 1.0);
     // Close up, a fine mottling, finer than a tile, keeps the ground from
     // looking blurred; it fades out before it could shimmer.
-    float detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
+    float detail = 0.0;
+    if (pixel < 0.5) detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
   #endif
   #ifdef SPHERE
     // Pixels clear of the rim stop here, once every derivative is taken: after
