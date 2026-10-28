@@ -616,17 +616,8 @@ function startOnline(
   visibility: "public" | "private",
   snapshot: StoredSnapshot | undefined,
 ): void {
-  loadGameStyles().then(() => {
-    startOnlineNow(start, client, visibility, snapshot);
-  }, failedToLoad);
-}
-
-function startOnlineNow(
-  start: GameStart,
-  client: OnlineClient,
-  visibility: "public" | "private",
-  snapshot: StoredSnapshot | undefined,
-): void {
+  // The turns come in at once: the screen cannot wait for its styles, which the menu has begun to fetch.
+  loadGameStyles().catch(() => undefined);
   const map = maps.find((candidate) => candidate.id === start.map);
   if (!map) {
     // A map this page does not list: leave the seat rather than hold it unplayed.
