@@ -75,6 +75,8 @@ Rules:
 
 ![Close-up on a phone](assets/art-direction/near-phone-C.png)
 
+Where each element of the game screen goes, on a laptop and on a phone, is in [`hud-layout.md`](hud-layout.md).
+
 ## Motion
 
 Motion explains what is happening; it never decorates.
