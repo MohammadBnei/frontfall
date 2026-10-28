@@ -42,6 +42,8 @@ export interface RendererOptions {
   readonly wrapsX: boolean;
   /** Elevation on land, depth at sea, 0 to 31. */
   readonly relief?: Uint8Array;
+  /** Latitudes of the south and north edges, in degrees, which set the climates drawn. */
+  readonly latitudes?: readonly [south: number, north: number] | undefined;
   /** Owner of every tile, kept up to date by the caller and read in place. */
   readonly owners: Uint16Array;
   readonly maxOwner: number;

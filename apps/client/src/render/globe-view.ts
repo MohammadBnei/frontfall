@@ -60,6 +60,7 @@ export class GlobeView implements Renderer {
       terrain: options.kinds,
       wrapsX: true,
       relief: options.relief,
+      latitudes: options.latitudes,
       maxOwner: options.maxOwner,
       surface: "sphere",
     });

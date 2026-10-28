@@ -151,6 +151,7 @@ export class MapScene {
           kinds: map.kinds,
           wrapsX: map.wrapsX,
           relief: map.relief,
+          latitudes: map.latitudes,
           owners: this.owners,
           maxOwner: maxPlayer,
         },

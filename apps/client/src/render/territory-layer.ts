@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { MAP_COLORS } from "../palette.ts";
-import { bakeTerrainColors } from "./terrain-colors.ts";
+import {
+  COAST_REACH,
+  TERRAIN_COLORS,
+  bakeTerrainColors,
+  type Latitudes,
+} from "./terrain-colors.ts";
 
 export interface TerritoryLayerOptions {
   readonly width: number;
@@ -13,6 +18,8 @@ export interface TerritoryLayerOptions {
   readonly wrapsX?: boolean | undefined;
   /** Elevation band on land, depth band on water, 0 to 31. Flat when left out. */
   readonly relief?: Uint8Array | undefined;
+  /** Latitudes of the map's south and north edges, which set its climates. */
+  readonly latitudes?: Latitudes | undefined;
   /** Highest owner id the palette must hold. */
   readonly maxOwner: number;
   /**
@@ -33,9 +40,6 @@ export interface GlobeRays {
   readonly up: readonly [number, number, number];
 }
 
-/** Surf along the coast: the brand's secondary text, light against the sea. */
-const SURF = "#8DA2B6";
-
 /** How long a tile that changed hands takes to fade into its new colour. */
 const FADE_SECONDS = 0.15;
 
@@ -53,6 +57,13 @@ const FALLOUT = [96, 102, 34] as const;
 const GROUND_LEVEL = luminance(MAP_COLORS.land);
 
 const PALETTE_WIDTH = 256;
+
+/**
+ * Reach of a tile's vote on who owns the points around it, in tiles: past
+ * one, so corners round off; short of the diagonal, so a lone tile, which
+ * outvotes its four neighbours at its centre, keeps a patch of its own.
+ */
+const KERNEL = 1.2;
 
 /** Each row is tracked as at most 32 column chunks, one bit each. */
 const CHUNKS_PER_ROW = 32;
@@ -105,7 +116,11 @@ const fragmentShader = /* glsl */ `
   uniform float fadeSeconds;
   uniform float frontSeconds;
   uniform float frontMotion;
-  uniform vec3 surfColor;
+  uniform vec3 foamColor;
+  uniform vec3 seaShallow;
+  uniform vec3 seaOpen;
+  uniform vec3 seaDeep;
+  uniform float coastReach;
   uniform float reliefShading;
   uniform float groundLevel;
   uniform uint highlight;
@@ -119,18 +134,23 @@ const fragmentShader = /* glsl */ `
 
   uint ownerAt(ivec2 tile) { return texelFetch(owners, wrapTile(tile), 0).r; }
 
-  /**
-   * Distance in tiles from the point to the nearest of the sides marked:
-   * east, west, south, north. A column is columnWidth rows wide, less than
-   * one near the poles of a globe.
-   */
-  float edgeDistance(vec2 f, bvec4 sides, float columnWidth) {
-    float d = 2.0;
-    if (sides.x) d = min(d, (1.0 - f.x) * columnWidth);
-    if (sides.y) d = min(d, f.x * columnWidth);
-    if (sides.z) d = min(d, 1.0 - f.y);
-    if (sides.w) d = min(d, f.y);
-    return d;
+  /** Signed distance to the coast in tiles, land above 0, from the ground's alpha (encodeCoast). */
+  float coastDistance(float alpha) {
+    float r = (alpha * 255.0 - 127.5) / 127.5;
+    return sign(r) * r * r * coastReach;
+  }
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+
+  /** Smooth value noise, about one bump per unit, between 0 and 1. */
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = p - i;
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
   }
 
   void main() {
@@ -148,66 +168,128 @@ const fragmentShader = /* glsl */ `
     // Rows keep their size on the sphere; columns narrow toward the poles, and
     // their coordinate jumps across the antimeridian, so only rows give the scale.
     float pixel = max(fwidth(at.y), 1e-4);
-    float columnWidth = cos(lat) * 2.0 * worldSize.y / worldSize.x;
-    // Pixels clear of the rim stop here, once every derivative is taken: after
-    // a discard, derivatives are undefined on some GPUs. Those next to it go
-    // on, so the rim keeps its derivatives.
-    if (hit < -rim) discard;
   #else
     vec2 at = vTile;
     // Tiles per screen pixel, for lines that stay sharp and visible at any zoom.
     float pixel = max(fwidth(at.x), 1e-4);
-    float columnWidth = 1.0;
   #endif
-    ivec2 tile = wrapTile(ivec2(floor(at)));
-    vec2 f = fract(at);
-
-    // Ground colour and coast sides, computed once for the whole map (terrain-colors.ts).
-    vec4 groundTexel = texelFetch(ground, tile, 0);
-    vec3 color = groundTexel.rgb;
-    uint coast = uint(groundTexel.a * 255.0 + 0.5);
-    if (coast != 0u) {
-      bvec4 land = bvec4((coast & 1u) != 0u, (coast & 2u) != 0u, (coast & 4u) != 0u, (coast & 8u) != 0u);
-      float surf = 1.0 - smoothstep(0.0, max(0.12, 1.2 * pixel), edgeDistance(f, land, columnWidth));
-      color = mix(color, surfColor, surf * 0.55);
+    // Who owns the point: each land tile within KERNEL tiles of it votes for
+    // its owner, the nearer the louder, so borders run in curves through the
+    // tiles instead of along their edges, and a lone tile still keeps a round
+    // patch. Water has no vote: the coast, drawn from the ground, ends a
+    // country wherever it runs.
+    vec2 p = at - 0.5;
+    ivec2 base = ivec2(floor(p)) - 1;
+    uint candidates[6] = uint[6](0u, 0u, 0u, 0u, 0u, 0u);
+    float scores[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    ivec2 nearestTile[6];
+    float nearestWeight[6] = float[6](0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    int count = 0;
+    for (int j = 0; j < 4; j++) {
+      for (int i = 0; i < 4; i++) {
+        ivec2 cell = base + ivec2(i, j);
+        vec2 offset = at - (vec2(cell) + 0.5);
+        float w = max(0.0, 1.0 - dot(offset, offset) / ${String(KERNEL * KERNEL)});
+        w *= w;
+        ivec2 wrapped = wrapTile(cell);
+        bool isLand = texelFetch(ground, wrapped, 0).a > 0.5;
+        if (!isLand) continue;
+        uint who = texelFetch(owners, wrapped, 0).r;
+        int slot = count;
+        for (int k = 0; k < 6; k++) if (k < count && candidates[k] == who) slot = k;
+        if (slot == count && count < 6) {
+          candidates[slot] = who;
+          count++;
+        }
+        if (slot < 6) {
+          scores[slot] += w;
+          if (w > nearestWeight[slot]) {
+            nearestWeight[slot] = w;
+            nearestTile[slot] = wrapped;
+          }
+        }
+      }
     }
+    int best = 0;
+    for (int k = 1; k < 6; k++) if (k < count && scores[k] > scores[best]) best = k;
+    float second = 0.0;
+    uint neighbour = 0u;
+    for (int k = 0; k < 6; k++) {
+      if (k < count && k != best && scores[k] > second) {
+        second = scores[k];
+        neighbour = candidates[k];
+      }
+    }
+    uint owner = count > 0 ? candidates[best] : 0u;
+    ivec2 tile = count > 0 ? nearestTile[best] : wrapTile(ivec2(floor(at)));
+    // 0 on the border, 1 where nobody else is near. Across a straight border
+    // it grows by about two per tile, so half of it is the distance in tiles,
+    // up to the reach of the votes.
+    float ownerGap = second > 0.0 ? (scores[best] - second) / (scores[best] + second) : 1.0;
+    float ownerEdge = ownerGap > 0.99 ? 2.0 : 0.5 * ownerGap;
 
-    uint owner = ownerAt(tile);
+    // The ground, filtered between tile centres so hills and coasts are smooth.
+    // Its level of detail follows the zoom, given rather than derived, because
+    // the globe's columns jump at the antimeridian.
+    vec4 groundSample = textureLod(ground, at / worldSize, max(0.0, log2(pixel)));
+    float coast = coastDistance(groundSample.a);
+    float coastPixels = coast / max(fwidth(coast), 1e-4);
+  #ifdef SPHERE
+    // Pixels clear of the rim stop here, once every derivative is taken: after
+    // a discard, derivatives are undefined on some GPUs. Those next to it go
+    // on, so the rim keeps its derivatives.
+    if (hit < -rim) discard;
+  #endif
+    // Land above the coast, with an edge one pixel soft.
+    float landCover = clamp(coastPixels + 0.5, 0.0, 1.0);
+
+    // The sea darkens away from the coast over a narrow shelf, and a fine
+    // line of foam, about a pixel wide when zoomed out, follows the shore.
+    float depth = max(-coast, 0.0);
+    vec3 sea = mix(seaShallow, seaOpen, smoothstep(0.0, 4.0, depth));
+    sea = mix(sea, seaDeep, smoothstep(6.0, 36.0, depth));
+    float foamWidth = max(0.12, 1.1 * pixel);
+    float foam = 1.0 - smoothstep(0.5 * foamWidth, foamWidth, depth);
+    sea = mix(sea, foamColor, foam * 0.6);
+    // The shore is a tone lighter, so coasts read at any zoom.
+    // Close up, a fine mottling, finer than a tile, keeps the ground from
+    // looking blurred; it fades out before it could shimmer.
+    float detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
+    vec3 land = groundSample.rgb * (1.0 + 0.16 * detail) * (1.0 + 0.18 * (1.0 - smoothstep(0.0, max(0.35, 2.0 * pixel), max(coast, 0.0))));
+    vec3 color = mix(sea, land, landCover);
+
+    // Distance in tiles to the edge of the owner's land: another owner's, or the sea.
+    float edge = min(ownerEdge, max(coast, 0.0));
+    // Where another player's land lies across the border, rather than bare ground or sea.
+    float contactEdge = neighbour != 0u ? ownerEdge : 2.0;
+
     if (owner != 0u) {
       ivec2 entry = ivec2(int(owner % ${String(PALETTE_WIDTH)}u), int(owner / ${String(PALETTE_WIDTH)}u));
       vec4 paletteTexel = texelFetch(palette, entry, 0);
       vec3 ownerColor = paletteTexel.rgb;
       // Allies of the player are flagged in the palette's alpha (setAllies).
       bool allied = paletteTexel.a < 0.75;
-      // Borders are found here rather than in the simulation: no border data to upload.
-      uvec4 around = uvec4(ownerAt(tile + ivec2(1, 0)), ownerAt(tile - ivec2(1, 0)),
-        ownerAt(tile + ivec2(0, 1)), ownerAt(tile - ivec2(0, 1)));
-      bvec4 other = notEqual(around, uvec4(owner));
-      // Where another player's land lies across the edge, rather than bare ground or sea.
-      bvec4 touch = bvec4(vec4(other) * vec4(greaterThan(around, uvec4(0u))));
       // Zoomed in, the fill lets the relief through; zoomed out, it is solid, so
       // small countries keep their colour and the edge is one clean pixel.
       float zoomedOut = smoothstep(0.4, 1.5, pixel);
       // The relief shades the owner's colour, which is laid over the ground
       // rather than painted on it: hills stay visible, and pale colours stay
       // apart from the grey of the mountains.
-      float relief = clamp(dot(color, vec3(0.2126, 0.7152, 0.0722)) / groundLevel, 0.8, 1.15);
-      vec3 fillColor = mix(color, ownerColor * mix(mix(1.0, relief, reliefShading), 1.0, zoomedOut), mix(0.84, 0.96, zoomedOut));
+      float relief = clamp(dot(land, vec3(0.2126, 0.7152, 0.0722)) / groundLevel, 0.8, 1.15);
+      vec3 fillColor = mix(land, ownerColor * mix(mix(1.0, relief, reliefShading), 1.0, zoomedOut), mix(0.74, 0.94, zoomedOut));
       // The land under the pointer is lit whole, wherever its pieces lie.
       bool pointed = owner == hovered;
       if (pointed) fillColor = mix(fillColor, vec3(1.0), 0.25);
       // The player's own land has a wider, whiter rim, to find it on a crowded map.
       bool mine = owner == highlight;
       bool wide = mine || allied || pointed;
-      float width = wide ? max(0.4, 2.5 * pixel) : max(0.22, pixel);
+      float width = wide ? max(0.4, 2.5 * pixel) : max(0.22, 1.5 * pixel);
       // Three edges, told apart without colour: a thin dark line of the owner's
       // colour at the edge of its land, the same line plus surf on a coast, and
       // between two players a front, 1.7 times wider, with a light ridge on top.
       vec3 lineColor = wide ? mix(ownerColor, vec3(1.0), 0.75) : ownerColor * 0.38;
       vec3 ridgeColor = wide ? lineColor : mix(ownerColor, vec3(1.0), 0.45);
-      float edge = edgeDistance(f, other, columnWidth);
       float contactWidth = 1.7 * width;
-      float contactEdge = edgeDistance(f, touch, columnWidth);
       float border = 1.0 - smoothstep(width - pixel, width, edge);
       float contact = 1.0 - smoothstep(contactWidth - pixel, contactWidth, contactEdge);
       // An ally's rim is as wide, in dashes about eight pixels long.
@@ -231,7 +313,7 @@ const fragmentShader = /* glsl */ `
         owned = mix(owned, stripes, front * frontEdge);
       }
       // A tile taken a moment ago fades in, so fronts creep instead of jumping each tick.
-      color = mix(color, owned, smoothstep(0.0, fadeSeconds, age));
+      color = mix(color, owned, smoothstep(0.0, fadeSeconds, age) * landCover);
     }
   #ifdef SPHERE
     if (hit < 0.0) discard;
@@ -305,6 +387,7 @@ export class TerritoryLayer {
         kinds: terrain,
         relief: options.relief ?? new Uint8Array(width * height),
         wrapsX,
+        latitudes: options.latitudes,
       }),
       width,
       height,
@@ -341,6 +424,12 @@ export class TerritoryLayer {
       texture.unpackAlignment = 1;
       texture.needsUpdate = true;
     }
+    // The ground alone is filtered: smooth between tile centres, and averaged
+    // over the tiles under a pixel when zoomed out.
+    this.groundTexture.magFilter = THREE.LinearFilter;
+    this.groundTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    this.groundTexture.generateMipmaps = true;
+    this.groundTexture.wrapS = wrapsX ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
 
     const sphere = options.surface === "sphere";
     const material = new THREE.ShaderMaterial({
@@ -359,7 +448,11 @@ export class TerritoryLayer {
         fadeSeconds: { value: FADE_SECONDS },
         frontSeconds: { value: FRONT_SECONDS },
         frontMotion: { value: 1 },
-        surfColor: { value: new THREE.Color(SURF) },
+        foamColor: { value: new THREE.Color(TERRAIN_COLORS.foam) },
+        seaShallow: { value: new THREE.Color(TERRAIN_COLORS.seaShallow) },
+        seaOpen: { value: new THREE.Color(MAP_COLORS.ocean) },
+        seaDeep: { value: new THREE.Color(MAP_COLORS.oceanDeep) },
+        coastReach: { value: COAST_REACH },
         reliefShading: { value: 1 },
         groundLevel: { value: GROUND_LEVEL },
         highlight: { value: 0 },
@@ -558,8 +651,8 @@ export class TerritoryLayer {
   /** Bytes the layer's textures take on the GPU, mipmaps excluded. */
   gpuBytes(): number {
     const { width, height } = this.options;
-    // Owners, ground colours, and the time each tile changed hands.
-    return width * height * (2 + 4 + 4) + this.paletteData.byteLength;
+    // Owners, ground colours with their mipmaps (a third more), and the time each tile changed hands.
+    return Math.round(width * height * (2 + (4 * 4) / 3 + 4)) + this.paletteData.byteLength;
   }
 
   dispose(): void {
