@@ -228,7 +228,7 @@ const fragmentShader = /* glsl */ `
     vec4 t = texture(atlas, (cell + vec2(vUv.x, 1.0 - vUv.y)) / vec2(${String(COLS)}.0, ${String(ROWS)}.0));
     // White ink always; a light colour gets a darker plate so the ink and the edge stand out from land of the same colour.
     float light = dot(vColor, vec3(0.2126, 0.7152, 0.0722));
-    vec3 rgb = mix(vColor * (t.r * 1.3) * mix(1.0, 0.5, smoothstep(0.35, 0.55, light)), vec3(1.0), t.g);
+    vec3 rgb = mix(vColor * t.r * mix(1.0, 0.35, smoothstep(0.15, 0.45, light)), vec3(1.0), t.g);
     rgb = mix(rgb, vec3(1.0, 0.58, 0.05), t.b);
     // Faded and greyer while it is being built.
     rgb = mix(vec3(dot(rgb, vec3(0.3, 0.59, 0.11))), rgb, 0.35 + 0.65 * vFade);
