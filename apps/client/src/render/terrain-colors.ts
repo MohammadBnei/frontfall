@@ -1,15 +1,19 @@
 import { MAP_COLORS } from "../palette.ts";
 
+/** Terrain tones beyond the brand's land and ocean; mirrored in assets/brand/tokens.json. */
+export const TERRAIN_COLORS = {
+  landLight: "#8A8E68",
+  seaShallow: "#1F5878",
+  foam: "#BFE0F0",
+} as const;
 /**
  * Bare rock, a darkened slate: light enough to read as rock, dark enough
  * that the pale player colours (sand, snow, mint) keep a contrast of about
  * 2:1 against it at its most lit.
  */
 const ROCK = "#6A7C8E";
-/** Shallow sea over the continental shelf, a step lighter than the brand's ocean. */
-const SHELF = "#163A52";
-/** Uplands, between the brand's high land and the rock. */
-const HIGHLAND = "#5F6B58";
+/** Tiles of open water over which the shallows fade into the deep. */
+const SHALLOWS = 30;
 
 /** Bits of the alpha channel: which sides of a water tile touch land, for the surf line. */
 export const SURF_EAST = 1;
@@ -37,11 +41,13 @@ export interface TerrainColorOptions {
 export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
   const { width, height, kinds, wrapsX } = options;
   const out = new Uint8Array(width * height * 4);
-  const shelf = linear(SHELF);
+  const shallow = linear(TERRAIN_COLORS.seaShallow);
   const deep = linear(MAP_COLORS.oceanDeep);
+  const foam = linear(TERRAIN_COLORS.foam);
   const land = linear(MAP_COLORS.land);
-  const high = linear(HIGHLAND);
+  const light = linear(TERRAIN_COLORS.landLight);
   const peak = linear(ROCK);
+  const distance = seaDistance(options);
   const column = (x: number): number =>
     wrapsX ? (x + width) % width : Math.min(width - 1, Math.max(0, x));
   const row = (y: number): number => Math.min(height - 1, Math.max(0, y));
@@ -58,7 +64,11 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
       const h = smooth[tile] as number;
       let surf = 0;
       if (kind === 0) {
-        mix(shelf, deep, smoothstep(0, 6, h), color);
+        // Depth follows the distance from the coast, so the sea darkens gradually
+        // (the map's own depth bands are steps); a pale halo marks the shallows.
+        const d = distance[tile] as number;
+        mix(shallow, deep, smoothstep(0, SHALLOWS, d), color);
+        mix(color, foam, Math.min(1, Math.max(0, (3 - d) / 3)) * 0.16, color);
         if (!water(x + 1, y)) surf |= SURF_EAST;
         if (!water(x - 1, y)) surf |= SURF_WEST;
         if (!water(x, y + 1)) surf |= SURF_SOUTH;
@@ -70,15 +80,17 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
           color[2] = peak[2];
         } else {
           const upland: [number, number, number] = [0, 0, 0];
-          mix(high, peak, smoothstep(18, 30, h), upland);
-          mix(land, upland, smoothstep(0, 18, h), color);
+          mix(land, light, smoothstep(0, 24, h) * 0.6, upland);
+          mix(upland, peak, smoothstep(26, 31, h), color);
         }
         // Light from the north-west: slopes that face it lighten, the others darken.
         const slope = level(x - 1, y) - level(x + 1, y) + level(x, y - 1) - level(x, y + 1);
-        let shade = Math.min(1.2, Math.max(0.8, 1 + slope * 0.04));
+        // A little grain per tile keeps close-ups from looking flat.
+        const grain = (Math.imul(tile, 0x9e3779b1) >>> 24) / 255 - 0.5;
+        let shade = Math.min(1.25, Math.max(0.7, 1 + slope * 0.035 + grain * 0.07));
         // The shore is a tone lighter, so coasts read at any zoom.
         if (water(x + 1, y) || water(x - 1, y) || water(x, y + 1) || water(x, y - 1)) {
-          shade = Math.min(1.2, shade * 1.18);
+          shade = Math.min(1.25, shade * 1.15);
         }
         color[0] *= shade;
         color[1] *= shade;
@@ -94,27 +106,47 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
 }
 
 /**
- * Relief averaged over the 3 x 3 tiles around each tile, counting only tiles
- * on the same side of the coast, so sea depth never bleeds onto the land.
- * Box sums are separable: rows first, then columns, for land and sea apart.
+ * Distance of every water tile from the nearest land, in tiles (the walking
+ * distance along rows and columns, so coasts round off a little); 0 on land.
+ */
+function seaDistance(options: TerrainColorOptions): Uint16Array {
+  const { width, height, kinds, wrapsX } = options;
+  const out = new Uint16Array(width * height);
+  for (let tile = 0; tile < out.length; tile++) out[tile] = kinds[tile] === 0 ? 0xfff0 : 0;
+  // A sweep in each direction carries the distance one way; a cylinder needs a second round.
+  for (let round = 0; round < (wrapsX ? 2 : 1); round++) {
+    for (const dir of [1, -1]) {
+      for (let y = dir > 0 ? 0 : height - 1; y >= 0 && y < height; y += dir) {
+        for (let x = dir > 0 ? 0 : width - 1; x >= 0 && x < width; x += dir) {
+          const tile = y * width + x;
+          const west = wrapsX ? (x - dir + width) % width : x - dir;
+          const beside = west < 0 || west >= width ? 0xfff0 : (out[y * width + west] as number);
+          const above =
+            y - dir < 0 || y - dir >= height ? 0xfff0 : (out[tile - dir * width] as number);
+          out[tile] = Math.min(out[tile] as number, beside + 1, above + 1);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Land relief averaged over the 5 x 5 tiles around each tile, the sea counting
+ * as sea level, so the land eases down toward the coast. Box sums are
+ * separable: rows first, then columns, with a running sum along each line.
  */
 function smoothRelief(options: TerrainColorOptions): Float32Array {
   const { width, height, kinds, relief, wrapsX } = options;
   const size = width * height;
-  const radius = 1;
-  // Per side of the coast: the relief of the tile if it is on that side, and 1 if it is.
-  const sums = [new Float32Array(size), new Float32Array(size)];
-  const counts = [new Float32Array(size), new Float32Array(size)];
-  for (let tile = 0; tile < size; tile++) {
-    const side = kinds[tile] === 0 ? 1 : 0;
-    (sums[side] as Float32Array)[tile] = relief[tile] as number;
-    (counts[side] as Float32Array)[tile] = 1;
-  }
-  // Running sums along a line of tiles: each tile costs the same whatever the radius.
+  const radius = 2;
+  const input = new Float32Array(size);
+  for (let tile = 0; tile < size; tile++)
+    input[tile] = kinds[tile] === 0 ? 0 : (relief[tile] as number);
   // A line starts at `first`, steps by `step`, and wraps if `wraps`, else clamps.
   const line = (
-    input: Float32Array,
-    output: Float32Array,
+    from: Float32Array,
+    to: Float32Array,
     first: number,
     step: number,
     length: number,
@@ -123,32 +155,16 @@ function smoothRelief(options: TerrainColorOptions): Float32Array {
     const index = (i: number): number =>
       first + step * (wraps ? (i + length) % length : Math.min(length - 1, Math.max(0, i)));
     let sum = 0;
-    for (let k = -radius; k <= radius; k++) sum += input[index(k)] as number;
+    for (let k = -radius; k <= radius; k++) sum += from[index(k)] as number;
     for (let i = 0, tile = first; i < length; i++, tile += step) {
-      output[tile] = sum;
-      const add = i + radius + 1 < length ? tile + step * (radius + 1) : index(i + radius + 1);
-      const drop = i - radius >= 0 ? tile - step * radius : index(i - radius);
-      sum += (input[add] as number) - (input[drop] as number);
+      to[tile] = sum / (2 * radius + 1);
+      sum += (from[index(i + radius + 1)] as number) - (from[index(i - radius)] as number);
     }
   };
-  const blur = (input: Float32Array): Float32Array => {
-    const rows = new Float32Array(size);
-    for (let y = 0; y < height; y++) line(input, rows, y * width, 1, width, wrapsX);
-    const output = new Float32Array(size);
-    for (let x = 0; x < width; x++) line(rows, output, x, width, height, false);
-    return output;
-  };
-  const out = new Float32Array(size);
-  for (let tile = 0; tile < size; tile++) out[tile] = relief[tile] as number;
-  for (const side of [0, 1]) {
-    const sum = blur(sums[side] as Float32Array);
-    const count = blur(counts[side] as Float32Array);
-    for (let tile = 0; tile < size; tile++) {
-      if ((kinds[tile] === 0 ? 1 : 0) === side)
-        out[tile] = (sum[tile] as number) / (count[tile] as number);
-    }
-  }
-  return out;
+  const rows = new Float32Array(size);
+  for (let y = 0; y < height; y++) line(input, rows, y * width, 1, width, wrapsX);
+  for (let x = 0; x < width; x++) line(rows, input, x, width, height, false);
+  return input;
 }
 
 function linear(hex: string): [number, number, number] {

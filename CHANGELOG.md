@@ -7,6 +7,11 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Changed
 
 - **Play again, or back to the lobby, in one click.** On the end screen, a solo game now offers "Play again": the same map and the same settings, with a new game started at once. An online game offers "Back to the lobby": a public game takes you to the next one waiting, a private game opens a new private lobby with the same settings, ready to share. The main menu is still one click away.
+- **A map worth looking at.** The sea now darkens gradually from a bright shallow along every coast to the deep over about 30 tiles, with a pale halo on the shallows, where it used to be one flat blue. Land eases down toward the coast, hills and mountains are shaded from the north-west with a fine grain so close-ups are no longer flat, and the edges of the view are softly darkened (more on a phone) so the interface reads over the map. Territories, fronts and every rule are unchanged.
+
+### For self-hosters and contributors
+
+- The ground colours are baked from the distance to the coast, and `land-light`, `sea-shallow` and `foam` join the map tokens (`assets/brand/tokens.json`, [brand guide](docs/brand.md)). The first download stays under its budget, with less room left.
 
 ## [0.6.3] - 2026-10-28
 

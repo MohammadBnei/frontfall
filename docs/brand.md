@@ -59,12 +59,15 @@ State colours: success `#3CCB7F`, warning `#F5B83D`, danger `#F04C5E`, info `#4C
 
 ### Map
 
-| Token        | Hex       |
-| ------------ | --------- |
-| `ocean`      | `#0E2233` |
-| `ocean-deep` | `#0A1A28` |
-| `land`       | `#3D4A3B` |
-| `land-high`  | `#4C5A47` |
+| Token         | Hex       |
+| ------------- | --------- |
+| `ocean`       | `#0E2233` |
+| `ocean-deep`  | `#0A1A28` |
+| `land`        | `#3D4A3B` |
+| `land-high`   | `#4C5A47` |
+| `land-light`  | `#8A8E68` |
+| `sea-shallow` | `#1F5878` |
+| `foam`        | `#BFE0F0` |
 
 Unclaimed land is a dark, low-saturation green so that every territory colour stands out from it.
 
