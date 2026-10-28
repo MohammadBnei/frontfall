@@ -2138,3 +2138,14 @@ button.feed-entry:focus-visible {
     display: flex;
   }
 }
+
+/* Wide: the figures left the top left, so the first steps take it and the feed goes under them. */
+@media (width >= 1240px) and (height >= 560px) {
+  .event-feed {
+    top: 12px;
+  }
+
+  .game:has(.guide) .event-feed {
+    top: 172px;
+  }
+}
