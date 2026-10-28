@@ -706,6 +706,7 @@ export class GameScreen {
   private click(tile: number, finger = false): void {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
+    this.ordered();
     this.session.click(tile, this.hud.ratio, this.mode, aimReach(this.camera.scale, finger));
     // A build mode stays on until a structure goes up (afterClick): a click
     // made while the worker answers the one before is still a build click.
@@ -782,6 +783,7 @@ export class GameScreen {
     ) {
       return false;
     }
+    this.ordered();
     this.session.sendOrder(
       type === "embargo" ? { type, target, on: on ? 1 : 0 } : { type, target },
     );
@@ -796,6 +798,7 @@ export class GameScreen {
     const you = update.players.find((p) => p.id === update.you);
     const amount = Math.floor(((you?.[what] ?? 0) * this.hud.ratio) / 100);
     if (amount < 1) return;
+    this.ordered();
     this.session.sendOrder({
       type: "gift",
       target,
@@ -812,9 +815,15 @@ export class GameScreen {
     this.session.sendOrder({ type: "quick", target, phrase });
   }
 
+  /** Notes the player's first order once play has begun, for the usage report. */
+  private ordered(): void {
+    if (this.latest?.phase === "play") this.tracker?.firstOrder(Date.now());
+  }
+
   private retreat(attack: number): void {
     const update = this.latest;
     if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
+    this.ordered();
     this.session.sendOrder({ type: "retreat", attack });
   }
 

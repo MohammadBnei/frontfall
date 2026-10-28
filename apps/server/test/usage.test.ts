@@ -5,6 +5,7 @@ import type { GameReport } from "@frontfall/protocol";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   botsRange,
+  firstOrderRange,
   exportMonths,
   humansRange,
   loadUsage,
@@ -82,6 +83,30 @@ describe("ranges", () => {
 });
 
 describe("UsageStats", () => {
+  it("tells games left or lost within two minutes apart, and times the first order", () => {
+    expect([undefined, 0, 9, 10, 59, 60, 119, 120].map(firstOrderRange)).toEqual([
+      "none",
+      "0-10",
+      "0-10",
+      "10-30",
+      "30-60",
+      "60-120",
+      "60-120",
+      "120+",
+    ]);
+    const usage = stats();
+    usage.record(
+      { ...GAME, game: "a".repeat(16), minutes: 1, outcome: "left", firstOrder: 4 },
+      NOW,
+    );
+    usage.record({ ...GAME, game: "b".repeat(16), minutes: 1.5, outcome: "defeat" }, NOW);
+    usage.record({ ...GAME, game: "c".repeat(16), minutes: 12 }, NOW);
+    expect(usage.export(NOW).total).toMatchObject({
+      early: { "solo.left": 1, "solo.defeat": 1 },
+      first_order: { "0-10": 1, none: 2 },
+    });
+  });
+
   it("adds one to each dimension of a game, today and in total", () => {
     const usage = stats();
     expect(usage.record(GAME, NOW)).toBe(true);

@@ -85,6 +85,7 @@ export class GameTracker {
   readonly key: string;
   private outcome: Outcome | undefined;
   private voted = false;
+  private firstOrderAt: number | undefined;
 
   constructor(
     private readonly usage: Usage,
@@ -103,6 +104,11 @@ export class GameTracker {
     return this.outcome;
   }
 
+  /** The player's first order once play began; only the first counts. */
+  firstOrder(now: number): void {
+    this.firstOrderAt ??= now;
+  }
+
   /** Reports the game; later calls do nothing, so the first ending is the one counted. */
   end(outcome: Outcome, now: number): void {
     if (this.outcome) return;
@@ -116,6 +122,9 @@ export class GameTracker {
       ...this.facts,
       minutes,
       outcome,
+      ...(this.firstOrderAt === undefined
+        ? {}
+        : { firstOrder: Math.max(0, Math.round((this.firstOrderAt - this.startedAt) / 1000)) }),
       ...this.usage.device(),
       lang: getLanguage(),
     });
