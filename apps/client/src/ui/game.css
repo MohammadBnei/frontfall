@@ -1424,7 +1424,9 @@ button.feed-entry:focus-visible {
     padding: 0;
   }
 
-  .leaderboard:not(.open) .leader:not(.you),
+  /* Your own row, or the leader's when you have none (eliminated, or watching). */
+  .leaderboard:not(.open):has(.leader.you) .leader:not(.you),
+  .leaderboard:not(.open):not(:has(.leader.you)) .leader:nth-child(n + 2),
   .leaderboard:not(.open) .goal {
     display: none;
   }
