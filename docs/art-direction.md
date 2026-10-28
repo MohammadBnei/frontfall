@@ -94,6 +94,41 @@ Planned for the same release, in the same spirit: soft, tactile, never shrill.
 - Interface clicks are quiet and short. Sound is off until the player turns it on, with separate sliders for effects and ambience.
 - All sounds are recorded or synthesised for the project, or come from sources whose licence allows commercial use, and are listed in `CREDITS.md`.
 
+## Quality criteria
+
+Every visual change is judged against these, on a capture or a measurement, so that "looks good" is not an opinion. Each change ships with before and after captures on a laptop and on a phone.
+
+**Map**
+
+- No stair-steps on a coast at 3x zoom.
+- No square or diamond halo around an island at any zoom.
+- Relief stays visible under a coloured territory.
+- No visible bands on a sea gradient.
+
+**Legibility**
+
+- A territory stands out from bare land by at least 2.7:1, pale colours included, and keeps a darker outline.
+- A piece is recognised alone, in one tone, at 16 px, including on a white territory (the worst case).
+- A front is told apart from a quiet border without colour.
+- Checked with twenty players, on a phone, at half screen brightness.
+
+**Interface**
+
+- No panel covers more than a quarter of the map on a phone.
+- Panel text keeps 4.5:1; there is one display face, used for big moments and territory names, and tabular figures everywhere.
+- No system emoji in the interface.
+
+**Motion**
+
+- Every animation explains an event and has a still state when motion is reduced.
+- Nothing drops below 60 frames per second on the reference laptop.
+
+**Budgets and originality**
+
+- The first-visit budget in [`performance.md`](performance.md) is never raised; anything added to the first screen is offset or loaded on demand.
+- A flatter setting and a no-effects setting exist for weak devices.
+- Shapes, palette and layout are our own, and the CI copy check passes.
+
 ## Accessibility
 
 - Every colour in a territory is paired with a name label and a darker border; fronts are told apart by thickness and ridge, not hue.
