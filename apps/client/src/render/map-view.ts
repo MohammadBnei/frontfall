@@ -5,7 +5,8 @@ import type { EffectsLayer } from "./effects-layer.ts";
 import { applyView } from "./orthographic.ts";
 import type * as Pieces from "./pieces.ts";
 import type { Renderer, RendererOptions, StructureMark, UnitMark } from "./renderer.ts";
-import { TerritoryLayer } from "./territory-layer.ts";
+import type * as Territories from "./territory-layer.ts";
+import type { TerritoryLayer } from "./territory-layer.ts";
 import { UnitLayer } from "./unit-layer.ts";
 
 /** Ships at sea at once: B-BOAT-MAX for each of up to 26 players, with room to spare. */
@@ -141,16 +142,21 @@ export class MapView implements Renderer {
   /** Width of the canvas in CSS pixels, to keep structures readable when zoomed out. */
   private cssWidth = 1;
 
-  /** `pieces` is the code loadPieces fetched: without it, pieces are plain shapes. */
+  /**
+   * `territories` is the territory layer's code, and `pieces` the code
+   * loadPieces fetched: without it, pieces are plain shapes. Both come in
+   * the chunk the first visit leaves out (lazy.ts).
+   */
   constructor(
     readonly options: RendererOptions,
+    territories: typeof Territories,
     pieces?: typeof Pieces,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setClearColor(MAP_COLORS.oceanDeep);
     this.canvas = this.renderer.domElement;
-    this.territory = new TerritoryLayer({
+    this.territory = new territories.TerritoryLayer({
       width: options.width,
       height: options.height,
       owners: options.owners,

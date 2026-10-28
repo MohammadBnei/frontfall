@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { MAP_COLORS } from "../palette.ts";
+import { FRONT_SECONDS } from "./fronts.ts";
 import {
   COAST_REACH,
   TERRAIN_COLORS,
@@ -47,13 +48,6 @@ export interface GlobeRays {
 
 /** How long a tile that changed hands takes to fade into its new colour. */
 const FADE_SECONDS = 0.15;
-
-/**
- * How long a tile that changed hands lights the edge it was taken across.
- * An attack takes at least one tile every tick, so while it goes on its
- * front stays lit. The client keeps drawing for that long after a change.
- */
-export const FRONT_SECONDS = 1.5;
 
 /** Ground under fallout (R-UNIT-06): a scorched olive, mixed into the land's own colour. */
 const FALLOUT = [96, 102, 34] as const;

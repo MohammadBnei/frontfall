@@ -98,6 +98,23 @@ describe("TerritoryLayer", () => {
     expect(layer(512, 256, 64).gpuBytes()).toBe(Math.round(512 * 256 * (2 + 16 / 3 + 4)) + 256 * 4);
   });
 
+  it("draws the flat map from square tiles, without filtering or mipmaps", () => {
+    const flat = new TerritoryLayer({
+      width: 512,
+      height: 256,
+      owners: new Uint16Array(512 * 256),
+      terrain: new Uint8Array(512 * 256),
+      maxOwner: 64,
+      flat: true,
+    });
+    expect(flat.mesh.material.defines).toEqual({ FLAT: 1 });
+    expect(flat.groundTexture.magFilter).toBe(THREE.NearestFilter);
+    expect(flat.groundTexture.generateMipmaps).toBe(false);
+    expect(flat.gpuBytes()).toBe(512 * 256 * 10 + 256 * 4);
+    expect(layer().groundTexture.magFilter).toBe(THREE.LinearFilter);
+    flat.dispose();
+  });
+
   it("draws the three copies of the world with one mesh", () => {
     const territory = layer(10, 4);
     territory.mesh.geometry.computeBoundingBox();
