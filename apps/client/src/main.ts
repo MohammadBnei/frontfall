@@ -29,7 +29,7 @@ import { loadGlobe, type ViewKind } from "./render/renderer.ts";
 import { FEATURE_LABELS, missingFeatures } from "./compat.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { loadAccessibility } from "./ui/accessibility.ts";
-import { GameScreen } from "./ui/game-screen.ts";
+import { GameScreen, loadReplayBar } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
@@ -244,6 +244,13 @@ async function watch(file: File): Promise<void> {
   if (!hasWebGL2()) {
     usage().error("webgl");
     showNotice("webgl.missing");
+    return;
+  }
+  try {
+    await loadReplayBar();
+  } catch (error) {
+    console.error(error);
+    showNotice("game.failed");
     return;
   }
   game?.dispose();
