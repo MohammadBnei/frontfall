@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-28
+
+Look and feel: a map with smooth coasts and climates, pieces you can tell apart, a raised interface with one bar at the foot of the map, small effects for combat, and sign-in by email with achievements that follow your account.
+
 ### Added
 
 - **Sign in by email, and keep your achievements.** No Discord or Google account? Sign in with email under your name in the menu: type your address, open the link it sends on any device within 15 minutes, press Finish signing in, and that is it. No password to remember; the link works once. And whichever way you sign in, your achievements now go with your account: sign in on another phone or computer and they are there, nothing is ever lost from either side. The game keeps no email address, only a scrambled version of it to find your account again ([what is kept](docs/privacy.md#if-you-sign-in)).
@@ -329,7 +333,8 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/nic0lasm/frontfall/compare/v0.6.4...v0.7.0
 [0.6.4]: https://github.com/nic0lasm/frontfall/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/nic0lasm/frontfall/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/nic0lasm/frontfall/compare/v0.6.1...v0.6.2
