@@ -180,15 +180,19 @@ const fragmentShader = /* glsl */ `
       // Allies of the player are flagged in the palette's alpha (setAllies).
       bool allied = paletteTexel.a < 0.75;
       // Borders are found here rather than in the simulation: no border data to upload.
-      bvec4 other = bvec4(ownerAt(tile + ivec2(1, 0)) != owner, ownerAt(tile - ivec2(1, 0)) != owner,
-        ownerAt(tile + ivec2(0, 1)) != owner, ownerAt(tile - ivec2(0, 1)) != owner);
+      uvec4 around = uvec4(ownerAt(tile + ivec2(1, 0)), ownerAt(tile - ivec2(1, 0)),
+        ownerAt(tile + ivec2(0, 1)), ownerAt(tile - ivec2(0, 1)));
+      bvec4 other = notEqual(around, uvec4(owner));
+      // Where another player's land lies across the edge, rather than bare ground or sea.
+      bvec4 touch = bvec4(vec4(other) * vec4(greaterThan(around, uvec4(0u))));
       // Zoomed in, the fill lets the relief through; zoomed out, it is solid, so
       // small countries keep their colour and the edge is one clean pixel.
       float zoomedOut = smoothstep(0.4, 1.5, pixel);
-      // The relief shades the owner's colour rather than showing through it:
-      // pale colours stay apart from the grey of the mountains.
+      // The relief shades the owner's colour, which is laid over the ground
+      // rather than painted on it: hills stay visible, and pale colours stay
+      // apart from the grey of the mountains.
       float relief = clamp(dot(color, vec3(0.2126, 0.7152, 0.0722)) / groundLevel, 0.8, 1.15);
-      vec3 fillColor = ownerColor * mix(mix(1.0, relief, reliefShading), 1.0, zoomedOut);
+      vec3 fillColor = mix(color, ownerColor * mix(mix(1.0, relief, reliefShading), 1.0, zoomedOut), mix(0.84, 0.96, zoomedOut));
       // The land under the pointer is lit whole, wherever its pieces lie.
       bool pointed = owner == hovered;
       if (pointed) fillColor = mix(fillColor, vec3(1.0), 0.25);
@@ -196,12 +200,20 @@ const fragmentShader = /* glsl */ `
       bool mine = owner == highlight;
       bool wide = mine || allied || pointed;
       float width = wide ? max(0.4, 2.5 * pixel) : max(0.22, pixel);
+      // Three edges, told apart without colour: a thin dark line of the owner's
+      // colour at the edge of its land, the same line plus surf on a coast, and
+      // between two players a front, 1.7 times wider, with a light ridge on top.
+      vec3 lineColor = wide ? mix(ownerColor, vec3(1.0), 0.75) : ownerColor * 0.38;
+      vec3 ridgeColor = wide ? lineColor : mix(ownerColor, vec3(1.0), 0.45);
       float edge = edgeDistance(f, other, columnWidth);
+      float contactWidth = 1.7 * width;
+      float contactEdge = edgeDistance(f, touch, columnWidth);
       float border = 1.0 - smoothstep(width - pixel, width, edge);
+      float contact = 1.0 - smoothstep(contactWidth - pixel, contactWidth, contactEdge);
       // An ally's rim is as wide, in dashes about eight pixels long.
-      if (allied) border *= step(0.5, fract((at.x + at.y) / (16.0 * pixel)));
-      vec3 rimColor = mix(ownerColor, vec3(1.0), wide ? 0.75 : 0.3);
-      vec3 owned = mix(fillColor, rimColor, border);
+      float dash = allied ? step(0.5, fract((at.x + at.y) / (16.0 * pixel))) : 1.0;
+      vec3 owned = mix(fillColor, lineColor, border * dash);
+      owned = mix(owned, mix(lineColor * 0.5, ridgeColor, smoothstep(0.4 * contactWidth, 0.5 * contactWidth, contactEdge)), contact * dash);
       float age = now - texelFetch(takenAt, tile, 0).r;
       // Land taken in the last moments marks the front of an attack: its edge
       // turns to light and dark stripes that march along it, readable on any

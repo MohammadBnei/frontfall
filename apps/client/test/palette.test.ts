@@ -110,3 +110,64 @@ describe("the colour a player asks for", () => {
     expect(colorOf(1, 100)).toBe(PLAYER_COLORS[0]?.hex);
   });
 });
+
+describe("palette under colour blindness", () => {
+  // Machado et al. (2009), full severity, on linear RGB.
+  const SIMULATIONS = {
+    protanopia: [
+      [0.152286, 1.052583, -0.204868],
+      [0.114503, 0.786281, 0.099216],
+      [-0.003882, -0.048116, 1.051998],
+    ],
+    deuteranopia: [
+      [0.367322, 0.860646, -0.227968],
+      [0.280085, 0.672501, 0.047413],
+      [-0.01182, 0.04294, 0.968881],
+    ],
+    tritanopia: [
+      [1.255528, -0.076749, -0.178779],
+      [-0.078411, 0.930809, 0.147602],
+      [0.004733, 0.691367, 0.3039],
+    ],
+  } as const;
+
+  const linear = (byte: number) => {
+    const c = byte / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+
+  /** CIELAB of a colour as the map shows it: 84 % of the owner's colour over the land. */
+  function seen(hex: string, matrix?: readonly (readonly number[])[]): number[] {
+    const ground = hexToRgb(MAP_COLORS.land).map(linear);
+    let rgb = hexToRgb(hex).map((byte, i) => 0.84 * linear(byte) + 0.16 * (ground[i] ?? 0));
+    if (matrix) {
+      rgb = matrix.map((row) =>
+        Math.min(
+          1,
+          Math.max(
+            0,
+            row.reduce((sum, w, i) => sum + w * (rgb[i] ?? 0), 0),
+          ),
+        ),
+      );
+    }
+    const [r = 0, g = 0, b = 0] = rgb;
+    const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+    const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+    const y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+    const z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+    return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+  }
+
+  it("keeps the first eight players apart under every common form", () => {
+    const first = PLAYER_COLORS.slice(0, 8);
+    for (const [form, matrix] of Object.entries(SIMULATIONS)) {
+      for (const [i, a] of first.entries()) {
+        for (const b of first.slice(i + 1)) {
+          const gap = colorDistance(seen(a.hex, matrix), seen(b.hex, matrix));
+          expect(gap, `${a.name} and ${b.name} under ${form}`).toBeGreaterThanOrEqual(9);
+        }
+      }
+    }
+  });
+});
