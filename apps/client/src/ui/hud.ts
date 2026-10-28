@@ -19,6 +19,8 @@ export const MIN_RATIO = 5;
 export const DEFAULT_RATIO = 30;
 /** Steps of the work share slider (R-ECO-07), in percent: fine enough, and easy to hit with a finger. */
 const WORK_STEP = 5;
+/** Where the build panel is a tray and the bar has room for one slider only (game.css). */
+const NARROW = "(width < 720px), (height < 560px)";
 /** How long the attack preview stays once the pointer or the finger has left the land it was about. */
 const PREVIEW_LINGER_MS = 1500;
 /** The HUD is redrawn at most this often; the map keeps its own pace. */
@@ -337,6 +339,13 @@ export class Hud {
       this.setBuildOpen(!this.buildPanel.classList.contains("open"));
     });
     this.buildPanel = buildPanel;
+    const workRow = h(
+      "div",
+      { class: "ratio-row work-row" },
+      h("label", { for: "work-share", class: "work-label" }),
+      this.workInput,
+      this.workValue,
+    );
     this.element = h(
       "div",
       { class: "hud", id: "hud" },
@@ -359,23 +368,11 @@ export class Hud {
           h(
             "div",
             { class: "ratio-row" },
-            // A shorter name where the bar is narrow (game.css).
-            h(
-              "label",
-              { for: "attack-ratio" },
-              h("span", { class: "label-long", "data-i18n": "hud.ratio" }),
-              h("span", { class: "label-short attack-short" }),
-            ),
+            h("label", { for: "attack-ratio", "data-i18n": "hud.ratio" }),
             this.ratioInput,
             this.ratioValue,
           ),
-          h(
-            "div",
-            { class: "ratio-row work-row" },
-            h("label", { for: "work-share", class: "work-label" }),
-            this.workInput,
-            this.workValue,
-          ),
+          workRow,
         ),
         buildPanel,
       ),
@@ -387,6 +384,16 @@ export class Hud {
     );
     applyTranslations(this.element);
     this.translateWork();
+    // Where the bar has no room for a second slider, the work share opens with the
+    // buildings, at the top of their tray (game.css).
+    const narrow = matchMedia(NARROW);
+    const ratioPanel = workRow.parentElement;
+    const place = (): void => {
+      if (narrow.matches) buildPanel.prepend(workRow);
+      else ratioPanel?.append(workRow);
+    };
+    narrow.addEventListener("change", place);
+    place();
   }
 
   /** Opens or closes the tray of buildings where it is a tray (narrow screens). */
@@ -527,8 +534,6 @@ export class Hud {
   private translateWork(): void {
     const label = this.element.querySelector(".work-label");
     if (label) label.textContent = workText("work");
-    const short = this.element.querySelector(".attack-short");
-    if (short) short.textContent = workText("attack");
     const hint = workText("workHint", { factor: DEFAULT_BALANCE.workGoldFactor });
     this.workInput.title = hint;
     this.workInput.closest(".work-row")?.setAttribute("title", hint);
