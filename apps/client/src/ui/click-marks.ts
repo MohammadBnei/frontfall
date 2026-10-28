@@ -15,7 +15,8 @@ const NOTE_MS = 4000;
 /** A ring this far outside the view, in CSS pixels, is hidden rather than moved. */
 const OFF_SCREEN = 64;
 
-const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
+/** The reason shown for each refused click. */
+export const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   terrain: "click.terrain",
   own: "click.own",
   troops: "click.troops",

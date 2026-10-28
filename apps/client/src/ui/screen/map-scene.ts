@@ -12,6 +12,7 @@ import {
   FRONT_SECONDS,
   globeLoaded,
   type Renderer,
+  type StructureMark,
   type ViewKind,
 } from "../../render/renderer.ts";
 import type { Minimap } from "../../render/minimap.ts";
@@ -73,6 +74,10 @@ export class MapScene {
   private frontsOffAt = 0;
   /** The structures last drawn, as a key that changes when any of them does. */
   private drawnStructures = "";
+  /** The structures of the game, as last drawn. */
+  private structureMarks: StructureMark[] = [];
+  /** The structure the player is about to place, drawn faded among them. */
+  private ghost: StructureMark | undefined;
   /** The allies last marked on the map. */
   private drawnAllies = "";
   /** The tile under the mouse or a resting finger, and the owner lit for it. */
@@ -372,16 +377,44 @@ export class MapScene {
     this.drawnStructures = key;
     const { width } = this.mapSize;
     const { firstNation, teams } = this.shown;
+    this.structureMarks = update.structures.map((structure) => ({
+      x: structure.tile % width,
+      y: Math.floor(structure.tile / width),
+      type: structure.type,
+      ready: structure.ready,
+      color: colorOf(structure.player, firstNation, teams),
+    }));
+    this.drawStructures();
+  }
+
+  /** Draws the structures, and the one about to be placed, faded in the player's colour, among them. */
+  private drawStructures(): void {
+    if (!this.view) return;
     this.view.setStructures(
-      update.structures.map((structure) => ({
-        x: structure.tile % width,
-        y: Math.floor(structure.tile / width),
-        type: structure.type,
-        ready: structure.ready,
-        color: colorOf(structure.player, firstNation, teams),
-      })),
+      this.ghost ? [...this.structureMarks, this.ghost] : this.structureMarks,
     );
     this.dirty = true;
+  }
+
+  /** Shows a structure of the player's on `tile`, faded as when it is being built, or none. */
+  setGhost(tile: number | undefined, type?: StructureMark["type"]): void {
+    const shown = this.shown;
+    const { width } = this.mapSize;
+    const next =
+      tile === undefined || type === undefined || !shown
+        ? undefined
+        : {
+            x: tile % width,
+            y: Math.floor(tile / width),
+            type,
+            ready: false,
+            color: colorOf(shown.you, shown.firstNation, shown.teams),
+          };
+    if (next?.x === this.ghost?.x && next?.y === this.ghost?.y && next?.type === this.ghost?.type) {
+      return;
+    }
+    this.ghost = next;
+    this.drawStructures();
   }
 
   private placeFallout(update: GameUpdate): void {

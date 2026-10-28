@@ -8,7 +8,7 @@ import { h } from "./dom.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
 import { LeaderList } from "./leader-list.ts";
-import { BUILD_MODES, costOf, offers } from "./build-modes.ts";
+import { BUILD_MODES, costOf, numberOf, offers } from "./build-modes.ts";
 import { workText } from "./work-text.ts";
 
 // Also found here, where it was first defined.
@@ -230,6 +230,7 @@ export class Hud {
       "section",
       { class: "panel build", id: "build-panel", "data-i18n-attr": "aria-label:hud.build" },
       ...BUILD_MODES.map(({ mode, key }) => {
+        const digit = numberOf(mode);
         const costs: Partial<Record<ClickMode, HTMLElement>> = {
           palace: this.palaceCost,
           fort: this.fortCost,
@@ -251,9 +252,13 @@ export class Hud {
             id: `build-${mode}`,
             "aria-pressed": "false",
             "data-i18n-attr": `title:hud.${mode}Hint`,
-            "aria-keyshortcuts": key,
+            "aria-keyshortcuts": digit === undefined ? key : `${key} ${String(digit)}`,
           },
           h("span", { class: "build-icon", "aria-hidden": "true" }, icon(mode)),
+          // The number that picks it, in the corner of the button.
+          ...(digit === undefined
+            ? []
+            : [h("kbd", { class: "build-num", "aria-hidden": "true" }, String(digit))]),
           // The cost stays under the icon, in the dock as in the tray.
           ...(price ? [price] : []),
           // Name and key: a bubble over the button on hover or focus.
@@ -263,6 +268,9 @@ export class Hud {
             h("span", { class: "build-name", "data-i18n": `hud.${mode}` }),
             // The key, for players with a keyboard; hidden on touch screens (styles.css).
             h("kbd", { class: "build-key", "aria-hidden": "true" }, key),
+            ...(digit === undefined
+              ? []
+              : [h("kbd", { class: "build-key", "aria-hidden": "true" }, String(digit))]),
             ...count,
           ),
         );
@@ -412,8 +420,8 @@ export class Hud {
     this.buildToggle.setAttribute("aria-expanded", String(open));
   }
 
-  /** Shows what a build button does for a few seconds. */
-  private explain(text: string): void {
+  /** Shows what a build button does, or a hint about building, in the tip over the bar for a few seconds. */
+  explain(text: string): void {
     this.tip.textContent = text;
     this.tip.hidden = false;
     clearTimeout(this.tipTimer);

@@ -168,6 +168,12 @@ scope.onmessage = (event) => {
       scope.postMessage({ type: "click", tile: request.tile, outcome, ...(note ? { note } : {}) });
       break;
     }
+    case "peek":
+      if (game) {
+        const { seq, tile, mode, reach } = request;
+        scope.postMessage({ type: "peek", seq, ...game.previewClick(tile, mode, reach) });
+      }
+      break;
     case "turns":
       if (game) playTurns(request.turns);
       else early.push(...request.turns);

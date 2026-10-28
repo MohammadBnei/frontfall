@@ -30,11 +30,12 @@ import { SpeedControl } from "./speed-control.ts";
 import { colorOf } from "../palette.ts";
 import { StatsRecorder } from "./screen/stats-history.ts";
 import { GameAchievements } from "./screen/game-achievements.ts";
-import { gameKey } from "./screen/game-keys.ts";
+import { gameKey, typingIn } from "./screen/game-keys.ts";
 import { GuideHost } from "./screen/guide-host.ts";
 import { MapScene } from "./screen/map-scene.ts";
 import { Orders } from "./screen/orders.ts";
 import { Overlays } from "./screen/overlays.ts";
+import { PreviewHost } from "./screen/preview-host.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
 /** How often the turns of an online game are checked for being due. */
@@ -121,6 +122,8 @@ export class GameScreen {
   private feed: FeedHost | undefined;
   /** Where each player's name goes, as of the last update that said: a place to centre the map on. */
   private anchors: readonly { player: number; tile: number }[] = [];
+  /** What a build click would do, shown before it is made. */
+  private readonly previews: PreviewHost;
   /** First steps of a first solo game, while they show. */
   private readonly guide: GuideHost;
   /** A finger rather than a mouse: the help shows gestures instead of keys. */
@@ -342,6 +345,9 @@ export class GameScreen {
           this.marks.show(tile, outcome, performance.now(), link !== undefined, action, note);
           this.afterClick(outcome);
         },
+        onPeek: (preview) => {
+          this.previews.answer(preview);
+        },
         onError: (message) => {
           console.error(message);
           if (message !== REPLAY_MAP_CHANGED) usage().error("worker", message);
@@ -352,6 +358,22 @@ export class GameScreen {
       },
       link,
     );
+    this.previews = new PreviewHost({
+      mount: (layer) => {
+        this.hud.element.after(layer);
+      },
+      session: this.session,
+      scene: this.scene,
+      latest: () => this.latest,
+      mode: () => this.mode,
+      say: (text) => {
+        this.hud.explain(text);
+      },
+      storage: safeStorage(),
+      commit: (tile, finger) => {
+        this.commit(tile, finger);
+      },
+    });
     this.orders = new Orders(this.session, {
       latest: () => this.latest,
       held: () => this.overlays.paused || this.replayBar !== undefined,
@@ -436,6 +458,7 @@ export class GameScreen {
       this.labels.place(camera, camera.scale);
       this.feed?.expire(now);
       this.marks.place(camera, now);
+      this.previews.place();
       this.frameHandle = requestAnimationFrame(frame);
     };
     this.frameHandle = requestAnimationFrame(frame);
@@ -470,6 +493,7 @@ export class GameScreen {
         this.hud.hover(land ? this.scene.ownerAt(tile) : undefined);
         // The card is about land too, whoever holds it.
         this.feed?.over(land ? this.scene.ownerAt(tile) : 0);
+        this.previews.hover(tile);
       },
     });
   }
@@ -506,6 +530,7 @@ export class GameScreen {
       this.options.record === undefined ? this.feed?.lost(update) : undefined;
     if (update.labels) this.anchors = update.labels;
     this.scene.update(update);
+    this.previews.update(performance.now());
     const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
     this.achievements.observe(update);
@@ -543,6 +568,12 @@ export class GameScreen {
   }
 
   private click(tile: number, finger = false): void {
+    // A finger's first tap in a build mode shows where it would go; the second places it.
+    if (this.previews.tap(tile, finger)) return;
+    this.commit(tile, finger);
+  }
+
+  private commit(tile: number, finger: boolean): void {
     const reach = aimReach(this.scene.camera.scale, finger);
     if (!this.orders.click(tile, this.mode, reach)) return;
     // A build mode stays on until a structure goes up (afterClick): a click
@@ -562,10 +593,11 @@ export class GameScreen {
     this.mode = mode === this.mode ? "attack" : mode;
     this.hud.setMode(this.mode);
     this.surface.dataset.mode = this.mode;
+    this.previews.modeChanged(this.mode);
   }
 
   private key(event: KeyboardEvent): void {
-    if (event.target instanceof HTMLInputElement && event.target.type === "text") return;
+    if (typingIn(event.target)) return;
     const action = gameKey(event, {
       overlay: this.overlays.open,
       menu: this.diplomacy.open,

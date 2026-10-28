@@ -1,6 +1,6 @@
 import type { ClickMode } from "../../game/solo-game.ts";
-import { commandCode } from "../../input/keyboard.ts";
-import { offers } from "../build-modes.ts";
+import { commandCode, isTextEntry } from "../../input/keyboard.ts";
+import { BUILD_MODES, offers } from "../build-modes.ts";
 
 /** The build buttons' shortcut keys, by the key's place on a QWERTY keyboard. */
 const BUILD_KEYS: Partial<Record<string, ClickMode>> = {
@@ -15,6 +15,30 @@ const BUILD_KEYS: Partial<Record<string, ClickMode>> = {
   KeyN: "heavyMissile",
   KeyX: "demolish",
 };
+
+/** The build buttons' numbers, as the digit keys that pick them. */
+const BUILD_DIGITS: Readonly<Record<number, ClickMode>> = Object.fromEntries(
+  BUILD_MODES.flatMap((entry) => ("number" in entry ? [[entry.number, entry.mode]] : [])),
+);
+
+/** Form fields that take no typing: a key pressed on a slider or a button is still a shortcut. */
+const NO_TEXT = new Set([
+  "range",
+  "checkbox",
+  "radio",
+  "button",
+  "submit",
+  "reset",
+  "color",
+  "file",
+]);
+
+/** Whether a key goes to a field the player types into, which keeps its keys from being shortcuts. */
+export function typingIn(target: EventTarget | null): boolean {
+  if (!isTextEntry(target)) return false;
+  const { tagName, type } = target as { tagName?: string; type?: string };
+  return !(tagName === "INPUT" && type !== undefined && NO_TEXT.has(type));
+}
 
 /** What a key does in a game, in the order Esc tries them. */
 export type GameKey =
@@ -45,7 +69,7 @@ export interface KeyState {
  * player menu, then a build mode, before it pauses the game.
  */
 export function gameKey(
-  event: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey">,
+  event: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
   state: KeyState,
 ): GameKey | undefined {
   if (event.ctrlKey || event.metaKey || event.altKey) return undefined;
@@ -57,7 +81,10 @@ export function gameKey(
   if (mode && offers(mode, state.disabled)) return { type: "mode", mode };
   if (event.code.startsWith("Digit")) {
     const digit = Number(event.code.slice(5));
-    return { type: "ratio", percent: digit === 0 ? 100 : digit * 10 };
+    // Digits pick the building of that number; with Shift, the share of troops an attack takes.
+    if (event.shiftKey) return { type: "ratio", percent: digit === 0 ? 100 : digit * 10 };
+    const built = state.watching ? undefined : BUILD_DIGITS[digit];
+    return built && offers(built, state.disabled) ? { type: "mode", mode: built } : undefined;
   }
   if (command === "KeyP" || event.code === "Escape") return { type: "pause" };
   if (command === "KeyT" && !state.watching) return { type: "speed" };

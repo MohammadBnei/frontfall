@@ -9,7 +9,7 @@ async function startSolo(page: import("@playwright/test").Page): Promise<void> {
 
 test("the help lists every building with its key, cost and where it goes", async ({ page }) => {
   await startSolo(page);
-  await expect(page.locator("#build-port .build-key")).toHaveText("O");
+  await expect(page.locator("#build-port .build-key").first()).toHaveText("O");
   // Costs come with the first update of the game.
   await expect(page.locator("#build-port .build-cost")).toHaveText(/\d/);
 
@@ -19,7 +19,7 @@ test("the help lists every building with its key, cost and where it goes", async
   await expect(help).toContainText("How to play");
   const port = help.locator(".help-build.build-port");
   await expect(port).toContainText("on your coast");
-  await expect(port.locator("kbd")).toHaveText("O");
+  await expect(port.locator("kbd").first()).toHaveText("O");
   await expect(port.locator(".help-cost")).toHaveText(/\d/);
   // One row per build button.
   await expect(help.locator(".help-build")).toHaveCount(

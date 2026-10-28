@@ -5,7 +5,7 @@ import { applyTranslations, getLanguage, type MessageKey } from "../i18n/index.t
 import { h } from "./dom.ts";
 import { formatCount } from "./format.ts";
 import { icon } from "./icons.ts";
-import { BUILD_MODES, costOf, offers } from "./build-modes.ts";
+import { BUILD_MODES, costOf, numberOf, offers } from "./build-modes.ts";
 
 export interface HelpOptions {
   /** The player's current costs, when the game has started. */
@@ -70,7 +70,16 @@ export function helpPanel(options: HelpOptions): HTMLElement {
           h("strong", { "data-i18n": `hud.${mode}` }),
           h("span", { "data-i18n": `help.place.${mode}`, "data-i18n-params": params }),
         ),
-        ...(options.touch ? [] : [h("kbd", {}, key)]),
+        ...(options.touch
+          ? []
+          : [
+              h(
+                "span",
+                { class: "help-keys" },
+                h("kbd", {}, key),
+                ...(numberOf(mode) === undefined ? [] : [h("kbd", {}, String(numberOf(mode)))]),
+              ),
+            ]),
         h("span", { class: "help-cost" }, cost === undefined ? "" : formatCount(cost)),
       );
     },

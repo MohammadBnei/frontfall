@@ -394,6 +394,47 @@ describe("SoloGame clicks", () => {
     expect(solo.orderForClick(sea, 30, "port")).toEqual({ refused: "gold" });
   });
 
+  it("previews a click without making it: where it lands, why not, how far it reaches", () => {
+    const solo = newGame({ ...options, bots: 1 });
+    const { terrain, territory } = solo.game;
+    const topology = terrain.topology;
+    let update = solo.step([]);
+    while (update.phase === "spawn") update = solo.step([]);
+    const human = solo.game.player(HUMAN_ID);
+    if (!human) throw new Error("no human");
+    human.gold = 1_000_000;
+    for (let tile = 0; tile < topology.size; tile++) {
+      if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
+    }
+    const land = [...terrain.kinds.keys()].find((tile) => terrain.isOwnable(tile)) ?? -1;
+    const queued = solo.game.structures.length;
+    // A fort reaches as far as the engine says, and nothing was built by asking.
+    expect(solo.previewClick(land, "fort")).toEqual({
+      tile: land,
+      radius: solo.game.balance.fortRadius,
+    });
+    expect(solo.previewClick(land, "city")).toEqual({ tile: land });
+    expect(solo.previewClick(land, "airDefense").radius).toBeGreaterThan(0);
+    expect(solo.game.structures).toHaveLength(queued);
+    // A port snaps to the coast beside the click, and a click far inland says why not.
+    const coast = [...terrain.kinds.keys()].find((tile) => terrain.isOceanCoast(tile)) ?? -1;
+    expect(solo.previewClick(coast, "port")).toEqual({ tile: coast });
+    const inland =
+      [...terrain.kinds.keys()].find(
+        (tile) =>
+          terrain.isOwnable(tile) && !topology.tilesWithin(tile, 8).some((t) => terrain.isCoast(t)),
+      ) ?? -1;
+    expect(solo.previewClick(inland, "port")).toEqual({ tile: inland, refused: "coast" });
+    // The refusals the click would give, with the reach kept for structures that have one.
+    human.gold = 0;
+    expect(solo.previewClick(land, "fort")).toEqual({
+      tile: land,
+      refused: "gold",
+      radius: solo.game.balance.fortRadius,
+    });
+    expect(solo.previewClick(land, "missile")).toEqual({ tile: land, refused: "silo" });
+  });
+
   it("aims a port or a warship at the coast from as far as the zoom lets a click miss it (R-BUILD-02, R-UNIT-04)", () => {
     // Two islands, 10 x 10 tiles each, with 14 tiles of sea between them.
     const width = 40;

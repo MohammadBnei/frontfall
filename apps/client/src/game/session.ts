@@ -2,7 +2,7 @@ import type { Order } from "@frontfall/engine";
 import type { MapData } from "./maps.ts";
 import type { ClickOutcome, GameRules } from "./messages.ts";
 import type { ClickNote } from "./solo-game.ts";
-import type { ClickMode, GameUpdate } from "./solo-game.ts";
+import type { ClickMode, ClickPreview, GameUpdate } from "./solo-game.ts";
 
 /** What the page needs to draw a game, once its map is loaded. */
 export interface StartInfo {
@@ -22,6 +22,8 @@ export interface SessionEvents {
   /** What a click sent through `click` turned into. */
   /** `note`: something to know about an order that was sent all the same. */
   onClick(tile: number, outcome: ClickOutcome, note?: ClickNote): void;
+  /** What a click asked about with `peek` would do; a later `peek` makes it stale. */
+  onPeek(preview: ClickPreview): void;
   onError(message: string): void;
 }
 
@@ -39,6 +41,8 @@ export interface GameSession {
    * count as aiming at the coast or the sea, from the zoom (aimReach).
    */
   click(tile: number, ratio: number, mode?: ClickMode, reach?: number): void;
+  /** Asks what a click in a build mode would do, without doing it: answered by `onPeek`. */
+  peek(tile: number, mode: ClickMode, reach?: number): void;
   /** Solo only: online games never pause. */
   setPaused(paused: boolean): void;
   dispose(): void;

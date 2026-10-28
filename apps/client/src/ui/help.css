@@ -65,6 +65,11 @@
   font-size: 14px;
 }
 
+.help-keys {
+  display: flex;
+  gap: 4px;
+}
+
 .help-cost {
   font-variant-numeric: tabular-nums;
   text-align: right;
