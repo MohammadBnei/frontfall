@@ -269,7 +269,9 @@ test("plays a World game against 8 bots to its end screen", async ({ page }, tes
   expect(pageErrors).toEqual([]);
 });
 
-test("Play again starts the same game anew from the end screen", async ({ page }) => {
+test("Play again starts the same game anew from the end screen", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "prefix", "played once, at the root");
+  test.setTimeout(240_000);
   await page.goto("./?map=world&bots=8&difficulty=hard&nations=0&speed=30&minutes=3");
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
