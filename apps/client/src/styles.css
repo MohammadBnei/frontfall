@@ -299,12 +299,6 @@ button.secondary:disabled {
   cursor: not-allowed;
 }
 
-.online-quick {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .online-quick .hint,
 .hint.error {
   text-align: left;
@@ -583,13 +577,6 @@ button.secondary:disabled {
   text-align: center;
 }
 
-.menu-footer select {
-  padding: 6px 8px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-700);
-}
-
 /* In-game interface */
 
 .hud {
@@ -619,28 +606,6 @@ button.secondary:disabled {
   gap: 18px;
 }
 
-.stat {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-label {
-  color: var(--ff-slate-300);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.stat-value {
-  font-size: 18px;
-}
-
-.stat-cap {
-  color: var(--ff-slate-300);
-  font-size: 12px;
-}
-
 .banner {
   position: absolute;
   top: 12px;
@@ -656,44 +621,6 @@ button.secondary:disabled {
   pointer-events: none;
 }
 
-.leaderboard {
-  top: 12px;
-  right: 12px;
-  width: 220px;
-  /* A long player menu scrolls inside the panel rather than running off the screen. */
-  max-height: calc(100% - 24px);
-  overflow-y: auto;
-}
-
-/* An open player menu goes over the build panel below it. */
-.leaderboard:has(.player-menu:not([hidden])) {
-  z-index: 1;
-}
-
-.leaderboard h2 {
-  margin: 0 0 6px;
-  color: var(--ff-slate-300);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.leaderboard-list {
-  margin: 0;
-  padding: 0 0 0 1.6em;
-}
-
-.leader {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 1px 0;
-}
-
-.leader::marker {
-  color: var(--ff-slate-400);
-}
-
 .leader.you {
   font-weight: 700;
 }
@@ -703,94 +630,6 @@ button.secondary:disabled {
   width: 10px;
   height: 10px;
   border-radius: 2px;
-}
-
-.leader-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.leader-land {
-  color: var(--ff-slate-300);
-}
-
-.ratio {
-  bottom: 12px;
-  left: 12px;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  width: min(260px, calc(100vw - 24px));
-  box-sizing: border-box;
-}
-
-.ratio label {
-  white-space: nowrap;
-}
-
-.ratio input {
-  flex: 1;
-  min-width: 0;
-}
-
-/* The player's attacks under way, each with its retreat button (ui/hud.ts). */
-
-.attacks {
-  bottom: 64px;
-  left: 12px;
-  left: 12px;
-  width: 220px;
-  max-width: calc(100vw - 24px);
-  box-sizing: border-box;
-  padding: 6px 8px;
-}
-
-.attack-list {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.attack {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.attack-text {
-  overflow: hidden;
-  font-variant-numeric: tabular-nums;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.attack-retreat {
-  flex: none;
-  padding: 3px 8px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: transparent;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.attack-retreat:hover,
-.attack-retreat:focus-visible {
-  border-color: var(--ff-slate-400);
-}
-
-.toolbar {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  display: flex;
-  gap: 8px;
 }
 
 .icon {
@@ -813,22 +652,6 @@ button.secondary:disabled {
   fill: var(--icon-accent, currentcolor);
 }
 
-.icon-button {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-800);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.icon-button:hover {
-  border-color: var(--ff-slate-400);
-}
-
 .overlay {
   position: fixed;
   inset: 0;
@@ -838,7 +661,6 @@ button.secondary:disabled {
   background: rgb(6 12 18 / 70%);
 }
 
-.end-screen,
 .help {
   width: min(420px, 100%);
   box-sizing: border-box;
@@ -849,72 +671,12 @@ button.secondary:disabled {
   text-align: center;
 }
 
-.end-screen h1 {
-  margin: 0;
-  font-size: 32px;
-}
-
 .end-screen.won h1 {
   color: var(--ff-ember);
 }
 
-.end-winner {
-  color: var(--ff-slate-300);
-}
-
-.end-stats {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 16px;
-  margin: 16px 0;
-  text-align: left;
-}
-
-.end-stats dt {
-  color: var(--ff-slate-300);
-}
-
-.end-stats dd {
-  margin: 0;
-  font-weight: 600;
-}
-
-.end-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .feedback {
   margin: 0 0 16px;
-}
-
-.feedback-question,
-.feedback-thanks {
-  margin: 0 0 8px;
-  color: var(--ff-slate-300);
-}
-
-.feedback-thumbs {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-}
-
-.feedback-thumbs button {
-  min-width: 64px;
-  font-size: 20px;
-}
-
-.feedback-reasons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.feedback-reasons[hidden],
-.feedback-thumbs[hidden] {
-  display: none;
 }
 
 button.link {
@@ -925,17 +687,6 @@ button.link {
   color: var(--ff-slate-300);
   text-decoration: underline;
   cursor: pointer;
-}
-
-.feedback-links {
-  margin: 12px 0 0;
-  color: var(--ff-slate-300);
-  font-size: 13px;
-  text-align: center;
-}
-
-.feedback-links a {
-  color: var(--ff-slate-300);
 }
 
 kbd {
@@ -959,43 +710,9 @@ kbd {
     gap: 12px;
   }
 
-  .leaderboard {
-    top: auto;
-    bottom: 64px;
-    width: 170px;
-  }
-
   /* Beside the leaderboard, above the attack ratio. */
-  .attacks {
-    bottom: 64px;
-    width: auto;
-    max-width: calc(100vw - 206px);
-  }
 
   /* The ratio panel stops short of the three toolbar buttons. */
-  .ratio {
-    left: 12px;
-    right: 174px;
-    width: auto;
-    transform: none;
-  }
-
-  .icon-button {
-    width: 36px;
-    height: 36px;
-  }
-
-  .toolbar {
-    gap: 6px;
-  }
-
-  .ratio label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
 
   /* Over the base rule, which comes later in this file. */
   .game .click-note {
@@ -1033,52 +750,6 @@ kbd {
 :root[data-reduce-motion] * {
   transition: none !important;
   animation: none !important;
-}
-
-.map-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.paused {
-  cursor: pointer;
-}
-
-.paused-text {
-  padding: 12px 20px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-700);
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.map-surface {
-  position: fixed;
-  inset: 0;
-  touch-action: none;
-}
-
-.map-surface:focus {
-  outline: none;
-}
-
-/* Keyboard play: a cross on the middle of the view shows where Enter clicks. */
-.map-surface:focus-visible::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 28px;
-  height: 28px;
-  transform: translate(-50%, -50%);
-  background:
-    linear-gradient(var(--ff-text), var(--ff-text)) center / 2px 100% no-repeat,
-    linear-gradient(var(--ff-text), var(--ff-text)) center / 100% 2px no-repeat;
-  filter: drop-shadow(0 0 2px var(--ff-night-900)) drop-shadow(0 0 1px var(--ff-night-900));
-  pointer-events: none;
 }
 
 /* Interface size and contrast chosen in the menu (ui/accessibility.ts). */
@@ -1157,107 +828,11 @@ kbd {
   border-top: 1px solid var(--ff-night-500);
 }
 
-.goal-text,
-.goal-clock {
-  margin: 0;
-  color: var(--ff-slate-300);
-  font-size: 12px;
-}
-
-.goal-bar {
-  position: relative;
-  height: 6px;
-  margin: 6px 0;
-  border-radius: 3px;
-  background: var(--ff-night-600);
-  overflow: hidden;
-}
-
-.goal-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 3px;
-}
-
-.goal-leader {
-  background: var(--ff-slate-400);
-}
-
-.goal-you {
-  background: var(--ff-ember);
-}
-
-/* The answer to a click on the map (ui/click-marks.ts). */
-
-.click-marks {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.click-mark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-}
-
-.click-mark::before {
-  content: "";
-  position: absolute;
-  top: -14px;
-  left: -14px;
-  width: 28px;
-  height: 28px;
-  box-sizing: border-box;
-  border: 2px solid var(--ff-ember);
-  border-radius: 50%;
-  animation: click-ring 700ms ease-out forwards;
-}
-
-.click-mark.embark::before {
-  border-color: var(--ff-info);
-  border-style: dashed;
-}
-
-/* An online order on its way to the server and back. */
-.click-mark.pending::before {
-  opacity: 0.6;
-  animation: click-wait 600ms ease-in-out infinite alternate;
-}
-
 .click-mark.refused::before {
   border-color: var(--ff-danger);
 }
 
-@keyframes click-wait {
-  from {
-    transform: scale(0.5);
-    opacity: 0.5;
-  }
-
-  to {
-    transform: scale(0.7);
-    opacity: 1;
-  }
-}
-
-@keyframes click-ring {
-  from {
-    transform: scale(0.4);
-    opacity: 1;
-  }
-
-  to {
-    transform: scale(1.3);
-    opacity: 0;
-  }
-}
-
-.click-note,
-.build-tip {
+.click-note {
   position: fixed;
   bottom: 68px;
   left: 50%;
@@ -1271,12 +846,6 @@ kbd {
   font-size: 14px;
   text-align: center;
   pointer-events: none;
-}
-
-/* What a build button does, after a long press on it (ui/hud.ts). */
-.build-tip {
-  z-index: 1;
-  border-color: var(--ff-slate-400);
 }
 
 /* Player names over their land (ui/labels.ts). */
@@ -1306,12 +875,6 @@ kbd {
   will-change: transform;
 }
 
-.label-troops {
-  font-size: 0.75em;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
 /* Build buttons (ui/hud.ts): structures, units and demolish, with the cost of the next one. */
 
 /* A dock of icons at the foot of the map. Name, key and cost show in a bubble
@@ -1325,67 +888,8 @@ kbd {
   transform: translateX(-50%);
 }
 
-.build-button {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--ff-radius);
-  background: transparent;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-/* Only narrow screens need the button that opens the dock as a tray. */
-.icon-build {
-  display: none;
-}
-
 .build-button.unaffordable .build-icon {
   opacity: 0.45;
-}
-
-.build-info {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  z-index: 2;
-  display: none;
-  gap: 8px;
-  align-items: baseline;
-  padding: 4px 8px;
-  transform: translateX(-50%);
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-800);
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.build-info .build-key {
-  position: static;
-}
-
-.build-button:hover .build-info,
-.build-button:focus-visible .build-info {
-  display: flex;
-}
-
-.build-button:hover,
-.build-button:focus-visible {
-  border-color: var(--ff-slate-400);
-}
-
-.build-button[aria-pressed="true"] {
-  border-color: var(--ff-ember);
-  background: rgb(242 92 42 / 18%);
-}
-
-.build-button.unaffordable .build-cost {
-  color: var(--ff-danger);
 }
 
 .build-icon {
@@ -1412,28 +916,6 @@ kbd {
 .build-palace .build-icon,
 .build-airDefense .build-icon {
   --icon-accent: var(--ff-warning);
-}
-
-.build-name {
-  font-weight: 600;
-}
-
-.build-cost,
-.build-count {
-  color: var(--ff-slate-300);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.map-surface[data-mode="city"],
-.map-surface[data-mode="palace"],
-.map-surface[data-mode="fort"],
-.map-surface[data-mode="silo"],
-.map-surface[data-mode="airDefense"],
-.map-surface[data-mode="missile"],
-.map-surface[data-mode="heavyMissile"],
-.map-surface[data-mode="demolish"] {
-  cursor: crosshair;
 }
 
 .click-mark.build::before {
@@ -1468,39 +950,9 @@ kbd {
   }
 
   /* The icon over the cost: five buttons fit across a 320 px phone. */
-  .build-button {
-    width: auto;
-    height: auto;
-    min-height: 44px;
-    align-content: center;
-    padding: 4px;
-    line-height: 1.1;
-  }
 
   .build-icon {
     margin-bottom: 2px;
-  }
-
-  .build-info {
-    position: static;
-    display: block;
-    padding: 0;
-    transform: none;
-    border: 0;
-    background: none;
-  }
-
-  .build-name,
-  .build-count {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-
-  .icon-build {
-    display: inline-block;
   }
 }
 
@@ -1513,31 +965,6 @@ kbd {
     max-width: calc(100vw - 300px);
     transform: none;
   }
-}
-
-/* Diplomacy (ui/diplomacy.ts): the menu of a player, alliance requests and
-   a feed of what happened between players. */
-
-.leader-button {
-  display: flex;
-  flex: 1;
-  gap: 6px;
-  align-items: center;
-  min-width: 0;
-  margin: 0 -4px;
-  padding: 1px 4px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.leader-button:hover,
-.leader-button:focus-visible {
-  background: var(--ff-night-600);
 }
 
 .badge {
@@ -1554,116 +981,8 @@ kbd {
   display: none;
 }
 
-.badge-ally {
-  background: var(--ff-front);
-}
-
-.badge-traitor {
-  background: var(--ff-danger);
-}
-
-/* At the foot of the leaderboard, under the row it was opened from. */
-.player-menu {
-  position: static;
-  display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 8px 0 0;
-  border: 0;
-  border-top: 1px solid var(--ff-night-500);
-  border-radius: 0;
-  background: none;
-}
-
-.player-menu[hidden],
 .requests[hidden] {
   display: none;
-}
-
-.player-menu-head {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.player-menu-head h2 {
-  flex: 1;
-  margin: 0;
-  overflow: hidden;
-  color: var(--ff-text);
-  font-size: 14px;
-  letter-spacing: normal;
-  text-transform: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.player-menu .icon-close {
-  width: 24px;
-  height: 24px;
-}
-
-.player-menu-status,
-.player-menu-traitor {
-  margin: 0;
-  color: var(--ff-slate-300);
-}
-
-.player-menu-traitor {
-  color: var(--ff-danger);
-}
-
-.menu-action,
-.request-accept,
-.request-ignore {
-  padding: 6px 10px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-700);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.menu-action:hover:not(:disabled),
-.menu-action:focus-visible,
-.request-accept:hover,
-.request-accept:focus-visible,
-.request-ignore:hover,
-.request-ignore:focus-visible {
-  border-color: var(--ff-slate-400);
-}
-
-.menu-action:disabled {
-  color: var(--ff-slate-400);
-  cursor: default;
-}
-
-.quick-messages {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-}
-
-.quick-phrase {
-  padding: 4px 6px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-700);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.quick-phrase:hover,
-.quick-phrase:focus-visible {
-  border-color: var(--ff-slate-400);
-}
-
-.menu-action.betray {
-  border-color: var(--ff-danger);
-}
-
-.menu-action.danger {
-  background: var(--ff-danger);
 }
 
 /* Under the banner, in the middle: an answer is expected. */
@@ -1688,39 +1007,6 @@ kbd {
   align-items: center;
 }
 
-.request-time {
-  grid-row: 2;
-  grid-column: 1 / -1;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--ff-night-500);
-}
-
-.request-time-left {
-  display: block;
-  height: 100%;
-  background: var(--ff-front);
-}
-
-.request-accept {
-  border-color: var(--ff-front);
-}
-
-/* What happened between players, under the stats; fades out by itself. */
-.event-feed {
-  position: absolute;
-  top: 80px;
-  left: 12px;
-  display: grid;
-  gap: 4px;
-  max-width: min(320px, calc(100vw - 24px));
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  pointer-events: none;
-}
-
 .event {
   padding: 4px 8px;
   border-left: 3px solid var(--ff-front);
@@ -1729,20 +1015,8 @@ kbd {
   font-size: 13px;
 }
 
-.event-betrayed {
-  border-left-color: var(--ff-danger);
-}
-
-.event-ended {
-  border-left-color: var(--ff-slate-400);
-}
-
 /* Phones and short windows: the build row takes the space under the stats. */
 @media (width < 720px), (height < 560px) {
-  .event-feed {
-    top: 240px;
-  }
-
   .event:nth-child(n + 3) {
     display: none;
   }
@@ -1753,124 +1027,23 @@ kbd {
   .requests {
     top: 242px;
   }
-
-  .event-feed {
-    top: 336px;
-  }
 }
 
 /* Watching a replay: no orders to give, a bar to set the pace instead. */
 
-.watching .ratio,
 .watching .build,
-.watching .attacks,
 .watching .requests,
 .watching .banner {
   display: none;
-}
-
-.replay-bar {
-  position: fixed;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  align-items: center;
-  justify-content: center;
-  width: min(600px, calc(100vw - 24px));
-  box-sizing: border-box;
-}
-
-.replay-progress {
-  width: 160px;
-  accent-color: var(--ff-ember);
-}
-
-.replay-time {
-  font-variant-numeric: tabular-nums;
-}
-
-.replay-speeds {
-  display: flex;
-  gap: 4px;
-}
-
-.replay-speed {
-  min-width: 40px;
-  min-height: 32px;
-  border: 1px solid var(--ff-night-500);
-  border-radius: var(--ff-radius);
-  background: var(--ff-night-700);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.replay-speed[aria-pressed="true"] {
-  border-color: var(--ff-ember);
-  color: var(--ff-ember);
 }
 
 .replay-result.same {
   color: var(--ff-slate-300);
 }
 
-.replay-result.different {
-  color: var(--ff-ember);
-  font-weight: 600;
-}
-
 .replay-picker {
   display: flex;
   justify-content: center;
-}
-
-/* Phones: the leaderboard holds the bottom, the banner's place at the top is free. */
-@media (width < 720px) {
-  .replay-bar {
-    top: 84px;
-    bottom: auto;
-  }
-
-  .replay-progress {
-    flex: 1;
-    width: auto;
-  }
-}
-
-/* The key of each build button (ui/hud.ts), for players with a keyboard. */
-.build-button {
-  position: relative;
-  padding-right: 28px;
-}
-
-.build-key {
-  position: absolute;
-  top: 4px;
-  right: 5px;
-  color: var(--ff-slate-300);
-}
-
-/* A finger has no keys to learn. */
-@media (pointer: coarse) {
-  .build-key {
-    display: none;
-  }
-
-  .build-button {
-    padding-right: 8px;
-  }
-}
-
-@media (width < 720px), (height < 560px) {
-  .build-key {
-    display: none;
-  }
-
-  .build-button {
-    padding-right: 8px;
-  }
 }
 
 /* Achievements */
@@ -1901,8 +1074,7 @@ kbd {
   color: var(--ff-slate-300);
 }
 
-.achievement-list,
-.end-achievements ul {
+.achievement-list {
   display: grid;
   gap: 10px;
   margin: 16px 0;
@@ -1910,8 +1082,7 @@ kbd {
   list-style: none;
 }
 
-.achievement-list li,
-.end-achievements li {
+.achievement-list li {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1922,13 +1093,11 @@ kbd {
   color: var(--ff-slate-300);
 }
 
-.achievement-list span,
-.end-achievements span {
+.achievement-list span {
   display: grid;
 }
 
-.achievement-list small,
-.end-achievements small {
+.achievement-list small {
   color: var(--ff-slate-300);
 }
 
@@ -1942,24 +1111,8 @@ kbd {
   color: var(--ff-warning);
 }
 
-.end-achievements {
-  margin: 0 0 16px;
-}
-
-.end-achievements h2 {
-  margin: 0;
-  font-size: 16px;
-  color: var(--ff-warning);
-}
-
 .achievement-list em.progress {
   color: var(--ff-slate-300);
-}
-
-.end-achievements em {
-  color: var(--ff-warning);
-  font-size: 12px;
-  font-style: normal;
 }
 
 /* The profile in the menu (ui/profile-panel.ts). */
@@ -2037,35 +1190,6 @@ kbd {
   padding: 0;
   list-style: none;
   font-size: 14px;
-}
-
-/* Lighter in-game interface (ui/hud.ts). */
-
-.leaderboard-toggle {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  cursor: pointer;
-}
-
-.leaderboard-toggle::after {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border: solid currentcolor;
-  border-width: 0 1.5px 1.5px 0;
-  transform: rotate(45deg) translateY(-2px);
-}
-
-.leaderboard-toggle[aria-expanded="true"]::after {
-  transform: rotate(225deg);
 }
 
 /* The rule of the win is one tap away. */
@@ -2254,7 +1378,6 @@ kbd {
 .menu-online,
 .lobby-panel,
 .menu-panel,
-.end-screen,
 .help,
 .notice {
   border-radius: 14px;
@@ -2266,7 +1389,6 @@ kbd {
 .menu-online,
 .lobby-panel,
 .menu-panel,
-.end-screen,
 .help {
   background: linear-gradient(180deg, #1a2d40, var(--ff-night-700));
 }
@@ -2281,7 +1403,6 @@ button.primary:hover {
 }
 
 button.secondary,
-.icon-button,
 .bar-button {
   background: linear-gradient(180deg, var(--ff-night-500), var(--ff-night-600));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
@@ -2295,8 +1416,4 @@ button.secondary,
 .end-screen.lost {
   background:
     radial-gradient(120% 60% at 50% 0%, rgb(47 128 237 / 18%), transparent), var(--ff-night-700);
-}
-
-.end-stats dd {
-  font-size: 18px;
 }

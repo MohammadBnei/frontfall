@@ -29,7 +29,7 @@ import { loadGlobe, type ViewKind } from "./render/renderer.ts";
 import { FEATURE_LABELS, missingFeatures } from "./compat.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
 import { loadAccessibility } from "./ui/accessibility.ts";
-import { GameScreen, loadReplayBar } from "./ui/game-screen.ts";
+import { GameScreen, loadGameStyles, loadReplayBar } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
 import { JoinScreen } from "./ui/join.ts";
@@ -81,6 +81,8 @@ window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => 
 });
 
 function showMenu(): void {
+  // Ready before Play, so the game opens already styled.
+  loadGameStyles().catch(() => undefined);
   goOffline();
   game?.dispose();
   game = undefined;
@@ -161,10 +163,15 @@ function play(chosen: GameSetup): void {
   const map = maps.find((candidate) => candidate.id === setup.map);
   if (!map) return;
   // Your colour is yours alone: online, every page shows the colours the game gives.
-  void localProfile().then((profile) => {
+  void Promise.all([localProfile(), loadGameStyles()]).then(([profile]) => {
     preferColor(HUMAN_ID, profile.read().color);
     begin(map);
-  });
+  }, failedToLoad);
+}
+
+function failedToLoad(error: unknown): void {
+  console.error(error);
+  showNotice("game.failed");
 }
 
 function begin(map: MapInfo): void {
@@ -247,7 +254,7 @@ async function watch(file: File): Promise<void> {
     return;
   }
   try {
-    await loadReplayBar();
+    await Promise.all([loadReplayBar(), loadGameStyles()]);
   } catch (error) {
     console.error(error);
     showNotice("game.failed");
@@ -604,6 +611,17 @@ function initialOptions(
 
 /** The game starts: the lobby gives way to the map, and the turns go to the worker. */
 function startOnline(
+  start: GameStart,
+  client: OnlineClient,
+  visibility: "public" | "private",
+  snapshot: StoredSnapshot | undefined,
+): void {
+  loadGameStyles().then(() => {
+    startOnlineNow(start, client, visibility, snapshot);
+  }, failedToLoad);
+}
+
+function startOnlineNow(
   start: GameStart,
   client: OnlineClient,
   visibility: "public" | "private",
