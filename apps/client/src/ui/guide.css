@@ -75,6 +75,11 @@
   .guide-actions {
     margin-top: 6px;
   }
+
+  /* The open leaderboard needs the room the banner takes. */
+  .game:has(.leaderboard.open) .guide {
+    display: none;
+  }
 }
 
 /* Wide: the figures are in the bottom bar, so the guide takes the top left. */
