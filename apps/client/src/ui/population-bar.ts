@@ -62,8 +62,11 @@ export class PopulationBar {
     const { from, to } = this.span;
     this.element.classList.toggle("in-band", growth > 0 && fill >= from && fill <= to);
     this.element.classList.toggle("full", growth === 0 && fill >= 1);
-    this.rate.textContent = t("hud.growthRate", { troops: formatCount(growth) });
-    this.element.setAttribute("aria-label", t("hud.growthNow", { troops: formatCount(growth) }));
+    const count = formatCount(growth);
+    const rate = t("hud.growthRate", { troops: count });
+    this.rate.textContent = rate;
+    // The name starts with the figures shown, so a voice command can name the button by them.
+    this.element.setAttribute("aria-label", `${rate}. ${t("hud.growthNow", { troops: count })}`);
     this.element.title = t("hud.growthHelp");
   }
 }
