@@ -684,6 +684,21 @@ describe("WebSocket", () => {
     await dev.next("welcome");
   });
 
+  it("ignores what a page of another build or protocol sends after its hello", async () => {
+    const host = await start();
+    for (const hello of [{ build: "0123456789ab", version: PROTOCOL_VERSION }, { version: 0 }]) {
+      const old = open(host);
+      await opened(old.socket);
+      old.send({ type: "hello", name: "Old", ...hello });
+      old.send({ type: "hello", version: PROTOCOL_VERSION, name: "Old" });
+      old.send({ type: "create" });
+      expect(await closed(old.socket)).toBe(CloseCode.versionMismatch);
+    }
+    expect(server?.games.size).toBe(0);
+    // A stale page is told to reload, not counted as misbehaving.
+    expect(server?.metrics.rejected.get({ reason: "invalid" })).toBe(0);
+  });
+
   it("keeps the pages of another commit with the same simulation build", async () => {
     const host = await start({ version: "newcommit", simulation: "5e5e5e5e5e5e" });
     const kept = open(host);
