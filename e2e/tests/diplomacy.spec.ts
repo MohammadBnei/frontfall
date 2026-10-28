@@ -95,7 +95,10 @@ test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)
   const ask = menu.locator(".menu-action.ask");
   await expect(ask).toBeEnabled();
   await ask.click();
-  await expect(ask).toBeDisabled();
+  // Disabled while it waits, or already gone if the bot answered in the meantime.
+  await expect(async () => {
+    if ((await ask.count()) > 0) expect(await ask.isDisabled()).toBe(true);
+  }).toPass();
   // The bot answers at its next decision, within B-BOT-INTERVAL (5 s of game time).
   await expect(ally).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".event-feed")).toContainText("are now allies");
