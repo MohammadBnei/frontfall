@@ -37,6 +37,9 @@
 }
 
 .guide-hide {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
   padding: 4px 0;
   border: 0;
   background: none;
@@ -45,6 +48,14 @@
   font-size: 13px;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* After the rule above: a finger needs 44 px (ui/game.css says so for the other buttons). */
+@media (pointer: coarse) {
+  .guide-hide {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .guide-hide:hover,
@@ -58,7 +69,7 @@
   .guide {
     top: auto;
     right: 12px;
-    bottom: 110px;
+    bottom: 128px;
     width: auto;
     padding: 8px 12px;
   }
@@ -91,5 +102,32 @@
 @media (height < 560px) and (width >= 720px) {
   .guide {
     right: 264px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 12px;
+    align-items: center;
+  }
+
+  .guide-title {
+    display: block;
+    grid-column: 1;
+    margin: 0 0 2px;
+  }
+
+  .guide > div:not(.guide-actions) {
+    grid-column: 1;
+  }
+
+  .guide-text {
+    display: block;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .guide-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    gap: 12px;
+    margin-top: 0;
   }
 }

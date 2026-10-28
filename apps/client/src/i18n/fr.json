@@ -442,5 +442,18 @@
   "preview.reach": "Portée : {radius} cases",
   "preview.confirm": "Poser ici",
   "preview.hint": "Les touches 1 à 9 choisissent un bâtiment. Survolez la carte pour voir où il tient.",
-  "preview.hintTouch": "Touchez une fois pour voir où il va, une seconde fois pour le poser."
+  "preview.hintTouch": "Touchez une fois pour voir où il va, une seconde fois pour le poser.",
+  "hud.spawnPickTouch": "Touchez une terre pour choisir votre point de départ. Encore {seconds} s.",
+  "hud.spawnMoveTouch": "Touchez ailleurs pour changer de point de départ. Les attaques commencent dans {seconds} s.",
+  "hud.playHintTouch": "Touchez une terre voisine pour vous étendre, ou un voisin pour l’attaquer.",
+  "hud.modeCityTouch": "Touchez vos terres pour bâtir une ville.",
+  "hud.modePalaceTouch": "Touchez vos terres pour bâtir un Palais du Micho.",
+  "hud.modePortTouch": "Touchez au bord de l’eau, près de vos terres : le port va sur votre côte la plus proche.",
+  "hud.modeWarshipTouch": "Touchez votre port pour acheter un navire de guerre, ou l’eau pour y patrouiller.",
+  "hud.modeSiloTouch": "Touchez vos terres pour bâtir un silo à missiles.",
+  "hud.modeAirDefenseTouch": "Touchez vos terres pour bâtir une défense aérienne.",
+  "hud.modeMissileTouch": "Touchez là où le missile doit frapper.",
+  "hud.modeHeavyMissileTouch": "Touchez là où le missile lourd doit frapper.",
+  "hud.modeFortTouch": "Touchez vos terres pour bâtir un fort.",
+  "hud.modeDemolishTouch": "Touchez l’une de vos structures pour la démolir."
 }

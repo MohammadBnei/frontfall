@@ -175,8 +175,14 @@ export class Hud {
     disabled: 0,
   };
 
+  private readonly touch: () => boolean;
+
   /** `pausable`: false online, where the game runs for everyone. */
-  constructor(actions: HudActions, { pausable = true }: { pausable?: boolean } = {}) {
+  constructor(
+    actions: HudActions,
+    { pausable = true, touch = () => false }: { pausable?: boolean; touch?: () => boolean } = {},
+  ) {
+    this.touch = touch;
     this.onRetreat = (attack) => {
       actions.onRetreat(attack);
     };
@@ -765,15 +771,20 @@ export class Hud {
     const seconds = Math.ceil(update.spawnTicksLeft / this.rules.ticksPerSecond);
     if (update.phase === "spawn") {
       return human && human.tiles > 0
-        ? t("hud.spawnMove", { seconds })
-        : t("hud.spawnPick", { seconds });
+        ? this.say("hud.spawnMove", { seconds })
+        : this.say("hud.spawnPick", { seconds });
     }
     if (human && !human.alive) return t("hud.eliminated");
-    if (this.mode !== "attack") return t(MODE_BANNERS[this.mode]);
+    if (this.mode !== "attack") return this.say(MODE_BANNERS[this.mode]);
     if (update.attacks.length > 0) {
       const troops = update.attacks.reduce((sum, attack) => sum + attack.troops, 0);
       return t("hud.attacking", { count: update.attacks.length, troops: formatCount(troops) });
     }
-    return t("hud.playHint");
+    return this.say("hud.playHint");
+  }
+
+  /** The text of a click instruction, or its tap twin when a finger plays. */
+  private say(key: MessageKey, values?: Record<string, string | number>): string {
+    return t(this.touch() ? (`${key}Touch` as MessageKey) : key, values);
   }
 }

@@ -66,7 +66,7 @@ Same zones, except the bottom bar is split: figures top left (TL becomes the fee
 |                              |
 |        the map               |
 |                              |
-|  first-steps banner (110)    |
+|  first-steps banner (128)    |
 |                [ board chip ]|
 | [attack share] [tools: 4-5 ] |
 +------------------------------+
@@ -76,13 +76,13 @@ Same zones, except the bottom bar is split: figures top left (TL becomes the fee
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Top           | Figures panel top left; banner at top 78, centred, up to three lines; requests under it at top 140.                                                                                                                                                                                                                                                                                      |
 | Bottom bar    | Attack share at the left (right edge 174 from the screen edge, 216 in a solo game, whose tools add speed; 218 and 268 on a touch screen, whose tools are 44 wide; on a touch phone narrower than 480 or shorter than 560 the speed button leaves for the pause banner), the tools at the right (build button first). The build tray opens upward over the bar and closes after a choice. |
-| Above the bar | The leaderboard chip bottom right (one line: your colour, name and share, an arrow). The first-steps banner across the width at bottom 110. Refused-click notes go at the top (top 140), never over the bar.                                                                                                                                                                             |
+| Above the bar | The leaderboard chip bottom right (one line: your colour, name and share, an arrow). The first-steps banner across the width at bottom 128, clear of the chip even at 44 px. Refused-click notes go at the top (top 140), never over the bar.                                                                                                                                            |
 | Events        | Narrow: events borrow the banner. The latest one replaces it for 4 s, over its width, up to three lines, in the same chip; then the banner returns. Requests stay under it. A landscape phone keeps the feed top left, beside the figures, two rows.                                                                                                                                     |
 | Never         | More than one row above the bar except the banner; panels wider than the screen minus 24; a control under 36 px that can be touched.                                                                                                                                                                                                                                                     |
 
 Narrow: the mini-map is a round button, 44, top right (bottom right on a short window), and opens as a sheet centred on the map (z 2), at most 40 % of the screen high, 60 % on a short window. It closes after a jump or with its close button.
 
-When the screen is narrow because it is short (landscape phone), the leaderboard stays top right and stops 84 above the bottom so it never runs under the tools, the banner goes under the figures (top 88), and the first-steps banner keeps bottom 110 but stops 264 short of the right edge, so the closed leaderboard stays whole.
+When the screen is narrow because it is short (landscape phone), the leaderboard stays top right and stops 84 above the bottom so it never runs under the tools, the banner goes under the figures (top 88), and the first-steps banner becomes a short card (text on the left, Hide and Next on the right, 70 px high) that stops 264 short of the right edge, so the closed leaderboard stays whole.
 
 ## Adding an element
 
