@@ -37,6 +37,11 @@ const PACER_MS = 10;
 /** The replay bar's code, once loadReplayBar has fetched it. */
 let replayBarClass: typeof ReplayBar | undefined;
 
+/** Fetches the styles of the game's interface; call it before making any game screen. */
+export function loadGameStyles(): Promise<unknown> {
+  return import("./game-styles.ts");
+}
+
 /** Fetches the replay bar; call it before making the screen of a replay. */
 export async function loadReplayBar(): Promise<void> {
   replayBarClass ??= (await import("./replay-bar.ts")).ReplayBar;

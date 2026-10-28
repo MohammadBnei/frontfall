@@ -4,6 +4,14 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **A raised, lit look for the interface.** Panels, the build dock, the menu and the end screen now sit above the map like raised pieces: a soft gradient, a light edge on top and a shadow, with rounder corners. The main button is a lit ember, your own row in the leaderboard and the build tool you picked are highlighted, gold is yellow, the buttons at the bottom right are round, and the end screen has a glow (ember for a win, blue for a defeat) and its figures in a recessed box. Nothing moves and every setting for interface size and contrast still applies.
+
+### For self-hosters and contributors
+
+- **The game's styles load when a game starts.** The styles of the in-game interface, the end screen, diplomacy and the replay bar moved to their own file, fetched while the menu is open, so the first visit is 1.5 kB lighter.
+
 ## [0.6.4] - 2026-10-28
 
 A first look at the new Frontfall: a map with relief, countries you can read at a glance, sound effects and a one-click rematch.
