@@ -84,6 +84,8 @@ export interface PlayerView {
   /** Troops the player's land can hold (R-ECO-01). */
   cap: number;
   gold: number;
+  /** Share of the troops at home who work, in percent (R-ECO-07). */
+  workShare: number;
   tiles: number;
   alive: boolean;
 }

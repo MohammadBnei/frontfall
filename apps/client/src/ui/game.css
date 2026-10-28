@@ -69,14 +69,21 @@
   color: var(--ff-slate-300);
 }
 
+/* Attack share over work share (R-ECO-07): two rows on one grid, so labels,
+   sliders and values line up. Gold yellow tells the work slider from the attack one. */
 .ratio {
   bottom: 12px;
   left: 12px;
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 2px 10px;
   align-items: center;
   width: min(260px, calc(100vw - 24px));
   box-sizing: border-box;
+}
+
+.ratio-row {
+  display: contents;
 }
 
 .ratio label {
@@ -84,8 +91,73 @@
 }
 
 .ratio input {
-  flex: 1;
   min-width: 0;
+  margin: 0;
+}
+
+.ratio .range-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.work-row label,
+.work-row .range-value {
+  color: var(--ff-slate-300);
+  font-size: 13px;
+}
+
+.work-row input {
+  accent-color: var(--ff-warning);
+}
+
+.gold-rate {
+  color: var(--ff-warning);
+  font-variant-numeric: tabular-nums;
+}
+
+/* What an attack on the land under the pointer would do, above the attacks under way. */
+.preview {
+  font-variant-numeric: tabular-nums;
+}
+
+.preview p {
+  margin: 0;
+}
+
+.preview-title {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.preview-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-tiles {
+  flex: none;
+}
+
+.preview-tiles.short {
+  color: var(--ff-warning);
+}
+
+.preview-text {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  white-space: pre-line;
+}
+
+.label-short {
+  display: none;
+}
+
+.preview:not([hidden]) + .attack-list:not(:empty) {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ff-night-500);
 }
 
 /* The player's attacks under way, each with its retreat button (ui/hud.ts). */
@@ -260,6 +332,21 @@
     right: 174px;
     width: auto;
     transform: none;
+    gap: 2px 8px;
+    font-size: 13px;
+  }
+
+  /* Two rows of sliders: what is listed above the bar starts above both. */
+  .attacks {
+    bottom: 78px;
+  }
+
+  .label-long {
+    display: none;
+  }
+
+  .label-short {
+    display: inline;
   }
   /* One more button in the toolbar: the pace of a solo game. */
   .speedable .ratio {
@@ -275,12 +362,8 @@
     gap: 6px;
   }
 
-  .ratio label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+  .ratio .range-value {
+    min-width: 0;
   }
 }
 
@@ -1245,6 +1328,13 @@
 
 @media (pointer: coarse), (width < 720px), (height < 560px) {
   .tool-key {
+    display: none;
+  }
+}
+
+/* Above the bar of a phone, the preview keeps to one line: whose land, and how much of it. */
+@media (width < 720px), (height < 560px) {
+  .preview-text {
     display: none;
   }
 }

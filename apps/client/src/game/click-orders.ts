@@ -9,6 +9,7 @@ import {
   orderError,
   sameTeam,
   seaRoute,
+  soldiers,
   type Game,
   type Order,
   type Structure,
@@ -105,7 +106,8 @@ export function orderForClick(
   }
   if (game.phase === "spawn") return { order: { type: "spawn", tile } };
   if (territory.ownerOf(tile) === you) return { refused: "own" };
-  const troops = Math.floor((human.troops * Math.min(100, Math.max(0, ratio))) / 100);
+  // R-ECO-07: the ratio is a share of the soldiers; workers stay at home.
+  const troops = Math.floor((soldiers(human) * Math.min(100, Math.max(0, ratio))) / 100);
   if (troops < 1) return { refused: "troops" };
 
   // By land when the player borders the target's owner on the target's own

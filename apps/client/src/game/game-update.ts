@@ -96,6 +96,7 @@ export function gameUpdate(game: Game, you: number, depth: Uint16Array): GameUpd
     troops: player.troops,
     cap: populationCap(game, player),
     gold: player.gold,
+    workShare: player.workShare,
     tiles: territory.tileCount(player.id),
     alive: player.alive,
   }));

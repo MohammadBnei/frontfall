@@ -1,4 +1,5 @@
 import { DEFAULT_BALANCE } from "@frontfall/engine";
+import { attackPreview, goldPerSecond } from "../game/attack-preview.ts";
 import type { GameRules } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts";
@@ -8,6 +9,7 @@ import { formatCount, formatDuration, formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
 import { LeaderList } from "./leader-list.ts";
 import { BUILD_MODES, costOf, offers } from "./build-modes.ts";
+import { workText } from "./work-text.ts";
 
 // Also found here, where it was first defined.
 export { offers };
@@ -15,6 +17,10 @@ export { offers };
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
 export const MIN_RATIO = 5;
 export const DEFAULT_RATIO = 30;
+/** Steps of the work share slider (R-ECO-07), in percent: fine enough, and easy to hit with a finger. */
+const WORK_STEP = 5;
+/** How long the attack preview stays once the pointer or the finger has left the land it was about. */
+const PREVIEW_LINGER_MS = 1500;
 /** The HUD is redrawn at most this often; the map keeps its own pace. */
 const REFRESH_MS = 250;
 /** Leaders listed at rest, then when the player opens the leaderboard. */
@@ -35,6 +41,8 @@ export interface HudActions {
   onMode(mode: ClickMode): void;
   /** A row of the leaderboard was picked: the menu of that player. */
   onPlayer(player: number): void;
+  /** The work share was set, in percent (R-ECO-07). */
+  onWork(share: number): void;
 }
 
 const MODE_BANNERS = {
@@ -59,6 +67,7 @@ export class Hud {
   private readonly troops = h("strong", { class: "stat-value" });
   private readonly troopsCap = h("span", { class: "stat-cap" });
   private readonly gold = h("strong", { class: "stat-value" });
+  private readonly goldRate = h("span", { class: "stat-cap gold-rate" });
   private readonly land = h("strong", { class: "stat-value" });
   private readonly banner = h(
     "p",
@@ -76,6 +85,29 @@ export class Hud {
     step: 1,
   });
   private readonly ratioValue = h("output", { for: "attack-ratio", class: "range-value" });
+  private readonly workInput = h("input", {
+    id: "work-share",
+    type: "range",
+    min: 0,
+    max: DEFAULT_BALANCE.workMaxPercent,
+    step: WORK_STEP,
+    value: 0,
+  });
+  private readonly workValue = h("output", { for: "work-share", class: "range-value" });
+  /** A share sent to the game and not yet in its updates: the slider keeps it meanwhile. */
+  private workPending: number | undefined;
+  /** What the attack preview is about: the owner of the land under the pointer, if any. */
+  private hovered: number | undefined;
+  private hoverTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly previewName = h("span", { class: "preview-name" });
+  private readonly previewTiles = h("span", { class: "preview-tiles" });
+  private readonly previewText = h("p", { class: "preview-text" });
+  private readonly preview = h(
+    "div",
+    { class: "preview", role: "status", hidden: true },
+    h("p", { class: "preview-title" }, this.previewName, this.previewTiles),
+    this.previewText,
+  );
   private lastRender = -Infinity;
   private last: GameUpdate | undefined;
   private readonly goal = h("p", { class: "goal-text" });
@@ -86,6 +118,7 @@ export class Hud {
   private readonly attackPanel = h(
     "section",
     { class: "panel attacks", "data-i18n-attr": "aria-label:hud.attacks", hidden: true },
+    this.preview,
     this.attackList,
   );
   /** One row per attack under way, kept across renders so a button under the pointer stays put. */
@@ -138,6 +171,15 @@ export class Hud {
       this.setRatio(Number(this.ratioInput.value));
     });
     this.setRatio(DEFAULT_RATIO);
+    this.workInput.addEventListener("input", () => {
+      this.showWork(Number(this.workInput.value));
+    });
+    // Sent once the slider is let go, or at each key press: one order per choice.
+    this.workInput.addEventListener("change", () => {
+      this.workPending = Number(this.workInput.value);
+      actions.onWork(this.workPending);
+    });
+    this.showWork(0);
 
     const stat = (key: string, ...value: Node[]): HTMLElement =>
       h("div", { class: "stat" }, h("span", { class: "stat-label", "data-i18n": key }), ...value);
@@ -307,15 +349,33 @@ export class Hud {
           "section",
           { class: "panel stats", "data-i18n-attr": "aria-label:hud.yourEmpire" },
           stat("hud.troops", this.troops, this.troopsCap),
-          stat("hud.gold", this.gold),
+          stat("hud.gold", this.gold, this.goldRate),
           stat("hud.land", this.land),
         ),
+        // R-ECO-07: what attacks take, and what stays at home to work, side by side.
         h(
           "div",
           { class: "panel ratio" },
-          h("label", { for: "attack-ratio", "data-i18n": "hud.ratio" }),
-          this.ratioInput,
-          this.ratioValue,
+          h(
+            "div",
+            { class: "ratio-row" },
+            // A shorter name where the bar is narrow (game.css).
+            h(
+              "label",
+              { for: "attack-ratio" },
+              h("span", { class: "label-long", "data-i18n": "hud.ratio" }),
+              h("span", { class: "label-short attack-short" }),
+            ),
+            this.ratioInput,
+            this.ratioValue,
+          ),
+          h(
+            "div",
+            { class: "ratio-row work-row" },
+            h("label", { for: "work-share", class: "work-label" }),
+            this.workInput,
+            this.workValue,
+          ),
         ),
         buildPanel,
       ),
@@ -326,6 +386,7 @@ export class Hud {
       h("div", { class: "toolbar" }, this.buildToggle, help, ...(pausable ? [pause] : []), menu),
     );
     applyTranslations(this.element);
+    this.translateWork();
   }
 
   /** Opens or closes the tray of buildings where it is a tray (narrow screens). */
@@ -353,11 +414,48 @@ export class Hud {
     const value = Math.max(MIN_RATIO, Math.min(100, Math.round(percent)));
     this.ratioInput.value = String(value);
     this.ratioValue.textContent = formatPercent(value / 100);
+    if (this.last) this.renderPreview(this.last);
+  }
+
+  /** Share of the troops at home put to work, as the slider shows it (R-ECO-07). */
+  get work(): number {
+    return Number(this.workInput.value);
+  }
+
+  /** Shows a work share on the slider, with the gold it brings, before the game has it. */
+  private showWork(share: number): void {
+    this.workInput.value = String(share);
+    this.workValue.textContent = formatPercent(share / 100);
+    if (this.last) {
+      const human = this.you(this.last);
+      if (human) this.renderGold(human);
+      this.renderPreview(this.last);
+    }
+  }
+
+  /**
+   * The owner of the land under the pointer or the finger, or undefined when
+   * it left the map: what the attack preview is about. It stays a moment
+   * after, so a finger lifted can still read it.
+   */
+  hover(owner: number | undefined): void {
+    clearTimeout(this.hoverTimer);
+    if (owner === undefined) {
+      this.hoverTimer = setTimeout(() => {
+        this.hovered = undefined;
+        if (this.last) this.renderPreview(this.last);
+      }, PREVIEW_LINGER_MS);
+      return;
+    }
+    if (owner === this.hovered) return;
+    this.hovered = owner;
+    if (this.last) this.renderPreview(this.last);
   }
 
   /** Shows which build button, if any, the next click on the map follows. */
   setMode(mode: ClickMode): void {
     this.mode = mode;
+    if (this.last) this.renderPreview(this.last);
     if (this.last) this.banner.textContent = this.bannerText(this.last, this.you(this.last));
     for (const [button, element] of this.buildButtons) {
       element.setAttribute("aria-pressed", String(button === mode));
@@ -383,6 +481,7 @@ export class Hud {
   /** Redraws with the last update, after a language change for example. */
   refresh(): void {
     applyTranslations(this.element);
+    this.translateWork();
     if (this.last) this.render(this.last);
   }
 
@@ -396,6 +495,8 @@ export class Hud {
       this.troops.textContent = formatCount(human.troops);
       this.troopsCap.textContent = t("hud.cap", { cap: formatCount(human.cap) });
       this.gold.textContent = formatCount(human.gold);
+      this.syncWork(human);
+      this.renderGold(human);
       this.land.textContent = this.share(human.tiles);
       this.renderBuild(update, human);
     }
@@ -403,6 +504,82 @@ export class Hud {
     this.renderLeaders(update);
     this.renderGoal(update, human);
     this.renderAttacks(update);
+    this.renderPreview(update);
+  }
+
+  /** Follows the game's work share, unless the player is moving the slider or waits for theirs. */
+  private syncWork(human: PlayerView): void {
+    if (this.workPending === human.workShare) this.workPending = undefined;
+    const dragging = document.activeElement === this.workInput && this.workPending === undefined;
+    if (this.workPending === undefined && !dragging && this.work !== human.workShare) {
+      this.showWork(human.workShare);
+    }
+    this.workInput.disabled = !human.alive;
+  }
+
+  /** Gold a second from the troops, with the share the slider shows. */
+  private renderGold(human: PlayerView): void {
+    const rate = goldPerSecond({ troops: human.troops, workShare: this.work });
+    this.goldRate.textContent = workText("goldRate", { rate: formatCount(Math.floor(rate)) });
+  }
+
+  /** Labels made here rather than from the catalogues (ui/work-text.ts). */
+  private translateWork(): void {
+    const label = this.element.querySelector(".work-label");
+    if (label) label.textContent = workText("work");
+    const short = this.element.querySelector(".attack-short");
+    if (short) short.textContent = workText("attack");
+    const hint = workText("workHint", { factor: DEFAULT_BALANCE.workGoldFactor });
+    this.workInput.title = hint;
+    this.workInput.closest(".work-row")?.setAttribute("title", hint);
+    this.goldRate.title = workText("goldRateHint");
+  }
+
+  /** What an attack on the land under the pointer would roughly do, with the ratio set now. */
+  private renderPreview(update: GameUpdate): void {
+    const found =
+      this.mode === "attack" && this.hovered !== undefined
+        ? attackPreview(update, this.hovered, this.ratio)
+        : undefined;
+    const human = this.you(update);
+    // The slider's share, which the game may not have yet.
+    const preview =
+      found && human && this.work !== human.workShare
+        ? attackPreview(
+            {
+              ...update,
+              players: update.players.map((p) =>
+                p.id === human.id ? { ...p, workShare: this.work } : p,
+              ),
+            },
+            found.target,
+            this.ratio,
+          )
+        : found;
+    this.preview.hidden = preview === undefined;
+    if (preview) {
+      const defender = update.players.find((p) => p.id === preview.target);
+      this.previewName.textContent =
+        preview.target === 0 ? t("hud.unclaimed") : (defender?.name ?? t("hud.unclaimed"));
+      this.previewTiles.textContent =
+        preview.tiles === 0
+          ? workText("previewShort")
+          : defender && preview.tiles >= defender.tiles
+            ? workText("previewAll")
+            : workText(preview.tiles === 1 ? "previewTile" : "previewTiles", {
+                count: formatCount(preview.tiles),
+              });
+      this.previewTiles.classList.toggle("short", preview.tiles === 0);
+      const send = workText("previewSend", {
+        troops: formatCount(preview.troops),
+        cost: formatCount(preview.perTile),
+      });
+      this.previewText.textContent =
+        preview.tiles === 0
+          ? send
+          : `${send}\n${workText("previewGain", { cap: formatCount(preview.capGain) })}`;
+    }
+    this.attackPanel.hidden = this.attackRows.size === 0 && this.preview.hidden;
   }
 
   /** Costs of the next city and fort, greyed out while the player cannot pay or has no room. */
@@ -478,7 +655,7 @@ export class Hud {
       entry.row.remove();
       this.attackRows.delete(id);
     }
-    this.attackPanel.hidden = current.size === 0;
+    this.attackPanel.hidden = current.size === 0 && this.preview.hidden;
   }
 
   /** Share of the land; a start on the World is a few hundredths of a percent. */

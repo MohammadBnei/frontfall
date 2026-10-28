@@ -1,3 +1,4 @@
+import { TileKind } from "@frontfall/engine";
 import type { MapData, MapInfo } from "../../game/maps.ts";
 import type { GameUpdate } from "../../game/solo-game.ts";
 import type { MessageKey } from "../../i18n/index.ts";
@@ -106,6 +107,12 @@ export class MapScene {
   /** Who owns the tile, 0 for nobody. */
   ownerAt(tile: number): number {
     return this.owners[tile] ?? 0;
+  }
+
+  /** Whether the tile is land a player can own: not the sea, not impassable ground. */
+  isLand(tile: number): boolean {
+    const kind = this.shown?.map.kinds[tile];
+    return kind !== undefined && kind !== TileKind.Water && kind !== TileKind.Impassable;
   }
 
   /** Disposes the renderer, whose context it frees on purpose, without reporting that as lost. */
