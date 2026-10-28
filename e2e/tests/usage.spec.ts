@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 test("reports a finished game and the player's thumbs down, without a name", async ({ page }) => {
+  // Its reports would be counted in the real usage of the server under test.
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
   test.setTimeout(180_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
