@@ -4,27 +4,38 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-28
+
+A lighter screen, a game you can play from the keyboard, things to earn and a way to keep your name. Nothing here changes how a game plays.
+
 ### Added
 
-- **Report a player.** In an online game, a player's menu now has Report this player: pick a reason (insults or harassment, offensive name, cheating, something else) and the report goes to whoever runs the server, who can ban the network of someone who abuses others (`R-MODE-06`). The player is not told. No text to type; the report keeps the game, the reason and the name they played under, never your address ([what is kept](docs/privacy.md#reporting-a-player)).
+- **Play from the keyboard.** Tab reaches the map, a cross marks the middle of the view, the arrows or WASD move it under the cross, Enter or Space clicks where it stands and Shift+Enter (or the menu key) opens that tile's menu. The help lists it.
+- **Accessibility settings** at the bottom of the menu: interface size (100, 125 or 150 %), reduce motion (it already followed your device's setting, and now you can ask for it in the game), and high contrast. They are kept in your browser.
+- **Achievements.** Twenty achievements to earn as you play, shown with their own badges: win a game, hold half the map, win in 20 minutes, win without a missile, build a city, a port, a fort or a Micho Palace, cross the sea, send a warship or a trade ship out, form an alliance, make a gift, and more. Three of them have bronze, silver and gold tiers (Conqueror for wins, Builder for cities, Veteran for games played). The end screen lists what a game just earned, and Achievements in the main menu shows them all, with your progress towards the next tier. They are kept in your browser on this device only; nothing is sent to the server and no game rule changes.
+- **Your profile, kept on your device.** A new "Your profile" panel in the menu lets you pick your colour for solo games from eight that stay apart under the common forms of colour blindness, and lists the last ten games you finished: map, mode, how it ended, minutes and day. Your name, colour and games stay in your browser; nothing is sent to the server. "Forget my profile and achievements" erases them, with your achievements and any game in progress. Online and in team games the game still gives the colours, so that everyone sees the same ones.
+- **Keep your name: sign in with Discord or Google.** Optional, under your name in the menu. Once signed in, the name you play under is yours alone: nobody else can take it, online or as a guest. You can change it there, sign out, or delete your account in one click. The game keeps only that name and a scrambled number from the service, no email and no picture ([what is kept](docs/privacy.md#if-you-sign-in)). Playing as a guest stays exactly as it was.
+- **Report a player.** In an online game, a player's menu now has Report this player: pick a reason (insults or harassment, offensive name, cheating, something else) and the report goes to whoever runs the server, who can ban the network of someone who abuses others. The player is not told. No text to type; the report keeps the game, the reason and the name they played under, never your address ([what is kept](docs/privacy.md#reporting-a-player)).
 
 ### Changed
 
-- **A clear message on an unsupported browser.** A browser that cannot draw the game (no WebGL 2, or too old to read it) now says so at the top of the menu, in English or French, instead of showing a blank page or failing when you press Play. The supported versions are listed in [Supported browsers](docs/browsers.md).
-- **A lighter screen in play.** The buildings are now a row of icons at the foot of the map: hover or focus one to see its name, key and cost. On a phone they sit behind a Build button next to the other buttons and close once you pick one. The leaderboard lists the three leaders and you, and opens to ten when you tap its title. The Beta badge no longer sits on the map.
 - **A lighter menu.** The first screen is now your name, a line that sums up the game (map, bots, difficulty) and Play solo. Tap that line to change the map and the rules. Your profile, achievements, accessibility settings and language moved to a row of buttons at the top. Play now, a private game and watching a replay sit together, and the public games and their names are one tap away.
-
+- **A lighter screen in play.** The buildings are now a row of icons at the foot of the map: hover or focus one to see its name, key and cost. On a phone they sit behind a Build button next to the other buttons and close once you pick one. The leaderboard lists the three leaders and you, and opens to ten when you tap its title. The Beta badge no longer sits on the map.
 - **Clearer icons.** Buildings, missiles and the buttons for help, pause, menu and close now have drawn icons, each with its own shape, instead of plain squares and triangles. They stay legible on a phone.
+- **A clear message on an unsupported browser.** A browser that cannot draw the game (no WebGL 2, or too old to read it) now says so at the top of the menu, in English or French, instead of showing a blank page or failing when you press Play. The supported versions are listed in [Supported browsers](docs/browsers.md).
+- **You can zoom the page on a phone or a computer again**, and the small grey text of the menu is easier to read.
 
 ### Fixed
 
-- The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of the site next door.
+- The Frontfall logo now shows in the browser tab on Safari too, instead of the icon of nclsmgr.com.
 
 ### For self-hosters and contributors
 
-- The WebKit end-to-end project now also plays the narrow-phone interface, the accessibility settings, the local profile and the achievements, besides the solo game, replays and globe it already ran.
+- Sign-in with Discord or Google, off unless `FRONTFALL_PUBLIC_URL`, `FRONTFALL_SESSION_SECRET` (32 characters or more) and a service's `FRONTFALL_OAUTH_<SERVICE>_ID` and `_SECRET` are set, with `FRONTFALL_DATA`; the server then needs to reach Discord and Google, which the container of the bundled setup could not before. Accounts go in `accounts/accounts.json`. New routes `/auth/<service>`, `/auth/logout` and `/api/me` ([server](docs/server.md#accounts), [self-hosting](docs/self-hosting.md#sign-in-with-discord-or-google)). The protocol does not change for this: the session cookie goes with the game socket. Changing the session secret only signs everyone out.
 - **Reports and bans for operators.** `GET /admin/reports` lists the reports of the last 30 days and the players most reported, each named by a keyed hash of their address that stays the same across restarts. `POST /admin/bans?target=…&days=…` bans an address or such a reference, `DELETE` lifts it, and `bans.json` under `FRONTFALL_DATA/moderation/` can be edited by hand and read again without a restart. Banned connections close with code `4005` ([server](docs/server.md#reports-and-bans)).
-- Protocol version 18: `report`, `reported`, the `too_many_reports` error and close code `4005` ([protocol](docs/protocol.md#report)). Pages loaded before the update are asked to reload.
+- Report a player follows `R-MODE-06` in the [rulebook](docs/rules.md). Protocol version 18: `report`, `reported`, the `too_many_reports` error and close code `4005` ([protocol](docs/protocol.md#report)). Pages loaded before the update are asked to reload.
+- The texts of the interface now load one language at a time, so a page only fetches the language it shows.
+- CI sets up faster: the browsers come from a cached action and the end-to-end tests run in three parallel shards. The WebKit end-to-end project now also plays the narrow-phone interface, the accessibility settings, the local profile and the achievements, besides the solo game, replays and globe it already ran.
 
 ## [0.5.0] - 2026-10-27
 
@@ -32,23 +43,16 @@ Public games you can keep tidy, honest error counts and a first look at where th
 
 ### Added
 
-- **Achievements.** Twenty achievements to earn as you play, shown with their own badges: win a game, hold half the map, win in 20 minutes, win without a missile, build a city, a port, a fort or a Micho Palace, cross the sea, send a warship or a trade ship out, form an alliance, make a gift, and more. Three of them have bronze, silver and gold tiers (Conqueror for wins, Builder for cities, Veteran for games played). The end screen lists what a game just earned, and Achievements in the main menu shows them all, with your progress towards the next tier. They are kept in your browser on this device only; nothing is sent to the server and no game rule changes.
-- **Your profile, kept on your device.** A new "Your profile" panel in the menu lets you pick your colour for solo games from eight that stay apart under the common forms of colour blindness, and lists the last ten games you finished: map, mode, how it ended, minutes and day. Your name, colour and games stay in your browser; nothing is sent to the server. "Forget my profile and achievements" erases them, with your achievements and any game in progress. Online and in team games the game still gives the colours, so that everyone sees the same ones.
-- **Keep your name: sign in with Discord or Google.** Optional, under your name in the menu. Once signed in, the name you play under is yours alone: nobody else can take it, online or as a guest. You can change it there, sign out, or delete your account in one click. The game keeps only that name and a scrambled number from the service, no email and no picture ([what is kept](docs/privacy.md#if-you-sign-in)). Playing as a guest stays exactly as it was.
 - **Remove a player from your lobby.** The host sees a Remove button next to every other player until the game starts (`R-MODE-05`). The player removed is told so, and cannot join that game again from the same network.
 - **Hide a player.** In an online game, a player's menu now has Hide this player: on your screen only, their name becomes "Player 2" (their number) on the map, in the leaderboard and in the events, and their quick messages no longer reach you (`R-DIPLO-08`). The same button shows them again. Nothing changes in the game itself, and they are not told.
-- **Play from the keyboard.** Tab reaches the map, a cross marks the middle of the view, the arrows or WASD move it under the cross, Enter or Space clicks where it stands and Shift+Enter (or the menu key) opens that tile's menu. The help lists it.
-- **Accessibility settings** at the bottom of the menu: interface size (100, 125 or 150 %), reduce motion (it already followed your device's setting, and now you can ask for it in the game), and high contrast. They are kept in your browser.
 
 ### Changed
 
-- **You can zoom the page on a phone or a computer again**, and the small grey text of the menu is easier to read.
 - A public game takes at most three players from one network, so that nobody fills one with their own tabs. Private games, shared by invitation, keep no such limit. Pages loaded before this update are asked to reload once it is deployed (protocol version 17).
 - **The error figures on [`/api/stats`](https://nclsmgr.com/frontfall/api/stats) are honest now.** `context_lost` showed up in almost every game, but it was the page freeing its own graphics context when a game ends or the view changes, not a real loss. Only a context the browser takes away is counted.
 
 ### For self-hosters and contributors
 
-- Sign-in with Discord or Google, off unless `FRONTFALL_PUBLIC_URL`, `FRONTFALL_SESSION_SECRET` and a service's `FRONTFALL_OAUTH_<SERVICE>_ID` and `_SECRET` are set, with `FRONTFALL_DATA`; the server then needs to reach Discord and Google. Accounts go in `accounts/accounts.json`. New routes `/auth/<service>`, `/auth/logout` and `/api/me` ([server](docs/server.md#accounts), [self-hosting](docs/self-hosting.md#sign-in-with-discord-or-google)). The protocol does not change: the session cookie goes with the game socket.
 - One address may open 30 WebSockets a minute after a first 40, answered `429` beyond: set `FRONTFALL_CONNECTIONS_PER_MINUTE`. `FRONTFALL_SEATS_PER_ADDRESS` changes the three seats per address of public games, 0 for none, as for a LAN party behind one router ([server](docs/server.md#configuration)).
 - The usage counts are no longer lost to a damaged file: each save keeps the one before as `usage.json.bak`, which the server falls back on, and every month's counts are also written to their own file in `usage/months/` (`2026-10.json`), added to and never cut down, so a month can be kept or collected before the 90 days of `/api/stats` run out ([server](docs/server.md#usage-counts)).
 - Protocol version 17: `kick`, the `removed` reason of `ended`, the `removed` and `too_many_seats` errors ([protocol](docs/protocol.md#kick)).
