@@ -972,7 +972,7 @@ kbd {
    the stats, on the left, short of it. */
 @media (height < 560px) and (width >= 720px) {
   .banner {
-    top: 78px;
+    top: 88px;
     left: 12px;
     max-width: calc(100vw - 300px);
     transform: none;

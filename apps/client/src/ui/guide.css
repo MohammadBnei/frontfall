@@ -83,8 +83,6 @@
 }
 
 /* Wide: the figures are in the bottom bar, so the guide takes the top left. */
-@media (width >= 1240px) and (height >= 560px) {
-  .guide {
-    top: 12px;
-  }
+.game[data-wide] .guide {
+  top: 12px;
 }

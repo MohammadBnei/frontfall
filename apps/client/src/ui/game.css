@@ -1450,48 +1450,53 @@ button.feed-entry:focus-visible {
   display: contents;
 }
 
-@media (width >= 1240px) and (height >= 560px) {
-  .bar {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    display: flex;
-    gap: 10px;
-    align-items: stretch;
-    padding: 6px;
-    border: 1px solid var(--ff-night-500);
-    border-radius: 14px;
-    background: var(--ff-raised);
-    box-shadow: var(--ff-lift);
-  }
+.game[data-wide] .bar {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  padding: 6px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 14px;
+  background: var(--ff-raised);
+  box-shadow: var(--ff-lift);
+}
 
-  .bar > .panel {
-    position: static;
-    align-items: center;
-    padding: 0 10px;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    transform: none;
-  }
+.game[data-wide] .bar > .panel {
+  position: static;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
 
-  .bar > .panel + .panel {
-    padding-left: 14px;
-    border-left: 1px solid var(--ff-night-500);
-  }
+.game[data-wide] .bar > .panel + .panel {
+  padding-left: 14px;
+  border-left: 1px solid var(--ff-night-500);
+}
 
-  .bar .ratio {
-    width: 240px;
-  }
+.game[data-wide] .bar .ratio {
+  width: 240px;
+}
 
-  .game .click-note,
-  .build-tip {
-    bottom: 96px;
-  }
+.game[data-wide] .click-note,
+.game[data-wide] .build-tip {
+  bottom: 96px;
+}
 
-  .attacks {
-    bottom: 96px;
+.game[data-wide] .attacks {
+  bottom: 96px;
+}
+
+/* Short windows: the open leaderboard stops above the round tools instead of running under them. */
+@media (height < 560px) and (width >= 720px) {
+  .leaderboard {
+    max-height: calc(100% - 84px);
   }
 }
 
@@ -2142,12 +2147,10 @@ button.feed-entry:focus-visible {
 }
 
 /* Wide: the figures left the top left, so the first steps take it and the feed goes under them. */
-@media (width >= 1240px) and (height >= 560px) {
-  .event-feed {
-    top: 12px;
-  }
+.game[data-wide] .event-feed {
+  top: 12px;
+}
 
-  .game:has(.guide) .event-feed {
-    top: 172px;
-  }
+.game[data-wide]:has(.guide) .event-feed {
+  top: 172px;
 }

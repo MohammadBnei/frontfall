@@ -1,5 +1,5 @@
 import type { DesyncReport, GameRecord, Turn } from "@frontfall/engine";
-import { motionReduced, onMotionChange } from "./accessibility.ts";
+import { accessibility, motionReduced, onMotionChange } from "./accessibility.ts";
 import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
@@ -255,6 +255,7 @@ export class GameScreen {
       this.hud.element,
       this.marks.note,
     );
+    this.layOut();
     this.overlays = new Overlays(this.element, this.surface, (paused) => {
       this.session.setPaused(paused);
     });
@@ -398,6 +399,10 @@ export class GameScreen {
       this.scene.setMotion(!motionReduced());
     };
     const stopMotion = onMotionChange(motion);
+    const stopLayout = onMotionChange(() => {
+      this.layOut();
+    });
+    window.addEventListener("resize", this.layOut);
     // Online, the host's pace: `speed` turns at each beat of the server (R-MODE-07).
     const speed = options.speed ?? 1;
     this.pacer = new TurnPacer(
@@ -435,6 +440,10 @@ export class GameScreen {
       () => {
         stopMotion();
       },
+      () => {
+        stopLayout();
+        window.removeEventListener("resize", this.layOut);
+      },
       onLanguageChange(() => {
         applyTranslations(this.surface);
         this.hud.refresh();
@@ -463,6 +472,13 @@ export class GameScreen {
     };
     this.frameHandle = requestAnimationFrame(frame);
   }
+
+  /** The wide layout (docs/hud-layout.md) needs its 1240 px at the interface size chosen in the menu. */
+  private readonly layOut = (): void => {
+    const wide =
+      window.innerWidth >= (1240 * accessibility().scale) / 100 && window.innerHeight >= 560;
+    this.element.toggleAttribute("data-wide", wide);
+  };
 
   dispose(): void {
     // Leaving for the menu or a new game without an ending of its own.
