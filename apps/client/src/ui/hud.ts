@@ -188,8 +188,8 @@ export class Hud {
           heavyMissile: this.heavyMissileCost,
         };
         const cost = costs[mode];
-        const extra =
-          mode === "city" ? [this.cityCost, this.cityCount] : cost === undefined ? [] : [cost];
+        const price = mode === "city" ? this.cityCost : cost;
+        const count = mode === "city" ? [this.cityCount] : [];
         const button = h(
           "button",
           {
@@ -201,14 +201,16 @@ export class Hud {
             "aria-keyshortcuts": key,
           },
           h("span", { class: "build-icon", "aria-hidden": "true" }, icon(mode)),
-          // Name, key and cost: a bubble over the button on hover or focus, the cost only in the tray.
+          // The cost stays under the icon, in the dock as in the tray.
+          ...(price ? [price] : []),
+          // Name and key: a bubble over the button on hover or focus.
           h(
             "span",
             { class: "build-info" },
             h("span", { class: "build-name", "data-i18n": `hud.${mode}` }),
             // The key, for players with a keyboard; hidden on touch screens (styles.css).
             h("kbd", { class: "build-key", "aria-hidden": "true" }, key),
-            ...extra,
+            ...count,
           ),
         );
         // A finger has no tooltip: holding the button explains it instead.

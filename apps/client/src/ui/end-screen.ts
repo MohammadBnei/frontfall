@@ -4,8 +4,9 @@ import type { GameTracker } from "../usage.ts";
 import { CATALOGUE, badgeLevel } from "../achievements/catalog.ts";
 import type { Gain } from "../achievements/store.ts";
 import { badge } from "../achievements/badge.ts";
+import "./end-screen.css";
 import { h } from "./dom.ts";
-import { feedbackBlock } from "./feedback.ts";
+import { feedbackBlock } from "./vote.ts";
 import { formatDuration, formatPercent } from "./format.ts";
 
 export interface EndScreenActions {
@@ -86,12 +87,18 @@ export function endScreen(
         ? t("end.winner", { name: winner?.name ?? "" })
         : t("end.teamWinner", { team, name: winner?.name ?? "" }),
     ),
+    // The high point of the game: the most land the player held at once.
     h(
-      "dl",
-      { class: "end-stats" },
-      ...row("end.duration", formatDuration(seconds)),
-      ...row("end.peak", formatPercent(summary.peakTiles / Math.max(1, summary.ownableTiles))),
+      "p",
+      { class: "end-hero" },
+      h(
+        "strong",
+        { class: "end-hero-value" },
+        formatPercent(summary.peakTiles / Math.max(1, summary.ownableTiles)),
+      ),
+      h("span", { class: "end-hero-label", "data-i18n": "end.peak" }),
     ),
+    h("dl", { class: "end-stats" }, ...row("end.duration", formatDuration(seconds))),
     ...(summary.achievements.length > 0 ? [newAchievements(summary.achievements)] : []),
     // A thumbs up or down, once per game played (not for a replay).
     ...(tracker ? [feedbackBlock(tracker, summary.details)] : []),
