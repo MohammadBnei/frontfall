@@ -29,6 +29,11 @@ const DEUTAN = [
   [0.280085, 0.672501, 0.047413],
   [-0.01182, 0.04294, 0.968881],
 ] as const;
+const TRITAN = [
+  [1.255528, -0.076749, -0.178779],
+  [-0.078411, 0.930809, 0.147602],
+  [0.004733, 0.691367, 0.3039],
+] as const;
 const PROTAN = [
   [0.152286, 1.052583, -0.204868],
   [0.114503, 0.786281, 0.099216],
@@ -57,6 +62,7 @@ describe("player colours under colour blindness", () => {
   it.each([
     ["deuteranopia", DEUTAN],
     ["protanopia", PROTAN],
+    ["tritanopia", TRITAN],
   ] as const)("keep the first eight apart in %s", (_name, matrix) => {
     const seen = PLAYER_COLORS.slice(0, 8).map(({ hex }) => lab(hexToRgb(hex), matrix));
     for (let i = 0; i < seen.length; i++) {

@@ -49,8 +49,9 @@ export class LeaderList {
       }
       row.item.value = ranked.indexOf(player) + 1;
       row.name.textContent = player.name;
-      // Set here, not once, so it follows a change of language.
-      row.button?.setAttribute("aria-label", t("diplo.playerMenu", { name: player.name }));
+      // The name of the button is what it shows, so that "click Brask" works by voice; what it
+      // does is its description. Set here, not once, so it follows a change of language.
+      row.button?.setAttribute("aria-description", t("diplo.playerMenu", { name: player.name }));
       row.land.textContent = share(player.tiles);
       const teammate = teammates.has(player.id);
       row.ally.hidden = !teammate && !allies.has(player.id);
