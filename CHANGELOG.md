@@ -4,10 +4,20 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **A page about the game, in English and French.** What Frontfall is, how to play in six steps, where and with whom, and where the code and the credits are, at [/about.html](https://nclsmgr.com/frontfall/about.html) and [/about.fr.html](https://nclsmgr.com/frontfall/about.fr.html). It loads on its own, apart from the game.
+
 ### Changed
 
 - **The sign-in buttons wear the Discord and Google logos.** In Your profile, the buttons now read "Sign in with Discord" and "Sign in with Google" (in French, "Se connecter avec …") with each service's own logo, in the colours the services ask for.
 - **Better reading of first games.** The anonymous game report now also says how long a player took to give a first order, and the counters separate games left within two minutes from games lost within two minutes. Nothing is added that could name a player, and no game rule or difficulty changes ([what is sent](docs/privacy.md#reports)).
+
+- **A better preview when you share the link.** In a chat or on a social network, the game now shows a new picture taken from a real game, with its title and a description, instead of the old placeholder. Search engines and people without JavaScript also get a short description of the game.
+
+### For self-hosters and contributors
+
+- The share image `og-image.png` (1200 x 630) and the README screenshot and time-lapse (`docs/assets/`) come from a current build. `apps/client/public/about*.html` are plain pages with their own stylesheet: they stay out of the first-visit budget and need no change in the server.
 
 ## [0.6.1] - 2026-10-28
 

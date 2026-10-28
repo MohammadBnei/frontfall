@@ -32,6 +32,12 @@ Jouez en solo contre des bots, ou en ligne entre amis par un lien d'invitation o
   <img src="docs/assets/screenshot-world.png" alt="Une partie sur la carte du Monde : une douzaine d'empires sur les continents, avec leurs noms et leurs troupes, le classement et le curseur d'attaque" width="100%">
 </p>
 
+<p align="center">
+  <img src="docs/assets/gameplay.gif" alt="Accéléré d'une partie sur le Monde : un empire s'étend sur l'Eurasie pendant que les autres grandissent autour" width="100%">
+</p>
+
+Nouveau ? [Présentation et comment jouer](https://nclsmgr.com/frontfall/about.fr.html), ou appuyez sur H en partie.
+
 ## Navigateurs pris en charge
 
 Chrome et Edge 111, Firefox 114 (121 pour l'affichage complet), Safari et iOS 16.4 ou plus récents, avec WebGL 2. La CI joue une partie dans Chromium, Firefox et WebKit à chaque changement. [Le tableau complet](docs/browsers.md) (en anglais) dit ce que demande chaque version et ce qui n'est qu'une hypothèse. Un navigateur qui ne peut pas faire tourner le jeu le dit, au lieu d'afficher une page blanche.
