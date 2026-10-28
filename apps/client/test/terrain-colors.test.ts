@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import tokens from "../../../assets/brand/tokens.json" with { type: "json" };
 import {
   SURF_EAST,
   SURF_NORTH,
   SURF_SOUTH,
   SURF_WEST,
+  TERRAIN_COLORS,
   bakeTerrainColors,
 } from "../src/render/terrain-colors.ts";
 
@@ -29,14 +31,22 @@ describe("bakeTerrainColors", () => {
     expect(rgba[0 * 4 + 3]).toBe(0);
   });
 
-  it("darkens the deep sea and lights slopes that face the north-west", () => {
-    const width = 8;
-    const kinds = Uint8Array.from([0, 0, 1, 1, 1, 1, 1, 1]);
-    // Shelf then deep water; land rising to the east, then falling.
-    const relief = Uint8Array.from([0, 12, 4, 4, 10, 16, 10, 4]);
+  it("matches the brand tokens", () => {
+    expect(TERRAIN_COLORS).toEqual({
+      landLight: tokens.map["land-light"],
+      seaShallow: tokens.map["sea-shallow"],
+      foam: tokens.map.foam,
+    });
+  });
+
+  it("darkens the sea away from the coast and lights slopes that face the north-west", () => {
+    const width = 16;
+    const kinds = Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]);
+    // Open water, then the coast; land rising to the east, then falling.
+    const relief = Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 10, 16, 10, 4, 4, 4]);
     const rgba = bakeTerrainColors({ width, height: 1, kinds, relief, wrapsX: false });
-    expect(luminance(rgba, 1)).toBeLessThan(luminance(rgba, 0));
+    expect(luminance(rgba, 0)).toBeLessThan(luminance(rgba, 7));
     // Rising towards the east faces away from the light; falling faces it.
-    expect(luminance(rgba, 6)).toBeGreaterThan(luminance(rgba, 4));
+    expect(luminance(rgba, 13)).toBeGreaterThan(luminance(rgba, 10));
   });
 });

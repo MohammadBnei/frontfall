@@ -51,6 +51,45 @@ interface StructureLayers {
   readonly size: number;
 }
 
+/** Darkness of the corners of the view, on a laptop and on a narrow phone screen. */
+const STRENGTH = { wide: 0.38, narrow: 0.6 };
+
+interface Vignette {
+  setNarrow(narrow: boolean): void;
+  dispose(): void;
+}
+
+/**
+ * A screen-wide quad that darkens the edges of the view, drawn after
+ * everything else so the interface stays readable over a bright map.
+ */
+function addVignette(scene: THREE.Scene): Vignette {
+  const strength = { value: STRENGTH.wide };
+  const material = new THREE.ShaderMaterial({
+    uniforms: { strength },
+    vertexShader: "varying vec2 p;void main(){p=position.xy;gl_Position=vec4(p,0.,1.);}",
+    fragmentShader:
+      "varying vec2 p;uniform float strength;void main(){gl_FragColor=vec4(.02,.05,.08,strength*smoothstep(.6,1.5,length(p)));}",
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 100;
+  scene.add(mesh);
+  return {
+    setNarrow: (narrow) => {
+      strength.value = narrow ? STRENGTH.narrow : STRENGTH.wide;
+    },
+    dispose: () => {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      material.dispose();
+    },
+  };
+}
+
 /**
  * The flat map: one WebGL canvas, the territory layer, and an orthographic
  * camera placed from the view of the interface's camera.
@@ -67,6 +106,7 @@ export class MapView implements Renderer {
   private readonly missiles: UnitLayer;
   private readonly heavyMissiles: UnitLayer;
   private readonly structures: Record<StructureMark["type"], StructureLayers>;
+  private readonly vignette: Vignette;
   private readonly startedAt = performance.now();
   /** Width of the canvas in CSS pixels, to keep structures readable when zoomed out. */
   private cssWidth = 1;
@@ -89,69 +129,36 @@ export class MapView implements Renderer {
     // south edge; applyView puts the origin at the centre of the middle copy.
     this.territory.mesh.position.set(-options.width / 2, -options.height / 2, 0);
     this.scene.add(this.territory.mesh);
-    this.ships = new UnitLayer({
-      worldWidth: options.width,
-      worldHeight: options.height,
-      capacity: SHIP_CAPACITY,
-      wrapsX: options.wrapsX,
-      size: SHIP_SIZES.transport.tiles,
-    });
-    this.ships.mesh.position.copy(this.territory.mesh.position);
-    this.scene.add(this.ships.mesh);
-    this.tradeShips = new UnitLayer({
-      worldWidth: options.width,
-      worldHeight: options.height,
-      capacity: TRADE_CAPACITY,
-      wrapsX: options.wrapsX,
-      size: SHIP_SIZES.trade.tiles,
-    });
-    this.tradeShips.mesh.position.copy(this.territory.mesh.position);
-    this.scene.add(this.tradeShips.mesh);
-    this.warships = new UnitLayer({
-      worldWidth: options.width,
-      worldHeight: options.height,
-      capacity: WARSHIP_CAPACITY,
-      wrapsX: options.wrapsX,
-      size: SHIP_SIZES.warship.tiles,
-      sides: 3,
-      depth: 0.15,
-    });
-    this.warships.mesh.position.copy(this.territory.mesh.position);
-    this.scene.add(this.warships.mesh);
-    // Missiles are diamonds above everything else.
-    const missiles = (size: number): UnitLayer => {
+    const unit = (
+      capacity: number,
+      size: number,
+      shape: { sides?: number; depth?: number } = {},
+    ): UnitLayer => {
       const layer = new UnitLayer({
         worldWidth: options.width,
         worldHeight: options.height,
-        capacity: MISSILE_CAPACITY,
+        capacity,
         wrapsX: options.wrapsX,
         size,
-        sides: 4,
-        depth: 0.4,
+        ...shape,
       });
       layer.mesh.position.copy(this.territory.mesh.position);
       this.scene.add(layer.mesh);
       return layer;
     };
+    this.ships = unit(SHIP_CAPACITY, SHIP_SIZES.transport.tiles);
+    this.tradeShips = unit(TRADE_CAPACITY, SHIP_SIZES.trade.tiles);
+    this.warships = unit(WARSHIP_CAPACITY, SHIP_SIZES.warship.tiles, { sides: 3, depth: 0.15 });
+    // Missiles are diamonds above everything else.
+    const missiles = (size: number): UnitLayer =>
+      unit(MISSILE_CAPACITY, size, { sides: 4, depth: 0.4 });
     this.missiles = missiles(SHIP_SIZES.missile.tiles);
     this.heavyMissiles = missiles(SHIP_SIZES.heavyMissile.tiles);
     // Cities are diamonds, forts triangles, ports hexagons, silos pentagons and
     // air defenses discs, all larger than a ship.
     const layers = (sides: number, size: number): StructureLayers => {
-      const layer = (extra: number, depth: number): UnitLayer => {
-        const unit = new UnitLayer({
-          worldWidth: options.width,
-          worldHeight: options.height,
-          capacity: STRUCTURE_CAPACITY,
-          wrapsX: options.wrapsX,
-          size: size + extra,
-          sides,
-          depth,
-        });
-        unit.mesh.position.copy(this.territory.mesh.position);
-        this.scene.add(unit.mesh);
-        return unit;
-      };
+      const layer = (extra: number, depth: number): UnitLayer =>
+        unit(STRUCTURE_CAPACITY, size + extra, { sides, depth });
       return { outline: layer(1.5, 0.2), fill: layer(0, 0.3), size };
     };
     this.structures = {
@@ -162,6 +169,7 @@ export class MapView implements Renderer {
       silo: layers(5, 4.5),
       airDefense: layers(12, 4),
     };
+    this.vignette = addVignette(this.scene);
     this.camera.position.z = 10;
   }
 
@@ -249,6 +257,7 @@ export class MapView implements Renderer {
   resize(width: number, height: number): void {
     this.renderer.setSize(width, height, false);
     this.cssWidth = Math.max(1, width);
+    this.vignette.setNarrow(width < 700);
   }
 
   render(view: CameraView): void {
@@ -282,6 +291,7 @@ export class MapView implements Renderer {
   }
 
   dispose(): void {
+    this.vignette.dispose();
     this.territory.dispose();
     this.ships.dispose();
     this.tradeShips.dispose();
