@@ -20,7 +20,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### For self-hosters and contributors
 
-- The ground texture now holds each tile's signed distance to the coast in its alpha channel and is drawn with linear filtering and mipmaps; the renderer gets the map's latitudes from its manifest. Building the ground at the start of a game takes longer (about 2.3 s instead of 1.4 s for World on a slow cloud machine), and the map's textures take about a third more GPU memory. The first download is unchanged apart from the setting's label.
+- The ground texture now holds each tile's signed distance to the coast in its alpha channel and is drawn with linear filtering and mipmaps; the renderer gets the map's latitudes from its manifest. Building the ground at the start of a game takes longer (about 2.3 s instead of 1.4 s for World on a slow cloud machine), and the map's textures take about a third more GPU memory. The territory layer and its shaders now load with the globe and the pieces, after the page, so the first download is about 4 kB lighter.
 
 ### Changed
 
