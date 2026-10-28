@@ -21,11 +21,14 @@ const EVERY_SECONDS = 2;
 /** Share of its troops sent into free land, in %. */
 const EXPAND_PERCENT = 50;
 
-/** Share of its troops sent at a neighbour, in %. */
-const ATTACK_PERCENT = 40;
-
 /** Troops, in % of its population cap, from which it opens a war. */
-const READY_PERCENT = 45;
+const READY_PERCENT = 60;
+
+/**
+ * Troops, in % of its population cap, it keeps home in a war: about where its
+ * army grows fastest (R-ECO-02), as a player reading the population bar would.
+ */
+const KEEP_PERCENT = 35;
 
 /** Its troops per tile, in % of the target's, from which a neighbour is worth attacking. */
 const ODDS_PERCENT = 120;
@@ -245,7 +248,7 @@ export class AveragePlayer {
       if (troops >= neutralCost) orders.push({ type: "attack", target: neutral, troops });
     }
     const ready = me.troops * 100 >= cap * READY_PERCENT;
-    const troops = divFloor(me.troops * ATTACK_PERCENT, 100);
+    const troops = me.troops - divFloor(cap * KEEP_PERCENT, 100);
     if (troops < neutralCost) return orders;
     // Answer an attacker it can beat, whatever the land left.
     if (attackerTile >= 0 && own * 100 >= this.density(attacker) * 100) {

@@ -17,7 +17,7 @@ export interface BotParameters {
 
 export const BOT_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<BotParameters>>> = {
   easy: { intervalSeconds: 5, attackRatioPercent: 15, reservePercent: 50, boldnessPercent: 100 },
-  normal: { intervalSeconds: 3, attackRatioPercent: 25, reservePercent: 40, boldnessPercent: 110 },
+  normal: { intervalSeconds: 5, attackRatioPercent: 15, reservePercent: 40, boldnessPercent: 110 },
   hard: { intervalSeconds: 2, attackRatioPercent: 40, reservePercent: 20, boldnessPercent: 150 },
 };
 
@@ -48,19 +48,19 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
   easy: {
     intervalSeconds: 5,
     attackRatioPercent: 15,
-    graceSeconds: 150,
+    graceSeconds: 180,
     oddsPercent: 80,
     holdPercent: 60,
     reservePercent: 60,
     huntPercent: 0,
   },
   normal: {
-    intervalSeconds: 1,
+    intervalSeconds: 2,
     attackRatioPercent: 40,
     graceSeconds: 120,
     oddsPercent: 90,
     holdPercent: 40,
-    reservePercent: 25,
+    reservePercent: 10,
     huntPercent: 20,
   },
   hard: {

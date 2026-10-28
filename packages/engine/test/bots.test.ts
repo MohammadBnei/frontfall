@@ -316,7 +316,7 @@ describe("bots", () => {
     ]);
     // 900 tiles support three cities; the next ones go further out, off the front.
     bot.gold = 10_000;
-    run(60);
+    run(100);
     expect(game.structures).toHaveLength(3);
     for (const city of game.structures) {
       expect(game.territory.isBorder(city.tile)).toBe(false);

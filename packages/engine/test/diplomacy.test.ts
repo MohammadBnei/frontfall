@@ -382,15 +382,20 @@ describe("bots and alliances (R-BOT-10)", () => {
   });
 
   it("renews on the same terms, voting once", () => {
-    const { game, grid, ally, run } = newGame({ allianceRequestTicks: 100, winSharePercent: 100 });
+    // A window longer than the bots' interval, so Bea decides once in it.
+    const { game, grid, ally, run } = newGame({
+      allianceRequestTicks: 100,
+      allianceRenewTicks: 60,
+      winSharePercent: 100,
+    });
     for (let x = 40; x < 50; x++)
       for (let y = 0; y < 20; y++) game.territory.setOwner(grid.index(x, y), 2);
     installBots(game, [2], "normal");
     ally(1, 2);
     run(60);
     const alliance = allianceOf(game, 1, 2);
-    run((alliance?.until ?? 0) - 25 - game.tick);
-    run(20);
+    run((alliance?.until ?? 0) - 55 - game.tick);
+    run(50);
     // Bea voted on a decision in the window, and once only: Ada's vote completes the renewal.
     expect(alliance?.renewB).toBe(true);
     const tick = game.tick;
