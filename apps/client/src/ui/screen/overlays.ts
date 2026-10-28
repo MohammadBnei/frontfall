@@ -8,6 +8,8 @@ import { t } from "../../i18n/index.ts";
 export class Overlays {
   private current: HTMLElement | undefined;
   private pausedNow = false;
+  /** What a modal dialog shut off while it is open, so that the keyboard and screen readers stay in it. */
+  private inerted: HTMLElement[] = [];
 
   constructor(
     /** Where the dialogs go: the game's own element. */
@@ -38,6 +40,7 @@ export class Overlays {
     this.pause();
     const banner = document.createElement("div");
     banner.className = "overlay paused";
+    banner.setAttribute("role", "status");
     const text = document.createElement("p");
     text.className = "paused-text";
     text.textContent = t("hud.paused");
@@ -49,9 +52,18 @@ export class Overlays {
   }
 
   show(element: HTMLElement): void {
+    this.release();
     this.current?.remove();
     this.current = element;
     this.parent.append(element);
+    if (element.querySelector('[aria-modal="true"]')) {
+      for (const other of this.parent.children) {
+        if (other !== element && other instanceof HTMLElement && !other.inert) {
+          other.inert = true;
+          this.inerted.push(other);
+        }
+      }
+    }
     // The main action, so that Enter never casts a vote by accident; a long
     // dialog still opens at its top, even when that button is at the foot.
     (
@@ -59,7 +71,12 @@ export class Overlays {
     )?.focus({ preventScroll: true });
   }
 
+  private release(): void {
+    for (const other of this.inerted.splice(0)) other.inert = false;
+  }
+
   close(): void {
+    this.release();
     this.current?.remove();
     this.current = undefined;
     if (this.pausedNow) {

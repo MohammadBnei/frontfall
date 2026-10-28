@@ -1267,7 +1267,7 @@ kbd {
 }
 
 .bar-count {
-  color: var(--ff-slate-300);
+  color: var(--ff-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1428,4 +1428,49 @@ button.secondary,
 .end-screen.lost {
   background:
     radial-gradient(120% 60% at 50% 0%, rgb(47 128 237 / 18%), transparent), var(--ff-night-700);
+}
+
+input::placeholder {
+  color: var(--ff-slate-300);
+  opacity: 1;
+}
+
+/* A finger needs 44 px to hit: what is smaller under a mouse grows on a touch screen. */
+@media (pointer: coarse) {
+  .bar-button,
+  .menu-bar select {
+    height: 44px;
+    min-width: 44px;
+  }
+
+  button.primary,
+  button.secondary,
+  input[type="text"],
+  select {
+    min-height: 44px;
+  }
+
+  .segmented label {
+    padding-block: 12px;
+  }
+
+  .toggle,
+  input[type="range"] {
+    min-height: 44px;
+  }
+
+  .options-summary {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .online-more summary,
+  .accessibility summary {
+    padding-block: 14px;
+  }
+
+  .feedback-links a {
+    display: inline-block;
+    padding-block: 14px;
+  }
 }

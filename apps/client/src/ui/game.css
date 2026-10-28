@@ -571,6 +571,7 @@
   gap: 6px;
   align-items: center;
   min-width: 0;
+  min-height: 24px;
   margin: 0 -4px;
   padding: 1px 4px;
   border: 0;
@@ -1016,11 +1017,11 @@
 }
 
 .build-button.unaffordable > .build-cost {
-  color: var(--ff-danger);
+  color: #ff8794;
 }
 
 .build-button.unaffordable {
-  opacity: 0.75;
+  background: linear-gradient(180deg, rgb(var(--tint) / 12%), rgb(var(--tint) / 3%));
 }
 
 .build-button[aria-pressed="true"] {
@@ -1132,5 +1133,40 @@
 
   .attacks {
     bottom: 96px;
+  }
+}
+
+/* A finger needs 44 px to hit: the buttons that are smaller under a mouse grow on a touch screen. */
+@media (pointer: coarse) {
+  .leaderboard-toggle,
+  .leaderboard:not(.open) .leaderboard-toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .leader-button,
+  .guide-hide,
+  .guide-actions button.secondary,
+  .attack-retreat {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .ratio input[type="range"] {
+    min-height: 44px;
+  }
+}
+
+/* Under 360 px the bottom bar has no room for bigger buttons beside the attack slider. */
+@media (pointer: coarse) and (width >= 360px) {
+  .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (width >= 360px) and (width < 720px) {
+  .ratio {
+    right: 218px;
   }
 }

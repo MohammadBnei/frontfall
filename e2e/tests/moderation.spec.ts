@@ -62,7 +62,7 @@ test("a player hides another one, whose name and messages leave their screen, an
     await expect(page.locator(".leaderboard")).toContainText("Guest");
   }
 
-  await host.getByRole("button", { name: "Diplomacy with Guest" }).click();
+  await host.getByRole("button", { name: /^Guest/ }).click();
   const menu = host.locator("#player-menu");
   await menu.locator(".menu-action.hide").click();
   await expect(menu).toContainText("Hidden");
@@ -72,7 +72,7 @@ test("a player hides another one, whose name and messages leave their screen, an
   await host.keyboard.press("Escape");
 
   // The guest's quick message, once play begins, never shows on the host's screen.
-  await guest.getByRole("button", { name: "Diplomacy with Host" }).click();
+  await guest.getByRole("button", { name: /^Host/ }).click();
   const messages = guest.locator("#player-menu .menu-action.messages");
   await expect(messages).toBeEnabled({ timeout: 60_000 });
   await messages.click();
@@ -82,7 +82,7 @@ test("a player hides another one, whose name and messages leave their screen, an
   await expect(host.locator(".event-feed")).not.toContainText("Hello!");
 
   // Shown again, the guest has their name back.
-  await host.getByRole("button", { name: "Diplomacy with Player 2" }).click();
+  await host.getByRole("button", { name: /^Player 2/ }).click();
   await menu.locator(".menu-action.hide").click();
   await expect(host.locator(".leaderboard")).toContainText("Guest");
 
