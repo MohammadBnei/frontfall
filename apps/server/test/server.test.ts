@@ -843,6 +843,31 @@ describe("WebSocket", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("gives the address its connection back when the handshake is refused", async () => {
+    const host = await start({ maxConnectionsPerAddress: 2 });
+    const [address, port] = host.split(":");
+    for (let i = 0; i < 3; i++) {
+      const socket = connect(Number(port), address);
+      const reply = new Promise<string>((resolve, reject) => {
+        let text = "";
+        socket.on("data", (chunk: Buffer) => (text += chunk.toString()));
+        socket.on("error", reject);
+        socket.on("close", () => {
+          resolve(text);
+        });
+      });
+      socket.write(
+        "GET /ws HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n" +
+          "Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: not-a-key\r\n" +
+          "X-Client-IP: 203.0.113.9\r\n\r\n",
+      );
+      expect(await reply).toMatch(/^HTTP\/1\.1 400/);
+    }
+    await expect(
+      opened(open(host, { "x-client-ip": "203.0.113.9" }).socket),
+    ).resolves.toBeUndefined();
+  });
+
   it("limits how fast one address opens connections", async () => {
     const host = await start({ upgradeRate: { perSecond: 0.001, burst: 2 } });
     const headers = { "x-client-ip": "203.0.113.9" };
