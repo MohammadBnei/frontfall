@@ -12,8 +12,10 @@ import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n
 import type { ViewKind } from "../render/renderer.ts";
 import { guideDone, setGuideDone } from "./guide-state.ts";
 import { safeStorage } from "./setup.ts";
-import { endScreen } from "./end-screen.ts";
-import { ReplayBar } from "./replay-bar.ts";
+// The end screen loads while the game starts, out of the first download.
+import type { endScreen } from "./end-screen.ts";
+// Only replays show the bar: it loads with the replay, out of the first download.
+import type { ReplayBar } from "./replay-bar.ts";
 import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
@@ -30,6 +32,14 @@ import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
 /** How often the turns of an online game are checked for being due. */
 const PACER_MS = 10;
+
+/** The replay bar's code, once loadReplayBar has fetched it. */
+let replayBarClass: typeof ReplayBar | undefined;
+
+/** Fetches the replay bar; call it before making the screen of a replay. */
+export async function loadReplayBar(): Promise<void> {
+  replayBarClass ??= (await import("./replay-bar.ts")).ReplayBar;
+}
 
 export interface GameScreenActions {
   onNewGame(): void;
@@ -91,6 +101,10 @@ export class GameScreen {
   private readonly guide: GuideHost;
   /** A finger rather than a mouse: the help shows gestures instead of keys. */
   private readonly coarsePointer = window.matchMedia("(pointer: coarse)");
+  /** The end screen's code, once fetched. */
+  private endScreen: typeof endScreen | undefined;
+  /** The game ended and its end screen is on its way: the pause holds until it shows. */
+  private ending = false;
   /** Reports the game once it ends for the player; none for a replay (docs/privacy.md). */
   private readonly tracker: GameTracker | undefined;
 
@@ -210,7 +224,8 @@ export class GameScreen {
     this.input = this.createInput();
     if (options.record) {
       this.element.classList.add("watching");
-      this.replayBar = new ReplayBar(REPLAY_SPEEDS, (speed) => {
+      if (!replayBarClass) throw new Error("loadReplayBar() must complete before a replay starts");
+      this.replayBar = new replayBarClass(REPLAY_SPEEDS, (speed) => {
         this.session.setSpeed(speed);
       });
       this.element.append(this.replayBar.element);
@@ -236,6 +251,13 @@ export class GameScreen {
           this.ownableTiles = info.rules.ownableTiles;
           if (!options.record) {
             this.achievements.start(info.rules, link ? undefined : options.difficulty);
+            // Failing here only leaves showEnd to try again.
+            import("./end-screen.ts").then(
+              (module) => {
+                this.endScreen = module.endScreen;
+              },
+              () => undefined,
+            );
           }
           this.hud.setRules(info.rules);
           // Fetched while the game starts, so H opens the help at once.
@@ -512,6 +534,7 @@ export class GameScreen {
   }
 
   private togglePause(): void {
+    if (this.ending) return;
     if (this.link) {
       // An online game runs for everyone: Esc only closes what is open.
       if (this.overlays.open) this.overlays.close();
@@ -536,6 +559,7 @@ export class GameScreen {
   }
 
   private openHelp(helpPanel: typeof import("./help.ts").helpPanel): void {
+    if (this.ending) return;
     if (!this.link) this.overlays.pause();
     this.overlays.show(
       helpPanel({
@@ -560,8 +584,28 @@ export class GameScreen {
   private showEnd(update: GameUpdate): void {
     // A solo game waits behind the end screen, so its record ends where the game did.
     if (!this.link) this.overlays.pause();
+    // Fetched long before, unless the game ended within moments of its start.
+    if (this.endScreen) this.openEnd(this.endScreen, update);
+    else {
+      this.ending = true;
+      import("./end-screen.ts").then(
+        ({ endScreen }) => {
+          this.ending = false;
+          this.openEnd(endScreen, update);
+        },
+        (error: unknown) => {
+          // No end screen to show: the game goes on rather than stay frozen.
+          console.error(error);
+          this.ending = false;
+          this.overlays.close();
+        },
+      );
+    }
+  }
+
+  private openEnd(screen: typeof endScreen, update: GameUpdate): void {
     this.overlays.show(
-      endScreen(
+      screen(
         {
           update,
           ticksPerSecond: this.ticksPerSecond,
