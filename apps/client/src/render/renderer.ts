@@ -44,6 +44,8 @@ export interface RendererOptions {
   readonly relief?: Uint8Array;
   /** Latitudes of the south and north edges, in degrees, which set the climates drawn. */
   readonly latitudes?: readonly [south: number, north: number] | undefined;
+  /** The flat map: square tiles, without smooth coasts and borders, for older devices. */
+  readonly flat?: boolean | undefined;
   /** Owner of every tile, kept up to date by the caller and read in place. */
   readonly owners: Uint16Array;
   readonly maxOwner: number;

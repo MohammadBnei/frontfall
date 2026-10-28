@@ -61,6 +61,7 @@ export class GlobeView implements Renderer {
       wrapsX: true,
       relief: options.relief,
       latitudes: options.latitudes,
+      flat: options.flat,
       maxOwner: options.maxOwner,
       surface: "sphere",
     });

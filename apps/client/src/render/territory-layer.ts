@@ -23,6 +23,11 @@ export interface TerritoryLayerOptions {
   /** Highest owner id the palette must hold. */
   readonly maxOwner: number;
   /**
+   * The flat map, for older devices: tiles in one colour each, without the
+   * smoothing of coasts and borders, at a fraction of the work per pixel.
+   */
+  readonly flat?: boolean | undefined;
+  /**
    * What the map is drawn on: a plane in tiles (the default), or the unit
    * sphere, for a map whose columns span every longitude from -180 and rows
    * every latitude from the north pole. The sphere is ray-traced on a quad
@@ -135,6 +140,19 @@ const fragmentShader = /* glsl */ `
   uint ownerAt(ivec2 tile) { return texelFetch(owners, wrapTile(tile), 0).r; }
 
   /** Signed distance to the coast in tiles, land above 0, from the ground's alpha (encodeCoast). */
+  /**
+   * Distance in tiles from the point to the nearest of the sides marked:
+   * east, west, south, north (the flat map's borders).
+   */
+  float edgeDistance(vec2 f, bvec4 sides) {
+    float d = 2.0;
+    if (sides.x) d = min(d, 1.0 - f.x);
+    if (sides.y) d = min(d, f.x);
+    if (sides.z) d = min(d, 1.0 - f.y);
+    if (sides.w) d = min(d, f.y);
+    return d;
+  }
+
   float coastDistance(float alpha) {
     float r = (alpha * 255.0 - 127.5) / 127.5;
     return sign(r) * r * r * coastReach;
@@ -173,6 +191,22 @@ const fragmentShader = /* glsl */ `
     // Tiles per screen pixel, for lines that stay sharp and visible at any zoom.
     float pixel = max(fwidth(at.x), 1e-4);
   #endif
+  #ifdef FLAT
+    // The flat map: each tile in one colour, borders along the edges of tiles.
+    ivec2 tile = wrapTile(ivec2(floor(at)));
+    vec2 f = fract(at);
+    uint owner = ownerAt(tile);
+    uvec4 around = uvec4(ownerAt(tile + ivec2(1, 0)), ownerAt(tile - ivec2(1, 0)),
+      ownerAt(tile + ivec2(0, 1)), ownerAt(tile - ivec2(0, 1)));
+    bvec4 other = notEqual(around, uvec4(owner));
+    bvec4 touch = bvec4(vec4(other) * vec4(greaterThan(around, uvec4(0u))));
+    float ownerEdge = edgeDistance(f, other);
+    float contactEdge = edgeDistance(f, touch);
+    vec4 groundSample = texelFetch(ground, tile, 0);
+    float coast = coastDistance(groundSample.a);
+    float landCover = step(0.0, coast);
+    float detail = 0.0;
+  #else
     // Who owns the point: each land tile within KERNEL tiles of it votes for
     // its owner, the nearer the louder, so borders run in curves through the
     // tiles instead of along their edges, and a lone tile still keeps a round
@@ -227,6 +261,8 @@ const fragmentShader = /* glsl */ `
     // up to the reach of the votes.
     float ownerGap = second > 0.0 ? (scores[best] - second) / (scores[best] + second) : 1.0;
     float ownerEdge = ownerGap > 0.99 ? 2.0 : 0.5 * ownerGap;
+    // Where another player's land lies across the border, rather than bare ground or sea.
+    float contactEdge = neighbour != 0u ? ownerEdge : 2.0;
 
     // The ground, filtered between tile centres so hills and coasts are smooth.
     // Its level of detail follows the zoom, given rather than derived, because
@@ -234,14 +270,18 @@ const fragmentShader = /* glsl */ `
     vec4 groundSample = textureLod(ground, at / worldSize, max(0.0, log2(pixel)));
     float coast = coastDistance(groundSample.a);
     float coastPixels = coast / max(fwidth(coast), 1e-4);
+    // Land above the coast, with an edge one pixel soft.
+    float landCover = clamp(coastPixels + 0.5, 0.0, 1.0);
+    // Close up, a fine mottling, finer than a tile, keeps the ground from
+    // looking blurred; it fades out before it could shimmer.
+    float detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
+  #endif
   #ifdef SPHERE
     // Pixels clear of the rim stop here, once every derivative is taken: after
     // a discard, derivatives are undefined on some GPUs. Those next to it go
     // on, so the rim keeps its derivatives.
     if (hit < -rim) discard;
   #endif
-    // Land above the coast, with an edge one pixel soft.
-    float landCover = clamp(coastPixels + 0.5, 0.0, 1.0);
 
     // The sea darkens away from the coast over a narrow shelf, and a fine
     // line of foam, about a pixel wide when zoomed out, follows the shore.
@@ -252,16 +292,15 @@ const fragmentShader = /* glsl */ `
     float foam = 1.0 - smoothstep(0.5 * foamWidth, foamWidth, depth);
     sea = mix(sea, foamColor, foam * 0.6);
     // The shore is a tone lighter, so coasts read at any zoom.
-    // Close up, a fine mottling, finer than a tile, keeps the ground from
-    // looking blurred; it fades out before it could shimmer.
-    float detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
     vec3 land = groundSample.rgb * (1.0 + 0.16 * detail) * (1.0 + 0.18 * (1.0 - smoothstep(0.0, max(0.35, 2.0 * pixel), max(coast, 0.0))));
     vec3 color = mix(sea, land, landCover);
 
     // Distance in tiles to the edge of the owner's land: another owner's, or the sea.
+  #ifdef FLAT
+    float edge = ownerEdge;
+  #else
     float edge = min(ownerEdge, max(coast, 0.0));
-    // Where another player's land lies across the border, rather than bare ground or sea.
-    float contactEdge = neighbour != 0u ? ownerEdge : 2.0;
+  #endif
 
     if (owner != 0u) {
       ivec2 entry = ivec2(int(owner % ${String(PALETTE_WIDTH)}u), int(owner / ${String(PALETTE_WIDTH)}u));
@@ -426,15 +465,17 @@ export class TerritoryLayer {
     }
     // The ground alone is filtered: smooth between tile centres, and averaged
     // over the tiles under a pixel when zoomed out.
-    this.groundTexture.magFilter = THREE.LinearFilter;
-    this.groundTexture.minFilter = THREE.LinearMipmapLinearFilter;
-    this.groundTexture.generateMipmaps = true;
-    this.groundTexture.wrapS = wrapsX ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+    if (!options.flat) {
+      this.groundTexture.magFilter = THREE.LinearFilter;
+      this.groundTexture.minFilter = THREE.LinearMipmapLinearFilter;
+      this.groundTexture.generateMipmaps = true;
+      this.groundTexture.wrapS = wrapsX ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+    }
 
     const sphere = options.surface === "sphere";
     const material = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
-      defines: sphere ? { SPHERE: 1 } : {},
+      defines: { ...(sphere ? { SPHERE: 1 } : {}), ...(options.flat ? { FLAT: 1 } : {}) },
       vertexShader,
       fragmentShader,
       uniforms: {
@@ -648,11 +689,12 @@ export class TerritoryLayer {
     return texels;
   }
 
-  /** Bytes the layer's textures take on the GPU, mipmaps excluded. */
+  /** Bytes the layer's textures take on the GPU. */
   gpuBytes(): number {
     const { width, height } = this.options;
     // Owners, ground colours with their mipmaps (a third more), and the time each tile changed hands.
-    return Math.round(width * height * (2 + (4 * 4) / 3 + 4)) + this.paletteData.byteLength;
+    const ground = this.options.flat ? 4 : (4 * 4) / 3;
+    return Math.round(width * height * (2 + ground + 4)) + this.paletteData.byteLength;
   }
 
   dispose(): void {
