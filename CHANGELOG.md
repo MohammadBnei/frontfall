@@ -16,6 +16,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **Sharper ridges.** Mountain ranges are shaded at two scales, so their crests stand out from the broad slopes when you zoom in.
 - **A clearer sea.** Every coast now has a crisp band of light shallows with its fine line of foam, in place of the soft glow; coastal water is a shade lighter and deepens slowly offshore. Zoomed in, slow swells drift across open water; they hold still when reduced motion is on.
+- **A touch screen reads "tap", not "click".** The line at the top of the game, the one that says where to start and how to expand, and the build prompts now say "Tap" (and drop "Esc to cancel") when you play with a finger, on a phone or a tablet. On a landscape phone, the first steps take a short card beside the leaderboard instead of its full width, and "Hide the guide" is a 44 px target on a touch screen.
 - **Digits pick buildings; Shift and a digit sets the attack share.** The digit keys 1 to 9 and 0 used to set the share of troops an attack takes. That is now Shift + 1 to 9 (10 % to 90 %) and Shift + 0 (all of them), as the slider at the bottom has always allowed. The help and the first steps say so.
 
 ### For self-hosters and contributors

@@ -442,5 +442,18 @@
   "preview.reach": "Reach: {radius} tiles",
   "preview.confirm": "Place here",
   "preview.hint": "Keys 1 to 9 pick a building. Move over the map to see where it fits.",
-  "preview.hintTouch": "Tap once to preview where it goes, tap again to place it."
+  "preview.hintTouch": "Tap once to preview where it goes, tap again to place it.",
+  "hud.spawnPickTouch": "Tap land to choose where you start. {seconds} s left.",
+  "hud.spawnMoveTouch": "Tap elsewhere to move your start. Attacks open in {seconds} s.",
+  "hud.playHintTouch": "Tap land next to yours to expand, or a neighbour to attack.",
+  "hud.modeCityTouch": "Tap your land to build a city.",
+  "hud.modePalaceTouch": "Tap your land to build a Micho Palace.",
+  "hud.modePortTouch": "Tap by the water, near your land: the port goes on your closest coast.",
+  "hud.modeWarshipTouch": "Tap your port to buy a warship, or water to patrol there.",
+  "hud.modeSiloTouch": "Tap your land to build a missile silo.",
+  "hud.modeAirDefenseTouch": "Tap your land to build an air defense.",
+  "hud.modeMissileTouch": "Tap where the missile should strike.",
+  "hud.modeHeavyMissileTouch": "Tap where the heavy missile should strike.",
+  "hud.modeFortTouch": "Tap your land to build a fort.",
+  "hud.modeDemolishTouch": "Tap one of your structures to demolish it."
 }

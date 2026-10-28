@@ -191,7 +191,7 @@ export class GameScreen {
           this.orders.work(share);
         },
       },
-      { pausable: link === undefined },
+      { pausable: link === undefined, touch: () => this.coarsePointer.matches },
     );
     this.diplomacy = new DiplomacyPanel({
       onAlly: (player) => {
