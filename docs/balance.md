@@ -44,6 +44,8 @@ Spawn values are set for a map of 2^19 tiles (1024 × 512) (`R-SPAWN-06`). On a 
 | `B-POP-FALLOFF`       |   100 | % of `B-POP-PER-TILE`      | `R-ECO-06`   | What each tile past that share adds to the cap |
 | `B-GROWTH-RATE`       |   3.2 | % of the gap to cap/second | `R-ECO-02`   | Applied per tick as an integer ratio           |
 | `B-GOLD-RATE`         |   0.5 | gold per 100 idle troops/s | `R-ECO-03`   |                                                |
+| `B-WORK-MAX`          |    80 | % of troops at home        | `R-ECO-07`   | The rest always defends                        |
+| `B-WORK-GOLD`         |     4 | × a soldier's gold         | `R-ECO-07`   | 80 % at work gives 3.4 times the gold          |
 
 ## Attacks
 
@@ -173,6 +175,7 @@ Each value is given for easy / normal / hard (`R-BOT-04`); the others are the sa
 | `B-NATION-PILE`           |               2 | nations                         | `R-BOT-13` | Most nations that open a front on the same player early on; the leader is not protected                                                        |
 | `B-NATION-PILE-TIME`      |             600 | s of play                       | `R-BOT-13` | After this, nations gang up on anyone                                                                                                          |
 | `B-NATION-THREAT`         |              10 | % of the nation's troops        | `R-BOT-08` | Smaller attacks do not make a nation hold, so a trickle of them cannot freeze it                                                               |
+| `B-NATION-WORK`           |              40 | % of troops at home             | `R-BOT-15` | Put to work while its army is full and nobody holds it                                                                                         |
 | `B-NATION-HOLD`           |    60 / 40 / 30 | % of population cap             | `R-BOT-08` | Under attack, a nation sends nothing below this, and only answers the attacker above it                                                        |
 | `B-NATION-WARSHIPS`       |               2 | warships                        | `R-BOT-11` | No more than ports, bought while an enemy transport sails for the nation's coast                                                               |
 | `B-NATION-SILO-CITIES`    |               2 | cities                          | `R-BOT-12` | Before a nation builds a silo                                                                                                                  |

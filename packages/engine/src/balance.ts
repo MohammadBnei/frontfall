@@ -25,6 +25,10 @@ export interface Balance {
   growthBasisPoints: number;
   /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
   goldPerThousandTroops: number;
+  /** B-WORK-MAX, the largest share of troops at home, in %, a player may put to work */
+  workMaxPercent: number;
+  /** B-WORK-GOLD, how many times a soldier's gold a worker earns */
+  workGoldFactor: number;
   /** B-NEUTRAL-COST, troops per plains tile of unowned land */
   neutralCost: number;
   /** B-RELIEF-COST, in tenths, for plains, hills and mountains */
@@ -149,6 +153,8 @@ export const DEFAULT_BALANCE: Balance = {
   popPerCityPercent: 5,
   growthBasisPoints: 320,
   goldPerThousandTroops: 5,
+  workMaxPercent: 80,
+  workGoldFactor: 4,
   neutralCost: 8,
   reliefCostTenths: [10, 15, 25],
   attackSpeedDivisor: 4,

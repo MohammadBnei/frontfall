@@ -4,7 +4,7 @@ import { SnapshotError, SnapshotReader, SnapshotWriter, checksum } from "./snaps
 import type { StructureKind } from "./structures.ts";
 
 /** Version of the snapshot format of docs/engine.md; a reader refuses any other. */
-export const SNAPSHOT_FORMAT = 1;
+export const SNAPSHOT_FORMAT = 2;
 
 /**
  * Most bytes a snapshot may take. The state grows with the map and how
@@ -117,6 +117,7 @@ function writeState(game: Game, out: SnapshotWriter): void {
     out.int(p.troops);
     out.int(p.gold);
     out.int(p.goldRemainder);
+    out.uint(p.workShare);
     out.uint(p.alive ? 1 : 0);
     out.int(p.start ?? -1);
     out.uint(p.traitorUntil);
@@ -227,6 +228,7 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
     p.troops = from.int();
     p.gold = from.int();
     p.goldRemainder = from.int();
+    p.workShare = from.below(game.balance.workMaxPercent + 1, "work share");
     p.alive = from.below(2, "alive") === 1;
     const start = optional();
     if (start !== undefined && start >= size) throw new SnapshotError("start out of range");

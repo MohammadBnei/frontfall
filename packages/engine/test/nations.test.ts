@@ -8,6 +8,7 @@ import {
   installNations,
   NATION_FULL_PERCENT,
   NATION_DIFFICULTIES,
+  NATION_WORK_PERCENT,
 } from "../src/bots/index.ts";
 import { installEconomy, populationCap } from "../src/economy.ts";
 import { Game, type Order, type Player } from "../src/game.ts";
@@ -59,8 +60,15 @@ function strip(overrides: Partial<Balance> = {}, difficulty: BotDifficulty = "ha
   const bea = game.player(3) as Player;
   nation.start = grid.index(30, 1);
   const apply = vi.spyOn(game, "apply");
+  // Orders that move troops or build; work shares (R-BOT-15) have tests of their own.
   const ordersOf = (player: number) =>
-    apply.mock.calls.filter(([id]) => id === player).map(([, order]) => order);
+    apply.mock.calls
+      .filter(([id, order]) => id === player && order.type !== "work")
+      .map(([, order]) => order);
+  const workOf = (player: number) =>
+    apply.mock.calls
+      .filter(([id, order]) => id === player && order.type === "work")
+      .map(([, order]) => (order.type === "work" ? order.share : -1));
   const run = (ticks: number, orders: { player: number; order: Order }[] = []) => {
     for (let i = 0; i < ticks; i++) {
       game.step({ tick: game.tick, orders: i === 0 ? orders : [] });
@@ -71,7 +79,7 @@ function strip(overrides: Partial<Balance> = {}, difficulty: BotDifficulty = "ha
     run(intervalOf(difficulty) - 2);
     run(1, [{ player: 2, order: { type: "attack", target: grid.index(25, 1), troops } }]);
   };
-  return { grid, game, nation, ada, bea, ordersOf, run, adaAttacks };
+  return { grid, game, nation, ada, bea, ordersOf, workOf, run, adaAttacks };
 }
 
 describe("nations", () => {
@@ -148,6 +156,26 @@ describe("nations", () => {
     bea.troops = denser;
     run(3 * interval);
     expect(ordersOf(1)).toEqual([]);
+  });
+
+  it("put troops to work while full and left alone, and call them back when attacked (R-BOT-15)", () => {
+    const { game, nation, ada, bea, workOf, run, adaAttacks } = strip();
+    installEconomy(game);
+    const cap = populationCap(game, nation);
+    // Too dense to attack, so the nation keeps its troops at home.
+    ada.troops = 10 * cap;
+    bea.troops = 10 * cap;
+    nation.troops = Math.floor(cap / 2);
+    run(interval);
+    expect(workOf(1)).toEqual([]);
+    nation.troops = cap;
+    run(interval);
+    expect(workOf(1)).toEqual([NATION_WORK_PERCENT]);
+    expect(nation.workShare).toBe(NATION_WORK_PERCENT);
+    adaAttacks(nation.troops);
+    run(interval);
+    expect(workOf(1)).toEqual([NATION_WORK_PERCENT, 0]);
+    expect(nation.workShare).toBe(0);
   });
 
   it("take a bot's odds once their army is full (B-NATION-FULL)", () => {
@@ -230,16 +258,16 @@ describe("nations", () => {
     ada.troops = 10;
     // Ten seconds of grace: Ada, easy prey, is left alone.
     run(60);
-    expect(apply).not.toHaveBeenCalled();
+    expect(apply.mock.calls.filter(([, order]) => order.type !== "work")).toEqual([]);
     // Her attack is answered all the same.
     ada.troops = 6000;
     run(1, [{ player: 2, order: { type: "attack", target: grid.index(25, 1), troops: 5000 } }]);
     run(interval);
-    expect(apply.mock.calls.some(([id]) => id === 1)).toBe(true);
+    expect(apply.mock.calls.some(([id, order]) => id === 1 && order.type === "attack")).toBe(true);
     apply.mockClear();
     // Once it is over, she is fair game without attacking first.
     run(100);
-    expect(apply.mock.calls.some(([id]) => id === 1)).toBe(true);
+    expect(apply.mock.calls.some(([id, order]) => id === 1 && order.type === "attack")).toBe(true);
   });
 
   it("do not pile a third nation on a player who does not lead, early on (B-NATION-PILE)", () => {

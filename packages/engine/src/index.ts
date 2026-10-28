@@ -1,6 +1,7 @@
 export {
   captureCost,
   defenderLoss,
+  defensePerTile,
   installAttacks,
   troopsPerTile,
   type Attack,
@@ -44,7 +45,7 @@ export {
   replayGameRecord,
   type GameRecord,
 } from "./game-record.ts";
-export { installEconomy, populationCap } from "./economy.ts";
+export { installEconomy, populationCap, soldiers, workError, workers } from "./economy.ts";
 export { GiftError, giftError, giftedTroops, installGifts } from "./gifts.ts";
 export {
   QUICK_MESSAGES,
@@ -58,6 +59,7 @@ export {
   installBots,
   installNations,
   NATION_FULL_PERCENT,
+  NATION_WORK_PERCENT,
   NATION_PILE_MAX,
   NATION_PILE_SECONDS,
   NATION_THREAT_PERCENT,

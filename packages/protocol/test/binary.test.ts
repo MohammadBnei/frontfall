@@ -181,7 +181,7 @@ describe("order kinds", () => {
       version: PROTOCOL_VERSION,
       kinds: ORDER_KINDS.map((kind) => kind.type),
     }).toEqual({
-      version: 19,
+      version: 20,
       kinds: [
         "spawn",
         "attack",
@@ -197,6 +197,7 @@ describe("order kinds", () => {
         "missile",
         "gift",
         "quick",
+        "work",
       ],
     });
   });
