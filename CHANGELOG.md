@@ -10,6 +10,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **Normal and hard nations fight back.** Nations at normal and hard now play every second, keep fewer troops at home, give you less time before they attack (2 minutes at normal, 1 and a half at hard instead of 2 and a half) and gang up on whoever holds a fifth of the map, when they can win the fight. A player who used to win every game on normal in about 7 minutes now wins about half of them, and hard is meant to beat you. Easy is unchanged and is the level for a first game. Games with bots only play as before.
+
 - **First steps cover attack and defence.** The first-steps card now has two more steps: what the share of troops you send means (the ones you keep earn gold and defend your land, and a running attack can be called back), and how to hold a border that is attacked, with a fort. The help has a new Defend section, a tip for phones (long press a building button to read what it does) and a link to the About page.
 
 - **The sign-in buttons wear the Discord and Google logos.** In Your profile, the buttons now read "Sign in with Discord" and "Sign in with Google" (in French, "Se connecter avec …") with each service's own logo, in the colours the services ask for.
@@ -20,6 +22,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### For self-hosters and contributors
 
 - The share image `og-image.png` (1200 x 630) and the README screenshot and time-lapse (`docs/assets/`) come from a current build. `apps/client/public/about*.html` are plain pages with their own stylesheet: they stay out of the first-visit budget and need no change in the server.
+- `pnpm balance -- --average` plays a scripted average player, stronger than `--casual`, to measure the difficulty levels; nations take their own pace, attack ratio and reserve from `NATION_DIFFICULTIES` (`B-NATION-INTERVAL`, `B-NATION-ATTACK-RATIO`, `B-NATION-RESERVE`, `B-NATION-HUNT`, rule `R-BOT-14`), and the `world-nations` golden replay was recorded again.
 
 ## [0.6.1] - 2026-10-28
 
