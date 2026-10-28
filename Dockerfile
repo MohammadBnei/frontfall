@@ -36,6 +36,8 @@ COPY --from=build --chown=node:node /app/apps/client/dist ./public
 RUN install -d -o node -g node /var/lib/frontfall
 USER node
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+# Checked every second while starting up (a Docker that knows --start-interval), so that
+# `docker compose up --wait` returns as soon as the game answers.
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 --start-period=30s --start-interval=1s \
   CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
 CMD ["node", "server.mjs"]
