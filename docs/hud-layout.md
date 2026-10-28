@@ -12,6 +12,8 @@ Sizes are in CSS pixels. The code is `apps/client/src/ui/hud.ts` (markup), `ui/g
 | Medium | width 720 to 1239, height ≥ 560 | The same three keep their own places: figures top left, attack share bottom left, buildings in a dock at the bottom centre. |
 | Narrow | width < 720, or height < 560    | Figures across the top, buildings in a tray behind a button, leaderboard folded into a chip, first steps as a banner.       |
 
+The widths are those of the screen at the interface size chosen in the menu: at 125 % the wide layout starts at 1550 and at 150 % at 1860, and below that the medium layout is used (the game screen sets `data-wide` on `.game`, and the wide rules hang on it).
+
 A new element is designed for the wide layout first, then given its narrow behaviour in the same change. Medium follows narrow's collapsing rules for anything that does not fit.
 
 ## Zones, wide layout
@@ -80,7 +82,7 @@ Same zones, except the bottom bar is split: figures top left (TL becomes the fee
 
 Narrow: the mini-map is a round button, 44, top right (bottom right on a short window), and opens as a sheet centred on the map (z 2), at most 40 % of the screen high, 60 % on a short window. It closes after a jump or with its close button.
 
-When the screen is narrow because it is short (landscape phone), the leaderboard stays top right, the banner goes under it, and the first-steps banner keeps bottom 110.
+When the screen is narrow because it is short (landscape phone), the leaderboard stays top right and stops 84 above the bottom so it never runs under the tools, the banner goes under the figures (top 88), and the first-steps banner keeps bottom 110.
 
 ## Adding an element
 
