@@ -1,3 +1,4 @@
+import { soldiersOf } from "../../game/attack-preview.ts";
 import type { GameSession } from "../../game/session.ts";
 import type { ClickMode, GameUpdate } from "../../game/solo-game.ts";
 import type { GameTracker } from "../../usage.ts";
@@ -44,12 +45,16 @@ export class Orders {
     return true;
   }
 
-  /** Sends a player the attack ratio's share of the troops or of the gold (R-DIPLO-06). */
+  /**
+   * Sends a player the attack ratio's share of the soldiers or of the gold
+   * (R-DIPLO-06); workers stay at home (R-ECO-07).
+   */
   gift(target: number, what: "troops" | "gold"): void {
     const update = this.playing();
     if (!update) return;
     const you = update.players.find((p) => p.id === update.you);
-    const amount = Math.floor(((you?.[what] ?? 0) * this.state.ratio()) / 100);
+    const held = you ? (what === "troops" ? soldiersOf(you) : you.gold) : 0;
+    const amount = Math.floor((held * this.state.ratio()) / 100);
     if (amount < 1) return;
     this.ordered(update);
     this.session.sendOrder({
@@ -58,6 +63,13 @@ export class Orders {
       troops: what === "troops" ? amount : 0,
       gold: what === "gold" ? amount : 0,
     });
+  }
+
+  /** Puts a share of the troops at home to work (R-ECO-07); allowed before play starts too. */
+  work(share: number): void {
+    const update = this.state.latest();
+    if (!update || this.state.held() || update.winner !== undefined) return;
+    this.session.sendOrder({ type: "work", share });
   }
 
   /** Sends a player a preset quick message (R-DIPLO-07). */

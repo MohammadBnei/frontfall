@@ -171,6 +171,9 @@ export class GameScreen {
         onPlayer: (player) => {
           if (!options.record) this.diplomacy.pick(player);
         },
+        onWork: (share) => {
+          this.orders.work(share);
+        },
       },
       { pausable: link === undefined },
     );
@@ -421,6 +424,9 @@ export class GameScreen {
       },
       onHover: (tile) => {
         this.scene.hover(tile);
+        // The attack preview is about land: the sea and impassable ground have none.
+        const land = tile !== undefined && this.scene.isLand(tile);
+        this.hud.hover(land ? this.scene.ownerAt(tile) : undefined);
       },
     });
   }

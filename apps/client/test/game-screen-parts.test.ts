@@ -114,7 +114,11 @@ describe("orders", () => {
     );
     return { orders, sent, firstOrders };
   }
-  const playing = { phase: "play", you: 1, players: [{ id: 1, troops: 101, gold: 1 }] } as never;
+  const playing = {
+    phase: "play",
+    you: 1,
+    players: [{ id: 1, troops: 101, gold: 1, workShare: 0 }],
+  } as never;
 
   it("sends nothing while the game is held, won or not started", () => {
     for (const { orders, sent } of [
@@ -136,6 +140,25 @@ describe("orders", () => {
     expect(orders.diplomatic("ally", 2)).toBe(false);
     expect(sent).toEqual([["click", 3, 50, "attack", 1]]);
     expect(firstOrders).toEqual([]);
+  });
+
+  it("puts troops to work, and gives soldiers only (R-ECO-07)", () => {
+    const busy = {
+      phase: "play",
+      you: 1,
+      players: [{ id: 1, troops: 100, gold: 0, workShare: 40 }],
+    } as never;
+    const { orders, sent } = setup(busy);
+    orders.work(40);
+    orders.gift(2, "troops");
+    // 60 soldiers, half of them given.
+    expect(sent).toEqual([
+      { type: "work", share: 40 },
+      { type: "gift", target: 2, troops: 30, gold: 0 },
+    ]);
+    const held = setup(busy, true);
+    held.orders.work(10);
+    expect(held.sent).toEqual([]);
   });
 
   it("gives the ratio's share and notes the first order", () => {
