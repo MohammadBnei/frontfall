@@ -1339,6 +1339,7 @@
     flex: 1;
     min-width: 0;
   }
+}
 
 /* Land and troops over the game (ui/stats-chart.ts). */
 
