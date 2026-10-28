@@ -7,6 +7,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Changed
 
 - **The sign-in buttons wear the Discord and Google logos.** In Your profile, the buttons now read "Sign in with Discord" and "Sign in with Google" (in French, "Se connecter avec …") with each service's own logo, in the colours the services ask for.
+- **Better reading of first games.** The anonymous game report now also says how long a player took to give a first order, and the counters separate games left within two minutes from games lost within two minutes. Nothing is added that could name a player, and no game rule or difficulty changes ([what is sent](docs/privacy.md#reports)).
 
 ## [0.6.1] - 2026-10-28
 

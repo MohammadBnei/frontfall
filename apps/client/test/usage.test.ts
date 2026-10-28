@@ -41,6 +41,18 @@ describe("deviceOf", () => {
 });
 
 describe("Usage", () => {
+  it("reports the delay of the first order, once, and none when there was none", () => {
+    const { env, reports } = environment();
+    const usage = new Usage(env);
+    const ordered = usage.track(FACTS, 0);
+    ordered.firstOrder(12_400);
+    ordered.firstOrder(50_000);
+    ordered.end("defeat", 90_000);
+    usage.track(FACTS, 0).end("left", 30_000);
+    expect(reports()[0]).toMatchObject({ firstOrder: 12 });
+    expect(reports()[1]).not.toHaveProperty("firstOrder");
+  });
+
   it("reports a game once, under the page's prefix, in a shape the server accepts", () => {
     const { env, sent, reports } = environment({ coarsePointer: true, screenSide: 390 });
     const tracker = new Usage(env).track(FACTS, 0);

@@ -59,6 +59,12 @@ export const GameReport = z
       .min(0)
       .max(24 * 60),
     outcome: Outcome,
+    /** Seconds from the start of the game to this player's first order once play began; absent if none. */
+    firstOrder: z
+      .number()
+      .min(0)
+      .max(24 * 60 * 60)
+      .optional(),
     device: Device,
     touch: z.boolean(),
     lang: z.enum(["en", "fr"]),

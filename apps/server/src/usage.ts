@@ -58,6 +58,16 @@ export function minutesRange(minutes: number): string {
   return `${String(bounds[upper - 1])}-${String(bounds[upper])}`;
 }
 
+/** Seconds before a player's first order, in ranges; `none` for a game with no order. */
+export function firstOrderRange(seconds: number | undefined): string {
+  if (seconds === undefined) return "none";
+  const bounds = [10, 30, 60, 120];
+  const upper = bounds.findIndex((bound) => seconds < bound);
+  if (upper === 0) return "0-10";
+  if (upper < 0) return "120+";
+  return `${String(bounds[upper - 1])}-${String(bounds[upper])}`;
+}
+
 export const botsRange = (bots: number): string => range(bots, [0, 1, 6, 21, 51]);
 export const humansRange = (humans: number): string => range(humans, [1, 2, 3, 5, 9]);
 
@@ -126,12 +136,15 @@ export class UsageStats {
         ["humans", humansRange(report.humans)],
         ["difficulty", report.difficulty],
         ["minutes", minutesRange(report.minutes)],
+        ["first_order", firstOrderRange(report.firstOrder)],
         ["device", report.device],
         ["touch", report.touch ? "yes" : "no"],
         ["lang", report.lang],
         ["view", report.view],
         ["release", release],
       );
+      // Who leaves at once and who is beaten at once, apart: the funnel of first games.
+      if (report.minutes < 2) counts.push(["early", `${report.mode}.${report.outcome}`]);
       DISABLED_NAMES.forEach((name, bit) => {
         if (report.disabled & (1 << bit)) counts.push(["disabled", name]);
       });
