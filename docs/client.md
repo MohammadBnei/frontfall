@@ -172,6 +172,29 @@ The territory layer draws the whole map in one draw call (ADR 0003):
   still until that last frame clears them, rather than keep the GPU busy for
   another second and a half.
 
+## Build preview
+
+In a build mode, before a click is made, the interface shows what it would do
+(`ui/screen/preview-host.ts`, `ui/build-preview.ts`). The page asks the worker,
+which knows the game, with a `peek` message (`game/messages.ts`); the worker
+answers with `previewForClick` (`game/click-orders.ts`), which calls
+`orderForClick`, the function that turns the click into an order, and the engine's
+`orderError` under it. No rule is read twice and no order is queued by asking.
+The answer is where the order would land (a port snaps to the coast, a warship
+to its port), the refusal it would meet, if any, and the reach of a fort or an
+air defense in tiles (`fortRadius`, `airDefenseRadius`).
+
+The map draws the structure faded in the player's colour, as for one being built
+(`MapScene.setGhost`, through the same `setStructures` as real ones, flat map and
+globe alike). A DOM layer at tooltip level (z 1, so a panel never cuts the card) draws a ring on the tile, green or red,
+the dashed circle of the reach, and a card with the name, the price and the
+reason, a ✓ or a ✕ in front so that colour is never the only sign. A mouse asks
+as it hovers; a finger taps once to ask and again, on the same spot or on the
+card's _Place here_ button, to place. While a preview shows it asks again every
+400 ms, as gold comes in and land changes hands. The first time a player picks a
+building, the bar's tip points out the numbers (or the two taps) and is not said
+again (`frontfall.buildHint` in local storage).
+
 ## Beta
 
 Until 1.0, the menu and the HUD show a beta badge with the version of the
@@ -189,7 +212,8 @@ visuals will still change. Vite passes the version to the page
 | Drag, one finger                              | Move the map                                                                                                                                 |
 | Wheel, pinch, `+` and `-`                     | Zoom, towards the cursor or between the fingers                                                                                              |
 | Arrows or `WASD`                              | Move the map, at the same speed at any frame rate                                                                                            |
-| `1` to `9`, `0`                               | Attack with 10 % to 90 % of the troops, `0` for all                                                                                          |
+| `Shift` + `1` to `9`, `Shift` + `0`           | Attack with 10 % to 90 % of the troops, `0` for all                                                                                          |
+| `1` to `9`                                    | Pick the building of that number, as its button shows it: city, palace, fort, port, silo, air defense, warships, missile, heavy missile      |
 | `C`, `B`, `F`, `O`, `L`, `K`, `X`             | Build a city, a Micho Palace, a fort, a port, a missile silo or an air defense, demolish: then click your land; the next click attacks again |
 | `V`                                           | Warships: click your port to buy one, or water to send your closest warship to patrol there                                                  |
 | `M`, `N`                                      | Launch a missile or a heavy missile from your closest loaded silo: then click the target                                                     |

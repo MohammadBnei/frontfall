@@ -5,6 +5,8 @@ import {
   StructureKind,
   TileKind,
   WarshipError,
+  airDefenseRadius,
+  fortRadius,
   isAllied,
   orderError,
   sameTeam,
@@ -14,7 +16,13 @@ import {
   type Order,
   type Structure,
 } from "@frontfall/engine";
-import type { ClickMode, ClickRefusal, ClickResult, StructureType } from "./game-view.ts";
+import type {
+  ClickMode,
+  ClickPreview,
+  ClickRefusal,
+  ClickResult,
+  StructureType,
+} from "./game-view.ts";
 
 /** Tiles around a click within which a demolition finds the player's structure: one is a few pixels wide. */
 const DEMOLISH_REACH = 3;
@@ -27,6 +35,39 @@ const DEMOLISH_REACH = 3;
 const PORT_REACH = 8;
 /** Coasts a sea attack near the click tries, closest first: each one is a route search. */
 const LANDING_TRIES = 4;
+
+/** Where an order lands: the tile it names, if it names one. */
+function orderTile(order: Order): number | undefined {
+  if (order.type === "build" || order.type === "demolish" || order.type === "patrol") {
+    return order.tile;
+  }
+  if (order.type === "warship") return order.port;
+  return order.type === "missile" ? order.target : undefined;
+}
+
+/**
+ * What a build mode's click on `tile` would do, without doing it: where it
+ * lands (a port snaps to the coast, a warship to its port), why it would be
+ * refused, and the reach of a structure that guards its surroundings, in tiles.
+ */
+export function previewForClick(
+  game: Game,
+  you: number,
+  tile: number,
+  mode: ClickMode,
+  reach = PORT_REACH,
+): ClickPreview {
+  const result = orderForClick(game, you, tile, 100, mode, reach);
+  const radius =
+    mode === "fort" ? fortRadius(game) : mode === "airDefense" ? airDefenseRadius(game) : undefined;
+  const range = radius === undefined ? {} : { radius };
+  if ("refused" in result) return { tile, refused: result.refused, ...range };
+  return {
+    tile: orderTile(result.order) ?? tile,
+    ...(result.note ? { note: result.note } : {}),
+    ...range,
+  };
+}
 
 const STRUCTURE_KINDS: Readonly<Record<StructureType, StructureKind>> = {
   city: StructureKind.City,

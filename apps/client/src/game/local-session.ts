@@ -30,6 +30,8 @@ export class LocalSession implements GameSession {
   /** Callers waiting for a record of the game, answered in order. */
   private readonly records: ((record: GameRecord | undefined) => void)[] = [];
   private readonly started: Promise<void>;
+  /** Number of the last `peek` asked. */
+  private peeks = 0;
 
   constructor(
     options: SoloOptions,
@@ -54,6 +56,9 @@ export class LocalSession implements GameSession {
       } else if (reply.type === "snapshotRefused") {
         console.warn(`snapshot refused: ${reply.reason}`);
         link?.replayFromStart?.();
+      } else if (reply.type === "peek") {
+        // Answers come in order: only the latest question still matters.
+        if (reply.seq === this.peeks) events.onPeek(reply);
       } else if (reply.type === "click") {
         if (reply.order) link?.order(reply.order);
         events.onClick(reply.tile, reply.outcome, reply.note);
@@ -88,6 +93,16 @@ export class LocalSession implements GameSession {
 
   click(tile: number, ratio: number, mode: ClickMode = "attack", reach?: number): void {
     this.post({ type: "click", tile, ratio, mode, ...(reach === undefined ? {} : { reach }) });
+  }
+
+  peek(tile: number, mode: ClickMode, reach?: number): void {
+    this.post({
+      type: "peek",
+      seq: ++this.peeks,
+      tile,
+      mode,
+      ...(reach === undefined ? {} : { reach }),
+    });
   }
 
   /** Online: turns from the server, consecutive, from the next tick on. */

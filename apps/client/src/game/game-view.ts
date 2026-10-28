@@ -194,6 +194,17 @@ export type ClickNote =
 
 export type ClickResult = { order: Order; note?: ClickNote } | { refused: ClickRefusal };
 
+/** What a click would do, shown before it is made: see `previewForClick`. */
+export interface ClickPreview {
+  /** Where the order would land. */
+  tile: number;
+  /** Why it would be refused; none when it would go through. */
+  refused?: ClickRefusal;
+  note?: ClickNote;
+  /** Tiles a fort or an air defense guards around it. */
+  radius?: number;
+}
+
 export type StructureType = "city" | "palace" | "fort" | "port" | "silo" | "airDefense";
 
 export interface StructureView {

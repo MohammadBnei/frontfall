@@ -442,6 +442,120 @@
   background: var(--ff-ember);
 }
 
+/* Where a build click would land, before it is made (ui/build-preview.ts). */
+
+.build-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bp-anchor {
+  --bp: var(--ff-success);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+}
+
+.bp-anchor[data-ok="false"] {
+  --bp: var(--ff-danger);
+}
+
+.bp-ring {
+  position: absolute;
+  top: -14px;
+  left: -14px;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid var(--bp);
+  border-radius: 50%;
+  /* A dark edge on both sides keeps the ring readable on any land. */
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 55%),
+    inset 0 0 0 1px rgb(0 0 0 / 45%);
+}
+
+/* How far a fort or an air defense reaches: dashed, so it is no second ring. */
+.bp-reach {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  border: 2px dashed var(--bp);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bp) 12%, transparent);
+  opacity: 0.85;
+}
+
+.bp-card {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  display: grid;
+  gap: 2px;
+  width: max-content;
+  max-width: min(260px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 6px 10px;
+  translate: -50% 0;
+  border: 1px solid var(--bp);
+  border-radius: var(--ff-radius);
+  background: rgb(10 19 28 / 92%);
+  box-shadow: var(--ff-lift);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.bp-card.below {
+  top: 24px;
+  bottom: auto;
+}
+
+.bp-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.bp-cost {
+  color: var(--ff-warning);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The sign carries the answer too: colour alone is never all of it. */
+.bp-status {
+  color: var(--bp);
+  font-weight: 600;
+}
+
+.bp-anchor[data-ok="true"] .bp-status::before {
+  content: "✓ ";
+}
+
+.bp-anchor[data-ok="false"] .bp-status::before {
+  content: "✕ ";
+}
+
+.bp-detail {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}
+
+/* A finger confirms with a button, big enough to hit. */
+.bp-confirm {
+  min-width: 44px;
+  min-height: 44px;
+  margin-top: 6px;
+  pointer-events: auto;
+}
+
 /* The answer to a click on the map (ui/click-marks.ts). */
 
 .click-marks {
@@ -1046,9 +1160,23 @@ button.feed-entry:focus-visible {
   color: var(--ff-slate-300);
 }
 
+/* The number that picks it, small in the top right corner of the button. */
+.build-num {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  padding: 0;
+  border: 0;
+  color: var(--ff-slate-300);
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+}
+
 /* A finger has no keys to learn. */
 @media (pointer: coarse) {
-  .build-key {
+  .build-key,
+  .build-num {
     display: none;
   }
 
@@ -1058,7 +1186,8 @@ button.feed-entry:focus-visible {
 }
 
 @media (width < 720px), (height < 560px) {
-  .build-key {
+  .build-key,
+  .build-num {
     display: none;
   }
 

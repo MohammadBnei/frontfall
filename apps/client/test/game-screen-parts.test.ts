@@ -1,7 +1,7 @@
 import { Disable } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
 import type { GameUpdate } from "../src/game/solo-game.ts";
-import { gameKey, type KeyState } from "../src/ui/screen/game-keys.ts";
+import { gameKey, typingIn, type KeyState } from "../src/ui/screen/game-keys.ts";
 import { Orders } from "../src/ui/screen/orders.ts";
 import { MISSILE_COLOR, sailing, shipMarks, shipTiles } from "../src/ui/screen/ship-motion.ts";
 
@@ -15,7 +15,15 @@ const idle: KeyState = {
 };
 
 function key(code: string, key = code, modifiers: Partial<KeyboardEvent> = {}) {
-  return { code, key, ctrlKey: false, metaKey: false, altKey: false, ...modifiers };
+  return {
+    code,
+    key,
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false,
+    ...modifiers,
+  };
 }
 
 describe("game keys", () => {
@@ -41,9 +49,44 @@ describe("game keys", () => {
     expect(gameKey(key("KeyT", "t"), { ...idle, watching: true })).toBeUndefined();
   });
 
-  it("sets the attack ratio from the digits, 0 for all of it", () => {
-    expect(gameKey(key("Digit3", "3"), idle)).toEqual({ type: "ratio", percent: 30 });
-    expect(gameKey(key("Digit0", "0"), idle)).toEqual({ type: "ratio", percent: 100 });
+  it("picks the building of that number from the digits, in games that have it", () => {
+    expect(gameKey(key("Digit1", "1"), idle)).toEqual({ type: "mode", mode: "city" });
+    expect(gameKey(key("Digit4", "4"), idle)).toEqual({ type: "mode", mode: "port" });
+    expect(gameKey(key("Digit9", "9"), idle)).toEqual({ type: "mode", mode: "heavyMissile" });
+    // Picking it again is the screen's business: the key says the same thing.
+    expect(gameKey(key("Digit1", "1"), { ...idle, mode: "city" })).toEqual({
+      type: "mode",
+      mode: "city",
+    });
+    // Numbers stay with their building when a game leaves another out, and nothing has 0.
+    expect(gameKey(key("Digit5", "5"), { ...idle, disabled: Disable.Silo })).toBeUndefined();
+    expect(gameKey(key("Digit4", "4"), { ...idle, disabled: Disable.Silo })).toEqual({
+      type: "mode",
+      mode: "port",
+    });
+    expect(gameKey(key("Digit0", "0"), idle)).toBeUndefined();
+    expect(gameKey(key("Digit1", "1"), { ...idle, watching: true })).toBeUndefined();
+  });
+
+  it("sets the attack ratio from Shift and the digits, 0 for all of it", () => {
+    const shift = { shiftKey: true };
+    expect(gameKey(key("Digit3", "#", shift), idle)).toEqual({ type: "ratio", percent: 30 });
+    expect(gameKey(key("Digit0", ")", shift), idle)).toEqual({ type: "ratio", percent: 100 });
+    expect(gameKey(key("Digit3", "#", shift), { ...idle, watching: true })).toEqual({
+      type: "ratio",
+      percent: 30,
+    });
+  });
+
+  it("leaves the keys to a field the player types into, but not to a slider or a button", () => {
+    const field = (tagName: string, type?: string) => ({ tagName, type }) as unknown as EventTarget;
+    expect(typingIn(field("INPUT", "text"))).toBe(true);
+    expect(typingIn(field("INPUT", "search"))).toBe(true);
+    expect(typingIn(field("TEXTAREA"))).toBe(true);
+    expect(typingIn(field("SELECT"))).toBe(true);
+    expect(typingIn(field("INPUT", "range"))).toBe(false);
+    expect(typingIn(field("BUTTON"))).toBe(false);
+    expect(typingIn(null)).toBe(false);
   });
 
   it("switches the view only where the globe is allowed, and leaves modified keys alone", () => {

@@ -17,13 +17,14 @@ import { BUILD } from "../net/build.ts";
 import { RELEASE } from "../release.ts";
 import type {
   ClickMode,
+  ClickPreview,
   ClickResult,
   Difficulty,
   GameSnapshot,
   GameUpdate,
   SoloOptions,
 } from "./game-view.ts";
-import { orderForClick } from "./click-orders.ts";
+import { orderForClick, previewForClick } from "./click-orders.ts";
 import { gameUpdate } from "./game-update.ts";
 import { HUMAN_ID, createSimulation, newSetup } from "./simulation.ts";
 
@@ -144,6 +145,11 @@ export class SoloGame {
     reach?: number,
   ): ClickResult {
     return orderForClick(this.game, this.you, tile, ratio, mode, reach);
+  }
+
+  /** What a click in a build mode would do, without doing it. */
+  previewClick(tile: number, mode: ClickMode, reach?: number): ClickPreview {
+    return previewForClick(this.game, this.you, tile, mode, reach);
   }
 
   /**

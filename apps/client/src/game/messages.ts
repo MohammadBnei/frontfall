@@ -5,6 +5,7 @@ import type { StartInfo } from "./session.ts";
 import type {
   ClickMode,
   ClickNote,
+  ClickPreview,
   ClickRefusal,
   GameSnapshot,
   GameUpdate,
@@ -50,6 +51,8 @@ export type WorkerRequest =
   | { type: "order"; order: Order }
   /** A click on the map, turned into an order by the worker, which knows the game. */
   | { type: "click"; tile: number; ratio: number; mode: ClickMode; reach?: number }
+  /** What a click would do, without doing it: answered by a `peek` with the same `seq`. */
+  | { type: "peek"; seq: number; tile: number; mode: ClickMode; reach?: number }
   | { type: "pause"; paused: boolean }
   /** Online: the server flagged this client's hash after `tick`. */
   | { type: "desync"; tick: number; expected: number | null }
@@ -68,6 +71,7 @@ export type WorkerReply =
   | { type: "update"; update: GameUpdate }
   /** Online, `order` is what the page must send to the server; solo, the worker queued it. */
   | { type: "click"; tile: number; outcome: ClickOutcome; order?: Order; note?: ClickNote }
+  | ({ type: "peek"; seq: number } & ClickPreview)
   /** None for a game on a generated map. */
   | { type: "report"; report: DesyncReport | undefined }
   /** None for a game on a generated map, or while watching a replay. */
