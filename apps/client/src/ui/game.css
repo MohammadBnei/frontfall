@@ -1161,7 +1161,8 @@ button.feed-entry:focus-visible {
 }
 
 /* The number that picks it, small in the top right corner of the button. */
-.build-num {
+.build-button[data-num]::after {
+  content: attr(data-num);
   position: absolute;
   top: 4px;
   right: 5px;
@@ -1175,8 +1176,11 @@ button.feed-entry:focus-visible {
 
 /* A finger has no keys to learn. */
 @media (pointer: coarse) {
-  .build-key,
-  .build-num {
+  .build-key {
+    display: none;
+  }
+
+  .build-button[data-num]::after {
     display: none;
   }
 
@@ -1186,8 +1190,11 @@ button.feed-entry:focus-visible {
 }
 
 @media (width < 720px), (height < 560px) {
-  .build-key,
-  .build-num {
+  .build-key {
+    display: none;
+  }
+
+  .build-button[data-num]::after {
     display: none;
   }
 

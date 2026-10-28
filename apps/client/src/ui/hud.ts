@@ -252,13 +252,11 @@ export class Hud {
             id: `build-${mode}`,
             "aria-pressed": "false",
             "data-i18n-attr": `title:hud.${mode}Hint`,
+            // The number that picks it, drawn in the corner by the styles: no text of its own.
+            ...(digit === undefined ? {} : { "data-num": String(digit) }),
             "aria-keyshortcuts": digit === undefined ? key : `${key} ${String(digit)}`,
           },
           h("span", { class: "build-icon", "aria-hidden": "true" }, icon(mode)),
-          // The number that picks it, in the corner of the button.
-          ...(digit === undefined
-            ? []
-            : [h("kbd", { class: "build-num", "aria-hidden": "true" }, String(digit))]),
           // The cost stays under the icon, in the dock as in the tray.
           ...(price ? [price] : []),
           // Name and key: a bubble over the button on hover or focus.
