@@ -77,3 +77,18 @@
   gap: 8px;
   margin-top: 20px;
 }
+
+.help-about {
+  margin: 14px 0 0;
+  font-size: 13px;
+  text-align: right;
+}
+
+.help-about a {
+  color: var(--ff-slate-300);
+}
+
+.help-about a:hover,
+.help-about a:focus-visible {
+  color: var(--ff-text);
+}

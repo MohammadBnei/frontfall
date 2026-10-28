@@ -10,6 +10,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **First steps cover attack and defence.** The first-steps card now has two more steps: what the share of troops you send means (the ones you keep earn gold and defend your land, and a running attack can be called back), and how to hold a border that is attacked, with a fort. The help has a new Defend section, a tip for phones (long press a building button to read what it does) and a link to the About page.
+
 - **The sign-in buttons wear the Discord and Google logos.** In Your profile, the buttons now read "Sign in with Discord" and "Sign in with Google" (in French, "Se connecter avec …") with each service's own logo, in the colours the services ask for.
 - **Better reading of first games.** The anonymous game report now also says how long a player took to give a first order, and the counters separate games left within two minutes from games lost within two minutes. Nothing is added that could name a player, and no game rule or difficulty changes ([what is sent](docs/privacy.md#reports)).
 

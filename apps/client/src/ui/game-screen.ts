@@ -986,6 +986,7 @@ export class GameScreen {
         tilesAtPlay: this.tilesAtPlay ?? 0,
         cities: update.structures.filter((s) => s.player === update.you && s.type === "city")
           .length,
+        forts: update.structures.filter((s) => s.player === update.you && s.type === "fort").length,
         playerMenu: this.diplomacy.open,
       },
       update.build.cityCost,
