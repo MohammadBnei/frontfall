@@ -176,7 +176,6 @@ export class MapScene {
       onMove: (tile) => {
         this.cam.focus(tile);
       },
-      compact: window.matchMedia("(width < 720px), (height < 560px)").matches,
       storage: safeStorage(),
     });
     for (let id = 1; id <= maxPlayer; id++) {
