@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Politique de confidentialité de Frontfall</title>
+    <meta
+      name="description"
+      content="Ce que Frontfall garde de vous : rien pour un invité, un nom et un identifiant brouillé si vous vous connectez avec Discord ou Google, et des compteurs anonymes."
+    />
+    <meta name="theme-color" content="#0A131C" />
+    <link rel="canonical" href="https://nclsmgr.com/frontfall/privacy.fr.html" />
+    <link rel="alternate" hreflang="en" href="https://nclsmgr.com/frontfall/privacy.html" />
+    <link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml" sizes="any" />
+    <link rel="stylesheet" href="./about.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <a href="./"><img src="./logo-horizontal-on-dark.svg" alt="Frontfall" /></a>
+        <nav>
+          <a href="./">Jouer</a>
+          <a href="./about.fr.html">À propos</a>
+          <a href="./terms.fr.html">Conditions</a>
+          <a href="./privacy.html" hreflang="en" lang="en">English</a>
+        </nav>
+      </header>
+
+      <h1>Politique de confidentialité</h1>
+      <p class="lead">
+        Frontfall est un jeu gratuit. En invité, il ne sait rien de vous. Si vous vous connectez, il
+        garde un nom et un identifiant brouillé, rien d'autre. Dernière mise à jour : 28 octobre
+        2026.
+      </p>
+
+      <h2>Qui est responsable</h2>
+      <p>
+        Frontfall est un projet personnel, non commercial, de Nicolas M, qui fait tourner le serveur
+        public sur nclsmgr.com/frontfall. Questions, demandes d'accès ou d'effacement : le
+        <a href="https://nclsmgr.com/fr/contact">formulaire de contact</a> du site, ou les
+        <a href="https://github.com/nic0lasm/frontfall/issues">issues GitHub</a> (publiques). Les
+        <a href="https://nclsmgr.com/fr/mentions-legales">mentions légales</a> du site nomment son
+        éditeur et son hébergeur.
+      </p>
+
+      <h2>Si vous jouez en invité</h2>
+      <p>
+        Pas de compte, pas d'e-mail, pas de publicité, pas de traceur. Le nom que vous saisissez est
+        montré aux autres joueurs de votre partie et oublié à la fin de la partie. Les parties
+        n'existent que dans la mémoire du serveur. Les rapports anonymes du jeu (plus bas) vont à
+        son propre serveur et nulle part ailleurs.
+      </p>
+
+      <h2>Si vous vous connectez avec Discord ou Google</h2>
+      <p>
+        La connexion est facultative ; elle garde votre nom pour vous. Le jeu demande à Discord
+        seulement qui vous êtes (<code>identify</code>) et à Google seulement votre profil (<code
+          >openid profile</code
+        >), une fois, à la connexion. Le serveur garde :
+      </p>
+      <ul>
+        <li>
+          le nom sous lequel vous jouez, qui est d'abord votre prénom ou nom d'affichage là-bas ;
+        </li>
+        <li>
+          votre identifiant chez ce service, brouillé avec une clé aléatoire gardée sur le serveur
+          (HMAC-SHA256) : il retrouve votre compte la fois suivante, mais le fichier seul ne dit pas
+          qui vous êtes ;
+        </li>
+        <li>
+          le service utilisé, le jour de création du compte et celui de la dernière utilisation.
+        </li>
+      </ul>
+      <p>
+        Il ne garde jamais votre adresse e-mail, votre image ni vos contacts, et oublie aussitôt le
+        jeton du service. Ces données servent à vous reconnaître et à garder votre nom, et à rien
+        d'autre. Elles sont conservées jusqu'à la suppression de votre compte. Vos parties et vos
+        signalements n'y sont jamais liés.
+      </p>
+      <p>
+        <strong>Pour supprimer votre compte,</strong> ouvrez le menu et choisissez
+        <strong>Supprimer mon compte</strong> sous votre nom : il est effacé du serveur aussitôt et
+        votre nom redevient libre. Si vous ne pouvez pas, demandez-le par le formulaire de contact.
+        Discord et Google gardent leurs propres données sur vous, selon leurs propres règles.
+      </p>
+
+      <h2>Cookies et navigateur</h2>
+      <p>
+        Un seul cookie, <code>frontfall_session</code>, déposé seulement si vous vous connectez : il
+        vous garde connecté 30 jours, contient votre numéro de compte et ne sert à rien d'autre. Se
+        déconnecter y met fin partout. Il est strictement nécessaire : il n'y a donc pas de bandeau.
+      </p>
+      <p>
+        Le jeu garde aussi dans votre navigateur, pour vous seul et sans jamais l'envoyer au serveur
+        : votre nom et vos derniers réglages, votre langue, votre profil et vos succès, et votre
+        place dans une partie en ligne pour qu'un rechargement vous y ramène.
+        <strong>Oublier mon profil et mes succès</strong> dans le menu les efface, tout comme vider
+        les données du site.
+      </p>
+
+      <h2>Compteurs anonymes</h2>
+      <p>
+        Pour savoir quelles cartes et quels modes sont joués et où l'on abandonne, la page envoie un
+        court rapport à la fin d'une partie, quand une erreur survient et quand vous votez sur
+        l'écran de fin. Chaque rapport ne contient que des faits grossiers (carte, mode, type
+        d'appareil, durée par tranches, façon de finir), jamais un nom ni une adresse ; le serveur
+        ajoute un à quelques compteurs et oublie le rapport. Un navigateur qui envoie
+        <em>Do Not Track</em> ou <em>Global Privacy Control</em> n'envoie rien. La liste complète
+        des champs est dans la
+        <a href="https://github.com/nic0lasm/frontfall/blob/main/docs/privacy.md">page technique</a>
+        (en anglais) et les compteurs sont publics sur <a href="./api/stats">/api/stats</a>.
+      </p>
+
+      <h2>Signalements et bannissements</h2>
+      <p>
+        Si vous signalez un joueur dans une partie en ligne, le serveur garde le signalement 30
+        jours pour que son opérateur le lise : heure, partie, motif (un parmi quatre), nom du joueur
+        signalé et, pour les deux joueurs, une référence tirée de l'adresse réseau avec une clé
+        secrète. L'adresse elle-même n'est pas écrite. L'opérateur peut bannir une adresse réseau ou
+        une telle référence pour éloigner quelqu'un qui s'en prend aux autres.
+      </p>
+
+      <h2>Journaux, hébergement et sauvegardes</h2>
+      <ul>
+        <li>
+          Les journaux du jeu ne contiennent jamais d'adresse en clair, seulement une référence qui
+          change à chaque redémarrage. Le serveur web placé devant le jeu garde des journaux
+          techniques, adresses réseau comprises, 30 jours, pour détecter et bloquer les abus.
+        </li>
+        <li>
+          Le serveur est chez OVH, au Canada, pays couvert par une décision d'adéquation de la
+          Commission européenne. Le trafic passe par Cloudflare, qui protège le site et accélère son
+          affichage.
+        </li>
+        <li>
+          Les données du jeu (compteurs, comptes, signalements) sont sauvegardées chaque nuit sous
+          forme chiffrée vers Cloudflare R2, dans l'Union européenne. Les sauvegardes sont gardées
+          trois mois au plus : un compte effacé en disparaît donc aussi dans ce délai.
+        </li>
+      </ul>
+
+      <h2>Vos droits</h2>
+      <p>
+        Vous pouvez demander l'accès à vos données, leur rectification ou leur effacement, ou vous
+        opposer à leur usage, par le formulaire de contact. Si la réponse ne vous satisfait pas,
+        vous pouvez saisir la <a href="https://www.cnil.fr/fr/plaintes">CNIL</a>. Ce texte ne change
+        que pour suivre le jeu ; la date en haut dit quand.
+      </p>
+
+      <footer>
+        <a href="./terms.fr.html">Conditions d'utilisation</a> ·
+        <a href="./about.fr.html">À propos de Frontfall</a> ·
+        <a href="https://github.com/nic0lasm/frontfall">Code source</a>
+      </footer>
+    </main>
+  </body>
+</html>
