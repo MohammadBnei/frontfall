@@ -173,6 +173,7 @@ describe("sign-in", () => {
     expect(form?.get("code_verifier")).toMatch(/^[\w-]{40,}$/);
     expect(await (await me(base, session)).json()).toEqual({
       providers: ["discord"],
+      email: false,
       account: { name: "Nelly", provider: "discord" },
     });
   });

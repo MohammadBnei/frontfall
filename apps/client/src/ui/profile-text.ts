@@ -13,7 +13,7 @@ const TEXTS: Record<Language, Record<string, string>> = {
     noGames: "No game finished yet.",
     game: "{map} · {mode} · {outcome} · {minutes} min · {date}",
     storedHere:
-      "Your name, colour, last games and achievements stay on this device. Nothing is sent.",
+      "Your name, colour, last games and achievements stay on this device. Nothing is sent, unless you sign in: your name and achievements then go with your account.",
     forget: "Forget my profile and achievements",
     "mode.solo": "Solo",
     "mode.public": "Public",
@@ -31,7 +31,7 @@ const TEXTS: Record<Language, Record<string, string>> = {
     noGames: "Aucune partie terminée pour l'instant.",
     game: "{map} · {mode} · {outcome} · {minutes} min · {date}",
     storedHere:
-      "Votre nom, votre couleur, vos dernières parties et vos succès restent sur cet appareil. Rien n'est envoyé.",
+      "Votre nom, votre couleur, vos dernières parties et vos succès restent sur cet appareil. Rien n'est envoyé, sauf si vous vous connectez : votre nom et vos succès suivent alors votre compte.",
     forget: "Oublier mon profil et mes succès",
     "mode.solo": "Solo",
     "mode.public": "Publique",

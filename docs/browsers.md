@@ -31,7 +31,7 @@ The client is built for the targets of Vite's "widely available" baseline (Chrom
 | CSS `zoom`                     | The interface size setting (optional)             | long ago      | 126      | long ago |
 | CSS `:has()`                   | Highlighting the chosen option (cosmetic)         | 105           | 121      | 15.4     |
 | `touch-action`, pointer events | Moving and pinching the map by touch              | 36            | 52       | 13       |
-| Cookies with `SameSite=Lax`    | Signing in with Discord or Google (optional)      | 51            | 60       | 12       |
+| Cookies with `SameSite=Lax`    | Signing in (optional)                             | 51            | 60       | 12       |
 
 Three of these decide the oldest versions: Firefox 114 for module workers, Safari 16.4 for the rest of the build target, and Chrome 111 for the same reason. Two are about looks only. Firefox 114 to 120 draws the selected map card without its highlight, and Firefox before 126 ignores the interface size setting. Both are fixed by updating.
 

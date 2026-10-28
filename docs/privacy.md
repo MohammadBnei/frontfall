@@ -16,18 +16,21 @@ The game keeps a few things in your browser, for you and nobody else. None of it
 
 - **Your setup:** the name you typed, the last map, bots, difficulty, mode and whether nations play, so the menu starts where you left it. The language you picked is kept the same way.
 - **Your profile:** the colour you want in solo games, and the last ten games you finished (map, mode, how it ended, minutes played and the day). The menu's **Your profile** panel shows them, and **Forget my profile and achievements** erases the profile, your setup with your name, your achievements and any game in progress from the device. Clearing the site's data in the browser does the same.
-- **Your achievements:** which you have earned and the counts behind them, kept the same way.
+- **Your achievements:** which you have earned and the counts behind them, kept the same way, and with your account too if you sign in ([below](#if-you-sign-in)).
 - **Your seat in an online game,** and a snapshot of it, so that a reload brings you back; both are dropped when you leave the game.
 
 ## If you sign in
 
-Signing in with Discord or Google is optional; it keeps your name for you. The game asks Discord only who you are (`identify`), and Google only your profile (`openid profile`), once, at sign-in. Of what they answer, the server keeps:
+Signing in is optional; it keeps your name and your achievements for you. You can sign in with Discord or Google, or with a link sent to your email address.
 
-- the name you play under, which starts as your first name or display name there and which you can change;
-- your id at that service, scrambled with a random key kept on the server (HMAC-SHA256), so that it finds your account next time but the file alone does not say who you are;
-- which service, and the day the account was made and last used.
+With Discord or Google, the game asks Discord only who you are (`identify`), and Google only your profile (`openid profile`), once, at sign-in. With email, the server sends one message to the address you type, with a link that works once and for 15 minutes; the address is used for that message only and then forgotten. Of all this, the server keeps:
 
-No email, no picture, no friends list, and the service's token is forgotten at once. A cookie, `frontfall_session`, keeps you signed in for 30 days; it holds your account number and is used for nothing else. Sign out ends it on every device where you signed in. **Delete my account**, under your name in the menu, erases the account from the server at once, and your name becomes free again. Your games and reports are never linked to your account: the reports below stay as anonymous as a guest's.
+- the name you play under, which starts as your first name or display name at the service, or the name in the menu when you sign in by email, and which you can change;
+- your id at that service, or your email address, scrambled with a random key kept on the server (HMAC-SHA256), so that it finds your account next time but the file alone does not say who you are;
+- how you signed in, and the day the account was made and last used;
+- your achievements and the counts behind them, once you are signed in, so that they follow you to another device.
+
+No email address in clear, no picture, no friends list, and the service's token is forgotten at once. The email address is not written in the server's logs either, and the link's code is kept only as a hash, in memory, until it is used or expires. The message goes out through the mailbox of the server's operator (for nclsmgr.com, a mailbox at OVH, in the European Union), which handles it as any email it sends. A cookie, `frontfall_session`, keeps you signed in for 30 days; it holds your account number and is used for nothing else. Sign out ends it on every device where you signed in. **Delete my account**, under your name in the menu, erases the account and its achievements from the server at once, and your name becomes free again; **Forget my profile and achievements** only erases them from the device, and signing in again brings the account's back. Your games and reports are never linked to your account: the reports below stay as anonymous as a guest's.
 
 ## Reports
 

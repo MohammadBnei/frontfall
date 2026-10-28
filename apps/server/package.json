@@ -16,10 +16,12 @@
   },
   "dependencies": {
     "@frontfall/protocol": "workspace:*",
+    "nodemailer": "^10.1.0",
     "ws": "^8.22.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/nodemailer": "^8.0.2",
     "@types/ws": "^8.18.2",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15"

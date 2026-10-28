@@ -525,10 +525,11 @@ export function createGameServer(options: ServerOptions): GameServer {
     sendJson(response, { bans: moderation.list(now), closed });
   }
 
-  /** Sign-in, when a service is set up and accounts have somewhere to be kept. */
+  /** Sign-in, when a service or a mailbox is set up and accounts have somewhere to be kept. */
   function startAuth(): Auth | undefined {
     const settings = options.auth;
-    if (!settings || Object.keys(settings.clients).length === 0) return undefined;
+    if (!settings || (Object.keys(settings.clients).length === 0 && !settings.mail))
+      return undefined;
     if (options.dataDir === undefined) {
       logger.warn("accounts_off", { reason: "no data directory" });
       return undefined;

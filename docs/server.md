@@ -22,6 +22,8 @@
 | `FRONTFALL_SESSION_SECRET`                                     | unset                                   | 32 characters or more, random and kept secret: it signs the session cookies. Another one signs every player out, and changes nothing else ([Accounts](#accounts))                                                                                                                                                                                                  |
 | `FRONTFALL_OAUTH_DISCORD_ID`, `FRONTFALL_OAUTH_DISCORD_SECRET` | unset                                   | Client id and secret of a Discord application: sign-in with Discord ([Accounts](#accounts))                                                                                                                                                                                                                                                                        |
 | `FRONTFALL_OAUTH_GOOGLE_ID`, `FRONTFALL_OAUTH_GOOGLE_SECRET`   | unset                                   | Client id and secret of a Google OAuth client: sign-in with Google ([Accounts](#accounts))                                                                                                                                                                                                                                                                         |
+| `FRONTFALL_SMTP_FILE`                                          | unset                                   | JSON file of the mailbox sign-in links are sent from: sign-in by email ([Accounts](#sign-in-by-email))                                                                                                                                                                                                                                                             |
+| `FRONTFALL_EMAIL_DAILY_LIMIT`                                  | `150`                                   | Sign-in links sent in a day, all players together; keep it under the mailbox's own limit ([Accounts](#sign-in-by-email))                                                                                                                                                                                                                                           |
 
 ## Games
 
@@ -170,37 +172,66 @@ curl -s localhost:8080/metrics
 
 ## HTTP routes
 
-| Path                 | Answer                                                                                                                            |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `/healthz`           | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release`           |
-| `/api/games`         | Public games that have not started, and the number of games running, as JSON                                                      |
-| `/status`            | A page for people: players online, games running, lobbies, an announced restart, release and build                                |
-| `/api/status`        | The same as JSON: `version`, `release`, `simulation`, `keepsGames`, `state`, `players`, `running`, `lobbies`, `restartInMs`       |
-| `/admin/maintenance` | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only              |
-| `/admin/reports`     | `GET ?days=N`: the reports of the last N days, 30 at most; from inside the container only ([Reports and bans](#reports-and-bans)) |
-| `/admin/bans`        | `GET` lists the bans, `POST` adds one or reads the file again, `DELETE` lifts one; from inside the container only                 |
-| `/api/stats`         | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`                      |
-| `/api/usage`         | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`                  |
-| `/api/me`            | The services offered and the account signed in, as JSON; `POST {"name"}` renames it, `DELETE` deletes it ([Accounts](#accounts))  |
-| `/auth/<service>`    | Sends the player to sign in with `discord` or `google`; the service sends them back to `/auth/<service>/callback`                 |
-| `/auth/logout`       | `POST` only: signs the player out                                                                                                 |
-| `/metrics`           | Metrics, from the host only                                                                                                       |
-| `/ws`                | WebSocket upgrade                                                                                                                 |
-| anything else        | Files of the built client                                                                                                         |
+| Path                   | Answer                                                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `/healthz`             | `ok`, or `503` (see below), with the build in the `X-Frontfall-Version` header and the release in `X-Frontfall-Release`           |
+| `/api/games`           | Public games that have not started, and the number of games running, as JSON                                                      |
+| `/status`              | A page for people: players online, games running, lobbies, an announced restart, release and build                                |
+| `/api/status`          | The same as JSON: `version`, `release`, `simulation`, `keepsGames`, `state`, `players`, `running`, `lobbies`, `restartInMs`       |
+| `/admin/maintenance`   | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only              |
+| `/admin/reports`       | `GET ?days=N`: the reports of the last N days, 30 at most; from inside the container only ([Reports and bans](#reports-and-bans)) |
+| `/admin/bans`          | `GET` lists the bans, `POST` adds one or reads the file again, `DELETE` lifts one; from inside the container only                 |
+| `/api/stats`           | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`                      |
+| `/api/usage`           | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`                  |
+| `/api/me`              | The services offered and the account signed in, as JSON; `POST {"name"}` renames it, `DELETE` deletes it ([Accounts](#accounts))  |
+| `/api/me/achievements` | `POST` only: the page's achievements, kept with the account; answers with them all ([Accounts](#achievements-of-an-account))      |
+| `/auth/<service>`      | Sends the player to sign in with `discord` or `google`; the service sends them back to `/auth/<service>/callback`                 |
+| `/auth/email`          | `POST {"email", "name", "language"}` only: sends a sign-in link; `202` whoever the address is ([Accounts](#sign-in-by-email))     |
+| `/auth/email/confirm`  | `POST {"token"}` only: signs in the player who opened the link, once                                                              |
+| `/auth/logout`         | `POST` only: signs the player out                                                                                                 |
+| `/metrics`             | Metrics, from the host only                                                                                                       |
+| `/ws`                  | WebSocket upgrade                                                                                                                 |
+| anything else          | Files of the built client                                                                                                         |
 
 HTML, scripts, styles, JSON, SVG and map files (`.bin`) of 1 KiB or more are sent gzipped to browsers that accept it, with `Vary: Accept-Encoding`. Each file is compressed once, on its first request. Every file carries an `ETag` drawn from its content; maps and other files without a hashed name are sent with `no-cache`, so browsers revalidate them and get `304 Not Modified` until they change. Caddy and Cloudflare pass the compressed body on, and would not compress `.bin` files themselves.
 
 ## Accounts
 
-Players may sign in with Discord or Google to keep their name for themselves. It is optional: everything is played as a guest too, and a server without the settings below offers no sign-in at all (the menu shows no button).
+Players may sign in with Discord, Google or a link sent by email to keep their name and achievements for themselves. It is optional: everything is played as a guest too, and a server without the settings below offers no sign-in at all (the menu shows no button).
 
-The server needs `FRONTFALL_DATA`, `FRONTFALL_PUBLIC_URL`, `FRONTFALL_SESSION_SECRET`, and the id and secret of at least one service. It does the OAuth 2.0 exchange itself, with a `state` and PKCE: the page only follows a link to `/auth/<service>`, and the service sends the player back to `/auth/<service>/callback`, where the server trades the code for a token, asks the service who the player is, and forgets the token. Discord is asked for `identify` only, Google for `openid profile`. The server must be able to reach `discord.com`, `oauth2.googleapis.com` and `openidconnect.googleapis.com`.
+The server needs `FRONTFALL_DATA`, `FRONTFALL_PUBLIC_URL`, `FRONTFALL_SESSION_SECRET`, and the id and secret of at least one service or a mailbox ([below](#sign-in-by-email)). It does the OAuth 2.0 exchange itself, with a `state` and PKCE: the page only follows a link to `/auth/<service>`, and the service sends the player back to `/auth/<service>/callback`, where the server trades the code for a token, asks the service who the player is, and forgets the token. Discord is asked for `identify` only, Google for `openid profile`. The server must be able to reach `discord.com`, `oauth2.googleapis.com` and `openidconnect.googleapis.com`.
 
 The player then holds a `frontfall_session` cookie for 30 days: `HttpOnly`, `SameSite=Lax`, `Secure` over HTTPS, limited to the path of the public address, so that two games under one domain keep apart. It is signed with the session secret and holds only the account's id, its count of sign-outs and its expiry: signing out ends the account's sessions on every device. It goes with every request, the game socket included: a connection opened signed in plays under the account's name, whatever its `hello` says, and a guest who asks for a name an account holds gets `invalid_name` ([protocol](protocol.md#hello)). Two names are the same name when they differ only by case, accents, spaces or punctuation.
 
 The accounts are kept in `accounts/accounts.json` under the data directory, readable by the server's user only and replaced at once on every change. The file starts with a salt of 256 random bits, drawn when it is created; each account is an id, the service, an HMAC of the service's id keyed by that salt, the name, the days it was created and last signed in, and its count of sign-outs. Nothing else from the service is kept: no email, no picture, not the name there, which only suggests the first name. The accounts depend on no setting: back up the data directory and they come back with it. A file that cannot be read, as with wrong permissions, turns sign-in off until it is fixed (`accounts_off` in the log), rather than be overwritten; one that is read but not understood is set aside as `accounts.json.broken-<time>` and the server starts with none. A player deletes their account from the menu; nothing of it is left in the file.
 
 One address may make 20 requests to `/auth/` and `/api/me` at once, then one every 6 seconds; beyond, `429`. Sign-in failures are logged as `sign_in_failed` with the service and a reason, never an id.
+
+An account file written by this version may hold accounts made by email or achievements, which releases up to 0.6.4 do not understand: they set the file aside as `accounts.json.broken-<time>` and start with none. To go back to an older release, keep that file and put it back when you return.
+
+### Sign-in by email
+
+With `FRONTFALL_SMTP_FILE`, the menu also offers **Sign in with email**: no password, a link that works once, for 15 minutes. The file is the JSON of a mailbox, the same as other services of a server may already read:
+
+```json
+{
+  "hote": "ssl0.ovh.net",
+  "port": 465,
+  "utilisateur": "game@example.org",
+  "motDePasse": "…",
+  "expediteur": "game@example.org"
+}
+```
+
+Port 465 is TLS from the start, 587 STARTTLS; both require TLS 1.2 and a valid certificate. Other fields are ignored. A file that cannot be read, or a wrong field, turns sign-in by email off with `email_sign_in_off` in the log, which names the field but never its value. The server must reach the mailbox's host on that port.
+
+`POST /auth/email` takes the address the player typed, lowercased. It answers `202` whether or not an account has it, and whether the link was sent or held back: nobody can learn from it who plays here. The server draws a token of 256 random bits, keeps only its SHA-256 hash, with the HMAC of the address and the name typed in the menu, for 15 minutes in memory, and sends `<public address>/#signin=<token>`. The token is after `#`, so it never reaches a server's logs. The page asks the player to press **Finish signing in**, so that a mail filter that opens links signs nobody in, and posts the token to `/auth/email/confirm`: the first use deletes it and sets the session cookie. The account is found by the HMAC of the address, made on that first use if there is none; the address itself is kept nowhere, neither in the file nor in the logs, where a send shows as `sign_in_link_sent` or `sign_in_link_failed` with the SMTP code only. A restart forgets the links not yet used.
+
+Limits: one address may ask for 3 links, then one every 5 minutes (`429`); one email address gets 2 links, then one every 10 minutes, the others held back without a word; and the server sends `FRONTFALL_EMAIL_DAILY_LIMIT` links a day in all, then answers `503` until the next day (UTC), logged once as `sign_in_links_held`. An account made by email is not the account of the same address at Google: the game never asks Google for it.
+
+### Achievements of an account
+
+Signed in, the menu posts the device's achievements to `/api/me/achievements` (8 KiB at most) and keeps what comes back, so that they follow the player. The server adds them to the account's: each achievement keeps its higher level and earlier day, each count its larger value, and nothing is ever taken away; at most 64 achievements and 8 counts, with ids of lowercase letters, digits and dashes. Two devices played apart between two visits to the menu keep the larger count, not their sum. They are counted by the page, as before: an account only carries them. Deleting the account deletes them.
 
 ## Health check
 

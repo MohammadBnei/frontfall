@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { PROVIDERS } from "./accounts.ts";
 import type { AuthOptions } from "./auth.ts";
+import { readSmtpSettings, smtpMailer } from "./mail.ts";
 import { jsonLogger } from "./log.ts";
 import { createGameServer } from "./server.ts";
 
@@ -39,8 +40,9 @@ const seatsPerAddress =
 
 /**
  * Sign-in with Discord or Google: each service whose application id and
- * secret are set, as long as the game knows its public address and has a
- * secret to sign sessions with. See docs/self-hosting.md.
+ * secret are set. By email: when an SMTP file is given. Either way the game
+ * must know its public address and have a secret to sign sessions with.
+ * See docs/self-hosting.md.
  */
 function authSettings(): AuthOptions | undefined {
   const publicUrl = process.env.FRONTFALL_PUBLIC_URL;
@@ -52,7 +54,8 @@ function authSettings(): AuthOptions | undefined {
     const secret = process.env[`${prefix}_SECRET`];
     if (id && secret) clients[provider] = { id, secret };
   }
-  if (Object.keys(clients).length === 0) return undefined;
+  const mail = mailSettings();
+  if (Object.keys(clients).length === 0 && !mail) return undefined;
   if (!publicUrl || !sessionSecret || sessionSecret.length < 32) {
     logger.warn("accounts_off", {
       reason:
@@ -60,7 +63,25 @@ function authSettings(): AuthOptions | undefined {
     });
     return undefined;
   }
-  return { publicUrl, sessionSecret, clients };
+  return { publicUrl, sessionSecret, clients, ...(mail && { mail }) };
+}
+
+/** The mailbox sign-in links are sent from, read from FRONTFALL_SMTP_FILE. */
+function mailSettings(): AuthOptions["mail"] {
+  const file = process.env.FRONTFALL_SMTP_FILE;
+  if (!file) return undefined;
+  try {
+    const mailer = smtpMailer(readSmtpSettings(file));
+    return {
+      mailer,
+      ...optionalNumber("FRONTFALL_EMAIL_DAILY_LIMIT", (limit) => ({
+        dailyLimit: Math.floor(limit),
+      })),
+    };
+  } catch (error) {
+    logger.warn("email_sign_in_off", { reason: (error as Error).message });
+    return undefined;
+  }
 }
 
 const server = createGameServer({

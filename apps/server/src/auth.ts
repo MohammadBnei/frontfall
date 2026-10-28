@@ -1,7 +1,16 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { Accounts, isProvider, PROVIDERS, type Account, type Provider } from "./accounts.ts";
+import {
+  Accounts,
+  isProvider,
+  parseAchievements,
+  PROVIDERS,
+  type Account,
+  type Provider,
+  type SignInMethod,
+} from "./accounts.ts";
 import type { Logger } from "./log.ts";
+import { isEmailAddress, mailFailure, type Mailer } from "./mail.ts";
 import { AddressRate } from "./rate-limit.ts";
 
 /** Where a service sends the player to sign in, and where the server asks who they are. */
@@ -39,6 +48,12 @@ export interface AuthOptions {
   clients: Partial<Record<Provider, { id: string; secret: string }>>;
   /** Other addresses for the services, for tests. */
   endpoints?: Partial<Record<Provider, ProviderEndpoints>>;
+  /** Sends sign-in links by email; unset offers no sign-in by email. */
+  mail?: {
+    mailer: Mailer;
+    /** Links sent in a day, all players together: the mailbox's own limit, with room to spare. */
+    dailyLimit?: number;
+  };
 }
 
 export const SESSION_COOKIE = "frontfall_session";
@@ -48,8 +63,20 @@ export const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 /** Time a player has to sign in at the service before coming back. */
 const SIGN_IN_MS = 10 * 60 * 1000;
 const SERVICE_TIMEOUT_MS = 10_000;
-/** A rename sends a name, a few dozen bytes. */
+/** A rename sends a name, a link request an address and a name: a few dozen bytes. */
 const MAX_BODY_BYTES = 1024;
+/** Achievements of one player: some twenty ids, a level and a day for each. */
+const MAX_ACHIEVEMENTS_BYTES = 8192;
+/** Time a sign-in link sent by email works for, once. */
+export const LINK_MS = 15 * 60 * 1000;
+/** Links one address may ask for: three, then one every five minutes. */
+const LINK_RATE = { perSecond: 1 / 300, burst: 3 };
+/** Links one email address may receive: two, then one every ten minutes. */
+const LINK_RATE_PER_EMAIL = { perSecond: 1 / 600, burst: 2 };
+const DEFAULT_DAILY_LINKS = 150;
+/** Links waiting to be opened, kept in memory: a restart only makes players ask again. */
+const MAX_PENDING_LINKS = 10_000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 /**
  * Requests to the sign-in routes and /api/me one address may make: a few
  * sign-ins and renames, then one every six seconds. Each sign-in calls the
@@ -60,8 +87,53 @@ const AUTH_RATE = { perSecond: 1 / 6, burst: 20 };
 /** What `/api/me` tells the page: which buttons to show, and who is signed in. */
 export interface Me {
   providers: Provider[];
-  account: { name: string; provider: Provider } | null;
+  /** Whether a link can be sent by email. */
+  email: boolean;
+  account: { name: string; provider: SignInMethod } | null;
 }
+
+/** A sign-in link sent and not yet opened, known by the hash of its token. */
+interface PendingLink {
+  /** Hash the account is known by: the address itself is not kept. */
+  subject: string;
+  /** Name of a new account: the one the player had in the menu. */
+  name: string;
+  expires: number;
+}
+
+/** Words of the email, in the language of the page that asked for it. */
+const LINK_MAIL = {
+  en: {
+    subject: "Your Frontfall sign-in link",
+    text: (link: string) =>
+      [
+        "Hello,",
+        "",
+        "To sign in to Frontfall, open this link within 15 minutes, then press Finish signing in:",
+        "",
+        link,
+        "",
+        "The link works once. If you did not ask for it, you can ignore this email: no account is made without it.",
+        "",
+        "Frontfall",
+      ].join("\n"),
+  },
+  fr: {
+    subject: "Votre lien de connexion à Frontfall",
+    text: (link: string) =>
+      [
+        "Bonjour,",
+        "",
+        "Pour vous connecter à Frontfall, ouvrez ce lien dans les 15 minutes, puis appuyez sur Terminer la connexion :",
+        "",
+        link,
+        "",
+        "Le lien ne sert qu'une fois. Si vous ne l'avez pas demandé, ignorez ce message : aucun compte n'est créé sans lui.",
+        "",
+        "Frontfall",
+      ].join("\n"),
+  },
+} as const;
 
 export interface Auth {
   /** Answers the sign-in routes and `/api/me`; false for any other path. */
@@ -80,8 +152,9 @@ export interface Auth {
 
 /**
  * Sign-in with Discord or Google, done by the server itself with OAuth 2.0
- * and PKCE: the page only follows links. The player gets a signed cookie
- * that the page cannot read, sent with every request and the game socket.
+ * and PKCE: the page only follows links. Or with a link sent by email, that
+ * works once and for a few minutes. The player gets a signed cookie that
+ * the page cannot read, sent with every request and the game socket.
  */
 export function createAuth(
   options: AuthOptions,
@@ -99,6 +172,18 @@ export function createAuth(
   const rate = new AddressRate(AUTH_RATE.perSecond, AUTH_RATE.burst, now());
   const redirectUri = (provider: Provider): string =>
     new URL(`auth/${provider}/callback`, base).href;
+  const mail = options.mail;
+  const linkRate = new AddressRate(LINK_RATE.perSecond, LINK_RATE.burst, now());
+  const linkRatePerEmail = new AddressRate(
+    LINK_RATE_PER_EMAIL.perSecond,
+    LINK_RATE_PER_EMAIL.burst,
+    now(),
+  );
+  const dailyLinks = mail?.dailyLimit ?? DEFAULT_DAILY_LINKS;
+  let linksToday = { day: Math.floor(now() / DAY_MS), sent: 0 };
+  const pending = new Map<string, PendingLink>();
+  const tokenHash = (token: string): string =>
+    createHash("sha256").update(token).digest("base64url");
 
   const sign = (purpose: string, payload: string): string =>
     createHmac("sha256", options.sessionSecret).update(`${purpose}:${payload}`).digest("base64url");
@@ -137,6 +222,7 @@ export function createAuth(
   function me(account: Account | undefined): Me {
     return {
       providers,
+      email: mail !== undefined,
       account: account ? { name: account.name, provider: account.provider } : null,
     };
   }
@@ -288,7 +374,16 @@ export function createAuth(
       .end(JSON.stringify(body));
   }
 
-  function rename(account: Account, request: IncomingMessage, response: ServerResponse): void {
+  /**
+   * The JSON object a request sends, to `use`; a body of another type, too
+   * large or not an object is answered here.
+   */
+  function readJson(
+    request: IncomingMessage,
+    response: ServerResponse,
+    maxBytes: number,
+    use: (body: Record<string, unknown>) => void,
+  ): void {
     if (!request.headers["content-type"]?.startsWith("application/json")) {
       json(response, 415, { error: "invalid", message: "JSON expected" });
       return;
@@ -297,16 +392,26 @@ export function createAuth(
     const chunks: Buffer[] = [];
     request.on("data", (chunk: Buffer) => {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) request.destroy();
+      if (size > maxBytes) request.destroy();
       else chunks.push(chunk);
     });
     request.on("end", () => {
-      let name: unknown;
+      let body: unknown;
       try {
-        name = (JSON.parse(Buffer.concat(chunks).toString("utf8")) as { name?: unknown }).name;
+        body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       } catch {
-        name = undefined;
+        body = undefined;
       }
+      if (typeof body !== "object" || body === null) {
+        json(response, 400, { error: "invalid", message: "a JSON object is expected" });
+        return;
+      }
+      use(body as Record<string, unknown>);
+    });
+  }
+
+  function rename(account: Account, request: IncomingMessage, response: ServerResponse): void {
+    readJson(request, response, MAX_BODY_BYTES, ({ name }) => {
       if (typeof name !== "string") {
         json(response, 400, { error: "invalid", message: "a name is expected" });
         return;
@@ -317,13 +422,107 @@ export function createAuth(
     });
   }
 
+  /** Keeps what the page sends of the player's achievements, and answers with all of them. */
+  function syncAchievements(
+    account: Account,
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): void {
+    readJson(request, response, MAX_ACHIEVEMENTS_BYTES, (body) => {
+      const sent = parseAchievements(body);
+      if (!sent) {
+        json(response, 400, { error: "invalid", message: "achievements expected" });
+        return;
+      }
+      json(response, 200, accounts.mergeAchievements(account.id, sent));
+    });
+  }
+
+  /**
+   * Sends a sign-in link to the address the player typed. The answer is the
+   * same whether an account has this address or not, and whether the link
+   * was sent or held back for that address: it tells nobody who plays here.
+   */
+  function sendLink(
+    request: IncomingMessage,
+    response: ServerResponse,
+    address: string,
+    mailer: Mailer,
+  ): void {
+    readJson(request, response, MAX_BODY_BYTES, (body) => {
+      const raw = typeof body.email === "string" ? body.email : "";
+      const email = raw.normalize("NFC").trim().toLowerCase();
+      if (!isEmailAddress(email)) {
+        json(response, 400, { error: "invalid", message: "an email address is expected" });
+        return;
+      }
+      const time = now();
+      if (!linkRate.take(address, time)) {
+        json(response, 429, { error: "rate", message: "too many links asked for" });
+        return;
+      }
+      const day = Math.floor(time / DAY_MS);
+      if (linksToday.day !== day) linksToday = { day, sent: 0 };
+      if (linksToday.sent >= dailyLinks) {
+        logger.warn("sign_in_links_held", { reason: "daily limit" });
+        json(response, 503, { error: "busy", message: "no more links today" });
+        return;
+      }
+      const subject = accounts.subject("email", email);
+      json(response, 202, { sent: true });
+      // Held back without a word: saying so would tell that someone asked for this address.
+      if (!linkRatePerEmail.take(subject, time)) return;
+      linksToday.sent++;
+      for (const [key, link] of pending) {
+        if (link.expires <= time || pending.size >= MAX_PENDING_LINKS) pending.delete(key);
+        else break;
+      }
+      const token = randomBytes(32).toString("base64url");
+      pending.set(tokenHash(token), {
+        subject,
+        name: typeof body.name === "string" ? body.name : "",
+        expires: time + LINK_MS,
+      });
+      const link = new URL(base);
+      link.hash = `signin=${token}`;
+      const words = body.language === "fr" ? LINK_MAIL.fr : LINK_MAIL.en;
+      mailer.send({ to: email, subject: words.subject, text: words.text(link.href) }).then(
+        () => {
+          logger.info("sign_in_link_sent");
+        },
+        (error: unknown) => {
+          logger.warn("sign_in_link_failed", { reason: mailFailure(error) });
+        },
+      );
+    });
+  }
+
+  /** Signs in the player who opened a link: the token works once, before it expires. */
+  function confirmLink(request: IncomingMessage, response: ServerResponse): void {
+    readJson(request, response, MAX_BODY_BYTES, ({ token }) => {
+      const key = typeof token === "string" && token.length <= 64 ? tokenHash(token) : "";
+      const link = pending.get(key);
+      pending.delete(key);
+      if (!link || link.expires <= now()) {
+        json(response, 400, { error: "expired", message: "this link is no longer valid" });
+        return;
+      }
+      const account = accounts.signInAs("email", link.subject, link.name, now());
+      const session = `${account.id}.${String(account.sessions)}.${String(now() + SESSION_MS)}`;
+      json(response, 200, me(account), [
+        cookie(SESSION_COOKIE, `${session}.${sign("session", session)}`, SESSION_MS),
+      ]);
+    });
+  }
+
   function handle(
     request: IncomingMessage,
     response: ServerResponse,
     path: string,
     address: string,
   ): boolean {
-    if (path !== "/api/me" && !path.startsWith("/auth/")) return false;
+    if (path !== "/api/me" && path !== "/api/me/achievements" && !path.startsWith("/auth/"))
+      return false;
     if (!rate.take(address, now())) {
       response.writeHead(429, { "content-type": "text/plain", "retry-after": "6" }).end();
       return true;
@@ -338,6 +537,28 @@ export function createAuth(
       const account = accountOf(request);
       if (account) accounts.signOut(account.id);
       json(response, 200, me(undefined), [cookie(SESSION_COOKIE, "", 0)]);
+      return true;
+    }
+    if (path === "/auth/email" || path === "/auth/email/confirm") {
+      if (!mail) {
+        response.writeHead(404, { "content-type": "text/plain" }).end("not found");
+      } else if (method !== "POST" || !sameSite(request)) {
+        response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
+      } else if (path === "/auth/email") {
+        sendLink(request, response, address, mail.mailer);
+      } else {
+        confirmLink(request, response);
+      }
+      return true;
+    }
+    if (path === "/api/me/achievements") {
+      if (method !== "POST" || !sameSite(request)) {
+        response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
+        return true;
+      }
+      const account = accountOf(request);
+      if (account) syncAchievements(account, request, response);
+      else json(response, 401, { error: "signed_out", message: "not signed in" });
       return true;
     }
     const signIn = /^\/auth\/([a-z]+)(\/callback)?$/.exec(path);
