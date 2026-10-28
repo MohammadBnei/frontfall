@@ -46,6 +46,9 @@ export interface GlobeRays {
   readonly up: readonly [number, number, number];
 }
 
+/** An attack's front: the brand's ember, the colour of the logo's falling square. */
+const FRONT_COLOR = "#F25C2A";
+
 /** How long a tile that changed hands takes to fade into its new colour. */
 const FADE_SECONDS = 0.15;
 
@@ -58,11 +61,13 @@ const GROUND_LEVEL = luminance(MAP_COLORS.land);
 const PALETTE_WIDTH = 256;
 
 /**
- * Reach of a tile's vote on who owns the points around it, in tiles: past
- * one, so corners round off; short of the diagonal, so a lone tile, which
- * outvotes its four neighbours at its centre, keeps a patch of its own.
+ * Reach of a tile's vote on who owns the points around it, in tiles: wide
+ * enough that borders round off over a tile and a half; and a stronger
+ * vote close to the tile's centre, so a lone tile, which its neighbours
+ * would outvote, keeps a patch of its own.
  */
-const KERNEL = 1.2;
+const KERNEL = 1.5;
+const CORE = 0.8;
 
 /** Each row is tracked as at most 32 column chunks, one bit each. */
 const CHUNKS_PER_ROW = 32;
@@ -116,6 +121,7 @@ const fragmentShader = /* glsl */ `
   uniform float frontSeconds;
   uniform float frontMotion;
   uniform vec3 foamColor;
+  uniform vec3 frontColor;
   uniform vec3 seaShallow;
   uniform vec3 seaOpen;
   uniform vec3 seaDeep;
@@ -150,6 +156,12 @@ const fragmentShader = /* glsl */ `
   float coastDistance(float alpha) {
     float r = (alpha * 255.0 - 127.5) / 127.5;
     return sign(r) * r * r * coastReach;
+  }
+
+  /** How bright a tile's front is: 1 when just taken, 0 once it has burnt out. */
+  float frontOf(ivec2 tile) {
+    float age = now - texelFetch(takenAt, wrapTile(tile), 0).r;
+    return 1.0 - smoothstep(fadeSeconds, frontSeconds, age);
   }
 
   float hash(vec2 p) {
@@ -217,8 +229,10 @@ const fragmentShader = /* glsl */ `
       for (int i = 0; i < 4; i++) {
         ivec2 cell = base + ivec2(i, j);
         vec2 offset = at - (vec2(cell) + 0.5);
-        float w = max(0.0, 1.0 - dot(offset, offset) / ${String(KERNEL * KERNEL)});
-        w *= w;
+        float d2 = dot(offset, offset);
+        float wide = max(0.0, 1.0 - d2 / ${String(KERNEL * KERNEL)});
+        float near = max(0.0, 1.0 - d2 / ${String(CORE * CORE)});
+        float w = wide * wide + 0.5 * near * near;
         ivec2 wrapped = wrapTile(cell);
         bool isLand = texelFetch(ground, wrapped, 0).a > 0.5;
         if (!isLand) continue;
@@ -330,17 +344,29 @@ const fragmentShader = /* glsl */ `
       vec3 owned = mix(fillColor, lineColor, border * dash);
       owned = mix(owned, mix(lineColor * 0.5, ridgeColor, smoothstep(0.4 * contactWidth, 0.5 * contactWidth, contactEdge)), contact * dash);
       float age = now - texelFetch(takenAt, tile, 0).r;
-      // Land taken in the last moments marks the front of an attack: its edge
-      // turns to light and dark stripes that march along it, readable on any
-      // colour, and the strip behind it pulses. Zoomed out, where a tile is
-      // under a pixel and edges vanish, the strip takes the stripes instead.
+      // Land taken in the last moments marks the front of an attack, the
+      // strongest signal on the map: its edge turns to ember and light stripes
+      // that march along it, readable on any colour and without colour, and
+      // the strip behind it glows ember and pulses (steady with less motion).
+      // Zoomed out, where a tile is under a pixel and edges vanish, the strip
+      // takes the stripes instead.
+    #ifdef FLAT
       float front = 1.0 - smoothstep(fadeSeconds, frontSeconds, age);
+    #else
+      // Blended between tile centres, so the burning strip has no steps and
+      // fades from the newest land, at the front, to the oldest behind it.
+      vec2 q = at - 0.5;
+      ivec2 c = ivec2(floor(q));
+      vec2 u = q - vec2(c);
+      float front = mix(mix(frontOf(c), frontOf(c + ivec2(1, 0)), u.x),
+        mix(frontOf(c + ivec2(0, 1)), frontOf(c + ivec2(1, 1)), u.x), u.y);
+    #endif
       if (front > 0.0) {
         float march = fract((at.x + at.y) / (14.0 * pixel) - now * 1.6 * frontMotion);
-        vec3 stripes = step(0.5, march) > 0.0 ? vec3(1.0, 0.96, 0.86) : vec3(0.04, 0.075, 0.11);
+        vec3 stripes = step(0.5, march) > 0.0 ? vec3(1.0, 0.96, 0.86) : frontColor;
         float pulse = mix(0.75, 0.5 + 0.5 * sin(now * 7.0), frontMotion);
-        vec3 wake = mix(vec3(1.0), stripes, zoomedOut);
-        owned = mix(owned, wake, front * mix(0.18 + 0.17 * pulse, 0.7, zoomedOut));
+        vec3 wake = mix(frontColor, stripes, zoomedOut);
+        owned = mix(owned, wake, front * front * mix(0.35 + 0.3 * pulse, 0.7, zoomedOut));
         float frontWidth = max(0.6, 3.5 * pixel);
         float frontEdge = 1.0 - smoothstep(frontWidth - pixel, frontWidth, edge);
         owned = mix(owned, stripes, front * frontEdge);
@@ -484,6 +510,7 @@ export class TerritoryLayer {
         frontSeconds: { value: FRONT_SECONDS },
         frontMotion: { value: 1 },
         foamColor: { value: new THREE.Color(TERRAIN_COLORS.foam) },
+        frontColor: { value: new THREE.Color(FRONT_COLOR) },
         seaShallow: { value: new THREE.Color(TERRAIN_COLORS.seaShallow) },
         seaOpen: { value: new THREE.Color(MAP_COLORS.ocean) },
         seaDeep: { value: new THREE.Color(MAP_COLORS.oceanDeep) },
