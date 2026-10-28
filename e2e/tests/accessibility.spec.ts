@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// These look at the picture itself: the full map, not the flat one the other specs use.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("a game can be played from the keyboard, and the menu settings are kept", async ({ page }) => {
   await page.goto("./?map=skirmish&bots=2&difficulty=easy");
 

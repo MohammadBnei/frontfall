@@ -2,6 +2,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { lowContrast } from "./contrast.ts";
 
+// These look at the picture itself: the full map, not the flat one the other specs use.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 const RULES = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const GAME = "./?map=skirmish&bots=3&nations=0&difficulty=easy";
 const SHORT_GAME = "./?map=island&bots=3&difficulty=normal&nations=0&speed=30&minutes=1";

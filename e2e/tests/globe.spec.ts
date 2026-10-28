@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// These look at the picture itself: the full map, not the flat one the other specs use.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 // The globe prototype (ADR 0005), behind ?view=globe.
 test("shows the World on a globe, picks tiles on it, and switches to the flat map", async ({
   page,
