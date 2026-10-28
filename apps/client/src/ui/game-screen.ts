@@ -24,6 +24,8 @@ import { Hud } from "./hud.ts";
 import { withHidden } from "./hidden-players.ts";
 import { PlayerLabels } from "./labels.ts";
 import { SpeedControl } from "./speed-control.ts";
+import { colorOf } from "../palette.ts";
+import { StatsRecorder } from "./screen/stats-history.ts";
 import { GameAchievements } from "./screen/game-achievements.ts";
 import { gameKey } from "./screen/game-keys.ts";
 import { GuideHost } from "./screen/guide-host.ts";
@@ -90,6 +92,8 @@ export class GameScreen {
   private disabled = 0;
   private ownableTiles = 1;
   private peakTiles = 0;
+  private winShare = 100;
+  private stats = new StatsRecorder(10);
   private readonly achievements: GameAchievements;
   /** The sound effects, once their code is fetched; none for a replay. */
   private sound: Sound | undefined;
@@ -270,6 +274,8 @@ export class GameScreen {
             ticksPerSecond: info.rules.ticksPerSecond,
           });
           this.ticksPerSecond = info.rules.ticksPerSecond;
+          this.winShare = info.rules.winSharePercent;
+          this.stats = new StatsRecorder(info.rules.ticksPerSecond);
           this.ownableTiles = info.rules.ownableTiles;
           if (!options.record) {
             this.achievements.start(info.rules, link ? undefined : options.difficulty);
@@ -462,6 +468,7 @@ export class GameScreen {
     this.latest = update;
     // What this screen shows from here on: hidden players go by their number.
     update = withHidden(update, this.hidden);
+    if (!this.replayBar) this.stats.observe(update);
     this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
     this.diplomacy.update(update, performance.now());
@@ -654,6 +661,9 @@ export class GameScreen {
           ticksPerSecond: this.ticksPerSecond,
           ownableTiles: this.ownableTiles,
           peakTiles: this.peakTiles,
+          stats: this.stats.finish(update),
+          winShare: this.winShare,
+          color: (player) => colorOf(player, this.firstNation, this.teams),
           achievements: this.achievements.earned,
           // Only a published map can be pinned in a record.
           canRecord: this.published,

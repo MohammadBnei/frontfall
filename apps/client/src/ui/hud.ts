@@ -64,6 +64,11 @@ const MODE_BANNERS = {
  * Numbers the player plays by: their troops, gold and land, the attack
  * ratio, what the game expects of them now, and the leading players.
  */
+interface PaceSample {
+  tick: number;
+  share: number;
+}
+
 export class Hud {
   readonly element: HTMLElement;
   private readonly troops = h("strong", { class: "stat-value" });
@@ -116,6 +121,8 @@ export class Hud {
   private readonly goalLeader = h("span", { class: "goal-fill goal-leader" });
   private readonly goalYou = h("span", { class: "goal-fill goal-you" });
   private readonly clock = h("p", { class: "goal-clock" });
+  /** Time before the leader wins at their current pace; hidden when there is no such pace. */
+  private readonly eta = h("p", { class: "goal-eta", hidden: true });
   private readonly attackList = h("ul", { class: "attack-list" });
   private readonly attackPanel = h(
     "section",
@@ -139,6 +146,8 @@ export class Hud {
   private readonly cityCount = h("span", { class: "build-count" });
   private mode: ClickMode = "attack";
   private leaderboardOpen = false;
+  /** The leader's share of the land over the last half minute, for the time left before a win. */
+  private readonly paces: PaceSample[] = [];
   private readonly buildPanel: HTMLElement;
   private readonly buildToggle: HTMLButtonElement;
   /** What a build button does, after a long press on it. */
@@ -323,6 +332,7 @@ export class Hud {
         // Both bars run from 0 to the winning share; the leader's is drawn under yours.
         h("div", { class: "goal-bar", "aria-hidden": "true" }, this.goalLeader, this.goalYou),
         this.clock,
+        this.eta,
       ),
     );
     // Narrow screens keep the buildings behind this button (styles.css).
@@ -700,12 +710,41 @@ export class Hud {
       `${String(Math.min(100, (tiles / ownableTiles / win) * 100))}%`;
     this.goalLeader.style.width = width(leader);
     this.goalYou.style.width = width(yours);
-    this.clock.textContent = Number.isFinite(maxDurationTicks)
+    const time = Number.isFinite(maxDurationTicks)
       ? t("hud.clock", {
           elapsed: formatDuration(update.tick / ticksPerSecond),
           limit: formatDuration(maxDurationTicks / ticksPerSecond),
         })
       : formatDuration(update.tick / ticksPerSecond);
+    const eta = this.winEta(update.tick, leader / ownableTiles, win);
+    this.clock.textContent = time;
+    this.eta.hidden = eta === undefined;
+    if (eta !== undefined) {
+      this.eta.textContent = t("hud.eta", { time: formatDuration(eta / ticksPerSecond) });
+    }
+  }
+
+  /**
+   * Ticks before the leader reaches the winning share, if they keep their pace of the last
+   * half minute of game time; none while they are not gaining or the game ends first.
+   */
+  private winEta(tick: number, share: number, win: number): number | undefined {
+    const { ticksPerSecond, maxDurationTicks } = this.rules;
+    const samples = this.paces;
+    const lastSample = samples[samples.length - 1];
+    // Going back (a replay seeking) starts over.
+    if (lastSample && tick < lastSample.tick) samples.length = 0;
+    if (!lastSample || tick - lastSample.tick >= ticksPerSecond) samples.push({ tick, share });
+    while (samples.length > 1 && tick - (samples[0] as PaceSample).tick > 30 * ticksPerSecond) {
+      samples.shift();
+    }
+    const first = samples[0] as PaceSample;
+    const span = tick - first.tick;
+    if (span < 10 * ticksPerSecond || share >= win) return undefined;
+    const pace = (share - first.share) / span;
+    if (pace <= 0) return undefined;
+    const ticks = (win - share) / pace;
+    return tick + ticks <= maxDurationTicks && ticks < 3600 * ticksPerSecond ? ticks : undefined;
   }
 
   private bannerText(update: GameUpdate, human: PlayerView | undefined): string {
