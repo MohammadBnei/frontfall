@@ -131,8 +131,12 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
   const smooth = new Float32Array(size);
   for (let tile = 0; tile < size; tile++)
     smooth[tile] = isWater[tile] === 1 ? 0 : (options.relief[tile] as number);
+  // A lightly blurred copy keeps the crests of ranges sharp in the shading.
+  const fine = smooth.slice();
+  blur(fine, width, height, wrapsX, 1);
   blur(smooth, width, height, wrapsX, RELIEF_BLUR);
   const level = (x: number, y: number): number => smooth[at(x, y)] as number;
+  const crest = (x: number, y: number): number => fine[at(x, y)] as number;
 
   const color: [number, number, number] = [0, 0, 0];
   const mixed: [number, number, number] = [0, 0, 0];
@@ -155,7 +159,13 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
         mix(color, biome.snow, smoothstep(28.5, 31, h) * 0.7, color);
       }
       // Light from the north-west: slopes that face it lighten, the others darken.
-      const slope = level(x - 2, y) - level(x + 2, y) + level(x, y - 2) - level(x, y + 2);
+      // The broad slope of the hills, and the fine one of their crests.
+      const slope =
+        level(x - 2, y) -
+        level(x + 2, y) +
+        level(x, y - 2) -
+        level(x, y + 2) +
+        1.5 * (crest(x - 1, y) - crest(x + 1, y) + crest(x, y - 1) - crest(x, y + 1));
       // A little grain per tile keeps close-ups from looking flat.
       const grain = (Math.imul(tile, 0x9e3779b1) >>> 24) / 255 - 0.5;
       const shade = Math.min(1.4, Math.max(0.55, 1 + slope * 0.06 + grain * 0.05));
