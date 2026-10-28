@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { simulationBuild } from "../../tools/simulation-build.mjs";
 
 // The release is the version of the repository's root package.json, for the client and the server alike.
@@ -9,7 +9,29 @@ const { version } = JSON.parse(
   version: string;
 };
 
+/**
+ * Shaders ship as text, so their comments and indentation would be downloaded
+ * by every player: this drops them from the template strings marked glsl.
+ */
+function stripShaderComments(): Plugin {
+  return {
+    name: "frontfall:strip-shader-comments",
+    enforce: "pre",
+    transform(code, id) {
+      if (!id.endsWith(".ts") || !code.includes("/* glsl */")) return undefined;
+      return code.replace(/\/\* glsl \*\/ `[^`]*`/g, (shader) =>
+        shader
+          .replace(/\/\*[^]*?\*\//g, (comment) => (comment === "/* glsl */" ? comment : ""))
+          .replace(/[ \t]*\/\/[^\n]*/g, "")
+          .replace(/\n\s*(?=\n)/g, "")
+          .replace(/\n[ \t]+/g, "\n"),
+      );
+    },
+  };
+}
+
 export default defineConfig({
+  plugins: [stripShaderComments()],
   // Relative URLs: the same build works at / and behind a path prefix such as /frontfall/.
   base: "./",
   define: {
