@@ -318,11 +318,25 @@ const fragmentShader = /* glsl */ `
     if (hit < -rim) discard;
   #endif
 
-    // The sea darkens away from the coast over a narrow shelf, and a fine
-    // line of foam, about a pixel wide when zoomed out, follows the shore.
+    // Open water is one calm colour that deepens slowly offshore. Along every
+    // coast runs a crisp band of shallows, about a tile wide close up and a
+    // few pixels zoomed out, edged with a fine line of foam.
     float depth = max(-coast, 0.0);
-    vec3 sea = mix(seaShallow, seaOpen, smoothstep(0.0, 4.0, depth));
-    sea = mix(sea, seaDeep, smoothstep(6.0, 36.0, depth));
+    vec3 sea = mix(mix(seaOpen, seaShallow, 0.25), seaOpen, smoothstep(2.0, 16.0, depth));
+    sea = mix(sea, seaDeep, smoothstep(12.0, 40.0, depth));
+    float shelf = max(0.9, 3.0 * pixel);
+    float shallows = 1.0 - smoothstep(shelf - max(0.2, pixel), shelf, depth);
+    // Lighter toward the shore, so the band reads as water getting shallow.
+    sea = mix(sea, mix(seaShallow, foamColor, 0.3 * (1.0 - clamp(depth / shelf, 0.0, 1.0))), shallows);
+    // Close up, the open water moves: two slow swells drift across each
+    // other. They hold still with less motion, and fade out before they
+    // could shimmer.
+    float swellFade = 1.0 - smoothstep(0.2, 0.6, pixel);
+    if (swellFade > 0.0) {
+      float t = now * frontMotion;
+      float swell = noise(at * 0.45 + t * vec2(0.09, 0.04)) + noise(at * 0.9 - t * vec2(0.05, 0.08)) - 1.0;
+      sea *= 1.0 + 0.12 * swell * swellFade * (1.0 - shallows);
+    }
     float foamWidth = max(0.12, 1.1 * pixel);
     float foam = 1.0 - smoothstep(0.5 * foamWidth, foamWidth, depth);
     sea = mix(sea, foamColor, foam * 0.6);
