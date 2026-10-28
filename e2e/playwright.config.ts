@@ -108,6 +108,8 @@ const local = {
 /** Runs against the production build (`pnpm build` first), or against E2E_BASE_URL. */
 export default defineConfig({
   testDir: "tests",
+  // Shards are cut test by test, not file by file, so that one long file cannot keep a runner busy.
+  fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["list"]] : "list",
