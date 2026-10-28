@@ -150,10 +150,6 @@
   white-space: pre-line;
 }
 
-.label-short {
-  display: none;
-}
-
 .preview:not([hidden]) + .attack-list:not(:empty) {
   margin-top: 6px;
   padding-top: 6px;
@@ -332,21 +328,7 @@
     right: 174px;
     width: auto;
     transform: none;
-    gap: 2px 8px;
-    font-size: 13px;
-  }
-
-  /* Two rows of sliders: what is listed above the bar starts above both. */
-  .attacks {
-    bottom: 78px;
-  }
-
-  .label-long {
-    display: none;
-  }
-
-  .label-short {
-    display: inline;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
   /* One more button in the toolbar: the pace of a solo game. */
   .speedable .ratio {
@@ -362,8 +344,12 @@
     gap: 6px;
   }
 
-  .ratio .range-value {
-    min-width: 0;
+  .ratio label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 }
 
@@ -1332,9 +1318,23 @@
   }
 }
 
-/* Above the bar of a phone, the preview keeps to one line: whose land, and how much of it. */
+/* Above the bar of a phone, the preview keeps to one line: whose land, and how much of it.
+   The work share leaves the bar for the top of the build tray (ui/hud.ts), beside what gold buys. */
 @media (width < 720px), (height < 560px) {
   .preview-text {
     display: none;
+  }
+
+  .build > .work-row {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 10px;
+    align-items: center;
+    padding: 2px 6px 6px;
+  }
+
+  .build > .work-row input {
+    flex: 1;
+    min-width: 0;
   }
 }
