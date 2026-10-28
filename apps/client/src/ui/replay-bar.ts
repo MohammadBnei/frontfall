@@ -1,5 +1,4 @@
 import type { ReplayView } from "../game/solo-game.ts";
-import { REPLAY_SPEEDS } from "../game/replay-file.ts";
 import { applyTranslations, t } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 import { formatDuration } from "./format.ts";
@@ -20,8 +19,9 @@ export class ReplayBar {
   private readonly result = h("span", { class: "replay-result", role: "status" });
   private readonly speeds: HTMLButtonElement[];
 
-  constructor(onSpeed: (speed: number) => void) {
-    this.speeds = REPLAY_SPEEDS.map((speed) => {
+  /** `speeds`: the paces offered (REPLAY_SPEEDS), passed in so this module needs nothing of the game's. */
+  constructor(speeds: readonly number[], onSpeed: (speed: number) => void) {
+    this.speeds = speeds.map((speed) => {
       const button = h(
         "button",
         {

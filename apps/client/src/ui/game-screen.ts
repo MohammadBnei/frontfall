@@ -3,51 +3,33 @@ import { motionReduced, onMotionChange } from "./accessibility.ts";
 import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
-import type { MapData, MapInfo } from "../game/maps.ts";
+import type { MapInfo } from "../game/maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { aimReach } from "../input/aim.ts";
-import { commandCode } from "../input/keyboard.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
-import { colorOf } from "../palette.ts";
-import type { CameraView, ViewCamera } from "../render/camera.ts";
-import {
-  createCamera,
-  createRenderer,
-  fitsGlobe,
-  FRONT_SECONDS,
-  globeLoaded,
-  type Renderer,
-  type ViewKind,
-} from "../render/renderer.ts";
-import { AchievementStore, type Gain } from "../achievements/store.ts";
-import { AchievementTracker, type Credited } from "../achievements/tracker.ts";
-import { endScreen } from "./end-screen.ts";
-// The help and the guide load when first shown, out of the first download.
-import type { Guide } from "./guide.ts";
+import type { ViewKind } from "../render/renderer.ts";
 import { guideDone, setGuideDone } from "./guide-state.ts";
 import { safeStorage } from "./setup.ts";
+import { endScreen } from "./end-screen.ts";
 import { ReplayBar } from "./replay-bar.ts";
-import { REPLAY_MAP_CHANGED } from "../game/replay-file.ts";
+import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
-import { Hud, offers } from "./hud.ts";
+import { Hud } from "./hud.ts";
 import { withHidden } from "./hidden-players.ts";
 import { PlayerLabels } from "./labels.ts";
+import { GameAchievements } from "./screen/game-achievements.ts";
+import { gameKey } from "./screen/game-keys.ts";
+import { GuideHost } from "./screen/guide-host.ts";
+import { MapScene } from "./screen/map-scene.ts";
+import { Orders } from "./screen/orders.ts";
+import { Overlays } from "./screen/overlays.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
-
-/** Matches the fade of the territory layer, with a frame to spare. */
-const FADE_MS = 200;
-
-/** Tiles taken light their front this long (territory layer), with a frame to spare. */
-const FRONT_MS = FRONT_SECONDS * 1000 + 50;
 
 /** How often the turns of an online game are checked for being due. */
 const PACER_MS = 10;
-
-/** Size of a tile on screen once the view closes in on the player's start. */
-const START_TILE_PIXELS = 6;
 
 export interface GameScreenActions {
   onNewGame(): void;
@@ -58,13 +40,6 @@ export interface GameScreenActions {
   onRecord?(record: GameRecord): void;
 }
 
-/** Offset of warship ids among the ships the screen moves, past any transport's. */
-const WARSHIP_IDS = 2 ** 40;
-/** Offset of missile ids, past any warship's. */
-const MISSILE_IDS = 2 ** 41;
-/** Missiles in flight: the brand's bright ember. */
-const MISSILE_COLOR = "#FF7A47";
-
 /**
  * One game on screen: the map, the input that drives the camera and sends
  * orders, the HUD, and the dialogs on top. Owns everything it creates and
@@ -72,19 +47,15 @@ const MISSILE_COLOR = "#FF7A47";
  */
 export class GameScreen {
   readonly element: HTMLElement;
-  private owners = new Uint16Array(0);
-  private camera: ViewCamera;
+  private readonly scene: MapScene;
   private readonly surface: HTMLElement;
-  private view: Renderer | undefined;
-  /** Stops reporting the context of the current renderer as lost, ahead of freeing it. */
-  private unwatchContext: (() => void) | undefined;
   private input: InputController;
   private readonly hud: Hud;
   private readonly session: LocalSession;
+  private readonly orders: Orders;
+  private readonly overlays: Overlays;
   private readonly cleanups: (() => void)[] = [];
   private latest: GameUpdate | undefined;
-  private overlay: HTMLElement | undefined;
-  private paused = false;
   private ended = false;
   /** Set while watching a recorded game: no orders, and a bar to set the pace. */
   private readonly replayBar: ReplayBar | undefined;
@@ -100,19 +71,9 @@ export class GameScreen {
   private disabled = 0;
   private ownableTiles = 1;
   private peakTiles = 0;
-  /** Watches the game for achievements; none for a replay. */
-  private achievements: AchievementTracker | undefined;
-  private readonly achievementStore = new AchievementStore(safeStorage());
-  /** What this game earned the player for the first time. */
-  private readonly earned: Gain[] = [];
+  private readonly achievements: GameAchievements;
   private frameHandle = 0;
   private readonly marks = new ClickMarks();
-  private previousShips = new Map<number, number>();
-  private updatedAt = 0;
-  /** Something to draw that the camera alone does not show. */
-  private dirty = true;
-  private drawnView: CameraView | undefined;
-  private wrapsX = true;
   private readonly labels = new PlayerLabels();
   /** Players hidden on this screen (R-DIPLO-08), for this game only. */
   private readonly hidden = new Set<number>();
@@ -121,37 +82,13 @@ export class GameScreen {
   private lastReport: number | undefined;
   /** Online: evens out the arrival of the server's turns before the worker plays them. */
   private readonly pacer: TurnPacer;
-  /** Tiles that changed hands fade in until then: frames are drawn until it passes. */
-  private fadingUntil = 0;
-  /**
-   * When the last fronts go dark: one more frame is drawn then. While an
-   * attack goes on, its ticks keep frames coming and the fronts move; once
-   * it stops, they are not animated to the end, only cleared.
-   */
-  private frontsOffAt = 0;
   /** What a click on the map does, picked in the HUD. */
   private mode: ClickMode = "attack";
   /** Mode of each click the worker has not answered yet, oldest first: it answers each one, in order. */
   private readonly clicksInFlight: ClickMode[] = [];
-  /** The structures last drawn, as a key that changes when any of them does. */
-  private drawnStructures = "";
-  /** Flat map or globe; G switches when the globe was asked for and the map allows it. */
-  private viewKind: ViewKind;
-  private readonly globeAllowed: boolean;
-  private readonly mapSize: { readonly width: number; readonly height: number };
-  /** What the renderer is made from, kept to make another one when the view switches. */
-  private shown: { map: MapData; you: number; maxPlayer: number } | undefined;
   private readonly diplomacy: DiplomacyPanel;
-  /** The allies last marked on the map. */
-  private drawnAllies = "";
-  /** The tile under the mouse or a resting finger, and the owner lit for it. */
-  private hoveredTile: number | undefined;
-  private hoveredOwner = 0;
-  /** Players who ask the system for less motion see fronts without their glint. */
   /** First steps of a first solo game, while they show. */
-  private guide: Guide | undefined;
-  /** The player's land when the attacks opened, for the guide. */
-  private tilesAtPlay: number | undefined;
+  private readonly guide: GuideHost;
   /** A finger rather than a mouse: the help shows gestures instead of keys. */
   private readonly coarsePointer = window.matchMedia("(pointer: coarse)");
   /** Reports the game once it ends for the player; none for a replay (docs/privacy.md). */
@@ -168,17 +105,19 @@ export class GameScreen {
     /** What the usage report says about the game; a game without it is not reported. */
     facts?: Omit<GameFacts, "view">,
   ) {
-    this.globeAllowed = view === "globe" && fitsGlobe(map) && globeLoaded();
-    this.viewKind = this.globeAllowed ? "globe" : "flat";
-    this.tracker =
-      facts && !options.record
-        ? usage().track({ ...facts, view: this.viewKind }, Date.now())
-        : undefined;
-    this.mapSize = { width: map.width, height: map.height };
-    this.published = map.manifest !== undefined;
-    this.camera = createCamera(map, this.viewKind);
+    this.achievements = new GameAchievements(
+      `frontfall.credited.${options.map}.${String(options.seed)}`,
+    );
     // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
     this.surface = document.createElement("div");
+    this.scene = new MapScene(this.surface, map, view, (key) => {
+      this.actions.onFailure(key);
+    });
+    this.tracker =
+      facts && !options.record
+        ? usage().track({ ...facts, view: this.scene.kind }, Date.now())
+        : undefined;
+    this.published = map.manifest !== undefined;
     this.surface.className = "map-surface";
     this.surface.tabIndex = 0;
     this.surface.id = "map";
@@ -199,7 +138,7 @@ export class GameScreen {
           this.leave();
         },
         onRetreat: (attack) => {
-          this.retreat(attack);
+          this.orders.retreat(attack);
         },
         onMode: (mode) => {
           this.setMode(mode);
@@ -212,20 +151,20 @@ export class GameScreen {
     );
     this.diplomacy = new DiplomacyPanel({
       onAlly: (player) => {
-        return this.diplomaticOrder("ally", player);
+        return this.orders.diplomatic("ally", player);
       },
       onEmbargo: (player, on) => {
-        this.diplomaticOrder("embargo", player, on);
+        this.orders.diplomatic("embargo", player, on);
       },
       onBetray: (player) => {
-        this.diplomaticOrder("betray", player);
+        this.orders.diplomatic("betray", player);
       },
       onGift: (player, what) => {
-        this.gift(player, what);
+        this.orders.gift(player, what);
       },
       share: () => this.hud.ratio,
       onQuick: (player, phrase) => {
-        this.quick(player, phrase);
+        this.orders.quick(player, phrase);
       },
       // Only other people can be hidden: online, and never a nation.
       hidden: (player) =>
@@ -248,7 +187,13 @@ export class GameScreen {
     });
     this.hud.leaderboard.append(this.diplomacy.menu);
     this.hud.element.append(this.diplomacy.requests, this.diplomacy.feed);
-    if (this.guided && !guideDone(safeStorage())) this.startGuide();
+    this.guide = new GuideHost(
+      this.hud.element,
+      this.coarsePointer,
+      () => this.latest,
+      () => this.diplomacy.open,
+    );
+    if (this.guided && !guideDone(safeStorage())) this.guide.start();
     this.element = document.createElement("div");
     this.element.className = "game";
     this.element.append(
@@ -258,11 +203,14 @@ export class GameScreen {
       this.hud.element,
       this.marks.note,
     );
+    this.overlays = new Overlays(this.element, this.surface, (paused) => {
+      this.session.setPaused(paused);
+    });
 
     this.input = this.createInput();
     if (options.record) {
       this.element.classList.add("watching");
-      this.replayBar = new ReplayBar((speed) => {
+      this.replayBar = new ReplayBar(REPLAY_SPEEDS, (speed) => {
         this.session.setSpeed(speed);
       });
       this.element.append(this.replayBar.element);
@@ -276,20 +224,18 @@ export class GameScreen {
           this.firstNation = info.rules.firstNation;
           this.teams = info.rules.teams;
           this.disabled = info.rules.disabled;
-          this.showMap(info.map, info.you, info.maxPlayer);
+          this.scene.show({
+            map: info.map,
+            you: info.you,
+            maxPlayer: info.maxPlayer,
+            firstNation: info.rules.firstNation,
+            teams: info.rules.teams,
+            ticksPerSecond: info.rules.ticksPerSecond,
+          });
           this.ticksPerSecond = info.rules.ticksPerSecond;
           this.ownableTiles = info.rules.ownableTiles;
           if (!options.record) {
-            this.achievements = new AchievementTracker(
-              {
-                ticksPerSecond: info.rules.ticksPerSecond,
-                ownableTiles: info.rules.ownableTiles,
-                disabled: info.rules.disabled,
-                difficulty: link ? undefined : options.difficulty,
-                teamGame: info.rules.teams.length > 0,
-              },
-              this.loadCredited(),
-            );
+            this.achievements.start(info.rules, link ? undefined : options.difficulty);
           }
           this.hud.setRules(info.rules);
           // Fetched while the game starts, so H opens the help at once.
@@ -317,13 +263,19 @@ export class GameScreen {
       },
       link,
     );
+    this.orders = new Orders(this.session, {
+      latest: () => this.latest,
+      held: () => this.overlays.paused || this.replayBar !== undefined,
+      ratio: () => this.hud.ratio,
+      tracker: this.tracker,
+    });
 
     const keydown = (event: KeyboardEvent): void => {
       this.key(event);
     };
     window.addEventListener("keydown", keydown);
     const resize = (): void => {
-      this.resize();
+      this.scene.resize();
     };
     window.addEventListener("resize", resize);
     // The tab closes or the page goes away in the middle of the game.
@@ -332,7 +284,7 @@ export class GameScreen {
     };
     window.addEventListener("pagehide", hide);
     const motion = (): void => {
-      this.view?.setMotion(!motionReduced());
+      this.scene.setMotion(!motionReduced());
     };
     const stopMotion = onMotionChange(motion);
     this.pacer = new TurnPacer((turns) => {
@@ -369,41 +321,23 @@ export class GameScreen {
         applyTranslations(this.surface);
         this.hud.refresh();
         this.diplomacy.refresh();
-        this.guide?.refresh();
+        this.guide.refresh();
       }),
     );
   }
 
   /** Call once the element is in the page, so sizes are known. */
   start(): void {
-    this.resize();
+    this.scene.resize();
     let last = performance.now();
     const frame = (now: number): void => {
       this.input.update(now - last);
       last = now;
-      // A frame is drawn only when something on the map changed: the GPU
-      // idles while nothing moves, during a pause above all.
-      const view = this.camera.view();
-      const moved = !sameView(view, this.drawnView);
-      const sailing =
-        (this.latest?.boats.length ?? 0) +
-          (this.latest?.tradeShips.length ?? 0) +
-          (this.latest?.warships.length ?? 0) +
-          (this.latest?.missiles.length ?? 0) >
-        0;
-      const fading = now < this.fadingUntil;
-      const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
-      if (frontsOff) this.frontsOffAt = 0;
-      if (this.view && (moved || this.dirty || sailing || fading || frontsOff)) {
-        this.placeShips(now);
-        this.view.render(view);
-        this.drawnView = view;
-        // Ships still glide after their last tick: one more frame to settle them.
-        this.dirty = sailing;
-      }
-      this.labels.place(this.camera, this.camera.scale);
+      this.scene.draw(now);
+      const camera = this.scene.camera;
+      this.labels.place(camera, camera.scale);
       this.diplomacy.expire(now);
-      this.marks.place(this.camera, now);
+      this.marks.place(camera, now);
       this.frameHandle = requestAnimationFrame(frame);
     };
     this.frameHandle = requestAnimationFrame(frame);
@@ -416,185 +350,29 @@ export class GameScreen {
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.session.dispose();
     this.input.dispose();
-    this.releaseView();
+    this.scene.dispose();
     this.element.remove();
   }
 
-  /** Disposes the renderer, whose context it frees on purpose, without reporting that as lost. */
-  private releaseView(): void {
-    this.unwatchContext?.();
-    this.unwatchContext = undefined;
-    this.view?.dispose();
-    this.view = undefined;
-  }
-
   private createInput(): InputController {
-    return new InputController(this.surface, this.camera, {
+    return new InputController(this.surface, this.scene.camera, {
       onTileClick: (tile, finger) => {
         this.click(tile, finger);
       },
       onTileHold: (tile) => {
-        if (!this.replayBar) this.diplomacy.pick(this.owners[tile] ?? 0);
+        if (!this.replayBar) this.diplomacy.pick(this.scene.ownerAt(tile));
       },
       onHover: (tile) => {
-        this.hoveredTile = tile;
-        this.lightHovered();
+        this.scene.hover(tile);
       },
     });
   }
 
-  /** Lights the land of whoever owns the hovered tile, which changes as it is taken. */
-  private lightHovered(): void {
-    const owner = this.hoveredTile === undefined ? 0 : (this.owners[this.hoveredTile] ?? 0);
-    if (owner === this.hoveredOwner) return;
-    this.hoveredOwner = owner;
-    this.view?.setHovered(owner);
-    this.dirty = true;
-  }
-
-  private showMap(map: MapData, you: number, maxPlayer: number): void {
-    this.owners = new Uint16Array(map.width * map.height);
-    this.wrapsX = map.wrapsX;
-    this.shown = { map, you, maxPlayer };
-    this.mountRenderer();
-  }
-
-  /** Makes the renderer of the current kind over the owners array, already filled or not. */
-  private mountRenderer(): Renderer | undefined {
-    if (!this.shown) return undefined;
-    const { map, you, maxPlayer } = this.shown;
-    let view: Renderer;
-    try {
-      view = createRenderer(
-        {
-          width: map.width,
-          height: map.height,
-          kinds: map.kinds,
-          wrapsX: map.wrapsX,
-          relief: map.relief,
-          owners: this.owners,
-          maxOwner: maxPlayer,
-        },
-        this.viewKind,
-      );
-    } catch (error) {
-      // Most likely the WebGL context, lost or refused after the check of the menu.
-      console.error(error);
-      usage().error("webgl");
-      this.actions.onFailure("webgl.missing");
-      return undefined;
-    }
-    for (let id = 1; id <= maxPlayer; id++) {
-      view.setPlayerColor(id, colorOf(id, this.firstNation, this.teams));
-    }
-    view.setHighlight(you);
-    view.setHovered(this.hoveredOwner);
-    view.setMotion(!motionReduced());
-    this.drawnAllies = "";
-    // Only a loss the browser inflicts is an error: disposing frees the context on purpose.
-    const onLost = (): void => {
-      usage().error("context_lost");
-    };
-    view.canvas.addEventListener("webglcontextlost", onLost);
-    this.unwatchContext = () => {
-      view.canvas.removeEventListener("webglcontextlost", onLost);
-    };
-    view.canvas.classList.add("map-canvas");
-    this.surface.append(view.canvas);
-    this.surface.removeAttribute("aria-busy");
-    this.view = view;
-    this.dirty = true;
-    this.drawnView = undefined;
-    this.resize();
-    return view;
-  }
-
-  /**
-   * Flat map to globe and back in a running game: a new camera over the same
-   * tile and zoom, a new renderer over the same owners array, and the input
-   * wired to the new camera.
-   */
+  /** Flat map to globe and back in a running game, the input wired to the new camera. */
   private switchView(): void {
-    if (!this.globeAllowed) return;
-    const { centerX, centerY } = this.camera.view();
-    const { width, height } = this.mapSize;
-    const centre = Math.min(height - 1, Math.floor(centerY)) * width + Math.floor(centerX);
-    const zoom = this.camera.zoom;
-    this.viewKind = this.viewKind === "globe" ? "flat" : "globe";
-    this.camera = createCamera({ width, height, wrapsX: this.wrapsX }, this.viewKind);
-    this.camera.resize(window.innerWidth, window.innerHeight);
-    this.camera.focus(centre, zoom);
+    if (!this.scene.switchKind()) return;
     this.input.dispose();
     this.input = this.createInput();
-    // The tile under the pointer is another one in the new view, known on its next move.
-    this.hoveredTile = undefined;
-    this.lightHovered();
-    if (!this.view) return;
-    this.releaseView();
-    // The owners are already there to draw.
-    this.mountRenderer()?.markAllChanged();
-    this.drawnStructures = "";
-    if (this.latest) this.placeStructures(this.latest);
-  }
-
-  /**
-   * Ships glide from where they were on the previous tick to where they are
-   * now, over one tick, instead of jumping B-BOAT-SPEED tiles at a time.
-   */
-  private placeShips(now: number): void {
-    const view = this.view;
-    const latest = this.latest;
-    if (!view || !latest) return;
-    // Trade ships by negative id, apart from transports.
-    const ships = [
-      ...latest.boats,
-      ...latest.tradeShips.map((ship) => ({ ...ship, id: -ship.id, kind: "trade" as const })),
-      // Warships by ids past every transport's and trade ship's.
-      ...latest.warships.map((ship) => ({
-        ...ship,
-        id: WARSHIP_IDS + ship.id,
-        kind: "warship" as const,
-      })),
-      // Missiles after them.
-      ...latest.missiles.map((missile) => ({
-        ...missile,
-        id: MISSILE_IDS + missile.id,
-        kind: missile.heavy ? ("heavyMissile" as const) : ("missile" as const),
-      })),
-    ];
-    const { width } = this.mapSize;
-    const progress = Math.min(1, (now - this.updatedAt) / (1000 / this.ticksPerSecond));
-    view.setShips(
-      ships.map((ship) => {
-        const to = ship.tile;
-        const from = this.previousShips.get(ship.id) ?? to;
-        const fromX = from % width;
-        const toX = to % width;
-        // The short way across the seam of a wrapping map.
-        let dx = toX - fromX;
-        if (this.wrapsX && Math.abs(dx) > width / 2) dx -= Math.sign(dx) * width;
-        const fromY = Math.floor(from / width);
-        const toY = Math.floor(to / width);
-        return {
-          x: fromX + dx * progress,
-          y: fromY + (toY - fromY) * progress,
-          // Missiles in one bright colour, readable over any land.
-          color:
-            "kind" in ship && (ship.kind === "missile" || ship.kind === "heavyMissile")
-              ? MISSILE_COLOR
-              : colorOf(ship.player, this.firstNation, this.teams),
-          ...("kind" in ship ? { kind: ship.kind } : {}),
-        };
-      }),
-    );
-  }
-
-  private resize(): void {
-    this.dirty = true;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    this.view?.resize(width, height);
-    this.camera.resize(width, height);
   }
 
   /** Names and messages again after a player was hidden or shown (R-DIPLO-08). */
@@ -607,43 +385,16 @@ export class GameScreen {
   }
 
   private apply(update: GameUpdate): void {
-    this.previousShips = new Map([
-      ...(this.latest?.boats ?? []).map((ship) => [ship.id, ship.tile] as const),
-      ...(this.latest?.tradeShips ?? []).map((ship) => [-ship.id, ship.tile] as const),
-      ...(this.latest?.warships ?? []).map((ship) => [WARSHIP_IDS + ship.id, ship.tile] as const),
-      ...(this.latest?.missiles ?? []).map((m) => [MISSILE_IDS + m.id, m.tile] as const),
-    ]);
-    this.updatedAt = performance.now();
-    if (update.owners) {
-      this.owners.set(update.owners);
-      this.view?.markAllChanged();
-      this.dirty = true;
-    } else if (update.changedTiles.length > 0) {
-      const { changedTiles, changedOwners } = update;
-      for (let i = 0; i < changedTiles.length; i++) {
-        this.owners[changedTiles[i] as number] = changedOwners[i] as number;
-      }
-      this.view?.markChanged(changedTiles);
-      this.dirty = true;
-      this.fadingUntil = performance.now() + FADE_MS;
-      this.frontsOffAt = performance.now() + FRONT_MS;
-    }
-    this.lightHovered();
+    this.scene.update(update);
     const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
-    this.earn(update);
-    if (human && this.guide) this.followGuide(update, human.tiles);
+    this.achievements.observe(update);
+    if (human) this.guide.follow(update, human.tiles);
     if (!this.focused && human && human.tiles > 0) {
-      // Once, when the player's start appears, picked or placed by the game:
-      // on a large map it is a few pixels wide at the zoom that shows it all.
+      // Once, when the player's start appears.
       this.focused = true;
-      const start = this.owners.indexOf(update.you);
-      const zoom = (START_TILE_PIXELS * this.mapSize.height) / this.camera.viewportHeight;
-      if (start >= 0) this.camera.focus(start, Math.max(this.camera.zoom, zoom));
+      this.scene.focusOn(update.you);
     }
-    this.placeStructures(update);
-    this.placeFallout(update);
-    this.placeAllies(update);
     this.latest = update;
     // What this screen shows from here on: hidden players go by their number.
     update = withHidden(update, this.hidden);
@@ -668,46 +419,9 @@ export class GameScreen {
     }
   }
 
-  /** Keeps what the game just earned, at once: a closed tab loses nothing. */
-  private earn(update: GameUpdate): void {
-    const delta = this.achievements?.observe(update);
-    if (!delta || (delta.fresh.length === 0 && Object.keys(delta.counts).length === 0)) return;
-    this.earned.push(...this.achievementStore.record(delta, Date.now()));
-    this.saveCredited();
-  }
-
-  /** The same game, for a screen made again after a reload or a reconnection. */
-  private creditKey(): string {
-    return `frontfall.credited.${this.options.map}.${String(this.options.seed)}`;
-  }
-
-  private loadCredited(): Credited | undefined {
-    try {
-      const raw = window.sessionStorage.getItem(this.creditKey());
-      return raw ? (JSON.parse(raw) as Credited) : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  private saveCredited(): void {
-    try {
-      if (this.achievements) {
-        window.sessionStorage.setItem(
-          this.creditKey(),
-          JSON.stringify(this.achievements.credited()),
-        );
-      }
-    } catch {
-      // Without it a reload may count a city twice.
-    }
-  }
-
   private click(tile: number, finger = false): void {
-    const update = this.latest;
-    if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
-    this.ordered();
-    this.session.click(tile, this.hud.ratio, this.mode, aimReach(this.camera.scale, finger));
+    const reach = aimReach(this.scene.camera.scale, finger);
+    if (!this.orders.click(tile, this.mode, reach)) return;
     // A build mode stays on until a structure goes up (afterClick): a click
     // made while the worker answers the one before is still a build click.
     this.clicksInFlight.push(this.mode);
@@ -727,158 +441,25 @@ export class GameScreen {
     this.surface.dataset.mode = this.mode;
   }
 
-  /** Structures change rarely: they are drawn again only when one appears, finishes or changes hands. */
-  private placeStructures(update: GameUpdate): void {
-    const key = update.structures
-      .map((s) => `${String(s.id)}:${String(s.player)}:${s.ready ? "1" : "0"}`)
-      .join(",");
-    if (!this.view || key === this.drawnStructures) return;
-    this.drawnStructures = key;
-    const { width } = this.mapSize;
-    this.view.setStructures(
-      update.structures.map((structure) => ({
-        x: structure.tile % width,
-        y: Math.floor(structure.tile / width),
-        type: structure.type,
-        ready: structure.ready,
-      })),
-    );
-    this.dirty = true;
-  }
-
-  private placeFallout(update: GameUpdate): void {
-    if (!this.view) return;
-    const { width } = this.mapSize;
-    const changed = this.view.setFallout(
-      update.fallout.map(({ tile, radius }) => ({
-        x: tile % width,
-        y: Math.floor(tile / width),
-        radius,
-      })),
-    );
-    this.dirty ||= changed;
-  }
-
-  private placeAllies(update: GameUpdate): void {
-    const allies = [
-      ...update.diplomacy.teammates,
-      ...update.diplomacy.allies.map((ally) => ally.id),
-    ];
-    const key = allies.join(",");
-    if (!this.view || key === this.drawnAllies) return;
-    this.drawnAllies = key;
-    this.view.setAllies(allies);
-    this.dirty = true;
-  }
-
-  /** Whether the order went out. */
-  private diplomaticOrder(type: "ally" | "betray" | "embargo", target: number, on = true): boolean {
-    const update = this.latest;
-    if (
-      !update ||
-      this.paused ||
-      update.phase !== "play" ||
-      update.winner !== undefined ||
-      this.replayBar
-    ) {
-      return false;
-    }
-    this.ordered();
-    this.session.sendOrder(
-      type === "embargo" ? { type, target, on: on ? 1 : 0 } : { type, target },
-    );
-    return true;
-  }
-
-  /** Sends a player the attack ratio's share of the troops or of the gold (R-DIPLO-06). */
-  private gift(target: number, what: "troops" | "gold"): void {
-    const update = this.latest;
-    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) return;
-    if (this.replayBar) return;
-    const you = update.players.find((p) => p.id === update.you);
-    const amount = Math.floor(((you?.[what] ?? 0) * this.hud.ratio) / 100);
-    if (amount < 1) return;
-    this.ordered();
-    this.session.sendOrder({
-      type: "gift",
-      target,
-      troops: what === "troops" ? amount : 0,
-      gold: what === "gold" ? amount : 0,
-    });
-  }
-
-  /** Sends a player a preset quick message (R-DIPLO-07). */
-  private quick(target: number, phrase: number): void {
-    const update = this.latest;
-    if (!update || this.paused || update.phase !== "play" || update.winner !== undefined) return;
-    if (this.replayBar) return;
-    this.session.sendOrder({ type: "quick", target, phrase });
-  }
-
-  /** Notes the player's first order once play has begun, for the usage report. */
-  private ordered(): void {
-    if (this.latest?.phase === "play") this.tracker?.firstOrder(Date.now());
-  }
-
-  private retreat(attack: number): void {
-    const update = this.latest;
-    if (!update || this.paused || update.winner !== undefined || this.replayBar) return;
-    this.ordered();
-    this.session.sendOrder({ type: "retreat", attack });
-  }
-
   private key(event: KeyboardEvent): void {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLInputElement && event.target.type === "text") return;
-    if (event.code === "Escape" && this.overlay) {
-      this.closeOverlay();
-      event.preventDefault();
-      return;
-    }
-    // Then the player menu, then a build mode, before Esc pauses the game.
-    if (event.code === "Escape" && this.diplomacy.open) {
-      this.diplomacy.close();
-      event.preventDefault();
-      return;
-    }
-    if (event.code === "Escape" && this.mode !== "attack") {
-      this.setMode("attack");
-      event.preventDefault();
-      return;
-    }
-    const modes: Partial<Record<string, ClickMode>> = {
-      KeyC: "city",
-      KeyB: "palace",
-      KeyF: "fort",
-      KeyO: "port",
-      KeyL: "silo",
-      KeyK: "airDefense",
-      KeyV: "warship",
-      KeyM: "missile",
-      KeyN: "heavyMissile",
-      KeyX: "demolish",
-    };
-    const command = commandCode(event.key, event.code);
-    const mode = this.replayBar ? undefined : modes[command];
-    if (mode && offers(mode, this.disabled)) {
-      this.setMode(mode);
-      event.preventDefault();
-      return;
-    }
-    if (event.code.startsWith("Digit")) {
-      const digit = Number(event.code.slice(5));
-      this.hud.setRatio(digit === 0 ? 100 : digit * 10);
-      event.preventDefault();
-    } else if (command === "KeyP" || event.code === "Escape") {
-      this.togglePause();
-      event.preventDefault();
-    } else if (command === "KeyG" && this.globeAllowed) {
-      this.switchView();
-      event.preventDefault();
-    } else if (command === "KeyH" || command === "?") {
-      this.showHelp();
-      event.preventDefault();
-    }
+    const action = gameKey(event, {
+      overlay: this.overlays.open,
+      menu: this.diplomacy.open,
+      mode: this.mode,
+      watching: this.replayBar !== undefined,
+      disabled: this.disabled,
+      globeAllowed: this.scene.globeAllowed,
+    });
+    if (!action) return;
+    if (action.type === "closeOverlay") this.overlays.close();
+    else if (action.type === "closeMenu") this.diplomacy.close();
+    else if (action.type === "mode") this.setMode(action.mode);
+    else if (action.type === "ratio") this.hud.setRatio(action.percent);
+    else if (action.type === "pause") this.togglePause();
+    else if (action.type === "switchView") this.switchView();
+    else this.showHelp();
+    event.preventDefault();
   }
 
   /** Back to the menu; asks first while the player still has a game to lose. */
@@ -933,64 +514,19 @@ export class GameScreen {
   private togglePause(): void {
     if (this.link) {
       // An online game runs for everyone: Esc only closes what is open.
-      if (this.overlay) this.closeOverlay();
+      if (this.overlays.open) this.overlays.close();
       return;
     }
-    if (this.paused) {
-      this.closeOverlay();
+    if (this.overlays.paused) {
+      this.overlays.close();
       return;
     }
-    this.paused = true;
-    this.session.setPaused(true);
-    const banner = document.createElement("div");
-    banner.className = "overlay paused";
-    const text = document.createElement("p");
-    text.className = "paused-text";
-    text.textContent = t("hud.paused");
-    banner.append(text);
-    banner.addEventListener("click", () => {
-      this.closeOverlay();
-    });
-    this.showOverlay(banner);
+    this.overlays.showPause();
   }
 
   /** The guide is for a solo game, not online and not in a replay. */
   private get guided(): boolean {
     return this.link === undefined && this.options.record === undefined;
-  }
-
-  private startGuide(): void {
-    void import("./guide.ts").then(({ Guide }) => {
-      this.guide?.element.remove();
-      this.guide = new Guide(this.coarsePointer.matches, () => {
-        setGuideDone(safeStorage(), true);
-      });
-      this.hud.element.append(this.guide.element);
-      const human = this.latest?.players.find((player) => player.id === this.latest?.you);
-      if (this.latest) this.followGuide(this.latest, human?.tiles ?? 0);
-    });
-  }
-
-  private followGuide(update: GameUpdate, tiles: number): void {
-    const guide = this.guide;
-    if (!guide) return;
-    if (!guide.shown) {
-      this.guide = undefined;
-      return;
-    }
-    if (update.phase === "play") this.tilesAtPlay ??= tiles;
-    guide.update(
-      {
-        phase: update.phase,
-        tiles,
-        tilesAtPlay: this.tilesAtPlay ?? 0,
-        cities: update.structures.filter((s) => s.player === update.you && s.type === "city")
-          .length,
-        forts: update.structures.filter((s) => s.player === update.you && s.type === "fort").length,
-        playerMenu: this.diplomacy.open,
-      },
-      update.build.cityCost,
-    );
   }
 
   private showHelp(): void {
@@ -1000,65 +536,38 @@ export class GameScreen {
   }
 
   private openHelp(helpPanel: typeof import("./help.ts").helpPanel): void {
-    if (!this.link) {
-      this.paused = true;
-      this.session.setPaused(true);
-    }
-    this.showOverlay(
+    if (!this.link) this.overlays.pause();
+    this.overlays.show(
       helpPanel({
         build: this.latest?.build,
         disabled: this.disabled,
         touch: this.coarsePointer.matches,
         online: this.link !== undefined,
         onClose: () => {
-          this.closeOverlay();
+          this.overlays.close();
         },
         onGuide: this.guided
           ? () => {
               setGuideDone(safeStorage(), false);
-              this.closeOverlay();
-              this.startGuide();
+              this.overlays.close();
+              this.guide.start();
             }
           : undefined,
       }),
     );
   }
 
-  private showOverlay(element: HTMLElement): void {
-    this.overlay?.remove();
-    this.overlay = element;
-    this.element.append(element);
-    // The main action, so that Enter never casts a vote by accident; a long
-    // dialog still opens at its top, even when that button is at the foot.
-    (
-      element.querySelector<HTMLElement>("button.primary") ?? element.querySelector("button")
-    )?.focus({ preventScroll: true });
-  }
-
-  private closeOverlay(): void {
-    this.overlay?.remove();
-    this.overlay = undefined;
-    if (this.paused) {
-      this.paused = false;
-      this.session.setPaused(false);
-    }
-    this.surface.focus();
-  }
-
   private showEnd(update: GameUpdate): void {
     // A solo game waits behind the end screen, so its record ends where the game did.
-    if (!this.link) {
-      this.paused = true;
-      this.session.setPaused(true);
-    }
-    this.showOverlay(
+    if (!this.link) this.overlays.pause();
+    this.overlays.show(
       endScreen(
         {
           update,
           ticksPerSecond: this.ticksPerSecond,
           ownableTiles: this.ownableTiles,
           peakTiles: this.peakTiles,
-          achievements: this.earned,
+          achievements: this.achievements.earned,
           // Only a published map can be pinned in a record.
           canRecord: this.published,
           teams: this.teams,
@@ -1073,7 +582,7 @@ export class GameScreen {
             this.actions.onMenu();
           },
           onWatch: () => {
-            this.closeOverlay();
+            this.overlays.close();
           },
           onDownload: () => {
             void this.record().then((record) => {
@@ -1084,14 +593,4 @@ export class GameScreen {
       ),
     );
   }
-}
-
-function sameView(a: CameraView, b: CameraView | undefined): boolean {
-  return (
-    b !== undefined &&
-    a.centerX === b.centerX &&
-    a.centerY === b.centerY &&
-    a.halfWidth === b.halfWidth &&
-    a.halfHeight === b.halfHeight
-  );
 }
