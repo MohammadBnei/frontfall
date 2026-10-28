@@ -157,6 +157,7 @@ export class MapView implements Renderer {
       terrain: options.kinds,
       wrapsX: options.wrapsX,
       relief: options.relief,
+      latitudes: options.latitudes,
       maxOwner: options.maxOwner,
     });
     // The layer spans x in [-width, 2 * width) and y in [0, height) from the

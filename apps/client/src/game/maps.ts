@@ -12,6 +12,8 @@ export interface MapData {
   readonly kinds: Uint8Array;
   /** Elevation band on land, depth band on water, 0 to 31 (docs/map-format.md). Drawing only. */
   readonly relief: Uint8Array;
+  /** Latitudes of the south and north edges of a published map, in degrees. Drawing only. */
+  readonly latitudes?: readonly [south: number, north: number];
   /** Nations of a published map, in the manifest's order; none on a generated map. */
   readonly nations: readonly { readonly name: string; readonly tile: number }[];
   /** Published maps only: what pins the terrain, for a desync report. */
@@ -172,6 +174,7 @@ export async function fetchMapData(
     wrapsX: topology.wrapsX,
     kinds: terrain.kinds,
     relief: magnitude,
+    latitudes: [manifest.projection.south, manifest.projection.north],
     nations: manifest.nations.map(({ name, tile }) => ({ name, tile })),
     source: {
       format: manifest.format,

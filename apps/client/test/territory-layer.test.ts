@@ -94,8 +94,8 @@ describe("TerritoryLayer", () => {
     expect(layer(4, 2, 256).paletteTexture.image.height).toBe(2);
   });
 
-  it("accounts for its GPU memory", () => {
-    expect(layer(512, 256, 64).gpuBytes()).toBe(512 * 256 * 10 + 256 * 4);
+  it("accounts for its GPU memory, the ground's mipmaps included", () => {
+    expect(layer(512, 256, 64).gpuBytes()).toBe(Math.round(512 * 256 * (2 + 16 / 3 + 4)) + 256 * 4);
   });
 
   it("draws the three copies of the world with one mesh", () => {
