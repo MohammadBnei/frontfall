@@ -35,8 +35,8 @@ export class Overlays {
     this.setPaused(true);
   }
 
-  /** Pauses the game behind a banner that resumes it when clicked. */
-  showPause(): void {
+  /** Pauses the game behind a banner that resumes it when clicked, with `extra` under its text. */
+  showPause(extra?: HTMLElement): void {
     this.pause();
     const banner = document.createElement("div");
     banner.className = "overlay paused";
@@ -45,6 +45,7 @@ export class Overlays {
     text.className = "paused-text";
     text.textContent = t("hud.paused");
     banner.append(text);
+    if (extra) banner.append(extra);
     banner.addEventListener("click", () => {
       this.close();
     });

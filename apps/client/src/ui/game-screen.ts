@@ -581,7 +581,7 @@ export class GameScreen {
       this.overlays.close();
       return;
     }
-    this.overlays.showPause();
+    this.overlays.showPause(this.speed?.choices());
   }
 
   /** The guide is for a solo game, not online and not in a replay. */

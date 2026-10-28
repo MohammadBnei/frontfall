@@ -33,6 +33,39 @@ export class SpeedControl {
     this.show();
   }
 
+  /**
+   * The paces side by side, for the pause banner: on a phone held upright
+   * the button leaves the toolbar to the attack slider, and the pace is set
+   * here. A choice keeps the game paused.
+   */
+  choices(): HTMLElement {
+    const buttons = GAME_SPEEDS.map((speed) => {
+      const button = h(
+        "button",
+        {
+          type: "button",
+          class: "replay-speed",
+          "aria-pressed": String(speed === this.speed),
+          "data-speed": speed,
+        },
+        t("replay.speed", { speed: String(speed) }),
+      );
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        for (const other of buttons) other.setAttribute("aria-pressed", String(other === button));
+        this.speed = speed;
+        this.onSpeed(speed);
+        this.show();
+      });
+      return button;
+    });
+    return h(
+      "span",
+      { class: "replay-speeds pause-speeds", role: "group", "aria-label": t("online.speed") },
+      ...buttons,
+    );
+  }
+
   /** Again in the language just picked. */
   show(): void {
     const speed = String(this.speed);

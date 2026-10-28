@@ -292,7 +292,13 @@
 }
 
 .paused {
+  place-content: center;
+  gap: 12px;
   cursor: pointer;
+}
+
+.pause-speeds {
+  justify-content: center;
 }
 
 .paused-text {
@@ -1177,6 +1183,30 @@
   /* A solo game's fifth tool, its pace. */
   .speedable .ratio {
     right: 268px;
+  }
+}
+
+/* A phone held upright keeps its attack slider: the pace is set in the pause banner. */
+@media (pointer: coarse) {
+  .pause-speeds .replay-speed {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (width < 480px) {
+  #speed {
+    display: none;
+  }
+
+  .speedable .ratio {
+    right: 174px;
+  }
+}
+
+@media (pointer: coarse) and (width >= 360px) and (width < 480px) {
+  .speedable .ratio {
+    right: 218px;
   }
 }
 
