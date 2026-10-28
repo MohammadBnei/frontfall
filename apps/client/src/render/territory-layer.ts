@@ -369,6 +369,14 @@ const fragmentShader = /* glsl */ `
       // An ally's rim is as wide, in dashes about eight pixels long.
       float dash = allied ? step(0.5, fract((at.x + at.y) / (16.0 * pixel))) : 1.0;
       vec3 owned = mix(fillColor, lineColor, border * dash);
+      // Dark colours are close to the ground in brightness: a light rim, one
+      // pixel wide, inside their dark edge keeps them apart from it in very
+      // low vision or in sunlight. Pale colours stand out on their own.
+      if (!wide && dot(ownerColor, vec3(0.2126, 0.7152, 0.0722)) < 0.3) {
+        float rimWidth = width + max(0.15, pixel);
+        float rim = (1.0 - smoothstep(rimWidth - pixel, rimWidth, edge)) * (1.0 - border);
+        owned = mix(owned, mix(ownerColor, vec3(1.0), 0.6), rim * dash);
+      }
       owned = mix(owned, mix(lineColor * 0.5, ridgeColor, smoothstep(0.4 * contactWidth, 0.5 * contactWidth, contactEdge)), contact * dash);
       float age = now - texelFetch(takenAt, tile, 0).r;
       // Land taken in the last moments marks the front of an attack, the
