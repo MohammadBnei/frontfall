@@ -5,9 +5,11 @@ import { CATALOGUE, badgeLevel } from "../achievements/catalog.ts";
 import type { Gain } from "../achievements/store.ts";
 import { badge } from "../achievements/badge.ts";
 import "./end-screen.css";
-import { h } from "./dom.ts";
+import { h, present } from "./dom.ts";
 import { feedbackBlock } from "./vote.ts";
 import { formatDuration, formatPercent } from "./format.ts";
+import type { StatsHistory } from "./screen/stats-history.ts";
+import { statsChart } from "./stats-chart.ts";
 
 export interface EndScreenActions {
   onNewGame(): void;
@@ -31,6 +33,12 @@ export interface GameSummary {
   teams: readonly number[];
   /** The map and the device, for a bug report. */
   details: string;
+  /** Land and troops over the game, and what the chart needs to draw them. */
+  stats: StatsHistory;
+  /** Share of the land that wins, in percent. */
+  winShare: number;
+  /** Colour of a player on the map. */
+  color: (player: number) => string;
   /** Where the game was played: the first button plays it again or goes back to the lobby. */
   kind: "solo" | "online" | "replay";
 }
@@ -99,6 +107,15 @@ export function endScreen(
       h("span", { class: "end-hero-label", "data-i18n": "end.peak" }),
     ),
     h("dl", { class: "end-stats" }, ...row("end.duration", formatDuration(seconds))),
+    ...present(
+      statsChart({
+        history: summary.stats,
+        you: update.you,
+        ownableTiles: summary.ownableTiles,
+        winShare: summary.winShare,
+        color: summary.color,
+      }),
+    ),
     ...(summary.achievements.length > 0 ? [newAchievements(summary.achievements)] : []),
     // A thumbs up or down, once per game played (not for a replay).
     ...(tracker ? [feedbackBlock(tracker, summary.details)] : []),

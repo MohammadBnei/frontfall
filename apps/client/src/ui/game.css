@@ -412,7 +412,8 @@
 }
 
 .goal-text,
-.goal-clock {
+.goal-clock,
+.goal-eta {
   margin: 0;
   color: var(--ff-slate-300);
   font-size: 12px;
@@ -1338,4 +1339,239 @@
     flex: 1;
     min-width: 0;
   }
+
+/* Land and troops over the game (ui/stats-chart.ts). */
+
+.end-screen:has(.end-stats-chart) {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.end-stats-chart {
+  margin: 0 0 16px;
+  text-align: left;
+}
+
+.stats-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.end-stats-chart h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.stats-tab {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ff-night-500);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--ff-slate-300);
+  font: inherit;
+  font-size: 13px;
+}
+
+.stats-tab[aria-pressed="true"] {
+  border-color: var(--ff-ember);
+  background: var(--ff-night-600);
+  color: var(--ff-text);
+}
+
+.stats-plot {
+  position: relative;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: rgb(6 12 18 / 45%);
+  touch-action: pan-y;
+}
+
+.stats-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.stats-grid {
+  stroke: var(--ff-night-500);
+  stroke-width: 1;
+}
+
+.stats-goal {
+  stroke: var(--ff-slate-400);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.stats-axis {
+  fill: var(--ff-slate-300);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.9;
+}
+
+.stats-line.you {
+  stroke-width: 3.5;
+  opacity: 1;
+}
+
+.stats-cursor {
+  stroke: var(--ff-text);
+  stroke-opacity: 0.5;
+  stroke-width: 1;
+}
+
+.stats-dot {
+  stroke: var(--ff-night-700);
+  stroke-width: 2;
+}
+
+.stats-mark {
+  fill: var(--ff-slate-300);
+}
+
+.stats-mark.out {
+  fill: var(--ff-warning);
+}
+
+.stats-mark.betrayed {
+  fill: var(--ff-ember);
+}
+
+.stats-plot:focus-visible {
+  outline: 2px solid var(--ff-text);
+  outline-offset: 2px;
+}
+
+.stats-tooltip {
+  position: absolute;
+  top: 6px;
+  display: grid;
+  gap: 2px;
+  box-sizing: border-box;
+  min-width: 140px;
+  max-width: 60%;
+  margin-left: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--ff-night-800, var(--ff-night-700));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 50%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.stats-tooltip.left {
+  transform: translateX(calc(-100% - 20px));
+}
+
+.stats-tooltip[hidden] {
+  display: none;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: center;
+  color: var(--ff-slate-300);
+}
+
+.stats-row.you {
+  color: var(--ff-text);
+  font-weight: 700;
+}
+
+.stats-row b {
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-tooltip em {
+  color: var(--ff-text);
+  font-style: normal;
+  border-top: 1px solid var(--ff-night-500);
+  padding-top: 3px;
+}
+
+.stats-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  list-style: none;
+}
+
+.stats-legend li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.stats-legend .you {
+  color: var(--ff-text);
+  font-weight: 700;
+}
+
+.stats-note {
+  margin: 6px 0 0;
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}
+
+.stats-table {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.stats-table summary {
+  min-height: 32px;
+  color: var(--ff-slate-300);
+  cursor: pointer;
+}
+
+.stats-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table th,
+.stats-table td {
+  padding: 3px 4px;
+  font-weight: 400;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-table th:first-child {
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stats-line {
+    transition: opacity 0.15s;
+  }
+}
+
+.goal-eta {
+  color: var(--ff-text);
+  font-variant-numeric: tabular-nums;
 }

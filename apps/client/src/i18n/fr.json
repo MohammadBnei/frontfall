@@ -93,6 +93,7 @@
   "hud.under": "< {value}",
   "hud.goal": "Victoire : {share} des terres, être le dernier en lice, ou le plus de terres à la fin du temps",
   "hud.clock": "{elapsed} sur {limit}",
+  "hud.eta": "Victoire dans environ {time} à ce rythme",
   "click.terrain": "Seules les terres peuvent être prises.",
   "click.own": "Cette terre est déjà à vous.",
   "click.troops": "Pas assez de troupes : augmentez la part d’attaque ou patientez.",
