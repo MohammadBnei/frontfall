@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### For self-hosters and contributors
+
+- **Two more server fixes from [@MohammadBnei](https://github.com/MohammadBnei)** (#139, #140). A missing `usage.json` next to its `.bak` now loads the copy instead of starting the counts from zero, which the second save would have written over the backup; to reset the counts, delete both files ([server](docs/server.md#usage-counts)). The end-to-end test that plays a game and sends a thumbs down no longer runs against the public server after a deploy, so it stops adding a test game to the real counts. Thank you.
+
 ## [0.6.2] - 2026-10-28
 
 A harder game on normal and hard, a longer first-steps guide, a page about the game and the sign-in buttons with their logos.
