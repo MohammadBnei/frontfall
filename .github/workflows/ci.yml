@@ -52,15 +52,15 @@ jobs:
       - run: pnpm sim -- --width 2048 --height 1024 --players 16 --ticks 3000 --interval 10 --budget 30
 
   e2e:
-    name: End-to-end (${{ matrix.shard }}/3)
+    name: End-to-end (${{ matrix.shard }}/6)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # Three runners share the suite: most tests play a game in real time, so the
-    # run is bound by the clock, not by the machine.
+    # Six runners share the suite: most tests play a game in real time on a software
+    # renderer, so a shard takes as long as its games, and more shards shorten the run.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,7 +75,7 @@ jobs:
       - run: pnpm build
       # The built game at / and behind a proxy that serves it under /frontfall/,
       # at / in Firefox, which needs a display for WebGL, and in WebKit.
-      - run: xvfb-run --auto-servernum pnpm test:e2e --shard=${{ matrix.shard }}/3
+      - run: xvfb-run --auto-servernum pnpm test:e2e --shard=${{ matrix.shard }}/6
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
