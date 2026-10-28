@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-28
+
+A privacy policy and terms of use for the public server.
+
 ### Added
 
 - **Privacy policy and terms of use, in English and French.** What the game keeps about a guest (nothing) and about an account (a name and a scrambled id, never an email), the cookie, reports, logs, hosting and backups, how to delete an account, and a short set of rules for playing, at [/privacy.html](https://nclsmgr.com/frontfall/privacy.html) and [/terms.html](https://nclsmgr.com/frontfall/terms.html) (and `.fr.html`). They are linked from the sign-in box and from the page about the game. Full terms are still planned for 1.0.
@@ -278,7 +282,9 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/nic0lasm/frontfall/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/nic0lasm/frontfall/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/nic0lasm/frontfall/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/nic0lasm/frontfall/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/nic0lasm/frontfall/compare/v0.4.1...v0.5.0
