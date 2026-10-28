@@ -1,7 +1,7 @@
 import "./help.css";
 import { DEFAULT_BALANCE } from "@frontfall/engine";
 import type { BuildView } from "../game/solo-game.ts";
-import { applyTranslations, type MessageKey } from "../i18n/index.ts";
+import { applyTranslations, getLanguage, type MessageKey } from "../i18n/index.ts";
 import { h } from "./dom.ts";
 import { formatCount } from "./format.ts";
 import { icon } from "./icons.ts";
@@ -25,13 +25,15 @@ export interface HelpOptions {
 const LINES: Readonly<Record<"mouse" | "touch", Record<string, readonly MessageKey[]>>> = {
   mouse: {
     expand: ["help.click", "help.ships", "help.ratio"],
+    defend: ["help.defendTroops", "help.defendFort", "help.defendRetreat"],
     diplomacy: ["help.diplomacy"],
     map: ["help.drag", "help.zoom", "help.keys", "help.keyboardPick", "help.pause"],
   },
   touch: {
     expand: ["help.tap", "help.shipsTouch", "help.ratioTouch"],
+    defend: ["help.defendTroops", "help.defendFort", "help.defendRetreat"],
     diplomacy: ["help.diplomacyTouch"],
-    map: ["help.dragTouch"],
+    map: ["help.dragTouch", "help.holdTouch"],
   },
 };
 
@@ -99,8 +101,19 @@ export function helpPanel(options: HelpOptions): HTMLElement {
       h("p", { "data-i18n": options.touch ? "help.buildHowTouch" : "help.buildHow" }),
       h("ul", { class: "help-builds" }, ...rows),
     ),
+    section("help.defendTitle", list(lines.defend)),
     section("help.diplomacyTitle", list(lines.diplomacy)),
     section("help.mapTitle", list(lines.map)),
+    h(
+      "p",
+      { class: "help-about" },
+      h("a", {
+        href: getLanguage() === "fr" ? "about.fr.html" : "about.html",
+        target: "_blank",
+        rel: "noopener",
+        "data-i18n": "help.about",
+      }),
+    ),
     h("div", { class: "help-actions" }, ...buttons),
   );
   trapFocus(dialog);

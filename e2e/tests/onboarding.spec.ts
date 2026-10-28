@@ -43,6 +43,13 @@ test("the first steps follow the player, and stay hidden once put away", async (
   // Next moves on without doing the step; the guide never blocks the game.
   await page.locator("#guide-next").click();
   await expect(guide).toHaveAttribute("data-step", "expand");
+  await page.locator("#guide-next").click();
+  await expect(guide).toHaveAttribute("data-step", "attack");
+  await expect(guide).toContainText("Retreat");
+  await page.locator("#guide-next").click();
+  await page.locator("#guide-next").click();
+  await expect(guide).toHaveAttribute("data-step", "defend");
+  await expect(guide).toContainText("Fort");
 
   await page.locator("#guide-hide").click();
   await expect(guide).toHaveCount(0);

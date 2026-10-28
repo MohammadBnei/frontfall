@@ -4,7 +4,7 @@ import { h } from "./dom.ts";
 import { formatCount } from "./format.ts";
 
 /** The steps of a first game, in order; each one waits for the player to do it. */
-export const STEPS = ["start", "expand", "build", "players", "done"] as const;
+export const STEPS = ["start", "expand", "attack", "build", "defend", "players", "done"] as const;
 export type Step = (typeof STEPS)[number];
 
 /** What the guide watches in the game. */
@@ -16,6 +16,8 @@ export interface GuideState {
   tilesAtPlay: number;
   /** Cities the player owns, built or being built. */
   cities: number;
+  /** Forts the player owns, built or being built. */
+  forts: number;
   /** Whether the menu of another player is open. */
   playerMenu: boolean;
 }
@@ -25,7 +27,10 @@ export function advance(step: Step, state: GuideState): Step {
   const done: Record<Step, boolean> = {
     start: state.tiles > 0,
     expand: state.phase === "play" && state.tiles > state.tilesAtPlay,
+    // Sending troops is the one thing here the guide cannot see; it moves on once the player builds.
+    attack: state.cities > 0 || state.forts > 0,
     build: state.cities > 0,
+    defend: state.forts > 0,
     players: state.playerMenu,
     done: false,
   };
@@ -38,7 +43,9 @@ export function advance(step: Step, state: GuideState): Step {
 const TEXTS: Readonly<Record<Step, { mouse: MessageKey; touch: MessageKey }>> = {
   start: { mouse: "guide.start", touch: "guide.startTouch" },
   expand: { mouse: "guide.expand", touch: "guide.expandTouch" },
+  attack: { mouse: "guide.attack", touch: "guide.attackTouch" },
   build: { mouse: "guide.build", touch: "guide.buildTouch" },
+  defend: { mouse: "guide.defend", touch: "guide.defendTouch" },
   players: { mouse: "guide.players", touch: "guide.playersTouch" },
   done: { mouse: "guide.done", touch: "guide.doneTouch" },
 };

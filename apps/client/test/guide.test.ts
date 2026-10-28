@@ -7,6 +7,7 @@ const spawn: GuideState = {
   tiles: 0,
   tilesAtPlay: 0,
   cities: 0,
+  forts: 0,
   playerMenu: false,
 };
 
@@ -19,8 +20,12 @@ describe("advance", () => {
     expect(advance("expand", { ...started, tiles: 25 })).toBe("expand");
     const playing = { ...started, phase: "play" as const, tilesAtPlay: 20 };
     expect(advance("expand", playing)).toBe("expand");
-    expect(advance("expand", { ...playing, tiles: 30 })).toBe("build");
-    expect(advance("build", { ...playing, tiles: 30, cities: 1 })).toBe("players");
+    expect(advance("expand", { ...playing, tiles: 30 })).toBe("attack");
+    // Sending troops cannot be seen: the step waits for Next, or for a building.
+    expect(advance("attack", { ...playing, tiles: 30 })).toBe("attack");
+    expect(advance("attack", { ...playing, tiles: 30, cities: 1 })).toBe("defend");
+    expect(advance("build", { ...playing, tiles: 30, cities: 1 })).toBe("defend");
+    expect(advance("defend", { ...playing, tiles: 30, cities: 1, forts: 1 })).toBe("players");
     expect(advance("players", { ...playing, playerMenu: true })).toBe("done");
     expect(advance("done", { ...playing, playerMenu: true })).toBe("done");
   });
@@ -31,6 +36,7 @@ describe("advance", () => {
       tiles: 40,
       tilesAtPlay: 20,
       cities: 1,
+      forts: 1,
       playerMenu: false,
     } as const;
     expect(advance("start", ahead)).toBe("players");
