@@ -77,9 +77,9 @@ test("a player hides another one, whose name and messages leave their screen, an
   await expect(messages).toBeEnabled({ timeout: 60_000 });
   await messages.click();
   await guest.locator("#player-menu .quick-phrase").first().click();
-  await expect(guest.locator(".event-feed")).toContainText("Hello!");
+  await expect(guest.locator(".events-feed")).toContainText("Hello!");
   await host.waitForTimeout(1_000);
-  await expect(host.locator(".event-feed")).not.toContainText("Hello!");
+  await expect(host.locator(".events-feed")).not.toContainText("Hello!");
 
   // Shown again, the guest has their name back.
   await host.getByRole("button", { name: /^Player 2/ }).click();

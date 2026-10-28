@@ -260,14 +260,23 @@ export class MapScene {
     this.latest = update;
   }
 
+  /** Centres the view on a tile, closing in when the map is shown whole. */
+  centerOn(tile: number): void {
+    this.cam.focus(tile, this.closeZoom());
+  }
+
   /**
    * Closes in on the player's land, picked or placed by the game: on a large
    * map it is a few pixels wide at the zoom that shows it all.
    */
   focusOn(player: number): void {
     const start = this.owners.indexOf(player);
+    if (start >= 0) this.cam.focus(start, this.closeZoom());
+  }
+
+  private closeZoom(): number {
     const zoom = (START_TILE_PIXELS * this.mapSize.height) / this.cam.viewportHeight;
-    if (start >= 0) this.cam.focus(start, Math.max(this.cam.zoom, zoom));
+    return Math.max(this.cam.zoom, zoom);
   }
 
   /**

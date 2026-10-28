@@ -51,8 +51,11 @@ async function landShare(page: Page): Promise<number> {
   return Number.parseFloat(text.replace(",", ".")) || 0;
 }
 
-/** Starts a solo game on the skirmish map against `bots` bots and spawns near the middle. */
-async function startGame(page: Page, bots = 2, extra = ""): Promise<void> {
+/**
+ * Starts a solo game on the skirmish map against `bots` bots and spawns near
+ * the middle; returns the point of the page where the player spawned.
+ */
+async function startGame(page: Page, bots = 2, extra = ""): Promise<{ x: number; y: number }> {
   await page.goto(`./?map=skirmish&bots=${String(bots)}&difficulty=easy&nations=0&speed=5${extra}`);
   await page.locator("#play").click();
   // A game that cannot start says why in a notice: the failure then names it.
@@ -62,13 +65,15 @@ async function startGame(page: Page, bots = 2, extra = ""): Promise<void> {
   const box = await page.locator("#map").boundingBox();
   if (!box) throw new Error("the map has no size");
   // Spawn on the first land tile a spiral from the middle finds.
+  let at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   for (let i = 0; i < 96; i++) {
     const angle = ((i % 8) / 8) * 2 * Math.PI;
     const radius = 20 + Math.floor(i / 8) * 25;
-    await page.mouse.click(
-      box.x + box.width / 2 + Math.cos(angle) * radius,
-      box.y + box.height / 2 + Math.sin(angle) * radius,
-    );
+    at = {
+      x: box.x + box.width / 2 + Math.cos(angle) * radius,
+      y: box.y + box.height / 2 + Math.sin(angle) * radius,
+    };
+    await page.mouse.click(at.x, at.y);
     const spawned = await expect
       .poll(() => landShare(page), { timeout: 1000 })
       .toBeGreaterThan(0)
@@ -79,6 +84,7 @@ async function startGame(page: Page, bots = 2, extra = ""): Promise<void> {
     if (spawned) break;
   }
   await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
+  return at;
 }
 
 test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)", async ({
@@ -101,7 +107,7 @@ test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)
   }).toPass();
   // The bot answers at its next decision, within B-BOT-INTERVAL (5 s of game time).
   await expect(ally).toBeVisible({ timeout: 20_000 });
-  await expect(page.locator(".event-feed")).toContainText("are now allies");
+  await expect(page.locator(".events-feed")).toContainText("are now allies");
 
   // Betraying asks once more first.
   await expect(menu).toBeVisible();
@@ -109,7 +115,7 @@ test("asks a bot for an alliance from the leaderboard, then betrays it (R-DIPLO)
   await expect(menu.locator(".menu-action.betray")).toContainText("Confirm");
   await menu.locator(".menu-action.betray").click();
   await expect(menu).toBeHidden();
-  await expect(page.locator(".event-feed")).toContainText("betrayed");
+  await expect(page.locator(".events-feed")).toContainText("betrayed");
   await expect(page.locator(".leader.you .badge-traitor")).toBeVisible();
   await expect(page.locator(".leader .badge-ally:visible")).toHaveCount(0);
   expect(pageErrors).toEqual([]);
@@ -132,7 +138,7 @@ test("sends a bot a gift of gold, in a game without silos (R-DIPLO-06, R-MODE-03
   await expect(gold).toContainText("of your gold");
   await expect(gold).toBeEnabled({ timeout: 10_000 });
   await gold.click();
-  await expect(page.locator(".event-feed")).toContainText("sent a gift to");
+  await expect(page.locator(".events-feed")).toContainText("sent a gift to");
   expect(pageErrors).toEqual([]);
 });
 
@@ -155,7 +161,41 @@ test("sends a bot a quick message, which the feed shows (R-DIPLO-07)", async ({ 
   await expect(menu.locator(".quick-phrase")).toHaveCount(12);
   await menu.locator(".quick-phrase").first().click();
   await expect(menu.locator(".quick-phrase")).toHaveCount(0);
-  await expect(page.locator(".event-feed")).toContainText("Hello!");
+  await expect(page.locator(".events-feed")).toContainText("Hello!");
+});
+
+test("a feed line with a place centres the map on it, and stays while the pointer is on it", async ({
+  page,
+}) => {
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  await startGame(page, 1);
+  await page.locator(".leader-button").click();
+  const menu = page.locator("#player-menu");
+  await menu.locator(".menu-action.messages").click();
+  await menu.locator(".quick-phrase").first().click();
+  const line = page.locator(".events-feed button.feed-entry").first();
+  await expect(line).toContainText("Hello!");
+  await expect(line).toHaveAttribute("title", "Centre the map on it");
+  await line.click();
+  expect(pageErrors).toEqual([]);
+  // The pointer rests on the feed: the line outlives its 8 seconds.
+  await line.hover();
+  await page.waitForTimeout(9000);
+  await expect(line).toBeVisible();
+});
+
+test("shows the card of the player whose land the mouse rests on", async ({ page }) => {
+  const spawn = await startGame(page, 1);
+  // The mouse is where the game spawned the player: a move of a pixel stays on their land.
+  await page.mouse.move(spawn.x + 1, spawn.y + 1);
+  const tip = page.locator("#player-tip");
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText("You");
+  await expect(tip).toContainText("troops");
+  await page.mouse.move(spawn.x + 300, spawn.y + 300);
+  await page.mouse.move(2, 2);
+  await expect(tip).toBeHidden();
 });
 
 test("closes the player menu with Esc before pausing", async ({ page }) => {

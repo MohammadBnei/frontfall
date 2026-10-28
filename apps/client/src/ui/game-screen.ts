@@ -20,6 +20,9 @@ import type { ReplayBar } from "./replay-bar.ts";
 import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
+import type { FeedTarget } from "./events-feed.ts";
+import type { LandLost } from "./feed-events.ts";
+import type { FeedHost } from "./screen/feed-host.ts";
 import { Hud } from "./hud.ts";
 import { withHidden } from "./hidden-players.ts";
 import { PlayerLabels } from "./labels.ts";
@@ -83,6 +86,7 @@ export class GameScreen {
   /** Whether the map is a published one, which a record of the game can name. */
   private readonly published: boolean;
   private focused = false;
+  private disposed = false;
   private ticksPerSecond = 10;
   /** Lowest id of the nations, who take colours of their own. */
   private firstNation = Infinity;
@@ -112,6 +116,11 @@ export class GameScreen {
   /** Mode of each click the worker has not answered yet, oldest first: it answers each one, in order. */
   private readonly clicksInFlight: ClickMode[] = [];
   private readonly diplomacy: DiplomacyPanel;
+  /** What happens in the game, bottom right; a click centres the map on it. */
+  /** The feed and the player card, once their code is fetched; none before. */
+  private feed: FeedHost | undefined;
+  /** Where each player's name goes, as of the last update that said: a place to centre the map on. */
+  private anchors: readonly { player: number; tile: number }[] = [];
   /** First steps of a first solo game, while they show. */
   private readonly guide: GuideHost;
   /** A finger rather than a mouse: the help shows gestures instead of keys. */
@@ -226,7 +235,7 @@ export class GameScreen {
       this.hud.element.classList.add("speedable");
     }
     this.hud.leaderboard.append(this.diplomacy.menu);
-    this.hud.element.append(this.diplomacy.requests, this.diplomacy.feed);
+    this.hud.element.append(this.diplomacy.requests);
     this.guide = new GuideHost(
       this.hud.element,
       this.coarsePointer,
@@ -298,6 +307,26 @@ export class GameScreen {
           // Fetched while the game starts, so H opens the help at once.
           void import("./help.ts");
           this.diplomacy.setRules(info.rules);
+          this.feed?.setRules(info.rules);
+          // Fetched while the game starts; without it the game goes on without the feed.
+          import("./screen/feed-host.ts").then(
+            (module) => {
+              if (this.disposed) return;
+              this.diplomacy.setFacts(module.facts);
+              this.feed = new module.FeedHost(
+                this.hud.element,
+                this.element,
+                this.surface,
+                (tile) => this.scene.ownerAt(tile),
+                !options.record,
+                (target) => {
+                  this.centre(target);
+                },
+              );
+              this.feed.setRules(info.rules);
+            },
+            () => undefined,
+          );
         },
         onUpdate: (update) => {
           this.apply(update);
@@ -386,6 +415,7 @@ export class GameScreen {
         this.hud.refresh();
         this.speed?.show();
         this.diplomacy.refresh();
+        this.feed?.refresh();
         this.guide.refresh();
       }),
     );
@@ -401,7 +431,7 @@ export class GameScreen {
       this.scene.draw(now);
       const camera = this.scene.camera;
       this.labels.place(camera, camera.scale);
-      this.diplomacy.expire(now);
+      this.feed?.expire(now);
       this.marks.place(camera, now);
       this.frameHandle = requestAnimationFrame(frame);
     };
@@ -412,6 +442,8 @@ export class GameScreen {
     // Leaving for the menu or a new game without an ending of its own.
     this.tracker?.end(this.out() ? "defeat" : "left", Date.now());
     cancelAnimationFrame(this.frameHandle);
+    this.disposed = true;
+    this.feed?.dispose();
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     this.session.dispose();
     this.sound?.dispose();
@@ -433,6 +465,8 @@ export class GameScreen {
         // The attack preview is about land: the sea and impassable ground have none.
         const land = tile !== undefined && this.scene.isLand(tile);
         this.hud.hover(land ? this.scene.ownerAt(tile) : undefined);
+        // The card is about land too, whoever holds it.
+        this.feed?.over(land ? this.scene.ownerAt(tile) : 0);
       },
     });
   }
@@ -453,7 +487,21 @@ export class GameScreen {
     this.diplomacy.rename(update);
   }
 
+  /** Centres the map on a tile, else on the land of a player. */
+  private centre({ tile, player }: FeedTarget): void {
+    if (tile !== undefined) this.scene.centerOn(tile);
+    else if (player !== undefined) {
+      const anchor = this.anchors.find((a) => a.player === player);
+      if (anchor) this.scene.centerOn(anchor.tile);
+      else this.scene.focusOn(player);
+    }
+  }
+
   private apply(update: GameUpdate): void {
+    // Read before the map takes the update in: it tells what the update took from the player.
+    const lost: LandLost | undefined =
+      this.options.record === undefined ? this.feed?.lost(update) : undefined;
+    if (update.labels) this.anchors = update.labels;
     this.scene.update(update);
     const human = update.players.find((player) => player.id === update.you);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
@@ -471,7 +519,8 @@ export class GameScreen {
     if (!this.replayBar) this.stats.observe(update);
     this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
-    this.diplomacy.update(update, performance.now());
+    this.diplomacy.update(update);
+    this.feed?.observe(update, lost ?? new Map(), performance.now(), this.hud.element);
     // The panels grow and shrink with their content: measured once per update.
     this.labels.avoid(
       [...this.hud.element.children]
