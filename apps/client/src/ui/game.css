@@ -1852,9 +1852,10 @@ button.feed-entry:focus-visible {
     bottom: auto;
   }
 
+  /* A finger needs 44. */
   .minimap:not([data-open]) .minimap-toggle {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -1881,8 +1882,8 @@ button.feed-entry:focus-visible {
   }
 
   .minimap[data-open] .minimap-toggle {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 }
 
