@@ -34,9 +34,9 @@ export class SpeedControl {
   }
 
   /**
-   * The paces side by side, for the pause banner: on a phone held upright
-   * the button leaves the toolbar to the attack slider, and the pace is set
-   * here. A choice keeps the game paused.
+   * The paces side by side, for the pause banner: on a phone the button
+   * leaves the toolbar to the attack slider and the leaderboard, and the
+   * pace is set here. A choice keeps the game paused.
    */
   choices(): HTMLElement {
     const buttons = GAME_SPEEDS.map((speed) => {
