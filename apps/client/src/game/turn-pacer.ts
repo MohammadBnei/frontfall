@@ -1,6 +1,6 @@
 import type { Turn } from "@frontfall/engine";
 
-/** A batch larger than this is a backlog (a stall, a hidden tab, a rejoin), not jitter. */
+/** A batch of more beats than this is a backlog (a stall, a hidden tab, a rejoin), not jitter. */
 const MAX_BACKLOG = 4;
 /** Recent turns whose delay sets how long turns are held back. */
 const WINDOW = 30;
@@ -21,12 +21,14 @@ export class TurnPacer {
   constructor(
     private readonly play: (turns: Turn[]) => void,
     private readonly intervalMs: number,
+    /** Turns the server sends at each beat (R-MODE-07). */
+    private readonly perBeat = 1,
   ) {}
 
   /** Turns from the server, in order, received at `now`. */
   push(turns: readonly Turn[], now: number): void {
     if (turns.length === 0) return;
-    if (turns.length > MAX_BACKLOG) {
+    if (turns.length > MAX_BACKLOG * this.perBeat) {
       this.play([...this.queue.splice(0), ...turns]);
       const last = turns[turns.length - 1] as Turn;
       this.delays = [now - last.tick * this.intervalMs];

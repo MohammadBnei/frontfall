@@ -28,8 +28,12 @@ test("keeps the host's choices when the lobby answers late", async ({ browser, b
   await page.locator("#lobby-difficulty").selectOption("hard");
   await page.waitForTimeout(LATENCY_MS * 0.7);
   await page.locator("#lobby-allow-silo").uncheck();
+  await page.waitForTimeout(LATENCY_MS * 0.7);
+  // A private game may run faster (R-MODE-07).
+  await page.locator("#lobby-speed").selectOption("2");
 
   await page.waitForTimeout(4 * LATENCY_MS);
+  await expect(page.locator("#lobby-speed")).toHaveValue("2");
   await expect(page.locator("#lobby-difficulty")).toHaveValue("hard");
   await expect(page.locator("#lobby-bots")).toHaveValue("0");
   await expect(page.locator("#lobby-allow-silo")).not.toBeChecked();
@@ -39,7 +43,7 @@ test("keeps the host's choices when the lobby answers late", async ({ browser, b
   const guest = await browser.newPage();
   await guest.goto(link.href);
   await expect(guest.locator("#lobby-summary")).toHaveText(
-    "World · 0 bots · nations · Hard · starts when full · left out: Silo",
+    "World · 0 bots · nations · Hard · starts when full · speed ×2 · left out: Silo",
     { timeout: 15_000 },
   );
 });

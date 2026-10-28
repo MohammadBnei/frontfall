@@ -36,6 +36,11 @@ describe("game keys", () => {
     expect(gameKey(key("KeyC", "c"), { ...idle, watching: true })).toBeUndefined();
   });
 
+  it("changes the pace with T, except in a replay (R-MODE-07)", () => {
+    expect(gameKey(key("KeyT", "t"), idle)).toEqual({ type: "speed" });
+    expect(gameKey(key("KeyT", "t"), { ...idle, watching: true })).toBeUndefined();
+  });
+
   it("sets the attack ratio from the digits, 0 for all of it", () => {
     expect(gameKey(key("Digit3", "3"), idle)).toEqual({ type: "ratio", percent: 30 });
     expect(gameKey(key("Digit0", "0"), idle)).toEqual({ type: "ratio", percent: 100 });

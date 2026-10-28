@@ -606,6 +606,8 @@ function initialOptions(
     disabled: chosen.disabled ?? 0,
     capacity: seatLimit(map, bots),
     autoStart: true,
+    // A rematch keeps the pace of the game before (R-MODE-07).
+    ...(chosen.speed === 2 || chosen.speed === 4 ? { speed: chosen.speed } : {}),
   };
 }
 
@@ -655,6 +657,7 @@ function startOnline(
         nations: start.nations,
         teams: start.teams,
         disabled: start.disabled,
+        speed: start.speed,
       },
     );
   };
@@ -669,6 +672,8 @@ function startOnline(
       nations: start.nations,
       teams: start.teams,
       disabled: start.disabled,
+      // Ticks per beat of the server, which the screen paces the turns by.
+      speed: start.speed,
       playerName: "",
       players: start.players,
       you: start.you,

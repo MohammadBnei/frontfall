@@ -1,5 +1,6 @@
 import { Disable, leftOut } from "@frontfall/engine";
 import {
+  GAME_SPEEDS,
   MAX_GAME_NAME_LENGTH,
   MAX_SEATS,
   MIN_SEATS,
@@ -7,6 +8,7 @@ import {
   type Difficulty,
   type ErrorCode,
   type GameOptions,
+  type GameSpeed,
   type Teams,
 } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../game/maps.ts";
@@ -134,6 +136,9 @@ export class LobbyScreen {
   private readonly difficulty = h("select", { id: "lobby-difficulty" });
   private readonly nations = h("input", { id: "lobby-nations", type: "checkbox" });
   private readonly teams = h("select", { id: "lobby-teams" });
+  /** Pace of a private game (R-MODE-07); a public one runs at 1. */
+  private readonly speed = h("select", { id: "lobby-speed" });
+  private readonly speedLabel = h("label", { for: "lobby-speed", "data-i18n": "online.speed" });
   /** One box per structure or unit the game can leave out (R-MODE-03), checked when it stays in. */
   private readonly allowed = LEFT_OUT.map(({ name, bit }) => ({
     bit,
@@ -169,6 +174,8 @@ export class LobbyScreen {
     ),
     h("label", { for: "lobby-teams", "data-i18n": "menu.mode" }),
     this.teams,
+    this.speedLabel,
+    this.speed,
     h("span", { class: "lobby-allowed-label", "data-i18n": "online.allowed" }),
     h(
       "div",
@@ -225,6 +232,7 @@ export class LobbyScreen {
         ),
         capacity: Math.min(Number(this.seats.value), seatLimit(map, bots)),
         autoStart: this.autoStart.checked,
+        ...(this.speed.hidden ? {} : { speed: Number(this.speed.value) as GameSpeed }),
       };
       actions.onConfigure(options, name);
     };
@@ -251,6 +259,7 @@ export class LobbyScreen {
     this.difficulty.addEventListener("change", reconfigure);
     this.nations.addEventListener("change", reconfigure);
     this.teams.addEventListener("change", reconfigure);
+    this.speed.addEventListener("change", reconfigure);
     for (const { input } of this.allowed) input.addEventListener("change", reconfigure);
     this.bots.addEventListener("input", () => {
       this.botsValue.textContent = this.bots.value;
@@ -461,11 +470,15 @@ export class LobbyScreen {
     // Warships go with ports, whatever the host ticked (R-MODE-03).
     const disabled = leftOut(lobby.disabled);
     const off = LEFT_OUT.filter(({ bit }) => (disabled & bit) !== 0);
+    const withSpeed =
+      lobby.speed === 1
+        ? withMode
+        : t("online.summarySpeed", { summary: withMode, speed: String(lobby.speed) });
     this.summary.textContent =
       off.length === 0
-        ? withMode
+        ? withSpeed
         : t("online.summaryOff", {
-            summary: withMode,
+            summary: withSpeed,
             off: off.map(({ name }) => t(`hud.${name}`)).join(", "),
           });
     const editable = lobby.host === lobby.you && map;
@@ -522,6 +535,14 @@ export class LobbyScreen {
       ),
     );
     this.teams.value = String(lobby.teams);
+    this.speedLabel.hidden = listed;
+    this.speed.hidden = listed;
+    this.speed.replaceChildren(
+      ...GAME_SPEEDS.map((speed) =>
+        h("option", { value: speed }, t("replay.speed", { speed: String(speed) })),
+      ),
+    );
+    this.speed.value = String(lobby.speed);
     for (const { bit, input } of this.allowed) {
       input.checked = (disabled & bit) === 0;
       input.disabled = bit === Disable.Warships && (lobby.disabled & Disable.Port) !== 0;

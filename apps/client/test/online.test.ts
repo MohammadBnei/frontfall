@@ -90,6 +90,7 @@ const START: Extract<ServerMessage, { type: "started" }> = {
   teams: 0,
   disabled: 0,
   tickRate: 10,
+  speed: 1,
   players: [
     { id: 1, name: "Alice" },
     { id: 2, name: "Bob" },
@@ -233,6 +234,7 @@ describe("OnlineClient", () => {
       disabled: 0,
       capacity: 16,
       autoStart: true,
+      speed: 1,
       minPlayers: 2,
       players: START.players,
       you: 2,
@@ -266,6 +268,7 @@ describe("OnlineClient", () => {
       disabled: 0,
       capacity: 2,
       autoStart: true,
+      speed: 1,
     } as const;
     const lobby: Extract<ServerMessage, { type: "lobby" }> = {
       type: "lobby",
@@ -387,6 +390,7 @@ describe("OnlineClient", () => {
       disabled: 0,
       capacity: 16,
       autoStart: true,
+      speed: 1,
       minPlayers: 1,
       players: START.players,
       you: 1,
@@ -424,6 +428,7 @@ describe("OnlineClient", () => {
       disabled: 0,
       capacity: 16,
       autoStart: true,
+      speed: 1,
       minPlayers: 2,
       players: START.players,
       you: 2,

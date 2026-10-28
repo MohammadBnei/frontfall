@@ -13,6 +13,7 @@ const PUBLIC: RoomSettings = {
   nations: true,
   teams: 0,
   disabled: 0,
+  speed: 1,
   minPlayers: 2,
   countdownMs: 10_000,
   hostIdleMs: 120_000,
@@ -683,6 +684,24 @@ describe("running game", () => {
     expect(alice.peer.turns()).toEqual(expected);
     expect(bob.peer.turns()).toEqual(expected);
     expect(room.log.length).toBe(2);
+  });
+
+  it("closes as many turns per tick as its speed, the new orders in the first (R-MODE-07)", () => {
+    const room = new Room("game0000", { ...PRIVATE, speed: 4 }, 1);
+    const alice = seated(room, "Alice");
+    room.requestStart(alice.seat, 0);
+    expect(alice.peer.last("lobby")).toMatchObject({ speed: 4 });
+    expect(alice.peer.last("started")).toMatchObject({ speed: 4, tickRate: 10 });
+    room.submit(alice.seat, { type: "spawn", tile: 1 });
+    room.update(100);
+    expect(alice.peer.turns()).toEqual([
+      { tick: 0, orders: [{ player: 1, order: { type: "spawn", tile: 1 } }] },
+      { tick: 1, orders: [] },
+      { tick: 2, orders: [] },
+      { tick: 3, orders: [] },
+    ]);
+    // The four turns of one tick travel in one frame.
+    expect(alice.peer.inbox.filter((message) => message.type === "turns")).toHaveLength(1);
   });
 
   it("drops orders beyond the cap of one player in one turn", () => {

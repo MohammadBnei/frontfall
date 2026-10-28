@@ -88,4 +88,18 @@ describe("TurnPacer", () => {
     expect(calls).toEqual([2000]);
     expect(pacer.pending).toBe(0);
   });
+
+  it("spreads the turns of a faster game, four to a beat, one every 25 ms (R-MODE-07)", () => {
+    const calls: { at: number; count: number }[] = [];
+    let now = 0;
+    const pacer = new TurnPacer((turns) => calls.push({ at: now, count: turns.length }), 25, 4);
+    // Two beats bunched together: jitter, not a backlog.
+    pacer.push(
+      Array.from({ length: 8 }, (_, tick) => ({ tick, orders: [] })),
+      100,
+    );
+    for (now = 100; now <= 300; now += 5) pacer.update(now);
+    expect(calls.reduce((sum, call) => sum + call.count, 0)).toBe(8);
+    expect(calls.length).toBeGreaterThan(4);
+  });
 });

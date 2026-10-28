@@ -132,6 +132,8 @@ test("two players meet in a private game without leaving the base path", async (
 
   // An online game runs for everyone: no pause, in the HUD or in the help.
   await expect(host.locator("#pause")).toHaveCount(0);
+  // Its pace is the host's, picked in the lobby (R-MODE-07).
+  await expect(host.locator("#speed")).toHaveCount(0);
   await host.keyboard.press("KeyH");
   await expect(host.locator(".help")).toContainText("never pauses");
   await expect(host.locator(".help")).not.toContainText("P: pause");
