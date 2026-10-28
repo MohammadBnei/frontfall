@@ -49,9 +49,9 @@ test("keys 1 to 9 pick a building, and Shift with a digit sets the attack share"
   page.on("pageerror", (error) => pageErrors.push(error));
   await startRich(page);
 
-  await expect(page.locator("#build-city .build-num")).toHaveText("1");
-  await expect(page.locator("#build-fort .build-num")).toHaveText("3");
-  await expect(page.locator("#build-demolish .build-num")).toHaveCount(0);
+  await expect(page.locator("#build-city")).toHaveAttribute("data-num", "1");
+  await expect(page.locator("#build-fort")).toHaveAttribute("data-num", "3");
+  await expect(page.locator("#build-demolish")).not.toHaveAttribute("data-num");
 
   await page.keyboard.press("Digit3");
   await expect(page.locator("#build-fort")).toHaveAttribute("aria-pressed", "true");
