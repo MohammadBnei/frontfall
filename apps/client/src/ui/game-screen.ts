@@ -436,20 +436,24 @@ export class GameScreen {
     }
     this.cleanups.push(
       // The panels grow and shrink with their content: labels keep clear of them.
-      watchHudBoxes(this.hud.element, (boxes) => {
-        const guide = boxes.find(({ element }) => element.classList.contains("guide"));
-        const moved = this.feed?.clearOf(guide?.rect) ?? false;
-        this.labels.avoid(
-          boxes
-            // The feed just went under the guide or back: read where it is now.
-            .map(({ element, rect }) =>
-              moved && element.classList.contains("events-feed")
-                ? element.getBoundingClientRect()
-                : rect,
-            )
-            .filter((rect) => rect.width > 0),
-        );
-      }),
+      watchHudBoxes(
+        this.hud.element,
+        (boxes) => {
+          const guide = boxes.find(({ element }) => element.classList.contains("guide"));
+          const moved = this.feed?.clearOf(guide?.rect) ?? false;
+          this.labels.avoid(
+            boxes
+              // The feed just went under the guide or back: read where it is now.
+              .map(({ element, rect }) =>
+                moved && element.classList.contains("events-feed")
+                  ? element.getBoundingClientRect()
+                  : rect,
+              )
+              .filter((rect) => rect.width > 0),
+          );
+        },
+        this.element,
+      ),
       () => {
         window.removeEventListener("keydown", keydown);
       },
