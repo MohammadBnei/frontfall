@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GameUpdate } from "../src/game/solo-game.ts";
 import { FeedWatcher, landLost } from "../src/ui/feed-events.ts";
-import { facts, relation } from "../src/ui/player-tip.ts";
+import { facts, landmarkLines, relation } from "../src/ui/player-tip.ts";
 
 function update(patch: Partial<GameUpdate> = {}): GameUpdate {
   return {
@@ -77,6 +77,23 @@ describe("FeedWatcher", () => {
     );
     expect(lost).toEqual([expect.objectContaining({ tone: "bad", tile: 77, player: 2 })]);
     expect(lost[0]?.text).toContain("Ada");
+  });
+
+  it("describes a landmark's card: what it gives in numbers, and who holds it (R-LAND-02)", () => {
+    const tower = {
+      id: "eiffel-tower",
+      tile: 9,
+      effect: "shield" as const,
+      name: { en: "Eiffel Tower", fr: "Tour Eiffel" },
+    };
+    const free = landmarkLines(update(), tower, 0);
+    expect(free.effect).toBe("Stops 1 enemy missile in 2 flying near it");
+    expect(free.holder).toBe("Nobody holds it yet");
+    expect(free.hint).toContain("Take its tile");
+    expect(landmarkLines(update(), tower, 2).holder).toBe("Held by Bo");
+    const yours = landmarkLines(update(), tower, 1);
+    expect(yours.holder).toBe("Yours");
+    expect(yours.hint).toContain("as long as you hold");
   });
 
   it("warns once when a front reaches the player's capital, and tells of a capital taken (R-CAP)", () => {

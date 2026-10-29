@@ -1,6 +1,7 @@
 import type { GameRules } from "../game/messages.ts";
 import type { GameUpdate } from "../game/game-view.ts";
-import { t } from "../i18n/index.ts";
+import type { MapLandmarkData } from "../game/maps.ts";
+import { getLanguage, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "./dom.ts";
 import { formatCount, formatPercent } from "./format.ts";
@@ -40,11 +41,38 @@ export function facts(update: GameUpdate, id: number, rules: TipRules): string {
   });
 }
 
+/** How long a landmark's card stays after a long press, unless the finger touches again. */
+const PINNED_MS = 6000;
+
+/**
+ * The card of a landmark (R-LAND-02): its name, what it gives in numbers,
+ * who holds it, and what that means for the player at this screen.
+ */
+export function landmarkLines(
+  update: GameUpdate,
+  landmark: MapLandmarkData,
+  holder: number,
+): { effect: string; holder: string; hint: string } {
+  const name = update.players.find((p) => p.id === holder)?.name ?? "";
+  return {
+    effect: t(`tip.landmark.${landmark.effect}` as MessageKey),
+    holder:
+      holder === 0
+        ? t("tip.landmarkFree")
+        : holder === update.you
+          ? t("tip.landmarkYours")
+          : t("tip.landmarkHeld", { name }),
+    hint: t(holder === update.you ? "tip.landmarkKeep" : "tip.landmarkTake"),
+  };
+}
+
 /**
  * The card of the player whose land the pointer rests on: name, how they
  * stand with you, who they are allied with, troops, gold and land. A mouse
  * convenience; on a touch screen the long press opens the player menu, and
- * the keyboard has the leaderboard, which shows the same things.
+ * the keyboard has the leaderboard, which shows the same things. Over a
+ * landmark, the landmark's card takes its place; a long press on one shows
+ * it to a finger too, and the help lists every landmark for the keyboard.
  */
 export class PlayerTip {
   readonly element = h("div", {
@@ -66,8 +94,15 @@ export class PlayerTip {
     ownableTiles: 1,
   };
   private last: GameUpdate | undefined;
+  /** The landmark under the pointer, which the card is about instead of a player. */
+  private landmark: MapLandmarkData | undefined;
+  /** Shown by a long press: stays until it times out or the finger touches again. */
+  private pinned: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(private readonly alliesOf: (id: number) => number[]) {}
+  constructor(
+    private readonly alliesOf: (id: number) => number[],
+    private readonly ownerAt: (tile: number) => number = () => 0,
+  ) {}
 
   setRules(rules: TipRules): void {
     this.rules = rules;
@@ -84,12 +119,19 @@ export class PlayerTip {
       else this.place();
     };
     const leave = (): void => {
+      this.landmark = undefined;
       this.over(0);
     };
+    const down = (): void => {
+      if (this.pinned !== undefined) this.unpin();
+    };
+    surface.addEventListener("pointerdown", down);
     surface.addEventListener("pointermove", move);
     surface.addEventListener("pointerleave", leave);
     surface.addEventListener("wheel", leave, { passive: true });
     return () => {
+      this.unpin();
+      surface.removeEventListener("pointerdown", down);
       surface.removeEventListener("pointermove", move);
       surface.removeEventListener("pointerleave", leave);
       surface.removeEventListener("wheel", leave);
@@ -102,6 +144,33 @@ export class PlayerTip {
     this.render();
   }
 
+  /** The pointer is over `landmark`, undefined for none: its card shows instead of the player's. */
+  overLandmark(landmark: MapLandmarkData | undefined): void {
+    if (landmark === this.landmark || this.pinned !== undefined) return;
+    this.landmark = landmark;
+    this.render();
+  }
+
+  /** A long press on `landmark` at (x, y): its card shows by the finger for a while. */
+  pin(landmark: MapLandmarkData, x: number, y: number): void {
+    this.unpin();
+    this.landmark = landmark;
+    this.x = x;
+    this.y = y;
+    this.pinned = setTimeout(() => {
+      this.unpin();
+    }, PINNED_MS);
+    this.render();
+  }
+
+  private unpin(): void {
+    if (this.pinned === undefined) return;
+    clearTimeout(this.pinned);
+    this.pinned = undefined;
+    this.landmark = undefined;
+    this.render();
+  }
+
   hide(): void {
     this.element.hidden = true;
     this.key = "";
@@ -109,10 +178,14 @@ export class PlayerTip {
 
   update(update: GameUpdate): void {
     this.last = update;
-    if (this.owner !== 0) this.render();
+    if (this.owner !== 0 || this.landmark) this.render();
   }
 
   private render(): void {
+    if (this.landmark) {
+      this.renderLandmark(this.landmark);
+      return;
+    }
     const update = this.last;
     const id = this.owner;
     const player = update?.players.find((p) => p.id === id);
@@ -140,6 +213,37 @@ export class PlayerTip {
           player.name,
         ),
         ...lines.map((line) => h("p", { class: "player-tip-line" }, line)),
+      );
+    }
+    this.element.hidden = false;
+    this.place();
+  }
+
+  private renderLandmark(landmark: MapLandmarkData): void {
+    const update = this.last;
+    if (!update || (!this.mouse && this.pinned === undefined)) {
+      this.hide();
+      return;
+    }
+    const holder = this.ownerAt(landmark.tile);
+    const lines = landmarkLines(update, landmark, holder);
+    const name = landmark.name[getLanguage()];
+    const key = ["landmark", landmark.id, name, lines.effect, lines.holder, lines.hint].join("|");
+    if (key !== this.key) {
+      this.key = key;
+      this.element.replaceChildren(
+        h("p", { class: "player-tip-kicker" }, t("tip.landmark")),
+        h("p", { class: "player-tip-name" }, name),
+        h("p", { class: "player-tip-effect" }, lines.effect),
+        h(
+          "p",
+          { class: "player-tip-line" },
+          ...(holder === 0
+            ? []
+            : [swatch(colorOf(holder, this.rules.firstNation, this.rules.teams))]),
+          lines.holder,
+        ),
+        h("p", { class: "player-tip-hint" }, lines.hint),
       );
     }
     this.element.hidden = false;

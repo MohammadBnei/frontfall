@@ -3,12 +3,18 @@ import { accessibility, motionReduced, onMotionChange } from "./accessibility.ts
 import { TICK_RATE } from "@frontfall/protocol";
 import { LocalSession, SOLO_SNAPSHOT_REFUSED, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
-import type { MapInfo } from "../game/maps.ts";
+import type { MapInfo, MapLandmarkData } from "../game/maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameSnapshot, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { aimReach } from "../input/aim.ts";
-import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
+import {
+  applyTranslations,
+  getLanguage,
+  onLanguageChange,
+  t,
+  type MessageKey,
+} from "../i18n/index.ts";
 import type { ViewKind } from "../render/renderer.ts";
 import { guideDone, setGuideDone } from "./guide-state.ts";
 import { safeStorage } from "./setup.ts";
@@ -40,6 +46,8 @@ import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
 /** How often the turns of an online game are checked for being due. */
 const PACER_MS = 10;
+/** How far from a landmark's mark, in screen pixels, the pointer still points at it. */
+const LANDMARK_REACH = 18;
 
 /** The replay bar's code, once loadReplayBar has fetched it. */
 let replayBarClass: typeof ReplayBar | undefined;
@@ -97,6 +105,8 @@ export class GameScreen {
   private firstNation = Infinity;
   /** Team of each player by id, in a team game. */
   private teams: readonly number[] = [];
+  /** The map's landmarks (R-LAND-01), none on most maps. */
+  private landmarks: readonly MapLandmarkData[] = [];
   /** What the game leaves out (R-MODE-03): its build keys do nothing. */
   private disabled = 0;
   /** Capital mode (R-CAP), for the help. */
@@ -292,6 +302,7 @@ export class GameScreen {
         onStart: (info) => {
           this.firstNation = info.rules.firstNation;
           this.teams = info.rules.teams;
+          this.landmarks = info.map.landmarks;
           this.disabled = info.rules.disabled;
           this.capitals = info.rules.special.capitals;
           this.scene.show({
@@ -574,7 +585,12 @@ export class GameScreen {
         else if (this.orders.clickable) this.marks.pressed(tile, performance.now());
       },
       onTileHold: (tile) => {
-        if (!this.replayBar) this.diplomacy.pick(this.scene.ownerAt(tile));
+        // A long press on a landmark shows what it gives; elsewhere it opens the player menu.
+        const landmark = this.landmarkNear(tile);
+        if (landmark && this.feed) {
+          const at = this.scene.camera.tileToScreen(landmark.tile);
+          this.feed.pinLandmark(landmark, at.x, at.y);
+        } else if (!this.replayBar) this.diplomacy.pick(this.scene.ownerAt(tile));
       },
       onSecondary: () => {
         if (this.mode === "attack" || this.replayBar) return false;
@@ -588,9 +604,30 @@ export class GameScreen {
         this.hud.hover(land ? this.scene.ownerAt(tile) : undefined);
         // The card is about land too, whoever holds it.
         this.feed?.over(land ? this.scene.ownerAt(tile) : 0);
+        this.feed?.overLandmark(tile === undefined ? undefined : this.landmarkNear(tile));
         this.previews.hover(tile);
       },
     });
+  }
+
+  /**
+   * The landmark drawn under `tile` (R-LAND-01): within the size of its mark
+   * on screen, so it is as easy to point at closed in as from afar.
+   */
+  private landmarkNear(tile: number): MapLandmarkData | undefined {
+    const camera = this.scene.camera;
+    const at = camera.tileToScreen(tile);
+    let nearest: MapLandmarkData | undefined;
+    let best = LANDMARK_REACH * LANDMARK_REACH;
+    for (const landmark of this.landmarks) {
+      const mark = camera.tileToScreen(landmark.tile);
+      const d = (mark.x - at.x) ** 2 + (mark.y - at.y) ** 2;
+      if (d <= best) {
+        best = d;
+        nearest = landmark;
+      }
+    }
+    return nearest;
   }
 
   /** Flat map to globe and back in a running game, the input wired to the new camera. */
@@ -804,6 +841,20 @@ export class GameScreen {
         build: this.latest?.build,
         disabled: this.disabled,
         capitals: this.capitals,
+        landmarks: this.landmarks.map((landmark) => {
+          const holder = this.scene.ownerAt(landmark.tile);
+          const name = this.latest?.players.find((p) => p.id === holder)?.name ?? "";
+          return {
+            name: landmark.name[getLanguage()],
+            effect: t(`tip.landmark.${landmark.effect}` as MessageKey),
+            holder:
+              holder === 0
+                ? t("tip.landmarkFree")
+                : holder === this.latest?.you
+                  ? t("tip.landmarkYours")
+                  : t("tip.landmarkHeld", { name }),
+          };
+        }),
         touch: this.coarsePointer.matches,
         online: this.link !== undefined,
         onClose: () => {

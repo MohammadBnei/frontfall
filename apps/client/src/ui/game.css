@@ -1170,6 +1170,33 @@ button.feed-entry:focus-visible {
   color: var(--ff-slate-300);
 }
 
+.player-tip-line:has(.swatch) {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* A landmark's card (R-LAND-02): what it is, what it gives, who holds it. */
+.player-tip-kicker {
+  color: #c9a978;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.player-tip-effect {
+  color: var(--ff-text);
+  font-weight: 600;
+}
+
+.player-tip-hint {
+  padding-top: 4px;
+  border-top: 1px solid var(--ff-night-500);
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}
+
 .watching .ratio,
 .watching .attacks {
   display: none;
