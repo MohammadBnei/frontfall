@@ -127,7 +127,7 @@ function run(): RenderResult {
     return performance.now() - start;
   };
   const draw = (): void => {
-    layer.flush();
+    layer.flush(renderer);
     units.update(camera.position.x);
     renderer.render(scene, globe ? perspective : camera);
   };
@@ -162,7 +162,7 @@ function run(): RenderResult {
       time(() => {
         layer.setTime(seconds);
         layer.markChanged(changes, seconds);
-        texels += layer.flush();
+        texels += layer.flush(renderer);
         units.update(camera.position.x);
         renderer.render(scene, globe ? perspective : camera);
       }),

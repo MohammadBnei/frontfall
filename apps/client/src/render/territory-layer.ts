@@ -72,6 +72,13 @@ const CORE = 0.8;
 /** Each row is tracked as at most 32 column chunks, one bit each. */
 const CHUNKS_PER_ROW = 32;
 const MIN_CHUNK_WIDTH = 64;
+/**
+ * Rows sent in one upload once the textures are on the GPU: a call per band
+ * of rows rather than per row, as each call has a fixed cost in the browser
+ * and the driver, far above that of the few extra texels it carries. Four
+ * rows keep a tick on World near 150,000 texels, under the 1 MiB budget.
+ */
+const BAND_ROWS = 4;
 
 const vertexShader = /* glsl */ `
   uniform vec2 worldSize;
@@ -459,7 +466,9 @@ const fragmentShader = /* glsl */ `
  * 16-bit integer texture that aliases the simulation's array, and a shader
  * turns ids into colours and finds borders. Only the parts of rows that
  * changed since the last frame are uploaded again: each row is split into up
- * to 32 chunks, and a chunk is sent if any of its tiles changed.
+ * to 32 chunks, and a chunk is sent if any of its tiles changed. Given the
+ * renderer, rows are sent by bands of BAND_ROWS, a rectangle per run of
+ * chunks dirty in the band.
  *
  * On a map that wraps, the mesh spans three copies of the world side by
  * side, so a camera kept over the middle copy never sees an edge. A flat map
@@ -486,6 +495,10 @@ export class TerritoryLayer {
   private readonly dirtyChunks: Uint32Array;
   private readonly dirtyRows: Int32Array;
   private dirtyRowCount = 0;
+  /** Per band of BAND_ROWS rows: its dirty chunks, and its first and last dirty rows. */
+  private readonly bandChunks: Uint32Array;
+  private readonly bandFirst: Int32Array;
+  private readonly bandLast: Int32Array;
   private readonly wrapsX: boolean;
   /** Ground colours as baked, to put back where fallout clears; made on first use. */
   private pristineGround: Uint8Array | undefined;
@@ -609,6 +622,10 @@ export class TerritoryLayer {
     this.chunkWidth = Math.max(MIN_CHUNK_WIDTH, Math.ceil(width / CHUNKS_PER_ROW));
     this.dirtyChunks = new Uint32Array(height);
     this.dirtyRows = new Int32Array(height);
+    const bands = Math.ceil(height / BAND_ROWS);
+    this.bandChunks = new Uint32Array(bands);
+    this.bandFirst = new Int32Array(bands);
+    this.bandLast = new Int32Array(bands);
   }
 
   setOwnerColor(owner: number, color: THREE.ColorRepresentation): void {
@@ -733,9 +750,11 @@ export class TerritoryLayer {
 
   /**
    * Turns pending changes into texture uploads. Call once per frame before
-   * rendering; returns the number of texels sent to the GPU.
+   * rendering; returns the number of texels sent to the GPU. With the
+   * renderer that draws the layer, changes go straight to the GPU by bands of
+   * rows; without it, three.js sends them on the next render, a call per row.
    */
-  flush(): number {
+  flush(renderer?: THREE.WebGLRenderer): number {
     const { width, height } = this.options;
     const textures = [this.ownerTexture, this.takenAtTexture];
     let texels = 0;
@@ -745,6 +764,8 @@ export class TerritoryLayer {
         texture.needsUpdate = true;
       }
       texels = width * height;
+    } else if (this.dirtyRowCount > 0 && renderer && this.uploaded(renderer)) {
+      texels = this.uploadBands(renderer);
     } else if (this.dirtyRowCount > 0) {
       for (let i = 0; i < this.dirtyRowCount; i++) {
         texels += this.queueRow(this.dirtyRows[i] as number);
@@ -754,6 +775,78 @@ export class TerritoryLayer {
     for (let i = 0; i < this.dirtyRowCount; i++) this.dirtyChunks[this.dirtyRows[i] as number] = 0;
     this.dirtyRowCount = 0;
     this.fullRefresh = false;
+    return texels;
+  }
+
+  /** Whether both textures are on the GPU as they stand, with no upload of three.js pending. */
+  private uploaded(renderer: THREE.WebGLRenderer): boolean {
+    return [this.ownerTexture, this.takenAtTexture].every((texture) => {
+      const state = renderer.properties.get(texture) as {
+        __webglTexture?: WebGLTexture;
+        __version?: number;
+      };
+      return state.__webglTexture !== undefined && state.__version === texture.version;
+    });
+  }
+
+  /** Sends the dirty chunks of each band of rows as one rectangle per texture; returns the texels sent. */
+  private uploadBands(renderer: THREE.WebGLRenderer): number {
+    const { width } = this.options;
+    const { bandChunks, bandFirst, bandLast, chunkWidth } = this;
+    const dirtyBands: number[] = [];
+    for (let i = 0; i < this.dirtyRowCount; i++) {
+      const y = this.dirtyRows[i] as number;
+      const band = Math.floor(y / BAND_ROWS);
+      if (bandChunks[band] === 0) {
+        dirtyBands.push(band);
+        bandFirst[band] = y;
+        bandLast[band] = y;
+      }
+      bandChunks[band] = (bandChunks[band] as number) | (this.dirtyChunks[y] as number);
+      bandFirst[band] = Math.min(bandFirst[band] as number, y);
+      bandLast[band] = Math.max(bandLast[band] as number, y);
+    }
+    const gl = renderer.getContext() as WebGL2RenderingContext;
+    const { state, properties } = renderer;
+    const saved = [gl.UNPACK_ROW_LENGTH, gl.UNPACK_SKIP_PIXELS, gl.UNPACK_SKIP_ROWS].map(
+      (name) => [name, state.getParameter(name) as number] as const,
+    );
+    state.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    state.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    state.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    state.pixelStorei(gl.UNPACK_ROW_LENGTH, width);
+    const sends = [
+      { texture: this.ownerTexture, format: gl.RED_INTEGER, type: gl.UNSIGNED_SHORT },
+      { texture: this.takenAtTexture, format: gl.RED, type: gl.FLOAT },
+    ];
+    let texels = 0;
+    for (const band of dirtyBands) {
+      const mask = bandChunks[band] as number;
+      bandChunks[band] = 0;
+      const y = bandFirst[band] as number;
+      const rows = (bandLast[band] as number) - y + 1;
+      // One rectangle per run of chunks dirty in any row of the band.
+      let chunk = 0;
+      while (chunk < CHUNKS_PER_ROW) {
+        if (((mask >>> chunk) & 1) === 0) {
+          chunk++;
+          continue;
+        }
+        const first = chunk;
+        while (chunk < CHUNKS_PER_ROW && ((mask >>> chunk) & 1) === 1) chunk++;
+        const x = first * chunkWidth;
+        const columns = Math.min(width, chunk * chunkWidth) - x;
+        state.pixelStorei(gl.UNPACK_SKIP_PIXELS, x);
+        state.pixelStorei(gl.UNPACK_SKIP_ROWS, y);
+        for (const { texture, format, type } of sends) {
+          const { __webglTexture } = properties.get(texture) as { __webglTexture: WebGLTexture };
+          state.bindTexture(gl.TEXTURE_2D, __webglTexture);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, columns, rows, format, type, texture.image.data);
+        }
+        texels += columns * rows;
+      }
+    }
+    for (const [name, value] of saved) state.pixelStorei(name, value);
     return texels;
   }
 

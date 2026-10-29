@@ -6,8 +6,8 @@ export const MIN_PIXEL_RATIO = 0.75;
 const STEP = 0.8;
 /** Frames drawn back to back that are looked at before deciding. */
 const WINDOW = 24;
-/** Under about 45 frames a second, the median frame is too slow: a step down. */
-const SLOW_MS = 22;
+/** Under about 50 frames a second, more than half the frames miss the display: a step down. */
+const SLOW_MS = 20;
 /** At the display's pace, about 60 frames a second, over twice the window: a step back up. */
 const FAST_MS = 18;
 /** A step up that turns out too slow is not tried again for this long, twice as long after each failure. */
