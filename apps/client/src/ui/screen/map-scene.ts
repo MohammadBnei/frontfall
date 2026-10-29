@@ -16,6 +16,7 @@ import {
   type ViewKind,
 } from "../../render/renderer.ts";
 import type { Minimap } from "../../render/minimap.ts";
+import { RenderScale } from "../../render/render-scale.ts";
 import { usage } from "../../usage.ts";
 import { accessibility, motionReduced } from "../accessibility.ts";
 import { safeStorage } from "../setup.ts";
@@ -52,6 +53,8 @@ export class MapScene {
   /** Owner of every tile, read in place by the renderer. */
   private owners = new Uint16Array(0);
   private cam: ViewCamera;
+  /** How sharp the map is drawn, lowered when the GPU cannot keep up with the display. */
+  private readonly scale = new RenderScale(window.devicePixelRatio);
   private view: Renderer | undefined;
   /** The overview in a corner, once the code it comes with has arrived. */
   private minimap: Minimap | undefined;
@@ -236,6 +239,7 @@ export class MapScene {
     this.view = view;
     this.dirty = true;
     this.drawnView = undefined;
+    view.setPixelRatio(this.scale.ratio);
     this.resize();
     return view;
   }
@@ -350,15 +354,19 @@ export class MapScene {
     const fading = now < this.fadingUntil;
     const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
     if (frontsOff) this.frontsOffAt = 0;
-    if (
-      this.view &&
-      (moved || this.dirty || moving || fading || frontsOff || this.view.animating?.())
-    ) {
+    const drawn =
+      this.view !== undefined &&
+      (moved || this.dirty || moving || fading || frontsOff || this.view.animating?.() === true);
+    if (this.view && drawn) {
       this.placeShips(now);
       this.view.render(view);
       this.drawnView = view;
       // Ships still glide after their last tick: one more frame to settle them.
       this.dirty = moving;
+    }
+    if (this.scale.frame(now, drawn)) {
+      this.view?.setPixelRatio(this.scale.ratio);
+      this.dirty = true;
     }
   }
 

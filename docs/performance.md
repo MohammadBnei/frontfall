@@ -268,8 +268,14 @@ uploaded.
 - WebGL 2 only guarantees 2048 texels per side. The largest map needs
   `MAX_TEXTURE_SIZE` ≥ 4096, which current phones report; on a device that
   does not, the owner texture has to be split in two halves, not yet done.
-- The device pixel ratio should be capped at 2: a phone at ratio 3 shades
-  2.25 times more pixels for no visible gain on a tile map.
+- The device pixel ratio is capped at 2: a phone at ratio 3 shades 2.25
+  times more pixels for no visible gain on a tile map. Below that,
+  [`RenderScale`](../apps/client/src/render/render-scale.ts) lowers it in
+  steps of 0.8 down to 0.75 while the median of 24 frames drawn back to back
+  is over 22 ms, and raises it again once frames keep the display's pace; a
+  step up that proves too slow is not tried again for 30 s, then twice as
+  long each time. The territory shader runs once per pixel, so on a laptop's
+  high-density screen this is what keeps the map at the display's pace.
 - No float textures, no derivatives, no depth tricks: the shader only uses
   integer fetches and comparisons.
 

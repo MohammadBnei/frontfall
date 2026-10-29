@@ -90,6 +90,8 @@ export interface Renderer {
   /** The baked colours of the ground, with the distance to the coast in alpha, for the minimap to reuse. */
   ground?(): Uint8Array | undefined;
   resize(width: number, height: number): void;
+  /** Device pixels per CSS pixel the map is drawn at (render-scale.ts). */
+  setPixelRatio(ratio: number): void;
   render(view: CameraView): void;
   dispose(): void;
 }

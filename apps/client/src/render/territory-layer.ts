@@ -131,11 +131,15 @@ const fragmentShader = /* glsl */ `
   uniform uint highlight;
   uniform uint hovered;
 
-  ivec2 wrapTile(ivec2 tile) {
-    ivec2 size = ivec2(worldSize);
-    int x = wrapsX ? (tile.x % size.x + size.x) % size.x : clamp(tile.x, 0, size.x - 1);
-    return ivec2(x, clamp(tile.y, 0, size.y - 1));
+  /** The column on the map, across the seam of a map that wraps; a float division, as % is undefined below 0. */
+  int wrapColumn(int x) {
+    int width = int(worldSize.x);
+    return wrapsX ? x - width * int(floor((float(x) + 0.5) / worldSize.x)) : clamp(x, 0, width - 1);
   }
+
+  int clampRow(int y) { return clamp(y, 0, int(worldSize.y) - 1); }
+
+  ivec2 wrapTile(ivec2 tile) { return ivec2(wrapColumn(tile.x), clampRow(tile.y)); }
 
   uint ownerAt(ivec2 tile) { return texelFetch(owners, wrapTile(tile), 0).r; }
 
@@ -158,9 +162,9 @@ const fragmentShader = /* glsl */ `
     return sign(r) * r * r * coastReach;
   }
 
-  /** How bright a tile's front is: 1 when just taken, 0 once it has burnt out. */
+  /** How bright a tile's front is: 1 when just taken, 0 once it has burnt out; the tile is already on the map. */
   float frontOf(ivec2 tile) {
-    float age = now - texelFetch(takenAt, wrapTile(tile), 0).r;
+    float age = now - texelFetch(takenAt, tile, 0).r;
     return 1.0 - smoothstep(fadeSeconds, frontSeconds, age);
   }
 
@@ -235,12 +239,16 @@ const fragmentShader = /* glsl */ `
     } else {
       vec2 p = at - 0.5;
       ivec2 base = ivec2(floor(p)) - 1;
+      // The four columns and rows of the sixteen tiles, wrapped once each
+      // rather than once per tile: this loop is most of the shader's work.
+      ivec4 columns = ivec4(wrapColumn(base.x), wrapColumn(base.x + 1), wrapColumn(base.x + 2), wrapColumn(base.x + 3));
+      ivec4 rows = ivec4(clampRow(base.y), clampRow(base.y + 1), clampRow(base.y + 2), clampRow(base.y + 3));
       // Most of the map lies inside one owner's land, or nobody's: when the
       // sixteen tiles agree, the votes are skipped.
       uint around[16];
       bool same = true;
       for (int k = 0; k < 16; k++) {
-        around[k] = texelFetch(owners, wrapTile(base + ivec2(k % 4, k / 4)), 0).r;
+        around[k] = texelFetch(owners, ivec2(columns[k % 4], rows[k / 4]), 0).r;
         same = same && around[k] == around[0];
       }
       owner = around[0];
@@ -258,7 +266,7 @@ const fragmentShader = /* glsl */ `
           float near = max(0.0, 1.0 - d2 / ${String(CORE * CORE)});
           float w = wide * wide + 0.5 * near * near;
           if (w <= 0.0) continue;
-          ivec2 wrapped = wrapTile(cell);
+          ivec2 wrapped = ivec2(columns[k % 4], rows[k / 4]);
           uint who = around[k];
           // Owned tiles are land; only nobody's needs the ground to tell land from sea.
           if (who == 0u && texelFetch(ground, wrapped, 0).a <= 0.5) continue;
@@ -308,10 +316,11 @@ const fragmentShader = /* glsl */ `
     float landCover = clamp(coastPixels + 0.5, 0.0, 1.0);
     // Close up, a fine mottling, finer than a tile, keeps the ground from
     // looking blurred; it fades out before it could shimmer.
+    // Both are left out at sea, where the land they shade is not drawn.
     float detail = 0.0;
-    if (pixel < 0.5) detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
+    if (pixel < 0.5 && landCover > 0.0) detail = (noise(at * 1.7) * 0.6 + noise(at * 4.1) * 0.4 - 0.5) * (1.0 - smoothstep(0.15, 0.5, pixel));
     // Closer still, a finer grain, so a tile filling the screen is not a smear.
-    if (pixel < 0.12) detail += (noise(at * 11.0) - 0.5) * 0.6 * (1.0 - smoothstep(0.04, 0.12, pixel));
+    if (pixel < 0.12 && landCover > 0.0) detail += (noise(at * 11.0) - 0.5) * 0.6 * (1.0 - smoothstep(0.04, 0.12, pixel));
   #endif
   #ifdef SPHERE
     // Pixels clear of the rim stop here, once every derivative is taken: after
@@ -332,9 +341,9 @@ const fragmentShader = /* glsl */ `
     sea = mix(sea, mix(seaShallow, foamColor, 0.3 * (1.0 - clamp(depth / shelf, 0.0, 1.0))), shallows);
     // Close up, the open water moves: two slow swells drift across each
     // other. They hold still with less motion, and fade out before they
-    // could shimmer.
+    // could shimmer. Left out on land and in the shallows, where they do not show.
     float swellFade = 1.0 - smoothstep(0.2, 0.6, pixel);
-    if (swellFade > 0.0) {
+    if (swellFade > 0.0 && landCover < 1.0 && shallows < 1.0) {
       float t = now * frontMotion;
       float swell = noise(at * 0.45 + t * vec2(0.09, 0.04)) + noise(at * 0.9 - t * vec2(0.05, 0.08)) - 1.0;
       sea *= 1.0 + 0.12 * swell * swellFade * (1.0 - shallows);
@@ -415,8 +424,12 @@ const fragmentShader = /* glsl */ `
         vec2 q = at - 0.5;
         ivec2 c = ivec2(floor(q));
         vec2 u = q - vec2(c);
-        front = mix(mix(frontOf(c), frontOf(c + ivec2(1, 0)), u.x),
-          mix(frontOf(c + ivec2(0, 1)), frontOf(c + ivec2(1, 1)), u.x), u.y);
+        int x0 = wrapColumn(c.x);
+        int x1 = wrapColumn(c.x + 1);
+        int y0 = clampRow(c.y);
+        int y1 = clampRow(c.y + 1);
+        front = mix(mix(frontOf(ivec2(x0, y0)), frontOf(ivec2(x1, y0)), u.x),
+          mix(frontOf(ivec2(x0, y1)), frontOf(ivec2(x1, y1)), u.x), u.y);
       }
     #endif
       if (front > 0.0) {
