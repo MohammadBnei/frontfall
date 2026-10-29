@@ -16,6 +16,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Changed
 
 - **Softer changes of screen.** The menu, the lobby and the game fade in instead of cutting; with reduced motion, they simply appear.
+- **The two sliders say what they do.** In the bar, the attack slider has a sword and the workers slider a wrench, and each shows its value as it will play: the troops an attack sends (30% · 954) and the gold a second the workers add (40% · +25/s), live as you move it. Short tooltips explain each, screen readers hear the same, and on a phone the workers slider in the buildings tray carries its name.
+
 - **A right click leaves a build mode.** With a building picked (a city, say), a right click on the map goes back to attacking, like Esc, without opening the player menu. Without a build mode, it still opens that menu.
 
 - **The bar at the foot of the screen no longer moves.** Your troops, gold and land keep a fixed room, and figures show at most three digits (124K, 1.24M), so the bar and the sliders beside it stay still as the numbers climb, on computers and phones.

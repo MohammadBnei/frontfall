@@ -88,7 +88,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 2px 10px;
   align-items: center;
-  width: min(260px, calc(100vw - 24px));
+  width: min(310px, calc(100vw - 24px));
   box-sizing: border-box;
 }
 
@@ -97,7 +97,16 @@
 }
 
 .ratio label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   white-space: nowrap;
+}
+
+.ratio label .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 
 .ratio input {
@@ -106,7 +115,10 @@
 }
 
 .ratio .range-value {
+  min-width: 10ch;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .work-row label,
@@ -342,7 +354,7 @@
     right: 174px;
     width: auto;
     transform: none;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
   /* One more button in the toolbar: the pace of a solo game. */
   .speedable .ratio {
@@ -358,12 +370,18 @@
     gap: 6px;
   }
 
-  .ratio label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+  .ratio .ratio-name {
+    display: none;
+  }
+
+  .ratio .range-value {
+    min-width: 0;
+    font-size: 12px;
+  }
+
+  /* In the tray there is room for the name. */
+  .build > .work-row .ratio-name {
+    display: inline;
   }
 }
 
@@ -1497,7 +1515,18 @@ button.feed-entry:focus-visible {
 }
 
 .game[data-wide] .bar .ratio {
-  width: 204px;
+  width: 290px;
+}
+
+/* The bar has no room for the names yet: the icons say which slider is which, the values what they mean. */
+@media (width < 1360px) {
+  .game[data-wide] .bar .ratio {
+    width: 210px;
+  }
+
+  .game[data-wide] .bar .ratio .ratio-name {
+    display: none;
+  }
 }
 
 .game[data-wide] .bar .stats {

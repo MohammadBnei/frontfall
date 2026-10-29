@@ -9,8 +9,11 @@ import { getLanguage, type Language } from "../i18n/index.ts";
 const TEXTS: Record<Language, Record<string, string>> = {
   en: {
     work: "Workers",
+    attackHint: "Share of your soldiers sent by each attack. Workers stay home.",
+    attackValue: "{share} of your soldiers, {troops} troops sent",
+    workValue: "{share} of your troops work, {rate} gold a second more",
     workHint:
-      "Share of your troops at home who work. A worker earns {factor} times the gold of a soldier, but workers neither attack nor defend: your land is cheaper to take.",
+      "Share of your troops at home who work: {factor} times the gold of a soldier, but they neither attack nor defend.",
     goldRate: "+{rate}/s",
     goldRateHint: "Gold your troops earn each second; trade comes on top.",
     previewTiles: "≈ {count} tiles",
@@ -22,8 +25,11 @@ const TEXTS: Record<Language, Record<string, string>> = {
   },
   fr: {
     work: "Ouvriers",
+    attackHint: "Part de vos soldats envoyée à chaque attaque. Les ouvriers restent chez vous.",
+    attackValue: "{share} de vos soldats, {troops} troupes envoyées",
+    workValue: "{share} de vos troupes travaillent, {rate} d'or par seconde en plus",
     workHint:
-      "Part de vos troupes à la maison qui travaillent. Un ouvrier rapporte {factor} fois l'or d'un soldat, mais les ouvriers n'attaquent ni ne défendent : vos terres coûtent moins cher à prendre.",
+      "Part de vos troupes à la maison qui travaillent : {factor} fois l'or d'un soldat, mais elles n'attaquent ni ne défendent.",
     goldRate: "+{rate}/s",
     goldRateHint: "L'or que vos troupes rapportent chaque seconde, commerce en plus.",
     previewTiles: "≈ {count} cases",
