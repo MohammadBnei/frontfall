@@ -12,6 +12,8 @@ export interface HelpOptions {
   build?: BuildView | undefined;
   /** What the game leaves out (R-MODE-03): those rows are not listed. */
   disabled: number;
+  /** The map's landmarks (R-LAND-02), as the help lists them: name, what it gives, who holds it. */
+  landmarks?: readonly { name: string; effect: string; holder: string }[];
   /** A finger rather than a mouse: gestures replace the keys. */
   touch: boolean;
   /** Capital mode (R-CAP): one more line on defence. */
@@ -118,6 +120,26 @@ export function helpPanel(options: HelpOptions): HTMLElement {
     section("help.defendTitle", list(lines.defend)),
     section("help.diplomacyTitle", list(lines.diplomacy)),
     section("help.mapTitle", list(lines.map)),
+    ...(options.landmarks && options.landmarks.length > 0
+      ? [
+          section(
+            "help.landmarksTitle",
+            h(
+              "ul",
+              { class: "help-landmarks" },
+              ...options.landmarks.map((landmark) =>
+                h(
+                  "li",
+                  {},
+                  h("strong", {}, landmark.name),
+                  h("span", {}, landmark.effect),
+                  h("span", { class: "help-landmark-holder" }, landmark.holder),
+                ),
+              ),
+            ),
+          ),
+        ]
+      : []),
     h(
       "p",
       { class: "help-about" },

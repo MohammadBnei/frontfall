@@ -97,3 +97,22 @@
 .help-about a:focus-visible {
   color: var(--ff-text);
 }
+
+/* The landmarks of the map (R-LAND-02): one per row, name, effect and holder. */
+.help-landmarks {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.help-landmarks li {
+  display: grid;
+  gap: 2px;
+}
+
+.help-landmark-holder {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+}

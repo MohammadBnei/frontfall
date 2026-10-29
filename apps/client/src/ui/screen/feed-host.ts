@@ -34,7 +34,7 @@ export class FeedHost {
       window.matchMedia("(width < 720px)"),
       window.matchMedia("(height < 560px)"),
     );
-    this.tip = new PlayerTip((id) => this.watcher.alliesOf(id));
+    this.tip = new PlayerTip((id) => this.watcher.alliesOf(id), ownerAt);
     hud.append(this.feed.element);
     game.append(this.tip.element);
     this.untrack = this.tip.track(surface);
@@ -68,6 +68,16 @@ export class FeedHost {
   /** The pointer is over the land of `owner`, 0 for none. */
   over(owner: number): void {
     this.tip.over(owner);
+  }
+
+  /** The pointer is over `landmark`, undefined for none (R-LAND-02). */
+  overLandmark(landmark: MapLandmarkData | undefined): void {
+    this.tip.overLandmark(landmark);
+  }
+
+  /** A long press on `landmark`, at (x, y) on screen. */
+  pinLandmark(landmark: MapLandmarkData, x: number, y: number): void {
+    this.tip.pin(landmark, x, y);
   }
 
   expire(now: number): void {
