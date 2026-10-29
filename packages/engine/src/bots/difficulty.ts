@@ -73,7 +73,7 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     graceSeconds: 90,
     oddsPercent: 100,
     holdPercent: 30,
-    reservePercent: 10,
+    reservePercent: 40,
     huntPercent: 20,
     missilePauseSeconds: 30,
   },

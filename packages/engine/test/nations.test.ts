@@ -299,11 +299,12 @@ describe("nations", () => {
       for (let tile = 0; tile < grid.size; tile++) {
         if (grid.x(tile) >= 22 && grid.x(tile) < 40) game.territory.setOwner(tile, 3);
       }
-      // Ada is too dense for the nation's odds, yet the attack overwhelms her 3-tile front.
-      nation.troops = 3000;
-      ada.troops = 4000;
-      bea.troops = 4000;
-      run(1, [{ player: 1, order: { type: "attack", target: grid.index(15, 1), troops: 2000 } }]);
+      // Ada is too dense for the nation's odds, yet the attack overwhelms her 3-tile front;
+      // what stays home is above the hard reserve (B-NATION-RESERVE).
+      nation.troops = 5700;
+      ada.troops = 7000;
+      bea.troops = 7000;
+      run(1, [{ player: 1, order: { type: "attack", target: grid.index(15, 1), troops: 4000 } }]);
       run(2 * interval);
       return ordersOf(1).filter((order) => order.type === "attack" && grid.x(order.target) < 20)
         .length;
