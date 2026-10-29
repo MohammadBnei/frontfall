@@ -34,6 +34,7 @@ export const REFUSALS: Partial<Record<ClickOutcome, MessageKey>> = {
   port: "click.port",
   warships: "click.warships",
   noWarship: "click.noWarship",
+  noShip: "click.noShip",
   silo: "click.silo",
   shore: "click.shore",
   allyNear: "click.allyNear",

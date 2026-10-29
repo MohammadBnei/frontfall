@@ -22,6 +22,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **Warship mode says what to do.** Clicking water with no warship yet now says to buy one at a port first, and when you have ships but none can reach that water, it says to pick water linked by sea to one of them. The mode's help line explains both steps.
+
 - **Sound effects, redone.** Every effect is now a small instrument played in a warm room instead of a bare beep: wooden bars, thumb piano, soft strings and drums. Each one has several variants, so a long game no longer repeats the same few clips. Sounds are placed by where they happen: a conquest on the left of the screen sounds on the left, one far beyond the edge is quieter, duller and echoes more, and looking at the whole map from high up softens everything a little. Your own actions stay clear wherever the view is.
 - **Back in the game sooner after a network hiccup.** An online game notices within a few seconds when its connection has died without a word, as when a phone switches from Wi-Fi to mobile data or wakes up, and reconnects on its own; when the network comes back or you return to the tab, it tries at once instead of waiting for its next attempt.
 - **Softer changes of screen.** The menu, the lobby and the game fade in instead of cutting; with reduced motion, they simply appear.
@@ -58,6 +60,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### For self-hosters and contributors
 
 - **Everything is still synthesised in the browser**, so there are no sound files and nothing to credit in `CREDITS.md`. The audio lives in `apps/client/src/audio/` and loads as its own chunk after the first click: `voices.ts` holds the instruments, `palettes.ts` the scale, instruments and room, `synth.ts` the effects and their variants, `music.ts` the generative score, `mix.ts` the buses, room and limiter, and `place.ts` the placement by view. The first-visit budget is unchanged (118.3 kB); the whole build grows by about 5 kB. The sound settings now store a `music` level beside `volume` and `muted`. No game rule, replay or message depends on sound.
+
+### Removed
+
+- **The "Win in about…" line is gone.** Under the clock in the leaderboard, the estimate of when the leader would win jumped around and told you little, so it no longer shows.
 
 ## [0.8.0] - 2026-10-29
 

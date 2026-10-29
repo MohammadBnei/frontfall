@@ -496,8 +496,7 @@
 }
 
 .goal-text,
-.goal-clock,
-.goal-eta {
+.goal-clock {
   margin: 0;
   color: var(--ff-slate-300);
   font-size: 12px;
@@ -1977,11 +1976,6 @@ button.feed-entry:focus-visible {
   .stats-line {
     transition: opacity 0.15s;
   }
-}
-
-.goal-eta {
-  color: var(--ff-text);
-  font-variant-numeric: tabular-nums;
 }
 
 /* A laptop screen: the four buttons on two rows leave the chart more of the panel. */

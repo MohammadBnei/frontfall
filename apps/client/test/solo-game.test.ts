@@ -238,7 +238,7 @@ describe("SoloGame clicks", () => {
       if (terrain.isOwnable(tile)) territory.setOwner(tile, HUMAN_ID);
     }
     expect(solo.orderForClick(water, 30, "missile")).toEqual({ refused: "terrain" });
-    expect(solo.orderForClick(water, 30, "warship")).toEqual({ refused: "noWarship" });
+    expect(solo.orderForClick(water, 30, "warship")).toEqual({ refused: "noShip" });
     // A silo on a patch of land of the player's own, away from the port.
     const home = [...terrain.kinds.keys()].find(
       (tile) => terrain.isOwnable(tile) && terrain.topology.distance(tile, coast) > 30,
