@@ -26,6 +26,7 @@ const flatCases = [
   // A phone in portrait at a device pixel ratio capped to 2.
   { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [780, 1688] },
   // Close up, where borders curve, the ground gets its grain and the sea its swell.
+  { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [1280, 720], tilePixels: 1.5 },
   { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [1280, 720], tilePixels: 4 },
   { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [1280, 720], tilePixels: 16 },
 ] as const;
