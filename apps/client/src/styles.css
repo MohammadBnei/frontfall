@@ -729,7 +729,7 @@ kbd {
   /* Over the base rule, which comes later in this file. */
   .game .click-note {
     bottom: auto;
-    top: 140px;
+    top: 170px;
   }
 
   /* Over the banner, under the build row it explains. */
@@ -741,7 +741,7 @@ kbd {
   }
 
   .banner {
-    top: 78px;
+    top: 90px;
   }
 
   /* Play stays in reach without scrolling past the maps. */
@@ -1483,6 +1483,8 @@ input::placeholder {
 
 .rules-set .toggle {
   min-height: 44px;
+  color: var(--ff-text);
+  font-weight: 600;
 }
 
 .rules-set .hint {

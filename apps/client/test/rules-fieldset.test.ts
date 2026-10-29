@@ -16,7 +16,7 @@ describe("special rules (R-MODE-08)", () => {
     expect(activeRuleNames({ collapsingFronts: false })).toEqual([]);
     expect(activeRuleNames(undefined)).toEqual([]);
     setLanguage("fr");
-    expect(activeRuleNames({ collapsingFronts: true })).toEqual(["Fronts qui s'effondrent"]);
+    expect(activeRuleNames({ collapsingFronts: true })).toEqual(["Fronts qui s’effondrent"]);
     setLanguage("en");
   });
 
