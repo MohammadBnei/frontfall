@@ -55,6 +55,8 @@ export class MapScene {
   private cam: ViewCamera;
   /** How sharp the map is drawn, lowered when the GPU cannot keep up with the display. */
   private readonly scale = new RenderScale(window.devicePixelRatio);
+  /** The scale changed since the last frame, and the renderer has yet to follow. */
+  private rescaled = false;
   private view: Renderer | undefined;
   /** The overview in a corner, once the code it comes with has arrived. */
   private minimap: Minimap | undefined;
@@ -354,6 +356,12 @@ export class MapScene {
     const fading = now < this.fadingUntil;
     const frontsOff = this.frontsOffAt > 0 && now >= this.frontsOffAt;
     if (frontsOff) this.frontsOffAt = 0;
+    // A new size clears the canvas: it is set just ahead of a frame, never between two.
+    if (this.rescaled) {
+      this.rescaled = false;
+      this.view?.setPixelRatio(this.scale.ratio);
+      this.dirty = true;
+    }
     const drawn =
       this.view !== undefined &&
       (moved || this.dirty || moving || fading || frontsOff || this.view.animating?.() === true);
@@ -364,10 +372,7 @@ export class MapScene {
       // Ships still glide after their last tick: one more frame to settle them.
       this.dirty = moving;
     }
-    if (this.scale.frame(now, drawn)) {
-      this.view?.setPixelRatio(this.scale.ratio);
-      this.dirty = true;
-    }
+    if (this.scale.frame(now, drawn)) this.rescaled = true;
   }
 
   private placeShips(now: number): void {
