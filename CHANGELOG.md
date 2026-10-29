@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-29
+
+Own rules: fronts that collapse and a capital mode, a harder game, a lighter first visit, workers, an attack preview and build previews, and game speed.
+
 ### Added
 
 - **Capitals show it when they fall, and when they are in danger.** In capital mode, a gold ring spreads from a capital that is taken or razed, with a short flash over it. While an enemy front threatens your own capital, a slow ring pulses around it until the danger passes. With reduced motion, the fall is a single disc that fades and the pulse is off. Not on the globe yet.
@@ -17,6 +21,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **A lighter first visit.** The menu no longer waits for the game screen or the 3D renderer: they load once the page is idle, or when you press Play, and an online lobby fetches them as it opens. The first visit sends about 117 kB instead of 274 kB; the whole game is the same size. The browser console no longer reports a blocked script on every visit.
 - **Small tidy-ups for the new rules.** On a phone the banner, which also carries the capital alarm, and the refused-click notes sit clear of the figures panel. The two special rules in the menu and the lobby read as the main line of each switch, with their hint under them. On a landscape phone the end screen keeps Play again, Keep watching and Main menu in sight while the rest scrolls.
 - **Harder to run away with the map.** Past a fifth of the map, each tile you add holds 70 % of the troops it used to, so a large empire grows thinner and its neighbours can bite back. Troops above your cap, back from an attack or left after you lose land, now drift away (half of the excess in about 14 seconds) instead of piling up for ever. Nations cross the sea when their neighbours are down to scraps, so a game no longer stalls with one empire holding a continent. Easy nations keep fewer troops at home, so they can be beaten, and fire missiles at most every 2 minutes each (every minute at normal); a light missile costs 600,000 gold instead of 300,000. On World, the scripted stand-in for an average player now wins about a third of its games against normal nations and a quarter against hard ones.
 - **Cleaner edges up close.** Zoomed right in, country edges stay a few pixels wide instead of growing into thick bands, pale countries get a darker outline so they stand out on sand and snow, and the ground keeps a fine grain.
@@ -373,7 +378,8 @@ The first playable beta: a solo game in the browser against bots on a map of the
 - The server trusts the `X-Client-IP` header only from a proxy on a private address, and accepts WebSocket connections without an `Origin` header, as sent by bots and tools.
 - A client that cannot read a turn asks for a reload instead of playing on out of step, and one that notices a gap in its turns rejoins to fetch the missing ones.
 
-[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/nic0lasm/frontfall/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/nic0lasm/frontfall/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/nic0lasm/frontfall/compare/v0.6.4...v0.7.0
 [0.6.4]: https://github.com/nic0lasm/frontfall/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/nic0lasm/frontfall/compare/v0.6.2...v0.6.3
