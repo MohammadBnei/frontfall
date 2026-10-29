@@ -9,7 +9,10 @@ export interface HudBox {
  * changes size, and when the window does. A resize observer reports once the
  * browser has laid the page out for its frame, so reading the boxes then
  * costs nothing; read after each update instead, they forced a layout of
- * their own, a millisecond or more ten times a second. Returns the cleanup.
+ * their own, a millisecond or more ten times a second. What they say is
+ * handed over on the next frame: moving a panel from inside the observer
+ * would resize what it watches, a loop browsers report as an error.
+ * Returns the cleanup.
  */
 export function watchHudBoxes(
   hud: HTMLElement,
@@ -17,18 +20,23 @@ export function watchHudBoxes(
   /** The screen, whose wide layout (`data-wide`) moves panels without resizing them. */
   screen?: HTMLElement,
 ): () => void {
-  const measure = (): void => {
-    moved(
-      Array.from(hud.children, (element) => ({ element, rect: element.getBoundingClientRect() })),
-    );
-  };
+  const read = (): HudBox[] =>
+    Array.from(hud.children, (element) => ({ element, rect: element.getBoundingClientRect() }));
   let pending = 0;
   // Read on the next frame: what moved is laid out by then.
   const later = (): void => {
     cancelAnimationFrame(pending);
-    pending = requestAnimationFrame(measure);
+    pending = requestAnimationFrame(() => {
+      moved(read());
+    });
   };
-  const sizes = new ResizeObserver(measure);
+  const sizes = new ResizeObserver(() => {
+    const boxes = read();
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(() => {
+      moved(boxes);
+    });
+  });
   for (const child of hud.children) sizes.observe(child);
   // A panel just added is reported once it has a size: when it is first laid out.
   const panels = new MutationObserver((changes) => {
