@@ -12,9 +12,11 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **A tutorial, whenever you want it.** A Tutorial button under Play solo starts a short guided game on a small map with two nations at normal strength, and shows the first steps whether or not you put them away before. It leaves your solo setup as it was, and Play again replays the tutorial. The guide is a card you can read with the keyboard or a screen reader, and on a phone it speaks of taps. It loads only when you start it: the first visit is no heavier.
 - **A map ready when the game starts.** In an online lobby the map downloads while the players gather, so the start no longer waits for it.
 - **Light vibrations on a phone.** An attack against you, a land taken, a victory and a defeat each give a short buzz. A switch in the Accessibility panel turns it off; it is also off when reduced motion is on. Only on devices that can vibrate.
+- **Pick up a game where you left it.** A solo game is now kept as you play: reload the page and you are back in it, paused, where you were; close the tab or let your phone drop it, and the menu offers it back next time, with "Resume" or "Drop it". An online game you closed by mistake is offered back the same way, as long as the server keeps your seat (5 minutes). A game is forgotten once it ends or you leave it from the menu.
 
 ### Changed
 
+- **Back in the game sooner after a network hiccup.** An online game notices within a few seconds when its connection has died without a word, as when a phone switches from Wi-Fi to mobile data or wakes up, and reconnects on its own; when the network comes back or you return to the tab, it tries at once instead of waiting for its next attempt.
 - **Softer changes of screen.** The menu, the lobby and the game fade in instead of cutting; with reduced motion, they simply appear.
 - **The two sliders say what they do.** In the bar, the attack slider has a sword and the workers slider a wrench, and each shows its value as it will play: the troops an attack sends (30% · 954) and the gold a second the workers add (40% · +25/s), live as you move it. Short tooltips explain each, screen readers hear the same, and on a phone the workers slider in the buildings tray carries its name.
 
@@ -41,6 +43,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **"Play now" only sends you into a standard game.** A quick game whose host changed its map, teams, bots, nations or other options no longer takes players who pressed Play now. One network may have ten games open or running at once, so a handful of players can no longer fill the server with empty games; the message says to start, finish or leave one first.
 - **No false desync warning.** In a game where the players' checks disagree with no clear majority, nobody is told their game went out of step any more: one player could make an honest opponent look out of sync.
 - **Account changes only from the game's own page,** even on a server that leaves the origin of its game socket open. The operator's routes answer only commands typed on the server itself, never a web page open there.
+
+### For self-hosters and contributors
+
+- **Errors of players, grouped.** The errors players' pages report are grouped on the server by kind, message and place in the code, and counted by day, release, browser family, device and screen, for 30 days. `/admin/errors?days=N`, from inside the container, lists them, the most reported first ([server.md](docs/server.md#errors-of-players)); `client_error` log lines name their group. Error reports carry, optionally, the file, line and column of the game's own code they came from, the browser family, the device and the screen; a game a page could not take back from its snapshot is reported as the new kind `snapshot` ([privacy.md](docs/privacy.md#reports)). The game protocol does not change.
 
 ## [0.8.0] - 2026-10-29
 

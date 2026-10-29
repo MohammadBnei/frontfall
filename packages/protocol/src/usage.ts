@@ -82,8 +82,17 @@ export const ClientErrorType = z.enum([
   "webgl",
   "context_lost",
   "desync",
+  "snapshot",
 ]);
 export type ClientErrorType = z.infer<typeof ClientErrorType>;
+
+/** Family of the browser's engine, to tell an error of one browser from one of all. */
+export const BrowserFamily = z.enum(["chromium", "firefox", "safari", "other"]);
+export type BrowserFamily = z.infer<typeof BrowserFamily>;
+
+/** Where the page was when the error came: the menu, a lobby, a game or a replay. */
+export const ErrorScreen = z.enum(["menu", "lobby", "solo", "online", "replay"]);
+export type ErrorScreen = z.infer<typeof ErrorScreen>;
 
 export const ErrorReport = z
   .object({
@@ -92,6 +101,17 @@ export const ErrorReport = z
     type: ClientErrorType,
     /** Only for an error in the game's own code, already shortened by the page. */
     message: z.string().max(120).optional(),
+    /**
+     * Only for an error in the game's own code: the file of the game it came
+     * from, without its address, then line and column, as `main-Ab12.js:1:2045`.
+     */
+    where: z
+      .string()
+      .regex(/^[\w.-]{1,80}:\d{1,7}:\d{1,7}$/)
+      .optional(),
+    browser: BrowserFamily.optional(),
+    device: Device.optional(),
+    screen: ErrorScreen.optional(),
   })
   .strict();
 export type ErrorReport = z.infer<typeof ErrorReport>;

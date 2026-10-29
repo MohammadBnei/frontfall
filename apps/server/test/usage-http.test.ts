@@ -190,7 +190,54 @@ describe("/api/usage", () => {
       type: "exception",
       release: "0.5.0",
       message: "No player <text> at <url>",
+      group: expect.stringMatching(/^[0-9a-f]{12}$/) as unknown,
     });
+  });
+
+  it("groups the errors for the operator, from inside the container only", async () => {
+    const base = await start({ dataDir });
+    const error = {
+      kind: "error",
+      release: "0.5.0",
+      type: "exception",
+      message: "Cannot read properties of undefined (reading 'tiles')",
+      where: "game-screen-Ab12.js:1:2045",
+      browser: "safari",
+      device: "phone",
+      screen: "solo",
+    };
+    expect((await post(base, error)).status).toBe(204);
+    expect((await post(base, { ...error, browser: "firefox", device: "desktop" })).status).toBe(
+      204,
+    );
+    expect((await post(base, { ...error, where: "elsewhere.js:1:1" })).status).toBe(204);
+    expect((await post(base, { ...error, where: "https://x.example/a.js:1:1" })).status).toBe(400);
+    const url = `${base}/admin/errors?days=7`;
+    expect((await fetch(url, { headers: { "x-client-ip": "1.2.3.4" } })).status).toBe(404);
+    expect((await fetch(`${base}/admin/errors?days=x`)).status).toBe(400);
+    const answer = (await (await fetch(url)).json()) as {
+      groups: {
+        message: string;
+        where: string;
+        recent: number;
+        browsers: object;
+        devices: object;
+      }[];
+    };
+    expect(answer.groups.map((group) => [group.where, group.recent])).toEqual([
+      ["game-screen-Ab12.js:1:2045", 2],
+      ["elsewhere.js:1:1", 1],
+    ]);
+    expect(answer.groups[0]?.message).toBe("Cannot read properties of undefined (reading <text>)");
+    expect(answer.groups[0]?.browsers).toEqual({ safari: 1, firefox: 1 });
+    expect(answer.groups[0]?.devices).toEqual({ phone: 1, desktop: 1 });
+    // Kept across a restart, readable by the server's user only.
+    await server?.close();
+    server = undefined;
+    expect(readFileSync(join(dataDir, "usage", "errors.json"), "utf8")).toContain("Ab12");
+    const again = await start({ dataDir });
+    const kept = (await (await fetch(`${again}/admin/errors`)).json()) as { groups: unknown[] };
+    expect(kept.groups).toHaveLength(2);
   });
 
   it("keeps the counts across a restart when it has a data directory", async () => {

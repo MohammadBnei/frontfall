@@ -137,7 +137,7 @@ The server writes one JSON object per line on standard output, read with `docker
 | `player_rejoined`     | info  | `game`, `player`, `from`                                                                  |
 | `desync`              | warn  | `game`, `tick`, `hash` (the player out of step), `expected` (the majority's, or `null`)   |
 | `connection_rejected` | warn  | `client`, `reason`                                                                        |
-| `client_error`        | warn  | `type`, `release`, `message` (scrubbed, see [privacy.md](privacy.md)); 60 an hour at most |
+| `client_error`        | warn  | `type`, `release`, scrubbed `message`, [`group`](#errors-of-players); 60 an hour, at most |
 | `game_saved`          | info  | `game`, `ticks`: kept for the next run, at a restart                                      |
 | `game_not_saved`      | warn  | `game`, `error`: the game ends with reason `restart` instead                              |
 | `game_restored`       | info  | `game`, `ticks`: taken back from the last run                                             |
@@ -193,6 +193,7 @@ curl -s localhost:8080/metrics
 | `/admin/maintenance`   | `POST ?minutes=N` announces a restart in N minutes to every player, `0` calls it off; from inside the container only              |
 | `/admin/reports`       | `GET ?days=N`: the reports of the last N days, 30 at most; from inside the container only ([Reports and bans](#reports-and-bans)) |
 | `/admin/bans`          | `GET` lists the bans, `POST` adds one or reads the file again, `DELETE` lifts one; from inside the container only                 |
+| `/admin/errors`        | `GET ?days=N`: players' errors of the last N days, grouped; from inside the container only ([errors](#errors-of-players))         |
 | `/api/stats`           | Usage counts per day and in total, as JSON ([privacy.md](privacy.md)); the last 7 days are also on `/status`                      |
 | `/api/usage`           | `POST` only: a report of a player's page ([privacy.md](privacy.md)); `204`, or `400`, `403`, `413`, `415`, `429`                  |
 | `/api/me`              | The services offered and the account signed in, as JSON; `POST {"name"}` renames it, `DELETE` deletes it ([Accounts](#accounts))  |
@@ -259,6 +260,41 @@ Games live in memory, so a restart would cut them short. Four things keep that f
 4. **The next run takes them back.** On start, the server reads every file in `games/` and deletes it, whether it loads or not. A game of the same simulation build runs again from its last turn, every seat waiting for its player as after a dropped connection: the pages reconnect, rejoin with their token and receive the turns they missed. The time limit goes on where it was, and the minutes the server was down count for nothing. A game of another simulation build would desynchronise and is dropped (`game_not_restored`), like a file that does not read; its players reconnect, are sent away to reload, and find the game over. Without a data directory, or when a file cannot be written, the game ends with reason `restart` and the page says it was stopped for an update.
 
 The process exits 5 seconds after the drain at the latest. A second `SIGTERM` or `SIGINT` exits at once. With the default 20 seconds, a drain fits within the 30-second stop grace period of the production host; a longer drain needs a longer grace period, or Docker kills the process before players are told.
+
+## Errors of players
+
+Each error a page reports ([privacy.md](privacy.md#reports)) goes into a group: the same kind of error, with the same scrubbed message, from the same place in the game's code (file, line and column of the built script). A group counts its reports per day, and how many came from each release, browser family, kind of device and screen (menu, lobby, solo, online, replay); nothing in it tells pages apart. The server keeps 300 groups for 30 days, dropping the one reported longest ago first, in `usage/errors.json` beside the usage counts, saved with them; a file that does not read is set aside as `errors.json.broken`.
+
+`/admin/errors` lists the groups of the last 7 days, the most reported first, with the same `admin` function as for [reports](#reports-and-bans):
+
+```sh
+admin GET errors                # the last 7 days
+admin GET 'errors?days=30'      # everything kept
+```
+
+```json
+{
+  "days": 7,
+  "groups": [
+    {
+      "id": "3f9c0a1b2c4d",
+      "type": "exception",
+      "message": "Cannot read properties of undefined (reading <text>)",
+      "where": "game-screen-DUPHboWD.js:1:20345",
+      "recent": 12,
+      "total": 15,
+      "first": "2026-10-27",
+      "last": "2026-10-29",
+      "releases": { "0.8.0": 15 },
+      "browsers": { "safari": 11, "chromium": 4 },
+      "devices": { "phone": 12, "desktop": 3 },
+      "screens": { "online": 15 }
+    }
+  ]
+}
+```
+
+`where` names a file of the release's build: `pnpm build` at that release's tag gives the same file, and the line and column point into it. The `client_error` lines of the log carry the same `group`. `errors` on `/status` and in `/api/stats` count the reports by kind only.
 
 ## Usage counts
 

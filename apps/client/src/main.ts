@@ -13,11 +13,15 @@ import {
 import { fetchMaps, warmMap, type MapInfo } from "./game/maps.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
 import { BUILD } from "./net/build.ts";
-import { forgetSeat, saveSeat, seatIn } from "./net/seat.ts";
+import { awaySeat, forgetSeat, saveSeat, seatIn, touchSeat } from "./net/seat.ts";
 import {
   forgetSnapshot,
+  forgetSoloGame,
   storeSnapshot,
+  storeSoloGame,
   storedSnapshot,
+  storedSoloGame,
+  type SoloSave,
   type StoredSnapshot,
 } from "./net/snapshot-store.ts";
 import {
@@ -121,11 +125,16 @@ usage().onGameEnd((ended) => {
 
 // Errors the game did not catch, counted to find the ones players run into (docs/privacy.md).
 window.addEventListener("error", (event) => {
-  usage().error("exception", event.message, event.filename);
+  // A script of another site says neither its file nor its message.
+  const source = event.filename
+    ? `${event.filename}:${String(event.lineno)}:${String(event.colno)}`
+    : "";
+  usage().error("exception", event.message, source);
 });
 window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
   const reason: unknown = event.reason;
-  usage().error("rejection", reason instanceof Error ? reason.message : undefined);
+  if (reason instanceof Error) usage().error("rejection", reason.message, reason.stack ?? "");
+  else usage().error("rejection");
 });
 
 function showMenu(): void {
@@ -134,6 +143,7 @@ function showMenu(): void {
   goOffline();
   game?.dispose();
   game = undefined;
+  usage().screen = "menu";
   menu?.dispose();
   document.body.classList.remove("playing");
   menu = new Menu(
@@ -163,6 +173,7 @@ function showMenu(): void {
           // A game in progress cannot be resumed either.
           forgetSeat();
           void forgetSnapshot();
+          keepSolo(undefined);
         },
       })),
   );
@@ -250,45 +261,172 @@ function failedToLoad(error: unknown): void {
   showNotice("game.failed");
 }
 
-function begin(map: MapInfo, code: GameModule, chosen: GameSetup = setup): void {
+function begin(map: MapInfo, code: GameModule, chosen: GameSetup = setup, saved?: SoloSave): void {
   game?.dispose();
+  // A game taken back stays kept until its next snapshot replaces it.
+  if (!saved) keepSolo(undefined);
   const seed = Math.floor(Math.random() * 0x7fffffff);
+  const options = saved?.options ?? {
+    ...chosen,
+    playerName: chosen.playerName || t("menu.namePlaceholder"),
+    seed,
+    ...testing,
+  };
+  const facts = saved?.facts ?? {
+    mode: "solo" as const,
+    // A generated map has no published id to count it by.
+    map: map.manifest ? map.id : "generated",
+    teams: (setup.teams ?? 0) as Teams,
+    nations: setup.nations ?? true,
+    bots: setup.bots,
+    humans: 1,
+    difficulty: setup.difficulty,
+    disabled: setup.disabled ?? 0,
+    rules: { ...DEFAULT_RULES, ...setup.rules },
+  };
+  /** Back to the menu or to another game: the game is not kept any more. */
+  const done = (then: () => void) => (): void => {
+    keepSolo(undefined);
+    then();
+  };
   game = new code.GameScreen(
-    { ...chosen, playerName: chosen.playerName || t("menu.namePlaceholder"), seed, ...testing },
+    saved
+      ? { ...options, snapshot: { tick: saved.tick, bytes: saved.bytes, history: saved.history } }
+      : options,
     map,
     {
-      onNewGame: () => {
-        if (chosen.tutorial) tutorial();
+      onNewGame: done(() => {
+        if (options.tutorial) tutorial();
         else play(setup);
-      },
-      onMenu: showMenu,
+      }),
+      onMenu: done(showMenu),
       onFailure: (key) => {
+        keepSolo(undefined);
         showMenu();
         showNotice(key);
       },
       onRecord: saveReplay,
+      onSnapshot: (snapshot) => {
+        keepSolo({ ...snapshot, options, facts, savedAt: Date.now() });
+      },
+      onDecided: () => {
+        keepSolo(undefined);
+      },
     },
     undefined,
     startView,
-    {
-      mode: "solo",
-      // A generated map has no published id to count it by.
-      map: map.manifest ? map.id : "generated",
-      teams: (setup.teams ?? 0) as Teams,
-      nations: setup.nations ?? true,
-      bots: setup.bots,
-      humans: 1,
-      difficulty: setup.difficulty,
-      disabled: setup.disabled ?? 0,
-      rules: { ...DEFAULT_RULES, ...setup.rules },
-    },
+    facts,
   );
   menu?.dispose();
   menu = undefined;
+  usage().screen = "solo";
   document.querySelector(".notice")?.remove();
   document.body.classList.add("playing");
   document.body.prepend(game.element);
   game.start();
+}
+
+/** Writes to the solo game kept, one after the other so that a forget is never overtaken. */
+let soloWrites: Promise<void> = Promise.resolve();
+
+/** Keeps the solo game in progress for a reload, or forgets it. */
+function keepSolo(save: SoloSave | undefined): void {
+  soloWrites = soloWrites
+    .then(() => (save ? storeSoloGame(save) : forgetSoloGame()))
+    .catch(() => undefined);
+}
+
+/** Takes back the solo game this browser kept, where it was left. */
+function resumeSolo(saved: SoloSave): void {
+  const map = maps.find((candidate) => candidate.id === saved.options.map);
+  if (!map) {
+    keepSolo(undefined);
+    showMenu();
+    return;
+  }
+  if (!hasWebGL2()) {
+    usage().error("webgl");
+    showMenu();
+    showNotice("webgl.missing");
+    return;
+  }
+  void Promise.all([localProfile(), loadGameWithStyles()]).then(([profile, code]) => {
+    preferColor(HUMAN_ID, profile.read().color);
+    begin(map, code, setup, saved);
+  }, failedToLoad);
+}
+
+/**
+ * Over the menu: a game this browser left behind, online while the server
+ * keeps the seat, or solo, to take back or to drop.
+ */
+function offerResume(kind: "online" | "solo", onResume: () => void, onDrop: () => void): void {
+  document.querySelector(".notice")?.remove();
+  const notice = h("div", { class: "notice", id: "resume", role: "status" });
+  const text = h("p", { "data-i18n": `resume.${kind}` });
+  text.textContent = t(`resume.${kind}`);
+  const back = h("button", { type: "button", class: "primary", "data-i18n": "resume.back" });
+  back.textContent = t("resume.back");
+  const drop = h("button", { type: "button", class: "secondary", "data-i18n": "resume.drop" });
+  drop.textContent = t("resume.drop");
+  back.addEventListener("click", () => {
+    notice.remove();
+    onResume();
+  });
+  drop.addEventListener("click", () => {
+    notice.remove();
+    onDrop();
+  });
+  const actions = h("p", { class: "resume-actions" });
+  actions.append(back, drop);
+  notice.append(text, actions);
+  document.body.append(notice);
+  back.focus({ preventScroll: true });
+}
+
+/**
+ * The menu, and a game left behind to take back: a reload goes straight
+ * back to a solo game, a page opened again asks first.
+ */
+function showMenuOrResume(): void {
+  showMenu();
+  const seat = awaySeat();
+  if (seat) {
+    offerResume(
+      "online",
+      () => {
+        void storedSnapshot(seat.game).then((snapshot) => {
+          saveSeat(seat.game, seat.token);
+          goOnline({ type: "resume", game: seat.game, token: seat.token }, setup, snapshot);
+        });
+      },
+      () => {
+        forgetSeat();
+        void forgetSnapshot();
+      },
+    );
+    return;
+  }
+  void storedSoloGame().then((saved) => {
+    // The player went on in the meantime.
+    if (!saved || !menu) return;
+    const reloaded =
+      (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)
+        ?.type === "reload";
+    if (reloaded) {
+      resumeSolo(saved);
+      return;
+    }
+    offerResume(
+      "solo",
+      () => {
+        resumeSolo(saved);
+      },
+      () => {
+        keepSolo(undefined);
+      },
+    );
+  });
 }
 
 /** Offers a finished game as a file to save, to watch again later. */
@@ -358,6 +496,7 @@ async function watch(file: File): Promise<void> {
   );
   menu?.dispose();
   menu = undefined;
+  usage().screen = "replay";
   document.querySelector(".notice")?.remove();
   document.body.classList.add("playing");
   document.body.prepend(game.element);
@@ -516,15 +655,49 @@ function askName(invited: string): void {
   screen.focus();
 }
 
+/** The online game being played, and when its seat was last said to be in use. */
+let playing: string | undefined;
+let seatTouchedAt = 0;
+
 /** Whether snapshots of the online game are kept for a reload: not once it no longer matches the others'. */
 let keepSnapshots = true;
 
 /** Turns that came before the game screen did, which has still to be fetched. */
 let heldTurns: Parameters<GameScreen["pushTurns"]>[0][] | undefined;
 
+/** Stops watching the connection of the online game. */
+let unwatchConnection: (() => void) | undefined;
+
+/**
+ * Keeps the connection of an online game alive across what the browser does
+ * not report: a socket the server went silent on is dropped and opened again,
+ * and the network coming back, or the page coming to the front, tries at once.
+ */
+function watchConnection(client: OnlineClient): void {
+  unwatchConnection?.();
+  const check = setInterval(() => {
+    client.check();
+  }, 1_000);
+  const now = (): void => {
+    client.reconnectNow();
+  };
+  const shown = (): void => {
+    if (document.visibilityState === "visible") client.reconnectNow();
+  };
+  window.addEventListener("online", now);
+  document.addEventListener("visibilitychange", shown);
+  unwatchConnection = () => {
+    clearInterval(check);
+    window.removeEventListener("online", now);
+    document.removeEventListener("visibilitychange", shown);
+    unwatchConnection = undefined;
+  };
+}
+
 /** Leaves the online game, if any, and closes the connection. */
 function goOffline(): void {
   showMaintenance(null);
+  unwatchConnection?.();
   // Leaving on purpose gives up the seat; closing the tab keeps it for a reload.
   if (online) {
     forgetSeat();
@@ -533,6 +706,7 @@ function goOffline(): void {
   online?.leave();
   online?.close();
   online = undefined;
+  playing = undefined;
   lobby?.dispose();
   lobby = undefined;
 }
@@ -587,6 +761,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
     playable,
   );
   lobby = room;
+  usage().screen = "lobby";
   document.body.prepend(room.element);
   const client = new OnlineClient({
     url: socketUrl(location.href),
@@ -639,6 +814,12 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
       turns(turns) {
         if (game) game.pushTurns(turns);
         else heldTurns?.push(turns);
+        // Another tab opened meanwhile must not offer this game back while it is played here.
+        const now = Date.now();
+        if (seatTouchedAt + 5_000 <= now && playing) {
+          seatTouchedAt = now;
+          touchSeat(playing);
+        }
       },
       maintenance(inMs) {
         showMaintenance(inMs);
@@ -675,6 +856,7 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
     },
   });
   online = client;
+  watchConnection(client);
   if (entry.type === "play") client.play(entry.name);
   else if (entry.type === "create") client.create(entry.visibility, entry.name);
   else if (entry.type === "resume") client.resume(entry.token, snapshot?.tick ?? 0);
@@ -748,6 +930,7 @@ function startOnline(
   lobby = undefined;
   // A reload of this tab takes the seat back, public game or private.
   saveSeat(start.game, start.token);
+  playing = start.game;
   keepSnapshots = true;
   history.replaceState(null, "", `?${new URLSearchParams({ game: start.game }).toString()}`);
   const leave = (): void => {
@@ -839,6 +1022,7 @@ function startOnline(
       rules: start.rules,
     },
   );
+  usage().screen = "online";
   document.body.classList.add("playing");
   document.body.prepend(game.element);
   game.start();
@@ -875,5 +1059,5 @@ void ready.then(() => {
       type: "play",
       name: t("online.defaultName", { name: setup.playerName || t("menu.namePlaceholder") }),
     });
-  } else showMenu();
+  } else showMenuOrResume();
 });

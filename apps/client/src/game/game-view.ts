@@ -61,8 +61,8 @@ export interface SoloOptions {
    */
   record?: GameRecord | undefined;
   /**
-   * Online: where this browser left the game before a reload (#39). The
-   * game starts from it, and only the turns after it are played.
+   * Where this browser left the game before a reload (#39). The game starts
+   * from it; online, only the turns after it are played.
    */
   snapshot?: GameSnapshot | undefined;
 }

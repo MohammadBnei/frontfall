@@ -42,7 +42,9 @@ test("keeps an achievement earned in a game, and shows it in the menu", async ({
   await expect
     .poll(() => page.evaluate((key) => localStorage.getItem(key), KEY), { timeout: 60_000 })
     .toContain("harbor");
-  await page.reload();
+  // Opened again rather than reloaded, the page offers the game back: dropped here.
+  await page.goto("./");
+  await page.locator("#resume").getByRole("button", { name: "Drop it" }).click();
   await expect(page.locator("#achievements-open")).toHaveAttribute(
     "aria-label",
     /Achievements [1-9]\/20/,

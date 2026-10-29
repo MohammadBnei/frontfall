@@ -10,6 +10,7 @@ import {
 import { join } from "node:path";
 import { z } from "zod";
 import type { UsageReport } from "@frontfall/protocol";
+import { ClientErrors } from "./client-errors.ts";
 
 /**
  * Counts of what players do, from the reports their pages send
@@ -110,6 +111,8 @@ export class UsageStats {
   private readonly days = new Map<string, Tally>();
   /** Ids of games already reported, and of games already voted on, until when. */
   private readonly seen = new Map<string, number>();
+  /** The errors reported, grouped for the operator (/admin/errors). */
+  readonly errors = new ClientErrors();
 
   constructor(private readonly options: UsageOptions) {}
 
@@ -153,6 +156,7 @@ export class UsageStats {
       }
     } else if (report.kind === "error") {
       counts.push(["errors", report.type]);
+      this.errors.record(report, now);
     } else {
       counts.push(
         ["votes", report.vote],

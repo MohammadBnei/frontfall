@@ -206,6 +206,8 @@ test("plays against the nations of the map, named and on the board (R-BOT-07)", 
 
   // Unticked, the next game has none, and the choice is remembered.
   await page.goto("./");
+  // The page opened again offers the game left behind: a new one is wanted.
+  await page.locator("#resume").getByRole("button", { name: "Drop it" }).click();
   await expect(page.locator("#nations")).toBeChecked();
   await page.locator("#menu-options > summary").click();
   await page.locator("#nations").uncheck();
@@ -354,4 +356,58 @@ test("the attack slider shows the troops it sends beside its share", async ({ pa
   await expect(value).toHaveText(/^30\s?% · \d/);
   await page.locator("#attack-ratio").fill("60");
   await expect(value).toHaveText(/^60\s?% · \d/);
+});
+
+/** Tick of the solo game this browser keeps for a reload, or null when it keeps none. */
+function keptTick(page: Page): Promise<number | null> {
+  return page.evaluate(
+    () =>
+      new Promise<number | null>((resolve) => {
+        const request = indexedDB.open("frontfall", 1);
+        request.onerror = () => {
+          resolve(null);
+        };
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore("snapshots");
+        };
+        request.onsuccess = () => {
+          const get = request.result.transaction("snapshots").objectStore("snapshots").get("solo");
+          get.onsuccess = () => {
+            const kept = get.result as { tick?: number } | undefined;
+            resolve(kept?.tick ?? null);
+            request.result.close();
+          };
+          get.onerror = () => {
+            resolve(null);
+          };
+        };
+      }),
+  );
+}
+
+test("a reload takes a solo game back where it was, and leaving forgets it", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy&speed=10");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  await expect.poll(() => keptTick(page), { timeout: 30_000 }).toBeGreaterThan(0);
+
+  await page.reload();
+  await expect(page.locator("#menu")).toHaveCount(0);
+  await expect(page.locator("#map")).toBeVisible();
+  // Taken back paused, for the player to find their bearings, from the snapshot and not the start.
+  const paused = page.locator(".overlay.paused");
+  await expect(paused).toBeVisible();
+  await paused.click();
+  await expect(paused).toHaveCount(0);
+  await expect(page.locator(".goal-clock")).toHaveText(/^\d+:\d\d /);
+  await expect(page.locator(".goal-clock")).not.toHaveText(/^0:0\d /);
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.locator("#leave").click();
+  await expect(page.locator("#menu")).toBeVisible();
+  await expect.poll(() => keptTick(page)).toBeNull();
+  await page.goto("./");
+  await expect(page.locator("#menu")).toBeVisible();
+  await expect(page.locator("#resume")).toHaveCount(0);
 });
