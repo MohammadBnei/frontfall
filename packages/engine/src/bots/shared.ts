@@ -226,6 +226,7 @@ export function defendCoast(game: Game, nation: Player): void {
  * R-BOT-05: a ship to the closest free coast away from the player's shore,
  * or else to the coast of the least dense player `accept` lets through, if
  * that player is at most `boldnessPercent` of the player's own density.
+ * Whether a ship sailed.
  */
 export function sail(
   game: Game,
@@ -235,12 +236,12 @@ export function sail(
   cooldowns: Cooldowns,
   retryTicks: number,
   accept: OwnerFilter = anyone,
-): void {
+): boolean {
   const { territory, balance } = game;
-  if (game.tick < (cooldowns.get(bot.id) ?? 0)) return;
+  if (game.tick < (cooldowns.get(bot.id) ?? 0)) return false;
   let atSea = 0;
   for (const boat of game.boats) if (boat.player === bot.id) atSea++;
-  if (atSea >= balance.boatMax) return;
+  if (atSea >= balance.boatMax) return false;
   const ownDensity = divFloor(soldiers(bot), territory.tileCount(bot.id));
   // A coast just along the player's own shore is better reached by land.
   const elsewhere = (_: number, distance: number) => distance >= SEA_MIN_DISTANCE;
@@ -265,6 +266,10 @@ export function sail(
       targetDensity = density;
     }
   }
-  if (target >= 0) game.apply(bot.id, { type: "embark", target, troops });
-  else cooldowns.set(bot.id, game.tick + retryTicks);
+  if (target >= 0) {
+    game.apply(bot.id, { type: "embark", target, troops });
+    return true;
+  }
+  cooldowns.set(bot.id, game.tick + retryTicks);
+  return false;
 }

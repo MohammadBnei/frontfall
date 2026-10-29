@@ -19,6 +19,8 @@ import { WorldGrid } from "../src/world-grid.ts";
 
 const balance: Balance = {
   ...DEFAULT_BALANCE,
+  // Troops set by hand above the cap stay put (B-DESERTION).
+  desertionBasisPoints: 0,
   spawnPhaseTicks: 0,
   buildTicks: 5,
   cityCost: 1000,

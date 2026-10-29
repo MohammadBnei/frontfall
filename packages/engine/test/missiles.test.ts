@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_BALANCE, type Balance } from "../src/balance.ts";
-import { installNations } from "../src/bots/index.ts";
+import { NATION_DIFFICULTIES, installNations } from "../src/bots/index.ts";
 import { createGame } from "../src/create-game.ts";
 import type { Order, Player } from "../src/game.ts";
 import {
@@ -18,6 +18,8 @@ import { WorldGrid } from "../src/world-grid.ts";
 
 const balance: Balance = {
   ...DEFAULT_BALANCE,
+  // Troops set by hand above the cap stay put (B-DESERTION).
+  desertionBasisPoints: 0,
   spawnPhaseTicks: 0,
   buildTicks: 1,
   longBuildTicks: 2,
@@ -346,5 +348,43 @@ describe("nations and missiles (R-BOT-12)", () => {
     expect(kinds).toContain(StructureKind.AirDefense);
     // Ada, with a third of the land, leads the others; her city closest to Bea's start is the target.
     expect(game.missiles.find((m) => m.player === 2)?.to).toBe(adaCity);
+  });
+
+  it("wait B-NATION-MISSILE-PAUSE between two launches, longer than a silo's reload", () => {
+    const { game, grid, step } = newGame();
+    const bea = game.player(2) as Player;
+    bea.start = grid.index(50, 10);
+    bea.gold = 100_000_000;
+    for (const [player, tile] of [
+      [2, grid.index(45, 4)],
+      [2, grid.index(55, 16)],
+      [1, grid.index(15, 10)],
+      [1, grid.index(5, 2)],
+    ] as const) {
+      game.structures.push({
+        id: game.nextStructureId++,
+        player,
+        kind: StructureKind.City,
+        tile,
+        readyAt: 0,
+        reloadAt: 0,
+      });
+    }
+    installNations(game, [2], "easy", 0);
+    const launches: number[] = [];
+    let seen = 0;
+    const pause = NATION_DIFFICULTIES.easy.missilePauseSeconds * game.balance.ticksPerSecond;
+    expect(pause).toBeGreaterThan(game.balance.siloReloadTicks);
+    for (let i = 0; i < 1000 + 2 * pause && launches.length < 2; i++) {
+      step();
+      for (const m of game.missiles) {
+        if (m.player === 2 && m.id > seen) {
+          seen = m.id;
+          launches.push(game.tick);
+        }
+      }
+    }
+    expect(launches).toHaveLength(2);
+    expect((launches[1] as number) - (launches[0] as number)).toBeGreaterThanOrEqual(pause);
   });
 });

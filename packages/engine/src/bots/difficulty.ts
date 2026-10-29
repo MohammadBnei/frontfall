@@ -42,6 +42,8 @@ export interface NationParameters {
   reservePercent: number;
   /** B-NATION-HUNT, in % of all ownable land from which the leading player is attacked first; 0 never */
   huntPercent: number;
+  /** B-NATION-MISSILE-PAUSE, in seconds from one of its missiles to the next */
+  missilePauseSeconds: number;
 }
 
 export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<NationParameters>>> = {
@@ -51,8 +53,9 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     graceSeconds: 180,
     oddsPercent: 80,
     holdPercent: 60,
-    reservePercent: 60,
+    reservePercent: 25,
     huntPercent: 0,
+    missilePauseSeconds: 120,
   },
   normal: {
     intervalSeconds: 2,
@@ -62,6 +65,7 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     holdPercent: 40,
     reservePercent: 10,
     huntPercent: 20,
+    missilePauseSeconds: 60,
   },
   hard: {
     intervalSeconds: 1,
@@ -71,5 +75,6 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     holdPercent: 30,
     reservePercent: 10,
     huntPercent: 20,
+    missilePauseSeconds: 30,
   },
 };

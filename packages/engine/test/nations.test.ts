@@ -230,6 +230,47 @@ describe("nations", () => {
     expect(NATION_DIFFICULTIES.easy.huntPercent).toBe(0);
   });
 
+  it("sail before fighting a neighbour down to scraps (R-BOT-18)", () => {
+    // A strip that wraps: the nation on columns 0 to 29, two tiles of Ada at 30, then sea,
+    // and a free island at 60 to 62, 17 tiles west of the nation's shore across the seam.
+    const grid = new WorldGrid(80, 4);
+    const kinds = new Uint8Array(grid.size).fill(TileKind.Water);
+    for (let x = 0; x < 80; x++) {
+      kinds[grid.index(x, 0)] = TileKind.Impassable;
+      kinds[grid.index(x, 3)] = TileKind.Impassable;
+      if (x <= 30 || (x >= 60 && x <= 62)) {
+        for (const y of [1, 2]) kinds[grid.index(x, y)] = TileKind.Plains;
+      }
+    }
+    const game = new Game({
+      terrain: new Terrain(grid, kinds),
+      seed: 5,
+      players: [
+        { id: 1, name: "Norland" },
+        { id: 2, name: "Ada" },
+      ],
+      balance: { ...balance, spawnPhaseTicks: 0, attackSpeedDivisor: 1000 },
+    });
+    installAttacks(game);
+    installBoats(game);
+    installNations(game, [1], "hard", 0);
+    for (let x = 0; x <= 30; x++) {
+      for (const y of [1, 2]) game.territory.setOwner(grid.index(x, y), x < 30 ? 1 : 2);
+    }
+    (game.player(1) as Player).troops = 100_000;
+    (game.player(2) as Player).troops = 2;
+    const apply = vi.spyOn(game, "apply");
+    for (let i = 0; i < interval; i++) game.step({ tick: game.tick, orders: [] });
+    const orders = apply.mock.calls.filter(([id]) => id === 1).map(([, order]) => order);
+    const moves = orders.filter((o) => o.type === "attack" || o.type === "embark");
+    expect(moves).toHaveLength(1);
+    const order = moves[0] as Order;
+    expect(order.type).toBe("embark");
+    expect(order.type === "embark" && game.terrain.landmassOf(order.target)).toBe(
+      game.terrain.landmassOf(grid.index(61, 1)),
+    );
+  });
+
   it("fight one player at a time (R-BOT-09)", () => {
     const { game, grid, ordersOf, run, nation, ada, bea } = strip();
     nation.troops = 9000;

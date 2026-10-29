@@ -25,6 +25,8 @@ export interface Balance {
   growthBasisPoints: number;
   /** B-GROWTH-FLOOR, percent of B-GROWTH-RATE that an empty army grows at; a full rate at any size is 100 */
   growthFloorPercent: number;
+  /** B-DESERTION, in basis points of the troops above the cap who leave each second (500 = 5 %) */
+  desertionBasisPoints: number;
   /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
   goldPerThousandTroops: number;
   /** B-WORK-MAX, the largest share of troops at home, in %, a player may put to work */
@@ -173,11 +175,12 @@ export const DEFAULT_BALANCE: Balance = {
   startTroops: 2500,
   popPerTile: 40,
   popFalloffSharePercent: 20,
-  popFalloffPercent: 100,
+  popFalloffPercent: 70,
   popPerCityPercent: 5,
   growthBasisPoints: 800,
   growthFloorPercent: 20,
   goldPerThousandTroops: 5,
+  desertionBasisPoints: 500,
   workMaxPercent: 80,
   workGoldFactor: 4,
   neutralCost: 8,
@@ -222,7 +225,7 @@ export const DEFAULT_BALANCE: Balance = {
   airDefenseCost: 1_000_000,
   longBuildTicks: 10 * 10,
   siloReloadTicks: 30 * 10,
-  missileCost: 300_000,
+  missileCost: 600_000,
   heavyMissileCost: 1_500_000,
   missileRadius: 12,
   heavyMissileRadius: 30,

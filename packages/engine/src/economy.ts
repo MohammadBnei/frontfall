@@ -94,7 +94,17 @@ export function troopGrowth(balance: Balance, cap: number, troops: number): numb
 }
 
 function growTroops(game: Game, player: Player): void {
-  player.troops += troopGrowth(game.balance, populationCap(game, player), player.troops);
+  const cap = populationCap(game, player);
+  const excess = player.troops - cap;
+  if (excess > 0) {
+    // B-DESERTION: troops above the cap, back from an attack or left by lost land, drift away.
+    const { desertionBasisPoints, ticksPerSecond } = game.balance;
+    if (desertionBasisPoints > 0) {
+      player.troops -= Math.max(1, mulDiv(excess, desertionBasisPoints, 10_000 * ticksPerSecond));
+    }
+    return;
+  }
+  player.troops += troopGrowth(game.balance, cap, player.troops);
 }
 
 /** R-ECO-05: an eliminated player keeps nothing. */
