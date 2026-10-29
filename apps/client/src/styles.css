@@ -474,6 +474,12 @@ button.secondary:disabled {
   text-transform: uppercase;
 }
 
+.field > label.toggle {
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 .field-row {
   display: flex;
   flex-wrap: wrap;
