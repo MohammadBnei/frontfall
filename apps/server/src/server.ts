@@ -424,7 +424,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       idleSince: undefined,
       closing: false,
       peer: {
-        send(frame, catchUp = false) {
+        send(frame) {
           if (socket.readyState !== socket.OPEN) return;
           if (replaying) {
             // The catch-up runs on to the newest turn; other messages wait for its end.
