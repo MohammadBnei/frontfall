@@ -144,4 +144,4 @@ Shading is computed once per tile when the map loads and again only where the te
 
 ## Not covered here
 
-Tutorial and onboarding screens, the title screen and the globe view get their own pass in later v0.7 and v0.11 work, using the rules above.
+Tutorial and onboarding screens, the title screen and the globe view get their own pass in later v0.7 and v0.9.x work, using the rules above.
