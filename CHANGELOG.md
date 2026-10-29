@@ -13,6 +13,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **Taps on a touch screen no longer turn into drags.** A finger that wobbles up to 12 pixels while it taps still picks the tile, instead of moving the map by a hair and picking nothing.
 
+- **A full server says so.** When the server is full, the game tells you and tries again by itself, instead of showing a lost connection; and after a server restart, pages come back spread over time instead of all at once.
 - **A smoother map on high-density screens.** Moving, zooming and playing no longer stutter on a laptop whose graphics chip cannot draw every pixel of a Retina screen sixty times a second: the map is drawn a little less sharp while frames fall behind, and back at full sharpness as soon as they keep up. Phones draw the map at most at twice their screen's resolution. The map's shading also does less work for the same picture: borders up close, the sea's swell and the grain of the ground are cheaper to draw.
 
 - **Your orders play at once in a solo game.** An order no longer waits up to a tenth of a second for the game's next beat: that beat plays as soon as the order is given, and the one after keeps its time, so the game runs at the same pace.
