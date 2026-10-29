@@ -40,7 +40,9 @@ interface Case {
 
 /**
  * One case in every run; the four with E2E_MULTIPLAYER_MATRIX set, before a release.
- * Only the faster cases play to the end and watch the replay.
+ * Only the case with the rules on at the faster pace plays to the end and watches the replay:
+ * without them the bots and nations take longer to settle a winner, and the server has no
+ * shorter limit to ask for, so a wait for the end would only be a guess.
  * Both rules at four times the pace is the case where most happens in a minute.
  */
 const CASES: readonly Case[] = process.env.E2E_MULTIPLAYER_MATRIX
@@ -53,7 +55,8 @@ const CASES: readonly Case[] = process.env.E2E_MULTIPLAYER_MATRIX
   : [{ rules: true, speed: 4 }];
 
 for (const { rules, speed } of CASES) {
-  test(`three players with bots and nations, rules ${rules ? "on" : "off"}, speed ×${String(speed)}: a reload and no desync${speed === 1 ? "" : ", then a replay with the same end"}`, async ({
+  const toEnd = rules && speed === 4;
+  test(`three players with bots and nations, rules ${rules ? "on" : "off"}, speed ×${String(speed)}: a reload and no desync${toEnd ? ", then a replay with the same end" : ""}`, async ({
     browser,
     baseURL,
   }) => {
@@ -126,8 +129,8 @@ for (const { rules, speed } of CASES) {
     expect(await desyncs(baseURL)).toBe("0");
 
     expect(pageErrors).toEqual([]);
-    // At the usual pace, the end is minutes away: the faster cases play to it.
-    if (speed === 1) {
+    // Elsewhere the end is too far away to wait for.
+    if (!toEnd) {
       await Promise.all(pages.map((page) => page.close()));
       return;
     }
@@ -136,11 +139,9 @@ for (const { rules, speed } of CASES) {
     const end = host.locator(".end-screen");
     await expect(end).toBeVisible({ timeout: 240_000 });
     expect(await desyncs(baseURL)).toBe("0");
-    if (rules) {
-      await expect(end.locator(".end-rules")).toHaveText(
-        "Special rules: Collapsing fronts, Capital mode",
-      );
-    } else await expect(end.locator(".end-rules")).toHaveCount(0);
+    await expect(end.locator(".end-rules")).toHaveText(
+      "Special rules: Collapsing fronts, Capital mode",
+    );
     const saved = host.waitForEvent("download");
     await end.getByRole("button", { name: "Save the replay" }).click();
     const path = await (await saved).path();
