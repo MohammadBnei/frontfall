@@ -192,7 +192,10 @@ export function messageHandler(ctx: MessageContext): {
       }
       const account =
         session.account === undefined ? undefined : ctx.accounts?.get(session.account);
-      const name = normalizeName(account?.name ?? message.name);
+      // An account's name was checked when it was given, maybe under older
+      // rules: it stays usable rather than lock its owner out of every game.
+      const checked = normalizeName(account?.name ?? message.name);
+      const name = account && !checked.ok ? { ok: true as const, name: account.name } : checked;
       if (!name.ok) {
         reply(session, "invalid_name", name.error);
         return;

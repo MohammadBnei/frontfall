@@ -230,8 +230,12 @@ export function createGameServer(options: ServerOptions): GameServer {
   const upgrades = new AddressRate(upgradeRate.perSecond, upgradeRate.burst, Date.now());
 
   const http = createServer((request, response) => {
-    // `//host/path` would parse as another host's path, past a proxy's matchers.
-    if (!request.url?.startsWith("/") || request.url.startsWith("//")) {
+    // `//host/path` or `/\host/path` would parse as another host's path, past a proxy's matchers.
+    if (
+      !request.url?.startsWith("/") ||
+      request.url.startsWith("//") ||
+      request.url.includes("\\")
+    ) {
       response.writeHead(400).end();
       return;
     }
@@ -337,9 +341,10 @@ export function createGameServer(options: ServerOptions): GameServer {
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
 
   http.on("upgrade", (request, socket, head) => {
-    const path = request.url?.startsWith("//")
-      ? ""
-      : new URL(request.url ?? "/", "http://localhost").pathname;
+    const path =
+      request.url?.startsWith("//") || request.url?.includes("\\")
+        ? ""
+        : new URL(request.url ?? "/", "http://localhost").pathname;
     if (path !== "/ws" || !isAllowedOrigin(request.headers.origin, options.allowedOrigin)) {
       socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
       return;
@@ -419,7 +424,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       idleSince: undefined,
       closing: false,
       peer: {
-        send(frame) {
+        send(frame, catchUp = false) {
           if (socket.readyState !== socket.OPEN) return;
           if (replaying) {
             // The catch-up runs on to the newest turn; other messages wait for its end.

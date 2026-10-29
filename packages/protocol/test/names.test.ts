@@ -107,6 +107,10 @@ describe("nameKey", () => {
     expect(nameKey("Bob 2")).not.toBe(nameKey("Bob 3"));
     expect(nameKey("Борис")).not.toBe(nameKey("Bob"));
     expect(nameKey("さくら")).not.toBe(nameKey("さくろ"));
+    // Vowel signs and voicing marks are letters' sounds there, not accents.
+    expect(nameKey("किरण")).not.toBe(nameKey("करण"));
+    expect(nameKey("กั้ง")).not.toBe(nameKey("กง"));
+    expect(nameKey("がな")).not.toBe(nameKey("かな"));
     expect(nameKey("Борис")).not.toBe("");
   });
 });

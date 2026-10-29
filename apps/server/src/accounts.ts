@@ -198,15 +198,21 @@ export class Accounts {
     this.save();
   }
 
-  /** Deletes an account at its owner's request: nothing of it is left in the file. */
+  /**
+   * Deletes an account at its owner's request: nothing of it is left in the
+   * file. False when there is no such account, or the file could not be written.
+   */
   remove(id: string): boolean {
     const account = this.byId.get(id);
     if (!account) return false;
     this.byId.delete(id);
     this.bySubject.delete(account.subject);
     this.byName.delete(nameKey(account.name));
-    this.save();
-    return true;
+    // A deletion that never reached the file would bring the account back at
+    // the next start: the player is told it failed, and the account stays.
+    if (this.save()) return true;
+    this.add(account);
+    return false;
   }
 
   /**
@@ -303,8 +309,8 @@ export class Accounts {
    * the server: the accounts stay right in memory and the next change writes
    * them all again.
    */
-  private save(): void {
-    if (this.file === undefined) return;
+  private save(): boolean {
+    if (this.file === undefined) return true;
     try {
       mkdirSync(join(this.file, ".."), { recursive: true, mode: 0o700 });
       const temporary = `${this.file}.tmp`;
@@ -316,8 +322,10 @@ export class Accounts {
       writeFileSync(temporary, body, { mode: 0o600 });
       chmodSync(temporary, 0o600);
       renameSync(temporary, this.file);
+      return true;
     } catch (error) {
       this.onWriteError(error as Error);
+      return false;
     }
   }
 }

@@ -196,6 +196,18 @@ describe("HTTP", () => {
     });
     socket.end("GET //evil.example/metrics HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
     expect(await reply).toMatch(/^HTTP\/1\.1 400/);
+    // A backslash reads as a slash to the URL parser, not to a proxy.
+    expect((await fetch(`http://${host}/%5Chealthz`)).status).not.toBe(400);
+    const back = connect(Number(port), address);
+    const answer = new Promise<string>((resolve) => {
+      let text = "";
+      back.on("data", (chunk: Buffer) => (text += chunk.toString()));
+      back.on("end", () => {
+        resolve(text);
+      });
+    });
+    back.end("GET /\\evil.example/metrics HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
+    expect(await answer).toMatch(/^HTTP\/1\.1 400/);
   });
 
   it("serves metrics to the host only, never through the proxy", async () => {
