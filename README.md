@@ -46,14 +46,14 @@ Frontfall is in beta until v1.0: rules, balance and visuals still change. [The r
 
 ## At a glance
 
-|                  |                                                                                                                                                           |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **What it is**   | Spread from a single tile, outgrow your neighbours, hold the map. Short rounds, no install.                                                               |
-| **The twist**    | The World map wraps east to west, and v1.0 puts it on a 3D globe. There is no edge to hide behind.                                                        |
-| **Status**       | Beta. [v0.7.0](https://github.com/nic0lasm/frontfall/releases/tag/v0.7.0) is out, the look and feel; v0.8 brings fronts that collapse and a capital mode. |
-| **Play**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), or your own server with one Docker image.                                                        |
-| **Requirements** | A recent browser with WebGL 2 ([which ones](docs/browsers.md)). Best on a desktop or laptop.                                                              |
-| **License**      | MIT, free to play, fork and host.                                                                                                                         |
+|                  |                                                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **What it is**   | Spread from a single tile, outgrow your neighbours, hold the map. Short rounds, no install.                                                                                                 |
+| **The twist**    | The World map wraps east to west, and v1.0 puts it on a 3D globe. There is no edge to hide behind.                                                                                          |
+| **Status**       | Beta. [v0.8.0](https://github.com/nic0lasm/frontfall/releases/tag/v0.8.0) is out, with fronts that collapse and a capital mode; v0.9 is about speed on modest devices and a secured server. |
+| **Play**         | [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), or your own server with one Docker image.                                                                                          |
+| **Requirements** | A recent browser with WebGL 2 ([which ones](docs/browsers.md)). Best on a desktop or laptop.                                                                                                |
+| **License**      | MIT, free to play, fork and host.                                                                                                                                                           |
 
 ## Roadmap
 
@@ -69,9 +69,9 @@ Development runs in playable versions. Each one ends with something you can play
 | v0.4.x  | Fixes: the bugs found since v0.4.0                                                        | Done    |
 | v0.5    | Live: moderated public games, usage counts that last                                      | Done    |
 | v0.6    | Phones and comfort: a whole game by touch, one settings panel                             | Done    |
-| v0.7    | Look and feel: a full redesign, a recognisable icon for every building, sound, a tutorial | Next    |
-| v0.8    | Own rules: collapsing fronts, doctrines and objectives, from a menu of their own          | Planned |
-| v0.9    | Performance on a modest laptop and a mid-range phone, a secured and backed-up server      | Planned |
+| v0.7    | Look and feel: a full redesign, a recognisable icon for every building, sound, a tutorial | Done    |
+| v0.8    | Own rules: collapsing fronts, doctrines and objectives, from a menu of their own          | Done    |
+| v0.9    | Performance on a modest laptop and a mid-range phone, a secured and backed-up server      | Next    |
 | v0.10   | Community maps: maps and translations from players, replay links, spectators              | Planned |
 | v0.11   | 3D globe, and switching between map and globe during a game                               | Planned |
 | v1.0    | The complete game on the 3D globe, out of beta                                            | Planned |
