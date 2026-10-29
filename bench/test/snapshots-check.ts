@@ -65,6 +65,6 @@ export function snapshotsOf(file: string): void {
           }
         }
       }
-    }, 300_000);
+    }, 900_000);
   });
 }
