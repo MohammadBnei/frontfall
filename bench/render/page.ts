@@ -43,6 +43,8 @@ const viewportHeight = number("viewportHeight", 720);
 // The globe prototype (ADR 0005): the same layer ray-traced on a sphere, at a zoom where 1 fits the map height.
 const globe = params.get("surface") === "sphere";
 const globeZoom = number("zoom", 2);
+// The flat map close up, in screen pixels per tile: where the shader votes borders and adds its detail.
+const tilePixels = number("tilePixels", 0);
 
 function run(): RenderResult {
   const workload = new ExpansionWorkload({
@@ -97,11 +99,12 @@ function run(): RenderResult {
   scene.add(layer.mesh, units.mesh);
   // The whole world height on screen: every pixel runs the territory shader.
   const aspect = viewportWidth / viewportHeight;
+  const shown = tilePixels > 0 ? viewportHeight / tilePixels : height;
   const camera = new THREE.OrthographicCamera(
-    (-height / 2) * aspect,
-    (height / 2) * aspect,
-    height / 2,
-    -height / 2,
+    (-shown / 2) * aspect,
+    (shown / 2) * aspect,
+    shown / 2,
+    -shown / 2,
     0,
     10,
   );
@@ -172,7 +175,7 @@ function run(): RenderResult {
 
   const debug = gl.getExtension("WEBGL_debug_renderer_info");
   return {
-    map: `${String(width)}x${String(height)}${globe ? ` globe ×${String(globeZoom)}` : ""}`,
+    map: `${String(width)}x${String(height)}${globe ? ` globe ×${String(globeZoom)}` : ""}${tilePixels > 0 ? `, ${String(tilePixels)} px per tile` : ""}`,
     viewport: `${String(viewportWidth)}x${String(viewportHeight)}`,
     glRenderer: String(gl.getParameter(debug ? debug.UNMASKED_RENDERER_WEBGL : gl.RENDERER)),
     maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
