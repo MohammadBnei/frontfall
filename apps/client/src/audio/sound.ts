@@ -1,5 +1,6 @@
 import type { GameUpdate } from "../game/game-view.ts";
 import { CueWatcher, type Cue } from "./cues.ts";
+import { haptic } from "./haptics.ts";
 import { soundSettings } from "./settings.ts";
 import { play } from "./synth.ts";
 
@@ -33,6 +34,8 @@ export class Sound {
   }
 
   private cue(cue: Cue): void {
+    // Felt even when the sound is muted.
+    haptic(cue);
     const { volume, muted } = soundSettings();
     if (muted || volume <= 0) return;
     const now = performance.now();

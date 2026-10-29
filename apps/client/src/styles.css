@@ -763,6 +763,19 @@ kbd {
   }
 }
 
+/* A screen comes in with a short fade rather than a cut: menu, lobby and game alike. Where
+   motion is reduced the rules below drop the animation, and the screen simply appears. */
+@keyframes screen-in {
+  from {
+    opacity: 0;
+  }
+}
+
+main.menu,
+main.join {
+  animation: screen-in 0.2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

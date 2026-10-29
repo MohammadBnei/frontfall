@@ -412,6 +412,7 @@
   "a11y.motion": "Réduire les animations",
   "a11y.contrast": "Contraste renforcé",
   "a11y.flatMap": "Carte plate, plus légère pour les appareils anciens",
+  "a11y.haptics": "Vibrations légères aux moments clés (téléphones)",
   "a11y.note": "Les animations réduites suivent aussi le réglage de votre appareil.",
   "help.keyboardPick": "Clavier : la croix marque le centre de la vue. Entrée ou Espace clique dessus, Maj+Entrée ouvre son menu",
   "end.achievements": "Succès débloqués",
