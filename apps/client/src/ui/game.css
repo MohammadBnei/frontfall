@@ -1186,7 +1186,7 @@ button.feed-entry:focus-visible {
 }
 
 .player-tip-effect {
-  color: var(--ff-text);
+  color: #e8cf9f;
   font-weight: 600;
 }
 
