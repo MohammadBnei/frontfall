@@ -60,6 +60,7 @@ export class InputController {
       event.preventDefault();
       // A finger held down raises this too: the long press opens the menu on release.
       if (this.gestures.active > 0) return;
+      if (this.gestures.secondary()) return;
       const { x, y } = this.position(event as MouseEvent);
       this.gestures.menu(x, y);
     });

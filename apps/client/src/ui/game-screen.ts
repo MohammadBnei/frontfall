@@ -539,6 +539,11 @@ export class GameScreen {
       onTileHold: (tile) => {
         if (!this.replayBar) this.diplomacy.pick(this.scene.ownerAt(tile));
       },
+      onSecondary: () => {
+        if (this.mode === "attack" || this.replayBar) return false;
+        this.setMode("attack");
+        return true;
+      },
       onHover: (tile) => {
         this.scene.hover(tile);
         // The attack preview is about land: the sea and impassable ground have none.

@@ -13,6 +13,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **A right click leaves a build mode.** With a building picked (a city, say), a right click on the map goes back to attacking, like Esc, without opening the player menu. Without a build mode, it still opens that menu.
+
+- **The bar at the foot of the screen no longer moves.** Your troops, gold and land keep a fixed room, and figures show at most three digits (124K, 1.24M), so the bar and the sliders beside it stay still as the numbers climb, on computers and phones.
+
 - **Taps on a touch screen no longer turn into drags.** A finger that wobbles up to 12 pixels while it taps still picks the tile, instead of moving the map by a hair and picking nothing.
 
 - **Thousands of players on one server.** The game server now sends turns spread over each tenth of a second, so turns keep their pace at several thousand players at once, a player who reloads mid-game catches up without slowing anyone, and a connection that stalls no longer weighs on the server.

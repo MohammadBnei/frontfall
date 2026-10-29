@@ -323,3 +323,21 @@ test("Play again starts the same game anew from the end screen", async ({ page }
   await expect(page).toHaveURL(/map=world/);
   await expect(page).toHaveURL(/bots=8/);
 });
+
+test("a right click leaves a build mode like Esc, and opens the menu otherwise", async ({
+  page,
+}) => {
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy");
+  await page.locator("#play").click();
+  const map = page.locator("#map");
+  await expect(map).toBeVisible();
+  const box = await map.boundingBox();
+  if (!box) throw new Error("the map has no box");
+  const at = { x: box.width / 2, y: box.height / 2 };
+
+  await page.keyboard.press("1");
+  await expect(map).toHaveAttribute("data-mode", /^(?!attack$).+/);
+  await map.click({ button: "right", position: at });
+  await expect(map).toHaveAttribute("data-mode", "attack");
+  await expect(page.locator(".player-menu:not([hidden])")).toHaveCount(0);
+});

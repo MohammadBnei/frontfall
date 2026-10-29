@@ -95,3 +95,5 @@ When the screen is narrow because it is short (landscape phone), the leaderboard
 ## End screen on a short screen
 
 Under 560 high the panel scrolls as a whole and its buttons (Play again, Keep watching, Main menu) stay stuck to its foot, in one row, so the main action is always in sight.
+
+The three figures (troops, gold, land) have a minimum width that fits a long game's numbers (99.9K, +99.9K/s) and no wrapping, with tabular digits, so the bar does not move while they grow. The wide bar's attack share is a little shorter (204 px) to pay for that reserve.
