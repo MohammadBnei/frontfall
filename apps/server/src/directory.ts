@@ -13,6 +13,9 @@ import type { LoadedGame } from "./saved-games.ts";
 /** Games the public list shows at most. */
 export const MAX_LISTED_GAMES = 100;
 
+/** Games not over that one address may have opened and still play in, unless set otherwise. */
+export const MAX_GAMES_PER_OWNER = 4;
+
 export interface DirectoryOptions {
   maxRooms: number;
   /** Players seated at once, in every game; beyond, no new player is let in. */
@@ -21,6 +24,12 @@ export interface DirectoryOptions {
   maxLogBytes?: number;
   /** Games not yet started, public or private, that one owner may hold. */
   maxLobbiesPerOwner?: number;
+  /**
+   * Games not over, waiting or running, that one owner opened and still
+   * plays in: without it, solo games started one after another would hold
+   * every room of the server.
+   */
+  maxGamesPerOwner?: number;
   /** Public games opened by "play": they start on their own after a countdown. */
   publicGame: Omit<RoomSettings, "visibility" | "name">;
   /** Games a player creates and starts themselves; public ones are listed. */
@@ -59,8 +68,9 @@ export class Directory {
 
   /**
    * The fullest quick game still waiting with a seat free, or a new one
-   * under `name`; undefined when the server is full. The lobbies an owner
-   * holds do not count here: a second "play" joins the game the first opened.
+   * under `name`; undefined when the server is full, or when `owner` may
+   * open no other game. The lobbies an owner holds do not count here: a
+   * second "play" joins the game the first opened.
    */
   quickMatch(owner: string | undefined, name: string): Room | undefined {
     let best: Room | undefined;
@@ -69,18 +79,57 @@ export class Directory {
       if (!waiting(room) || room.settings.visibility !== "public") continue;
       if (room.settings.countdownMs <= 0 || room.isHeld) continue;
       if (room.playerCount >= room.settings.capacity) continue;
-      // "Play now" promises the usual game: the default special rules only (R-MODE-08).
-      if (!isDefaultRules(room.settings.rules)) continue;
+      // "Play now" promises the usual game: the options a host changed take it out (R-MODE-04).
+      if (!this.hasPublicDefaults(room)) continue;
       // A game that would turn the player away is no match for them.
       if (owner !== undefined && (room.bars(owner) || room.atSeatLimit(owner))) continue;
       if (!best || room.playerCount > best.playerCount) best = room;
     }
-    return best ?? this.create({ kind: "quick", name }, owner, false);
+    if (best) return best;
+    if (owner !== undefined && this.atGameLimit(owner)) return undefined;
+    return this.create({ kind: "quick", name }, owner, false);
   }
 
-  /** Whether `owner` already holds as many games not yet started as one address may. */
+  /**
+   * Whether `owner` may open no other game: they hold as many games not yet
+   * started as one address may, or as many games not over.
+   */
   atLobbyLimit(owner: string): boolean {
-    return this.lobbiesOf(owner) >= (this.options.maxLobbiesPerOwner ?? Infinity);
+    return (
+      this.lobbiesOf(owner) >= (this.options.maxLobbiesPerOwner ?? Infinity) ||
+      this.atGameLimit(owner)
+    );
+  }
+
+  /**
+   * Whether `owner` already holds as many games they opened as one address
+   * may: lobbies, and running games they still play in. One they left, or
+   * that ended, frees its place.
+   */
+  atGameLimit(owner: string): boolean {
+    let count = 0;
+    for (const room of this.rooms.values()) {
+      if (room.owner !== owner || room.state === "finished") continue;
+      if (waiting(room) || room.hasSeatFrom(owner)) count++;
+    }
+    return count >= (this.options.maxGamesPerOwner ?? MAX_GAMES_PER_OWNER);
+  }
+
+  /** Whether the host kept every option of a quick game as "play" opened it. */
+  private hasPublicDefaults(room: Room): boolean {
+    const { settings } = room;
+    const defaults = this.options.publicGame;
+    return (
+      settings.map === defaults.map &&
+      settings.bots === defaults.bots &&
+      settings.difficulty === defaults.difficulty &&
+      settings.nations === defaults.nations &&
+      settings.teams === defaults.teams &&
+      settings.disabled === defaults.disabled &&
+      settings.autoStart === defaults.autoStart &&
+      settings.speed === defaults.speed &&
+      isDefaultRules(settings.rules)
+    );
   }
 
   /** Opens a game. `owner`, the creator's address, caps the lobbies one person holds. */

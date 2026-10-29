@@ -1,19 +1,22 @@
 export const MAX_NAME_LENGTH = 20;
 
-/** Letters and digits of any script, plus a few separators. */
-const ALLOWED = /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N} ._'-]*$/u;
+/**
+ * Letters and digits of any script, plus a few separators. It starts on a
+ * letter or digit: a leading accent would sit on whatever is drawn before it.
+ */
+const ALLOWED = /^[\p{L}\p{N}][\p{L}\p{M}\p{N} ._'-]*$/u;
 
-/** Names that would let a player pass for the people running the game. */
-const RESERVED = new Set([
-  "admin",
-  "administrator",
-  "frontfall",
-  "moderator",
-  "mod",
-  "server",
-  "staff",
-  "system",
-]);
+/**
+ * Characters that draw nothing, some of them letters to Unicode, such as the
+ * Hangul fillers: a name of them would be an invisible player.
+ */
+const INVISIBLE = /\p{Default_Ignorable_Code_Point}/u;
+
+/**
+ * More accents in a row than any language stacks on one letter, after
+ * composing: the text spills over the lines around it.
+ */
+const STACKED_MARKS = /\p{M}{4}/u;
 
 export type NameResult = { ok: true; name: string } | { ok: false; error: string };
 
@@ -30,10 +33,9 @@ export function normalizeName(raw: string): NameResult {
   if (length > MAX_NAME_LENGTH) {
     return { ok: false, error: `the name is longer than ${String(MAX_NAME_LENGTH)} characters` };
   }
-  if (!ALLOWED.test(name))
+  if (!ALLOWED.test(name) || INVISIBLE.test(name) || STACKED_MARKS.test(name))
     return { ok: false, error: "the name contains characters that are not allowed" };
-  const bare = name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-  if (RESERVED.has(bare)) return { ok: false, error: "this name is reserved" };
+  if (RESERVED.has(reservedKey(name))) return { ok: false, error: "this name is reserved" };
   // A host's name shows in the public list, to everyone in the menu.
   return listable(name);
 }
@@ -150,16 +152,70 @@ const LOOK_ALIKES: Record<string, string> = {
   τ: "t",
   υ: "u",
   χ: "x",
+  һ: "h",
+  ԁ: "d",
+  ӏ: "l",
+  ԛ: "q",
+  ԝ: "w",
+  ı: "i",
 };
 
-/** The text as it is compared: lowercase Latin letters, accents and disguises removed. */
+/**
+ * Letters and digits that are hard to tell apart in the game's font. Folded
+ * onto one of them, so that "BiII" and "Bill" are the same name.
+ */
+const LOOK_ALIKE_GLYPHS: Record<string, string> = {
+  "0": "o",
+  "1": "l",
+  i: "l",
+};
+
+/**
+ * The text as it is compared: lowercase Latin letters, accents and disguises
+ * removed. Compatibility forms, such as full-width letters, become plain ones.
+ */
 function fold(text: string): string {
   return text
-    .normalize("NFD")
+    .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .replace(/./gu, (char) => LOOK_ALIKES[char] ?? STAND_INS[char] ?? char);
 }
+
+/**
+ * Two player names that look alike are the same name: case, accents, spaces,
+ * punctuation and look-alike letters of other scripts do not tell them apart.
+ * Used where names must not collide, on accounts and in a game. Digits other
+ * than 0 and 1 stay digits, so "Bob 2" and "Bob 3" are told apart.
+ */
+export function nameKey(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/./gu, (char) => {
+      const latin = LOOK_ALIKES[char] ?? char;
+      return LOOK_ALIKE_GLYPHS[latin] ?? latin;
+    })
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+/**
+ * A name as it is matched against the reserved ones: folded, digit stand-ins
+ * read as letters, and "i" and "l" taken as one, as in "AdmIn" or "FrontfaII".
+ */
+function reservedKey(name: string): string {
+  return fold(name)
+    .replace(/i/gu, "l")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+/** Names that would let a player pass for the people running the game. */
+const RESERVED = new Set(
+  ["admin", "administrator", "frontfall", "moderator", "mod", "server", "staff", "system"].map(
+    reservedKey,
+  ),
+);
 
 /** The word and its singular, roughly, for French and English plurals. */
 function forms(word: string): string[] {

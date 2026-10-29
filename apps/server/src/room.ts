@@ -3,6 +3,7 @@ import {
   encodeTurnsFrame,
   HASH_INTERVAL,
   MAX_NAME_LENGTH,
+  nameKey,
   TICK_RATE,
   type Difficulty,
   type ErrorCode,
@@ -121,7 +122,11 @@ export interface SavedRoom {
 export interface RoomObserver {
   started?(room: Room): void;
   finished?(room: Room, reason: FinishReason): void;
-  /** `hash` is the flagged players' hash, `expected` the majority's, if any. */
+  /**
+   * `hash` is the flagged players' hash and `expected` the majority's; with
+   * no majority, nobody is flagged, `hash` is the most reported one and
+   * `expected` undefined.
+   */
   desync?(room: Room, tick: number, hash: number, expected: number | undefined): void;
 }
 
@@ -152,6 +157,8 @@ export class Room {
   private readonly hashes = new Map<number, Map<Seat, number>>();
   /** Seats found out of step, with the first tick they disagreed on. */
   private readonly desyncs = new Map<Seat, Frame>();
+  /** A split of the hashes without a majority was logged: one line per game is enough. */
+  private splitLogged = false;
   /** Addresses of the players the host removed: they cannot join this game again. */
   private readonly removed = new Set<string>();
   readonly log = new TurnLog();
@@ -239,6 +246,11 @@ export class Room {
     return this.seats.filter((seat) => seat.address === address).length >= limit;
   }
 
+  /** Whether a player from `address` still has a seat, kept for them or not. */
+  hasSeatFrom(address: string): boolean {
+    return this.seats.some((seat) => seat.address === address && !seat.gone);
+  }
+
   /** Whether the host removed a player from this address (R-MODE-05). */
   bars(address: string): boolean {
     return this.removed.has(address);
@@ -246,11 +258,12 @@ export class Room {
 
   /**
    * `name`, or `name 2`, `name 3`... when a player in the game already goes
-   * by it: every player who kept the default name would look alike.
+   * by it, or by one that looks the same: every player who kept the default
+   * name would look alike, and "Вob" in Cyrillic could pass for "Bob".
    */
   private freeName(name: string): string {
-    const taken = new Set(this.seats.map((seat) => seat.name.toLowerCase()));
-    if (!taken.has(name.toLowerCase())) return name;
+    const taken = new Set(this.seats.map((seat) => nameKey(seat.name)));
+    if (!taken.has(nameKey(name))) return name;
     for (let n = 2; ; n++) {
       const suffix = ` ${String(n)}`;
       const base = Array.from(name)
@@ -258,7 +271,7 @@ export class Room {
         .join("")
         .trimEnd();
       const candidate = base + suffix;
-      if (!taken.has(candidate.toLowerCase())) return candidate;
+      if (!taken.has(nameKey(candidate))) return candidate;
     }
   }
 
@@ -445,9 +458,10 @@ export class Room {
   }
 
   /**
-   * Flags the players whose hash differs from the majority's. A client
-   * cannot mark others out of step by lying: it only singles itself out,
-   * unless no majority exists, as with two players who disagree.
+   * Flags the players whose hash differs from the one more than half the
+   * reporters sent. Without such a majority, as with two players who
+   * disagree, nobody is flagged: one lying client would otherwise get an
+   * honest opponent told they are out of step. The split is only logged.
    */
   private compare(tick: number): void {
     const reports = this.hashes.get(tick);
@@ -456,19 +470,19 @@ export class Room {
     const votes = new Map<number, number>();
     for (const hash of reports.values()) votes.set(hash, (votes.get(hash) ?? 0) + 1);
     if (votes.size < 2) return;
-    const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
-    const [first, second] = ranked;
-    const majority = first && second && first[1] > second[1] ? first[0] : undefined;
+    const [first] = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+    if (!first) return;
+    const [majority, count] = first;
+    if (count * 2 <= reports.size) {
+      if (!this.splitLogged) this.observer.desync?.(this, tick, majority, undefined);
+      this.splitLogged = true;
+      return;
+    }
     const firstDesync = this.desyncs.size === 0;
     let flagged: number | undefined;
     for (const [seat, hash] of reports) {
       if (hash === majority || this.desyncs.has(seat)) continue;
-      const message = encodeServerMessage({
-        type: "desync",
-        tick,
-        hash,
-        expected: majority ?? null,
-      });
+      const message = encodeServerMessage({ type: "desync", tick, hash, expected: majority });
       this.desyncs.set(seat, message);
       seat.peer?.send(message);
       flagged ??= hash;

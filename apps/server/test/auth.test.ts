@@ -252,6 +252,30 @@ describe("sign-in", () => {
     expect((await rename(second, "")).status).toBe(400);
   });
 
+  it("refuses changes from other pages even with no origin set for the socket", async () => {
+    const base = await start({ allowedOrigin: undefined });
+    const { session = "" } = await signIn(base);
+    const ask = (method: string, path: string, origin: string) =>
+      fetch(`${base}${path}`, {
+        method,
+        headers: {
+          cookie: `frontfall_session=${session}`,
+          "content-type": "application/json",
+          origin,
+        },
+        ...(method === "DELETE" ? {} : { body: JSON.stringify({ name: "Mallory" }) }),
+      });
+    for (const [method, path] of [
+      ["DELETE", "/api/me"],
+      ["POST", "/api/me"],
+      ["POST", "/auth/logout"],
+      ["POST", "/api/me/achievements"],
+    ] as const)
+      expect((await ask(method, path, "https://evil.example")).status).toBe(403);
+    // The game's own page, at its public address, still may.
+    expect((await ask("POST", "/api/me", "https://play.example")).status).toBe(200);
+  });
+
   it("deletes the account and signs the player out", async () => {
     const base = await start();
     const { session = "" } = await signIn(base);
@@ -380,6 +404,18 @@ describe("Accounts", () => {
     expect(loaded.usable).toBe(true);
     expect(loaded.error?.message).toMatch(/kept as .*accounts\.json\.broken-\d+/);
     expect(again.size).toBe(0);
+  });
+
+  it("keeps working in memory when its file cannot be written", () => {
+    // A directory where the file should be: every write fails.
+    const file = join(dataDir, "blocked");
+    mkdirSync(join(file, "accounts.json"), { recursive: true });
+    const errors: Error[] = [];
+    const accounts = new Accounts(join(file, "accounts.json"), (error) => errors.push(error));
+    const ana = accounts.signIn("google", "1", "Ana", Date.now());
+    expect(accounts.rename(ana.id, "Anna")).toMatchObject({ ok: true });
+    expect(accounts.get(ana.id)?.name).toBe("Anna");
+    expect(errors.length).toBeGreaterThan(0);
   });
 
   it("gives a name to a player whose name at the service has nothing usable", () => {

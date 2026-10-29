@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_GAME_NAME_LENGTH,
   MAX_NAME_LENGTH,
+  nameKey,
   normalizeGameName,
   normalizeName,
 } from "../src/names.ts";
@@ -36,6 +37,77 @@ describe("normalizeName", () => {
     for (const name of ["Admin", "a-d-m-i-n", "Frontfall", "SERVER"]) {
       expect(normalizeName(name)).toEqual({ ok: false, error: "this name is reserved" });
     }
+  });
+
+  it("rejects staff names in disguise", () => {
+    for (const name of [
+      "Ａｄｍｉｎ", // full-width
+      "Admín", // accent
+      "Frontfаll", // Cyrillic а
+      "аdmin", // Cyrillic а
+      "МОD", // Cyrillic М and О
+      "Adm1n",
+      "AdmIn",
+      "FrontfaII",
+      "Sуstem", // Cyrillic у
+    ]) {
+      expect(normalizeName(name), name).toEqual({ ok: false, error: "this name is reserved" });
+    }
+  });
+
+  it("rejects names that draw nothing", () => {
+    for (const name of [
+      "\u3164\u3164\u3164",
+      "\u115f\u1160",
+      "\uffa0",
+      "\u2800\u2800",
+      "Bob\u3164",
+      "B\u034fob",
+      "\u0301\u0301",
+    ]) {
+      expect(normalizeName(name).ok, JSON.stringify(name)).toBe(false);
+    }
+  });
+
+  it("rejects stacks of accents", () => {
+    expect(normalizeName("a" + "\u0301".repeat(19)).ok).toBe(false);
+    expect(normalizeName("Bob" + "\u0300\u0301\u0302\u0303").ok).toBe(false);
+  });
+
+  it("keeps names of other languages, accents and all", () => {
+    for (const name of [
+      "Éloïse",
+      "Борис",
+      "Вова",
+      "さくら",
+      "محمد",
+      "Nguyễn",
+      "สมชาย",
+      "กั้ง",
+      "ज़ीं",
+      "Ὀδυσσεύς",
+      "Modeste",
+      "Systemic",
+    ]) {
+      expect(normalizeName(name), name).toEqual({ ok: true, name: name.normalize("NFC") });
+    }
+  });
+});
+
+describe("nameKey", () => {
+  it("takes names that look alike as one", () => {
+    expect(nameKey("Вob")).toBe(nameKey("Bob")); // Cyrillic В
+    expect(nameKey("Ｂｏｂ")).toBe(nameKey("bob"));
+    expect(nameKey("Élodie-B.")).toBe(nameKey("elodie b"));
+    expect(nameKey("BiII")).toBe(nameKey("Bill"));
+    expect(nameKey("B0b")).toBe(nameKey("Bob"));
+  });
+
+  it("tells different names apart", () => {
+    expect(nameKey("Bob 2")).not.toBe(nameKey("Bob 3"));
+    expect(nameKey("Борис")).not.toBe(nameKey("Bob"));
+    expect(nameKey("さくら")).not.toBe(nameKey("さくろ"));
+    expect(nameKey("Борис")).not.toBe("");
   });
 });
 

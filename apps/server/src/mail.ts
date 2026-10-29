@@ -66,6 +66,20 @@ export function isEmailAddress(value: string): boolean {
   return value.length <= 254 && ADDRESS.test(value);
 }
 
+/**
+ * The mailbox an address reaches, for counting links per mailbox: `ana+1@x`
+ * and `ana+2@x` arrive in the same one, and so do `a.na@gmail.com` and
+ * `ana@googlemail.com`. The account still follows the address as typed.
+ */
+export function mailbox(email: string): string {
+  const at = email.lastIndexOf("@");
+  let local = email.slice(0, at).split("+")[0] ?? "";
+  let domain = email.slice(at + 1);
+  if (domain === "googlemail.com") domain = "gmail.com";
+  if (domain === "gmail.com") local = local.replaceAll(".", "");
+  return `${local}@${domain}`;
+}
+
 /** Sends over SMTP, encrypted with a checked certificate, as plain text only. */
 export function smtpMailer(settings: SmtpSettings): Mailer {
   const transport = createTransport({

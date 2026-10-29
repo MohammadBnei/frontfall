@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { Directory, MAX_LISTED_GAMES, type Opening } from "../src/directory.ts";
+import {
+  Directory,
+  MAX_GAMES_PER_OWNER,
+  MAX_LISTED_GAMES,
+  type Opening,
+} from "../src/directory.ts";
 import type { Peer, Room } from "../src/room.ts";
 import { DEFAULT_GAME } from "../src/server.ts";
 
@@ -188,6 +193,73 @@ describe("Directory", () => {
     // "Play now" still opens a game when none waits: it is not one more lobby to spam.
     expect(games.atLobbyLimit("203.0.113.9")).toBe(true);
     expect(games.quickMatch("203.0.113.9", "Quick")).toBeDefined();
+  });
+
+  it("caps the games one address opened and plays in, waiting or running", () => {
+    const games = directory(100);
+    const address = "203.0.113.9";
+    const started: { room: Room; seat: ReturnType<typeof seat> }[] = [];
+    for (;;) {
+      const room = games.create(PRIVATE, address);
+      if (!room) break;
+      const taken = room.join("Solo", peer, 0, address);
+      if (typeof taken === "string") throw new Error(taken);
+      expect(room.requestStart(taken, 0)).toBeUndefined();
+      started.push({ room, seat: taken });
+    }
+    expect(started).toHaveLength(MAX_GAMES_PER_OWNER);
+    expect(games.atLobbyLimit(address)).toBe(true);
+    // No quick game to join: "play" cannot open one more either.
+    expect(games.quickMatch(address, "Quick")).toBeUndefined();
+    expect(games.create(PRIVATE, "198.51.100.4")).toBeDefined();
+    // Joining a game someone else opened is still fine.
+    const theirs = games.quickMatch("198.51.100.7", "Theirs");
+    seat(theirs, "Them");
+    expect(games.quickMatch(address, "Quick")).toBe(theirs);
+    // Leaving a game, or its end, frees its place at once.
+    const [first] = started;
+    first?.room.leave(first.seat, 0);
+    expect(games.atLobbyLimit(address)).toBe(false);
+    expect(games.create(PRIVATE, address)).toBeDefined();
+    expect(games.create(PRIVATE, address)).toBeUndefined();
+    const [, second] = started;
+    second?.room.stop();
+    games.sweep();
+    expect(games.create(PRIVATE, address)).toBeDefined();
+  });
+
+  it("never sends Play now into a quick game whose host changed its options", () => {
+    const games = directory();
+    const options = {
+      map: "world",
+      bots: 0,
+      difficulty: "normal" as const,
+      nations: true,
+      teams: 0 as const,
+      disabled: 0,
+      capacity: 2,
+      autoStart: true,
+    };
+    const changes = [
+      { teams: 2 as const },
+      { bots: 5 },
+      { difficulty: "hard" as const },
+      { disabled: 1 },
+      { map: "europe" },
+      { nations: false },
+    ];
+    for (const change of changes) {
+      const quick = games.quickMatch(undefined, "Quick");
+      const host = seat(quick, "Host");
+      quick?.configure(host, { ...options, ...change }, 0);
+      expect(games.quickMatch(undefined, "Quick")).not.toBe(quick);
+    }
+    // A host who sets the usual options again is matched again.
+    const usual = games.quickMatch(undefined, "Usual");
+    const host = seat(usual, "Host");
+    usual?.configure(host, { ...options, teams: 2 }, 0);
+    usual?.configure(host, options, 0);
+    expect(games.quickMatch(undefined, "Quick")).toBe(usual);
   });
 
   it("caps the number of games", () => {

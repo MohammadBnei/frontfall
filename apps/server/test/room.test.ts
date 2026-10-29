@@ -882,46 +882,89 @@ describe("desync detection", () => {
     expect(a.peer.inbox.some((message) => message.type === "desync")).toBe(false);
   });
 
-  it("flags both players of a split without a majority", () => {
-    const { room, alice, bob } = running();
+  it("flags nobody when two players disagree, so a liar cannot flag an honest opponent", () => {
+    const { room, alice, bob, observer } = running();
     for (let now = 100; now <= 6_000; now += 100) room.update(now);
-    room.reportHash(alice.seat, 50, 1);
-    room.reportHash(bob.seat, 50, 2);
-    expect(alice.peer.last("desync")).toMatchObject({ tick: 50, hash: 1, expected: null });
-    expect(bob.peer.last("desync").tick).toBe(50);
+    room.reportHash(alice.seat, 50, 1234);
+    room.reportHash(bob.seat, 50, 1);
+    room.reportHash(alice.seat, 100, 5678);
+    room.reportHash(bob.seat, 100, 2);
+    expect(room.desynced).toBe(false);
+    for (const { peer } of [alice, bob]) {
+      expect(peer.inbox.some((message) => message.type === "desync")).toBe(false);
+    }
+    // The split is logged once, with no expected hash.
+    expect(observer.log.filter((entry) => entry.startsWith("desync"))).toEqual([
+      "desync:50:1234:undefined",
+    ]);
+  });
+
+  it("flags nobody when no hash has more than half of the reports", () => {
+    const observer = events();
+    const room = new Room("game0000", PRIVATE, 7, observer);
+    const players = ["A", "B", "C", "D"].map((name) => seated(room, name));
+    const [a, b, c, d] = players;
+    if (!a || !b || !c || !d) throw new Error("missing player");
+    room.requestStart(a.seat, 0);
+    for (let now = 100; now <= 20_000; now += 100) room.update(now);
+    room.reportHash(a.seat, 50, 7);
+    room.reportHash(b.seat, 50, 7);
+    room.reportHash(c.seat, 50, 8);
+    room.reportHash(d.seat, 50, 9);
+    expect(room.desynced).toBe(false);
+    room.reportHash(a.seat, 100, 7);
+    room.reportHash(b.seat, 100, 7);
+    room.reportHash(c.seat, 100, 7);
+    room.reportHash(d.seat, 100, 9);
+    expect(d.peer.last("desync")).toEqual({ type: "desync", tick: 100, hash: 9, expected: 7 });
+    expect(c.peer.inbox.some((message) => message.type === "desync")).toBe(false);
   });
 
   it("only checks the ticks clients are asked to hash, once they have run", () => {
-    const { room, alice, bob } = running();
-    room.reportHash(alice.seat, 0, 1);
-    room.reportHash(bob.seat, 0, 2);
+    const observer = events();
+    const room = new Room("game0000", PRIVATE, 7, observer);
+    const [a, b, c] = ["A", "B", "C"].map((name) => seated(room, name));
+    if (!a || !b || !c) throw new Error("missing player");
+    room.requestStart(a.seat, 0);
+    room.reportHash(a.seat, 0, 1);
+    room.reportHash(b.seat, 0, 1);
+    room.reportHash(c.seat, 0, 2);
     expect(room.desynced).toBe(false);
     room.update(100);
-    room.reportHash(alice.seat, 0, 1);
-    room.reportHash(bob.seat, 0, 2);
+    room.reportHash(a.seat, 0, 1);
+    room.reportHash(b.seat, 0, 1);
+    room.reportHash(c.seat, 0, 2);
     expect(room.desynced).toBe(true);
 
-    const other = running();
-    for (let now = 100; now <= 6_000; now += 100) other.room.update(now);
-    other.room.reportHash(other.alice.seat, 49, 1);
-    other.room.reportHash(other.bob.seat, 49, 2);
-    other.room.reportHash(other.alice.seat, 100, 1);
-    other.room.reportHash(other.bob.seat, 100, 2);
+    const other = threePlayers();
+    const [x, y, z] = other.players;
+    if (!x || !y || !z) throw new Error("missing player");
+    other.room.reportHash(x.seat, 49, 1);
+    other.room.reportHash(y.seat, 49, 1);
+    other.room.reportHash(z.seat, 49, 2);
+    other.room.reportHash(x.seat, 1_000, 1);
+    other.room.reportHash(y.seat, 1_000, 1);
+    other.room.reportHash(z.seat, 1_000, 2);
     expect(other.room.desynced).toBe(false);
   });
 
   it("compares late hashes without waiting for players who never report", () => {
-    const { room, players } = threePlayers();
-    const [a, b] = players;
-    if (!a || !b) throw new Error("missing player");
+    const observer = events();
+    const room = new Room("game0000", PRIVATE, 7, observer);
+    const players = ["A", "B", "C", "D"].map((name) => seated(room, name));
+    const [a, b, c] = players;
+    if (!a || !b || !c) throw new Error("missing player");
+    room.requestStart(a.seat, 0);
+    for (let now = 100; now <= 20_000; now += 100) room.update(now);
     room.reportHash(a.seat, 150, 1);
-    room.reportHash(b.seat, 150, 2);
+    room.reportHash(b.seat, 150, 1);
+    room.reportHash(c.seat, 150, 2);
     expect(room.desynced).toBe(false);
     for (let now = 20_100; now <= 80_000; now += 100) room.update(now);
     expect(room.desynced).toBe(true);
     // Too old to be compared any more.
-    room.reportHash(a.seat, 200, 1);
-    expect(a.peer.inbox.filter((message) => message.type === "desync")).toHaveLength(1);
+    room.reportHash(c.seat, 200, 3);
+    expect(c.peer.inbox.filter((message) => message.type === "desync")).toHaveLength(1);
   });
 });
 

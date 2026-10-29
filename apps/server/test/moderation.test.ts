@@ -101,6 +101,15 @@ describe("Moderation (R-MODE-06)", () => {
     expect(restarted.banned("203.0.113.7", T0)).toBeUndefined();
   });
 
+  it("bans an IPv6 address with its whole /64, as players are counted", () => {
+    const moderation = new Moderation(dir, T0);
+    expect(validTarget("2001:db8:0:1::/64")).toBe(true);
+    expect(validTarget("2001:db8::/48")).toBe(false);
+    expect(moderation.ban("2001:db8:0:1::5", 1, undefined, T0).target).toBe("2001:db8:0:1::/64");
+    expect(moderation.banned("2001:db8:0:1::/64", T0)).toBeDefined();
+    expect(moderation.unban("2001:DB8:0:1:ffff::1", T0)).toBe(true);
+  });
+
   it("reads a ban list written by hand, and refuses one that does not read", () => {
     const moderation = new Moderation(dir, T0);
     const file = join(dir, "moderation", "bans.json");
@@ -113,7 +122,7 @@ describe("Moderation (R-MODE-06)", () => {
     moderation.reload();
     expect(moderation.list(T0).map((ban) => [ban.target, ban.until])).toEqual([
       ["203.0.113.7", "2026-12-01T00:00:00.000Z"],
-      ["2001:db8::1", null],
+      ["2001:db8:0:0::/64", null],
     ]);
     writeFileSync(file, JSON.stringify({ bans: [{ target: "nobody" }] }));
     expect(() => {
