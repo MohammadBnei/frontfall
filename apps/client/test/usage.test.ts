@@ -1,6 +1,13 @@
 import { parseUsageReport } from "@frontfall/protocol";
 import { describe, expect, it } from "vitest";
-import { deviceOf, Usage, type GameFacts, type UsageEnvironment } from "../src/usage.ts";
+import {
+  browserOf,
+  deviceOf,
+  Usage,
+  whereOf,
+  type GameFacts,
+  type UsageEnvironment,
+} from "../src/usage.ts";
 
 const FACTS: GameFacts = {
   mode: "solo",
@@ -23,6 +30,8 @@ function environment(overrides: Partial<UsageEnvironment> = {}) {
     automated: false,
     coarsePointer: false,
     screenSide: 1080,
+    userAgent:
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36",
     send: (url, body) => sent.push({ url, body }),
     randomBytes: (count) => new Uint8Array(count).fill(171),
     ...overrides,
@@ -106,20 +115,78 @@ describe("Usage", () => {
   it("sends an error's message only from the game's own code, scrubbed, five at most", () => {
     const { env, sent, reports } = environment();
     const usage = new Usage(env);
+    usage.screen = "online";
     usage.error(
       "exception",
       'Bad tile 1234 for "Léa"',
-      "https://nclsmgr.com/frontfall/assets/index.js",
+      "https://nclsmgr.com/frontfall/assets/index-Ab12.js?v=1:1:2045",
     );
-    usage.error("exception", "secret of an extension", "chrome-extension://abc/content.js");
+    usage.error("exception", "secret of an extension", "chrome-extension://abc/content.js:1:2");
     for (let index = 0; index < 10; index++) usage.error("rejection");
     expect(sent).toHaveLength(5);
+    const context = { browser: "chromium", device: "desktop", screen: "online" };
     expect(reports()[0]).toEqual({
       kind: "error",
       release: "0.0.0",
       type: "exception",
       message: "Bad tile # for <text>",
+      where: "index-Ab12.js:1:2045",
+      ...context,
     });
-    expect(reports()[1]).toEqual({ kind: "error", release: "0.0.0", type: "exception" });
+    expect(reports()[1]).toEqual({
+      kind: "error",
+      release: "0.0.0",
+      type: "exception",
+      ...context,
+    });
+    for (const { body } of sent) expect(parseUsageReport(body).ok).toBe(true);
+  });
+});
+
+describe("whereOf", () => {
+  const origin = "https://nclsmgr.com";
+  it("takes the first frame of the page's own code from a stack", () => {
+    const chrome = [
+      "TypeError: x is not a function",
+      "    at f (chrome-extension://abc/inject.js:3:4)",
+      "    at g (https://nclsmgr.com/frontfall/assets/game-screen-Q1w2.js:1:3456)",
+    ].join("\n");
+    expect(whereOf(chrome, origin)).toBe("game-screen-Q1w2.js:1:3456");
+    const firefox = "g@https://nclsmgr.com/frontfall/assets/main-X.js:2:30\n";
+    expect(whereOf(firefox, origin)).toBe("main-X.js:2:30");
+  });
+
+  it("never takes a place from the error's message", () => {
+    const { env, reports } = environment();
+    const usage = new Usage(env);
+    const message = "No seat at https://nclsmgr.com/Alice:1:2";
+    usage.error("rejection", message, `Error: ${message}\n    at https://x.example/a.js:1:1`);
+    expect(reports()[0]?.where).toBeUndefined();
+    expect(whereOf("https://nclsmgr.com/frontfall/?game=Alice:1:2", "https://nclsmgr.com")).toBe(
+      undefined,
+    );
+  });
+
+  it("says nothing of code from elsewhere", () => {
+    expect(whereOf("https://evil.example/a.js:1:1", origin)).toBeUndefined();
+    expect(whereOf("https://nclsmgr.com.evil.example/a.js:1:1", origin)).toBeUndefined();
+    expect(whereOf("", origin)).toBeUndefined();
+    expect(whereOf(undefined, origin)).toBeUndefined();
+  });
+});
+
+describe("browserOf", () => {
+  it("names the engine family", () => {
+    expect(
+      browserOf("Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0"),
+    ).toBe("firefox");
+    expect(browserOf("Mozilla/5.0 (Macintosh) AppleWebKit/605 Version/18 Safari/605")).toBe(
+      "safari",
+    );
+    expect(browserOf("Mozilla/5.0 (iPhone) AppleWebKit/605 CriOS/140 Mobile Safari/604")).toBe(
+      "safari",
+    );
+    expect(browserOf("Mozilla/5.0 (Windows) Chrome/140.0 Safari/537.36 Edg/140")).toBe("chromium");
+    expect(browserOf("curl/8")).toBe("other");
   });
 });

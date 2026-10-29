@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { MAX_USAGE_BYTES, parseUsageReport, scrubMessage } from "@frontfall/protocol";
+import { groupId } from "./client-errors.ts";
 import type { Logger } from "./log.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import type { UsageStats } from "./usage.ts";
@@ -114,10 +115,12 @@ export function usageInbox(
         stats.record(report, now());
         if (report.kind === "error" && report.message && logged.take(now())) {
           // Scrubbed again here: the page cannot be trusted to have done it.
+          const message = scrubMessage(report.message);
           logger.warn("client_error", {
             type: report.type,
             release: report.release,
-            message: scrubMessage(report.message),
+            message,
+            group: groupId(report.type, message, report.where ?? ""),
           });
         }
         end(204);

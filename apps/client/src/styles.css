@@ -71,6 +71,13 @@ canvas {
   margin-top: 12px;
 }
 
+/* A game left behind, offered back: its two choices side by side. */
+.notice .resume-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .notice {
   position: fixed;
   top: 50%;

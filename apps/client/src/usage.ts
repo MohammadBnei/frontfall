@@ -1,6 +1,8 @@
 import {
   scrubMessage,
+  type BrowserFamily,
   type ClientErrorType,
+  type ErrorScreen,
   type Device,
   type FeedbackReason,
   type GameReport,
@@ -32,6 +34,7 @@ export interface UsageEnvironment {
   readonly coarsePointer: boolean;
   /** Smaller side of the screen, in CSS pixels. */
   readonly screenSide: number;
+  readonly userAgent: string;
   /** Sends a body to a URL, surviving the page being closed. */
   send(url: string, body: string): void;
   randomBytes(count: number): Uint8Array;
@@ -53,6 +56,7 @@ function browser(): UsageEnvironment {
     automated: nav.webdriver && !askedFor,
     coarsePointer: matchMedia("(pointer: coarse)").matches,
     screenSide: Math.min(screen.width, screen.height),
+    userAgent: nav.userAgent,
     send(url, body) {
       // A beacon outlives the page; without one, a request that is kept alive.
       if ("sendBeacon" in nav && nav.sendBeacon(url, body)) return;
@@ -71,6 +75,35 @@ function browser(): UsageEnvironment {
 export function deviceOf(coarsePointer: boolean, screenSide: number): Device {
   if (!coarsePointer) return "desktop";
   return screenSide < 600 ? "phone" : screenSide < 1000 ? "tablet" : "desktop";
+}
+
+/** The family of a browser's engine, from its user agent; every browser on iOS is Safari's. */
+export function browserOf(userAgent: string): BrowserFamily {
+  if (/CriOS|FxiOS|EdgiOS|iPhone|iPad/.test(userAgent)) return "safari";
+  if (/Firefox\//.test(userAgent)) return "firefox";
+  if (/Chrome\/|Chromium\//.test(userAgent)) return "chromium";
+  if (/Safari\//.test(userAgent)) return "safari";
+  return "other";
+}
+
+/**
+ * Where in the game's own code an error came from, as `file:line:column`
+ * without the address: `source` is a script's address with its line and
+ * column, or a stack in which the first of the page's own frames is taken.
+ * Undefined for code from elsewhere, such as a browser extension.
+ */
+export function whereOf(source: string | undefined, origin: string): string | undefined {
+  if (!source) return undefined;
+  for (const match of source.matchAll(/([a-z-]+:\/\/[^\s()@]+?):(\d+):(\d+)/g)) {
+    const [, url = "", line = "", column = ""] = match;
+    if (!url.startsWith(`${origin}/`)) continue;
+    const file = (url.split(/[?#]/)[0] ?? "").split("/").at(-1) ?? "";
+    if (!/^[\w.-]{1,77}\.m?js$/.test(file) || line.length > 7 || column.length > 7) {
+      return undefined;
+    }
+    return `${file}:${line}:${column}`;
+  }
+  return undefined;
 }
 
 /** What a game report says about the game itself, known when it starts. */
@@ -166,6 +199,8 @@ export interface EndedGame {
 
 export class Usage {
   private errors = 0;
+  /** Where the page is, said in the error reports. */
+  screen: ErrorScreen = "menu";
   private readonly endListeners: ((game: EndedGame) => void)[] = [];
   private readonly url: string;
 
@@ -206,15 +241,28 @@ export class Usage {
   }
 
   /**
-   * An error. Its message goes along only when it comes from the game's own
-   * code, and without addresses, quoted text or numbers.
+   * An error. Its message and the place it came from go along only when it
+   * comes from the game's own code, and without addresses, quoted text or
+   * numbers. `source` is the address of the script, with its line and column,
+   * or the stack of the error; none for an error the game itself raises.
    */
   error(type: ClientErrorType, message?: string, source?: string): void {
     if (this.errors >= MAX_ERRORS) return;
     this.errors++;
-    const own = source === undefined || source.startsWith(this.env.origin);
+    // A stack holds the error's message too, which is no place in the code.
+    const where = whereOf(message ? source?.split(message).join("") : source, this.env.origin);
+    const own = source === undefined || where !== undefined;
     const text = message && own ? scrubMessage(message) : "";
-    this.send({ kind: "error", release: RELEASE, type, ...(text ? { message: text } : {}) });
+    this.send({
+      kind: "error",
+      release: RELEASE,
+      type,
+      ...(text ? { message: text } : {}),
+      ...(where ? { where } : {}),
+      browser: browserOf(this.env.userAgent),
+      device: deviceOf(this.env.coarsePointer, this.env.screenSide),
+      screen: this.screen,
+    });
   }
 
   send(report: UsageReport): void {

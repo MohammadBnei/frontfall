@@ -465,3 +465,53 @@ test("keeps the metrics private behind the proxy", async ({ request, baseURL }) 
   const response = await request.get(new URL("metrics", baseURL).href);
   expect(response.status()).toBe(404);
 });
+
+test("a player who closed the tab is offered the game back from the menu", async ({
+  browser,
+  baseURL,
+}) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "local server only");
+  test.skip(test.info().project.name !== "root", "one browser is enough");
+  test.setTimeout(GAME_START_TIMEOUT + 60_000);
+  if (!baseURL) throw new Error("baseURL is not configured");
+  const host = await browser.newPage();
+  // One browser for the guest: the tab they open again shares the closed one's storage.
+  const guestBrowser = await browser.newContext();
+  const guest = await guestBrowser.newPage();
+
+  await host.goto(baseURL);
+  await host.locator("#online-create").click();
+  const invite = host.locator("#invite-link");
+  await expect(invite).toHaveValue(/[?&]game=/, { timeout: 15_000 });
+  await host.locator("#lobby-bots").fill("2");
+  await guest.goto(await invite.inputValue());
+  await guest.locator("#join-submit").click();
+  await expect(host.locator("#lobby-players li")).toHaveCount(2, { timeout: 15_000 });
+  await host.locator("#lobby-start").click();
+  for (const page of [host, guest]) {
+    await expect(page.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  }
+  await expect.poll(() => clockOf(host), { timeout: 20_000 }).toBeGreaterThan(4);
+  await guest.close();
+
+  // Opened again a while later, as the menu: older than a tab still playing it.
+  await guestBrowser.addInitScript(() => {
+    const seat = JSON.parse(localStorage.getItem("frontfall.seat") ?? "null") as {
+      seenAt: number;
+    } | null;
+    if (seat) {
+      seat.seenAt -= 20_000;
+      localStorage.setItem("frontfall.seat", JSON.stringify(seat));
+    }
+  });
+  const back = await guestBrowser.newPage();
+  await back.goto(baseURL);
+  await expect(back.locator("#menu")).toBeVisible();
+  await back.locator("#resume").getByRole("button", { name: "Resume" }).click();
+  await expect(back.locator("#map canvas")).toBeVisible({ timeout: GAME_START_TIMEOUT });
+  await expect
+    .poll(async () => (await clockOf(host)) - (await clockOf(back)), { timeout: 20_000 })
+    .toBeLessThan(3);
+  expect(await desyncs(baseURL)).toBe("0");
+  await Promise.all([host.close(), guestBrowser.close()]);
+});

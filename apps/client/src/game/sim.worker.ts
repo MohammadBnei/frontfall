@@ -18,6 +18,13 @@ const scope = self as unknown as WorkerScope;
  */
 const FIRST_SNAPSHOT_TICKS = 300;
 const SNAPSHOT_TICKS = 1200;
+/**
+ * Solo, the page keeps the game for a reload with nobody to replay the
+ * turns since: a snapshot every 30 seconds, the first once the spawn phase
+ * is over, and one whenever the page goes to the background.
+ */
+const SOLO_FIRST_SNAPSHOT_TICKS = 150;
+const SOLO_SNAPSHOT_TICKS = 300;
 
 /** Fastest a replay runs, in ticks per beat. */
 const MAX_SPEED = Math.max(...REPLAY_SPEEDS);
@@ -37,6 +44,14 @@ let early: Turn[] = [];
 let nextSnapshot = FIRST_SNAPSHOT_TICKS;
 /** The game could not start from its snapshot: turns before its first tick comes again are dropped. */
 let replayFromStart = false;
+/** Solo: snapshots go to the page, for it to keep the game across a reload. */
+let keepSolo = false;
+
+function sendSnapshot(): void {
+  if (!game) return;
+  const snapshot = game.snapshot();
+  scope.postMessage({ type: "snapshot", snapshot }, [snapshot.bytes.buffer as ArrayBuffer]);
+}
 
 function tick(): void {
   if (!game || paused) return;
@@ -56,6 +71,11 @@ function tick(): void {
   // even when the beat that decided it had more ticks to run.
   if (!decided && update.winner !== undefined && !online) paused = true;
   scope.postMessage({ type: "update", update }, transferables(update));
+  // A decided game is not kept: a reload goes back to the menu.
+  if (keepSolo && update.winner === undefined && game.game.tick >= nextSnapshot) {
+    nextSnapshot = game.game.tick + SOLO_SNAPSHOT_TICKS;
+    sendSnapshot();
+  }
 }
 
 function playTurns(turns: Turn[]): void {
@@ -70,8 +90,7 @@ function playTurns(turns: Turn[]): void {
   scope.postMessage({ type: "update", update }, transferables(update));
   if (game.game.tick >= nextSnapshot) {
     nextSnapshot = game.game.tick + SNAPSHOT_TICKS;
-    const snapshot = game.snapshot();
-    scope.postMessage({ type: "snapshot", snapshot }, [snapshot.bytes.buffer as ArrayBuffer]);
+    sendSnapshot();
   }
 }
 
@@ -128,6 +147,14 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
     playTurns(early);
     early = [];
     return;
+  }
+  keepSolo = request.keep === true && !record;
+  if (keepSolo) {
+    nextSnapshot =
+      game.game.tick > 0 ? game.game.tick + SOLO_SNAPSHOT_TICKS : SOLO_FIRST_SNAPSHOT_TICKS;
+  }
+  if (game.snapshotRefused !== undefined) {
+    scope.postMessage({ type: "snapshotRefused", reason: game.snapshotRefused });
   }
   speed = Math.max(1, Math.floor(request.options.speed ?? 1));
   clock = new BeatClock(() => {
@@ -198,6 +225,12 @@ scope.onmessage = (event) => {
       break;
     case "record":
       scope.postMessage({ type: "record", record: game?.record() });
+      break;
+    case "snapshot":
+      if (keepSolo && game && game.winner === undefined) {
+        nextSnapshot = game.game.tick + SOLO_SNAPSHOT_TICKS;
+        sendSnapshot();
+      }
       break;
     case "speed":
       speed = Math.max(1, Math.min(MAX_SPEED, Math.floor(request.speed)));

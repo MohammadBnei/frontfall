@@ -142,6 +142,35 @@ URL becomes `?game=<id>`: a reload sends `rejoin` from tick 0, replays every
 turn at once and plays on; leaving from the menu gives the seat up. An online game never pauses, and its HUD
 has no pause button.
 
+### Staying in the game
+
+A connection can die without the browser noticing, as when a phone changes
+networks or wakes up: no `close` comes for minutes. A running game hears
+from the server at every beat, so `OnlineClient.check()`, which the page
+calls every second, drops a connection silent for 6 seconds
+(`SILENT_MS`) and opens another, which takes the seat back from the next
+tick it needs. When the browser says the network is back (`online`) or the
+page comes to the front again, `reconnectNow()` tries at once instead of at
+the end of the wait, and drops a game's connection that has been quiet for 2
+seconds. Neither touches a lobby's connection: a lobby can be quiet for long.
+
+The seat token is also copied to local storage with the time the game was
+last heard from, touched every 5 seconds while turns come in. A page opened
+again, after the tab was closed or the phone dropped it, finds that copy and
+offers the game back over the menu ("Resume" or "Drop it"), as long as the
+server may still keep the seat (5 minutes) and no other tab has played it in
+the last 15 seconds (`net/seat.ts`). Resuming starts from the snapshot of the
+game this browser kept (#39), like a reload.
+
+A solo game is kept too. The worker sends a snapshot 15 seconds into the
+game, then every 30 seconds, and whenever the page goes to the background;
+the page keeps the last one in IndexedDB (`net/snapshot-store.ts`, key
+`solo`) with the options the game started with. A reload goes straight back
+to it, paused; a page opened again offers it over the menu. The game is
+forgotten once it is decided, left from the menu, or replaced by another one.
+What the screen gathered itself, the charts of the end screen and the
+alliances seen in the feed, starts again from the snapshot.
+
 ## Drawing the map
 
 The territory layer draws the whole map in one draw call (ADR 0003):

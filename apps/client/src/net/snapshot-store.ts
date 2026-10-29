@@ -1,4 +1,6 @@
 import type { Turn } from "@frontfall/engine";
+import type { GameSnapshot, SoloOptions } from "../game/solo-game.ts";
+import type { GameFacts } from "../usage.ts";
 
 /**
  * The last snapshot of the online game this browser plays (#39), kept in
@@ -17,6 +19,18 @@ const DATABASE = "frontfall";
 const STORE = "snapshots";
 /** One game at a time: the entry of the game played last. */
 const KEY = "current";
+/** The solo game in progress, apart from the online one. */
+const SOLO_KEY = "solo";
+
+/** A solo game in progress, kept so that a reload or a closed tab can take it back. */
+export interface SoloSave extends GameSnapshot {
+  /** Options the game started with, its snapshot aside. */
+  options: Omit<SoloOptions, "snapshot">;
+  /** What its usage report says of it. */
+  facts: Omit<GameFacts, "view">;
+  /** When it was kept, by the page's clock. */
+  savedAt: number;
+}
 
 function open(): Promise<IDBDatabase | undefined> {
   return new Promise((resolve) => {
@@ -102,4 +116,33 @@ export async function storeSnapshot(snapshot: StoredSnapshot): Promise<void> {
 /** Forgets the snapshot: the game is over, left, or no longer matches the other players'. */
 export async function forgetSnapshot(): Promise<void> {
   await run("readwrite", (store) => store.delete(KEY));
+}
+
+/** The solo game in progress kept by this browser, if any. */
+export async function storedSoloGame(): Promise<SoloSave | undefined> {
+  const entry = (await Promise.race([
+    run("readonly", (store) => store.get(SOLO_KEY)),
+    new Promise<undefined>((resolve) => setTimeout(resolve, READ_TIMEOUT_MS)),
+  ])) as Partial<SoloSave> | undefined;
+  if (
+    !(entry?.bytes instanceof Uint8Array) ||
+    !Number.isSafeInteger(entry.tick) ||
+    !Number.isFinite(entry.savedAt) ||
+    !Array.isArray(entry.history) ||
+    typeof entry.options?.map !== "string" ||
+    typeof entry.facts?.mode !== "string"
+  ) {
+    return undefined;
+  }
+  return entry as SoloSave;
+}
+
+/** Keeps the solo game in progress in place of the one before. */
+export async function storeSoloGame(save: SoloSave): Promise<void> {
+  await run("readwrite", (store) => store.put(save, SOLO_KEY));
+}
+
+/** Forgets the solo game: it ended, was left, or another one began. */
+export async function forgetSoloGame(): Promise<void> {
+  await run("readwrite", (store) => store.delete(SOLO_KEY));
 }

@@ -11,6 +11,7 @@ import {
   OnlineClient,
   fullDelay,
   retryDelay,
+  SILENT_MS,
   socketUrl,
   type OnlineEvents,
   type SocketLike,
@@ -131,6 +132,7 @@ const START: Extract<ServerMessage, { type: "started" }> = {
 
 let sockets: FakeSocket[];
 let timers: { callback: () => void; ms: number }[];
+let clock = 0;
 let log: string[];
 let turns: number[];
 
@@ -146,6 +148,7 @@ function client(events: OnlineEvents = {}) {
     },
     setTimer: (callback, ms) => timers.push({ callback, ms }),
     random: () => 0.5,
+    now: () => clock,
     events: {
       status: (status, retry) =>
         log.push(retry === undefined ? status : `${status}:${String(retry)}`),
@@ -177,6 +180,7 @@ function welcomed(): FakeSocket {
 beforeEach(() => {
   sockets = [];
   timers = [];
+  clock = 0;
   log = [];
   turns = [];
 });
@@ -665,5 +669,73 @@ describe("OnlineClient", () => {
     socket.drop();
     timers.at(-1)?.callback();
     expect(welcomed().sent).toHaveLength(1);
+  });
+
+  it("drops a game's connection the server went silent on, and takes the seat back", () => {
+    const online = client();
+    const socket = welcomed();
+    online.play();
+    socket.receive(START);
+    clock = SILENT_MS;
+    online.check();
+    expect(sockets).toHaveLength(1);
+    clock = SILENT_MS + 1;
+    online.check();
+    expect(socket.closedWith).toBe(1000);
+    expect(log.at(-1)).toBe("offline:500");
+    timers.at(-1)?.callback();
+    const next = welcomed();
+    expect(next.sent.at(-1)).toEqual({ type: "rejoin", token: START.token, from: 0 });
+  });
+
+  it("never drops a lobby's connection for being quiet", () => {
+    const online = client();
+    const socket = welcomed();
+    online.play();
+    clock = 60_000;
+    online.check();
+    online.reconnectNow();
+    expect(socket.closedWith).toBeUndefined();
+  });
+
+  it("tries again at once when the network comes back, and only once", () => {
+    const online = client();
+    welcomed();
+    online.play();
+    latest().drop();
+    expect(log.at(-1)).toBe("offline:500");
+    expect(sockets).toHaveLength(1);
+    online.reconnectNow();
+    expect(sockets).toHaveLength(2);
+    // The wait that was cut short opens nothing more.
+    for (const timer of timers) timer.callback();
+    expect(sockets).toHaveLength(2);
+    welcomed();
+    expect(latest().sent.at(-1)).toEqual({ type: "play" });
+  });
+
+  it("drops a game's connection gone quiet while the page was away", () => {
+    const online = client();
+    const socket = welcomed();
+    online.play();
+    socket.receive(START);
+    clock = 1_000;
+    online.reconnectNow();
+    expect(socket.closedWith).toBeUndefined();
+    clock = 3_000;
+    online.reconnectNow();
+    expect(socket.closedWith).toBe(1000);
+  });
+
+  it("waits out a full server to the end, whatever the page does", () => {
+    const online = client();
+    welcomed();
+    online.play();
+    latest().drop(CloseCode.full);
+    expect(log.at(-1)).toMatch(/^full:/);
+    online.reconnectNow();
+    expect(sockets).toHaveLength(1);
+    timers.at(-1)?.callback();
+    expect(sockets).toHaveLength(2);
   });
 });

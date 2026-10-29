@@ -55,6 +55,8 @@ export type WorkerRequest =
       map: MapInfo;
       manifest: MapManifest | undefined;
       online?: boolean;
+      /** Solo: send snapshots of the game now and then, for the page to keep across a reload. */
+      keep?: boolean;
     }
   /** Online: consecutive turns from the server, from the next tick on. */
   | { type: "turns"; turns: Turn[] }
@@ -70,6 +72,8 @@ export type WorkerRequest =
   | { type: "report" }
   /** The game so far, to watch again. */
   | { type: "record" }
+  /** Solo, with `keep`: a snapshot of the game now, as the page goes to the background. */
+  | { type: "snapshot" }
   /** Ticks per beat of the clock: how fast a replay runs. */
   | { type: "speed"; speed: number }
   /** The page leaves the game: the clock stops before the worker is terminated. */
@@ -86,11 +90,11 @@ export type WorkerReply =
   | { type: "report"; report: DesyncReport | undefined }
   /** None for a game on a generated map, or while watching a replay. */
   | { type: "record"; record: GameRecord | undefined }
-  /** Online: the game as it stands, now and then, to start from after a reload (#39). */
+  /** The game as it stands, now and then, to start from after a reload (#39); solo only with `keep`. */
   | { type: "snapshot"; snapshot: GameSnapshot }
   /**
-   * Online: the snapshot of the options could not be loaded. The game starts
-   * from its first tick instead, and waits for the turns from there.
+   * The snapshot of the options could not be loaded. The game starts from its
+   * first tick instead; online, it waits for the turns from there.
    */
   | { type: "snapshotRefused"; reason: string }
   | { type: "error"; message: string };

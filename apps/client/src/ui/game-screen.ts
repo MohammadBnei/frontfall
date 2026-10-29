@@ -1,11 +1,11 @@
 import type { DesyncReport, GameRecord, Turn } from "@frontfall/engine";
 import { accessibility, motionReduced, onMotionChange } from "./accessibility.ts";
 import { TICK_RATE } from "@frontfall/protocol";
-import { LocalSession, type ServerLink } from "../game/local-session.ts";
+import { LocalSession, SOLO_SNAPSHOT_REFUSED, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
 import type { MapInfo } from "../game/maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
-import type { ClickMode, GameUpdate, SoloOptions } from "../game/solo-game.ts";
+import type { ClickMode, GameSnapshot, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
 import { aimReach } from "../input/aim.ts";
 import { applyTranslations, onLanguageChange, t, type MessageKey } from "../i18n/index.ts";
@@ -61,6 +61,10 @@ export interface GameScreenActions {
   onFailure(key: MessageKey): void;
   /** The player asked for a record of the game, to save. */
   onRecord?(record: GameRecord): void;
+  /** Solo: the game as it stands, now and then, to keep for a reload. */
+  onSnapshot?(snapshot: GameSnapshot): void;
+  /** The game is decided: a reload no longer comes back to it. */
+  onDecided?(): void;
 }
 
 /**
@@ -138,6 +142,8 @@ export class GameScreen {
   private endScreen: typeof endScreen | undefined;
   /** The game ended and its end screen is on its way: the pause holds until it shows. */
   private ending = false;
+  /** The player was wiped out, and the page told so. */
+  private outNoted = false;
   /** Reports the game once it ends for the player; none for a replay (docs/privacy.md). */
   private readonly tracker: GameTracker | undefined;
 
@@ -323,6 +329,10 @@ export class GameScreen {
           void import("./help.ts");
           this.diplomacy.setRules(info.rules);
           this.feed?.setRules(info.rules);
+          // A solo game taken back after a reload waits for the player to look again.
+          if (!link && options.snapshot && !options.record) {
+            this.overlays.showPause(this.speed?.choices());
+          }
           // Fetched while the game starts; without it the game goes on without the feed.
           import("./screen/feed-host.ts").then(
             (module) => {
@@ -359,13 +369,24 @@ export class GameScreen {
         },
         onError: (message) => {
           console.error(message);
-          if (message !== REPLAY_MAP_CHANGED) usage().error("worker", message);
+          if (message !== REPLAY_MAP_CHANGED && message !== SOLO_SNAPSHOT_REFUSED) {
+            usage().error("worker", message);
+          }
           this.actions.onFailure(
-            message === REPLAY_MAP_CHANGED ? "replay.unknownMap" : "game.failed",
+            message === REPLAY_MAP_CHANGED
+              ? "replay.unknownMap"
+              : message === SOLO_SNAPSHOT_REFUSED
+                ? "resume.failed"
+                : "game.failed",
           );
         },
       },
       link,
+      !link && !options.record && actions.onSnapshot
+        ? (snapshot) => {
+            if (!this.ended && !this.disposed) actions.onSnapshot?.(snapshot);
+          }
+        : undefined,
     );
     this.previews = new PreviewHost({
       mount: (layer) => {
@@ -404,6 +425,11 @@ export class GameScreen {
       this.tracker?.end("closed", Date.now());
     };
     window.addEventListener("pagehide", hide);
+    // A phone may close a page in the background without a word: the game is kept first.
+    const hidden = (): void => {
+      if (document.visibilityState === "hidden") this.session.requestSnapshot();
+    };
+    document.addEventListener("visibilitychange", hidden);
     const motion = (): void => {
       this.scene.setMotion(!motionReduced());
     };
@@ -445,6 +471,7 @@ export class GameScreen {
       },
       () => {
         window.removeEventListener("pagehide", hide);
+        document.removeEventListener("visibilitychange", hidden);
       },
       () => {
         stopMotion();
@@ -612,6 +639,11 @@ export class GameScreen {
     // The panels grow and shrink with their content: measured on the next frame.
     this.panelsMoved = true;
     if (update.replay) this.replayBar?.update(update.tick, update.replay, this.ticksPerSecond);
+    // Wiped out, the player may watch on, but a reload no longer brings the game back.
+    if (!this.outNoted && this.out()) {
+      this.outNoted = true;
+      this.actions.onDecided?.();
+    }
     if (update.winner !== undefined && !this.ended && !this.replayBar) {
       this.ended = true;
       this.hud.update(update, performance.now(), true);
@@ -619,6 +651,7 @@ export class GameScreen {
       const won =
         team === undefined ? update.winner === update.you : this.teams[update.you] === team;
       this.tracker?.end(won ? "victory" : "defeat", Date.now());
+      this.actions.onDecided?.();
       this.showEnd(update);
     }
   }

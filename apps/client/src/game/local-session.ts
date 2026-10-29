@@ -4,6 +4,10 @@ import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
 import { fetchManifest, type MapInfo } from "./maps.ts";
 import type { ClickMode, GameSnapshot, SoloOptions } from "./solo-game.ts";
+import { usage } from "../usage.ts";
+
+/** Solo: the game kept for a reload could not be taken back, as after an update of the game. */
+export const SOLO_SNAPSHOT_REFUSED = "the solo game kept could not be taken back";
 
 /** Where an online game's orders and state hashes go: the connection to the server. */
 export interface ServerLink {
@@ -38,6 +42,8 @@ export class LocalSession implements GameSession {
     map: MapInfo,
     events: SessionEvents,
     private readonly link?: ServerLink,
+    /** Solo: where the snapshots of the game go, to keep it for a reload. */
+    private readonly keep?: (snapshot: GameSnapshot) => void,
   ) {
     this.worker = new Worker(new URL("./sim.worker.ts", import.meta.url), { type: "module" });
     this.worker.onmessage = (event: MessageEvent<WorkerReply>) => {
@@ -52,10 +58,13 @@ export class LocalSession implements GameSession {
       } else if (reply.type === "record") {
         this.records.shift()?.(reply.record);
       } else if (reply.type === "snapshot") {
-        link?.snapshot?.(reply.snapshot);
+        if (link) link.snapshot?.(reply.snapshot);
+        else keep?.(reply.snapshot);
       } else if (reply.type === "snapshotRefused") {
         console.warn(`snapshot refused: ${reply.reason}`);
-        link?.replayFromStart?.();
+        usage().error("snapshot", reply.reason);
+        if (link) link.replayFromStart?.();
+        else events.onError(SOLO_SNAPSHOT_REFUSED);
       } else if (reply.type === "peek") {
         // Answers come in order: only the latest question still matters.
         if (reply.seq === this.peeks) events.onPeek(reply);
@@ -78,6 +87,7 @@ export class LocalSession implements GameSession {
           map,
           manifest,
           online: link !== undefined,
+          keep: keep !== undefined,
         } satisfies WorkerRequest);
       },
       (error: unknown) => {
@@ -129,6 +139,11 @@ export class LocalSession implements GameSession {
       this.records.push(resolve);
       this.post({ type: "record" });
     });
+  }
+
+  /** Solo, when the game is kept: a snapshot now, sent to `keep`. */
+  requestSnapshot(): void {
+    if (this.keep) this.post({ type: "snapshot" });
   }
 
   /** Replay: ticks played per tick of time. */

@@ -16,6 +16,12 @@ import {
 const MAX_RETRY_DELAY_MS = 10_000;
 const FULL_RETRY_DELAY_MS = 15_000;
 const MAX_FULL_RETRY_DELAY_MS = 60_000;
+/**
+ * A running game hears from the server at every beat, a tenth of a second:
+ * this long without a word, the connection is taken for dead even though
+ * the browser has not noticed, as after a phone changed networks.
+ */
+export const SILENT_MS = 6_000;
 
 /** WebSocket URL next to the page, so the game works under any path prefix. */
 export function socketUrl(page: string): string {
@@ -104,6 +110,8 @@ export interface OnlineOptions {
   setTimer?: (callback: () => void, ms: number) => unknown;
   /** Source of the reconnect jitter, in [0, 1). */
   random?: () => number;
+  /** Milliseconds on a steady clock, to tell how long the server has been silent. */
+  now?: () => number;
 }
 
 /**
@@ -136,13 +144,51 @@ export class OnlineClient {
   /** `configure` messages sent from the seat, numbered for the server to echo. */
   private configures = { token: "", sent: 0 };
   private nextTick = 0;
+  /** When the server last said anything on this connection. */
+  private heardAt = 0;
+  /** Counts the waits before a new attempt: one cut short by `reconnectNow` leaves its timer nothing to do. */
+  private waits = 0;
+  /** A new attempt is due once the current wait is over. */
+  private waiting = false;
   private readonly createSocket: (url: string) => SocketLike;
   private readonly setTimer: (callback: () => void, ms: number) => unknown;
+  private readonly now: () => number;
 
   constructor(private readonly options: OnlineOptions) {
     this.createSocket = options.createSocket ?? ((url) => new WebSocket(url));
     this.setTimer = options.setTimer ?? ((callback, ms) => setTimeout(callback, ms));
+    this.now = options.now ?? (() => performance.now());
     this.open();
+  }
+
+  /**
+   * Call now and then: in a running game, a connection the server has been
+   * silent on for too long is dropped and a new one opened, taking the seat
+   * back with every turn missed.
+   */
+  check(): void {
+    if (this.game && this.socket?.readyState === 1 && this.now() - this.heardAt > SILENT_MS) {
+      this.drop();
+    }
+  }
+
+  /**
+   * The network is back, or the page is in front again: try at once instead
+   * of at the end of the wait, and drop a game's connection that went quiet
+   * meanwhile, as a phone's does while it sleeps.
+   */
+  reconnectNow(): void {
+    if (this.closedByUser) return;
+    if (this.waiting) {
+      this.waiting = false;
+      this.waits++;
+      this.attempt = 0;
+      this.open();
+      return;
+    }
+    if (this.game && this.socket?.readyState === 1 && this.now() - this.heardAt > 2_000) {
+      this.drop();
+    }
   }
 
   /** Join the fullest public game waiting, or open one under `name`. */
@@ -241,6 +287,14 @@ export class OnlineClient {
     this.socket?.close(1000);
   }
 
+  /** Leaves a connection without waiting for it to close, which a dead one may take minutes to do. */
+  private drop(): void {
+    const socket = this.socket;
+    if (!socket) return;
+    this.lost(socket, 1006);
+    socket.close(1000);
+  }
+
   private enter(entry: Entry): void {
     this.entry = entry;
     this.game = undefined;
@@ -272,7 +326,10 @@ export class OnlineClient {
     const socket = this.createSocket(this.options.url);
     socket.binaryType = "arraybuffer";
     this.socket = socket;
+    this.heardAt = this.now();
     socket.addEventListener("open", () => {
+      // A slow network takes its time to open: silence counts from here.
+      this.heardAt = this.now();
       socket.send(
         encodeClientMessage({
           type: "hello",
@@ -283,6 +340,8 @@ export class OnlineClient {
       );
     });
     socket.addEventListener("message", (event) => {
+      if (this.socket !== socket) return;
+      this.heardAt = this.now();
       const data = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : event.data;
       if (typeof data !== "string" && !(data instanceof Uint8Array)) return;
       const parsed = parseServerMessage(data);
@@ -292,32 +351,42 @@ export class OnlineClient {
       else if (data instanceof Uint8Array) this.outdated(socket);
     });
     socket.addEventListener("close", ({ code }) => {
-      if (this.socket !== socket) return;
-      this.socket = undefined;
-      if (code === CloseCode.versionMismatch) {
-        this.outdated(socket);
-        return;
-      }
-      if (this.closedByUser) return;
-      if (code === CloseCode.invalidMessage || code === CloseCode.rateLimited) {
-        this.closedByUser = true;
-        this.options.events.status?.("rejected");
-        return;
-      }
-      if (code === CloseCode.banned) {
-        this.closedByUser = true;
-        this.options.events.status?.("banned");
-        return;
-      }
-      const random = this.options.random ?? Math.random;
-      const full = code === CloseCode.full;
-      const delay = full ? fullDelay(this.attempt++, random) : retryDelay(this.attempt++, random);
-      this.options.events.status?.(full ? "full" : "offline", delay);
-      this.setTimer(() => {
-        // Closed by the page during the wait: no new connection.
-        if (!this.closedByUser) this.open();
-      }, delay);
+      this.lost(socket, code);
     });
+  }
+
+  /** The connection closed, or was dropped: a new attempt follows a wait, unless it cannot help. */
+  private lost(socket: SocketLike, code: number): void {
+    if (this.socket !== socket) return;
+    this.socket = undefined;
+    if (code === CloseCode.versionMismatch) {
+      this.outdated(socket);
+      return;
+    }
+    if (this.closedByUser) return;
+    if (code === CloseCode.invalidMessage || code === CloseCode.rateLimited) {
+      this.closedByUser = true;
+      this.options.events.status?.("rejected");
+      return;
+    }
+    if (code === CloseCode.banned) {
+      this.closedByUser = true;
+      this.options.events.status?.("banned");
+      return;
+    }
+    const random = this.options.random ?? Math.random;
+    const full = code === CloseCode.full;
+    const delay = full ? fullDelay(this.attempt++, random) : retryDelay(this.attempt++, random);
+    this.options.events.status?.(full ? "full" : "offline", delay);
+    // A full server is waited out to the end: pages coming back at once would only fill it again.
+    this.waiting = !full;
+    const wait = ++this.waits;
+    this.setTimer(() => {
+      // Closed by the page during the wait, or tried again already: no new connection.
+      if (this.closedByUser || wait !== this.waits) return;
+      this.waiting = false;
+      this.open();
+    }, delay);
   }
 
   private outdated(socket: SocketLike): void {

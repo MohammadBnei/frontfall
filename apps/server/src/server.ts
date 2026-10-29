@@ -36,6 +36,7 @@ import { messageHandler, toFrame, type Session } from "./client-messages.ts";
 import { gamesDirectory, loadGames, saveGame } from "./saved-games.ts";
 import { statusPage, type ServerStatus } from "./status-page.ts";
 import { usageInbox } from "./usage-http.ts";
+import { clientErrorsFile, loadClientErrors, saveClientErrors } from "./client-errors.ts";
 import {
   exportMonths,
   loadUsage,
@@ -186,11 +187,16 @@ export function createGameServer(options: ServerOptions): GameServer {
   };
   const usage = new UsageStats({ release: options.release ?? "dev", maps: new Set(maps.keys()) });
   const usageAt = options.dataDir === undefined ? undefined : usageFile(options.dataDir);
+  const errorsAt = options.dataDir === undefined ? undefined : clientErrorsFile(options.dataDir);
   if (usageAt === undefined) {
     logger.warn("usage_in_memory", { reason: "no data directory" });
   } else {
     const error = loadUsage(usage, usageAt);
     if (error) logger.warn("usage_not_loaded", { error: error.message });
+  }
+  if (errorsAt !== undefined) {
+    const error = loadClientErrors(usage.errors, errorsAt);
+    if (error) logger.warn("client_errors_not_loaded", { error: error.message });
   }
   /** Writes the usage counts, if there is somewhere to keep them; never stops the server. */
   const keepUsage = (): void => {
@@ -202,6 +208,12 @@ export function createGameServer(options: ServerOptions): GameServer {
       });
     } catch (error) {
       logger.warn("usage_not_saved", { error: (error as Error).message });
+    }
+    if (errorsAt === undefined) return;
+    try {
+      saveClientErrors(usage.errors, errorsAt, Date.now());
+    } catch (error) {
+      logger.warn("client_errors_not_saved", { error: (error as Error).message });
     }
   };
   const moderation = new Moderation(options.dataDir, Date.now(), options.reportRate);
@@ -266,6 +278,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       if (!isLoopbackRequest(request)) response.writeHead(404).end();
       else if (path === "/admin/reports") reportsAnswer(request, response);
       else if (path === "/admin/bans") bansAnswer(request, response);
+      else if (path === "/admin/errors") errorsAnswer(request, response);
       else response.writeHead(404).end();
       return;
     }
@@ -581,6 +594,21 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     sendJson(response, moderation.read(Date.now(), Math.min(days, 30)));
+  }
+
+  /**
+   * GET /admin/errors?days=N, from inside the container: the errors players'
+   * pages reported in the last N days, 30 at most, grouped, the most reported first.
+   */
+  function errorsAnswer(request: IncomingMessage, response: ServerResponse): void {
+    const days = Number(
+      new URL(request.url ?? "/", "http://localhost").searchParams.get("days") ?? 7,
+    );
+    if (request.method !== "GET" || !Number.isInteger(days) || days <= 0) {
+      response.writeHead(400, { "content-type": "text/plain" }).end("GET ?days=1 to 30");
+      return;
+    }
+    sendJson(response, usage.errors.read(Date.now(), Math.min(days, 30)));
   }
 
   /**
