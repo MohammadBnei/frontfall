@@ -1,17 +1,37 @@
 import { getLanguage } from "../i18n/index.ts";
 
+/**
+ * Number formats by language and options, made once: the HUD formats dozens
+ * of numbers ten times a second, and making a format takes far longer than
+ * using one.
+ */
+const formats = new Map<string, Intl.NumberFormat>();
+
+function numberFormat(key: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const language = getLanguage();
+  const id = `${language}:${key}`;
+  let format = formats.get(id);
+  if (!format) {
+    format = new Intl.NumberFormat(language, options);
+    formats.set(id, format);
+  }
+  return format;
+}
+
 /** 950, 12.4K, 3.1M: short enough for the HUD, in the reader's language. */
 export function formatCount(value: number): string {
-  return new Intl.NumberFormat(getLanguage(), {
-    notation: value < 10_000 ? "standard" : "compact",
+  const compact = value >= 10_000;
+  return numberFormat(compact ? "compact" : "standard", {
+    notation: compact ? "compact" : "standard",
     maximumFractionDigits: 1,
   }).format(value);
 }
 
 export function formatPercent(share: number): string {
-  return new Intl.NumberFormat(getLanguage(), {
+  const digits = share < 0.1 ? 1 : 0;
+  return numberFormat(`percent${String(digits)}`, {
     style: "percent",
-    maximumFractionDigits: share < 0.1 ? 1 : 0,
+    maximumFractionDigits: digits,
   }).format(share);
 }
 

@@ -1,7 +1,7 @@
 import type { LabelAnchor } from "../game/label-anchors.ts";
 import type { PlayerView } from "../game/solo-game.ts";
 import type { Camera } from "../render/camera.ts";
-import { h } from "./dom.ts";
+import { h, setText } from "./dom.ts";
 import { formatCount } from "./format.ts";
 
 /**
@@ -65,7 +65,7 @@ export class PlayerLabels {
         const name = label.root.querySelector(".label-name");
         if (name) name.textContent = player.name;
       }
-      label.troops.textContent = formatCount(player.troops);
+      setText(label.troops, formatCount(player.troops));
     }
   }
 
