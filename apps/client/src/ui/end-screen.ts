@@ -162,7 +162,7 @@ export function endScreen(
 
 /** The achievements this game unlocked, each with its badge and, for a tiered one, the tier. */
 /** Most fallen capitals listed, the latest ones. */
-const FALLS_SHOWN = 6;
+const FALLS_SHOWN = 3;
 
 /**
  * Capital mode (R-CAP-03): how the player's own capital fared, then the

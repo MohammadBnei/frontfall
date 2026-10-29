@@ -1883,6 +1883,14 @@ button.feed-entry:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* A laptop screen: the four buttons on two rows leave the chart more of the panel. */
+@media (max-height: 800px) {
+  .end-screen:has(.end-stats-chart) .end-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* A short screen has no room to keep the buttons in sight: they follow the content, in two columns. */
 @media (max-height: 560px) {
   .end-screen {

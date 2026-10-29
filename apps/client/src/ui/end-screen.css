@@ -46,6 +46,11 @@
 }
 
 /* Capital mode: the player's own capital first, then the fallen ones (R-CAP-03). */
+.end-capitals {
+  margin: 8px 0;
+  text-align: left;
+}
+
 .end-capitals h2 {
   margin: 0 0 4px;
   font-size: 14px;
