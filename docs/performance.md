@@ -241,6 +241,10 @@ whole map in one draw call:
   `Uint16Array`: no copy and no conversion on the CPU.
 - Terrain is an `R8UI` texture uploaded once.
 - A palette texture maps owner ids to colours, 256 entries per row.
+- Once a tile is under two pixels, the shader stops voting borders between
+  the sixteen tiles around the pixel, the dearest part of a frame: 38 % less
+  per frame in software when a tile is 1.5 pixels wide, the zoom of World
+  whole on a laptop's screen.
 - The fragment shader fetches the tile under the pixel with `texelFetch`,
   looks up its colour, and compares it with its four neighbours to draw
   borders. Borders therefore cost no upload at all.

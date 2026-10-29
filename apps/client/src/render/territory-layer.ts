@@ -50,7 +50,7 @@ export interface GlobeRays {
 const FRONT_COLOR = "#F25C2A";
 
 /** How long a tile that changed hands takes to fade into its new colour. */
-const FADE_SECONDS = 0.15;
+const FADE_SECONDS = 0.08;
 
 /** Ground under fallout (R-UNIT-06): a scorched olive, mixed into the land's own colour. */
 const FALLOUT = [96, 102, 34] as const;
@@ -233,9 +233,10 @@ const fragmentShader = /* glsl */ `
     ivec2 tile = wrapTile(ivec2(floor(at)));
     float ownerEdge = 2.0;
     float contactEdge = 2.0;
-    if (pixel > 1.0) {
-      // Zoomed out, a tile is under a pixel and curves would not show: each
-      // tile takes its own owner and borders follow its edges, as on the flat map.
+    if (pixel > 0.5) {
+      // Zoomed out, a tile is under two pixels and curves would hardly show,
+      // for the dearest part of the shader: each tile takes its own owner and
+      // borders follow its edges, as on the flat map.
       owner = ownerAt(tile);
       uvec4 around = uvec4(ownerAt(tile + ivec2(1, 0)), ownerAt(tile - ivec2(1, 0)),
         ownerAt(tile + ivec2(0, 1)), ownerAt(tile - ivec2(0, 1)));

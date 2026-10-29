@@ -23,7 +23,7 @@ import { safeStorage } from "../setup.ts";
 import { sailing, shipMarks, shipTiles } from "./ship-motion.ts";
 
 /** Matches the fade of the territory layer, with a frame to spare. */
-const FADE_MS = 200;
+const FADE_MS = 130;
 
 /** Tiles taken light their front this long (territory layer), with a frame to spare. */
 const FRONT_MS = FRONT_SECONDS * 1000 + 50;
