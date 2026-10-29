@@ -39,15 +39,15 @@ export function isPhone(device: DeviceSignals): boolean {
   return device.touch && device.shortSide < 600;
 }
 
-/** A device that cannot be asked for much: little memory, or few cores for a phone. */
+/**
+ * A device that cannot be asked for much: 2 GB of memory or less, or two cores
+ * or fewer. Cores say little on a phone (an iPhone reports 3 to 6, and some
+ * browsers hide the figure), so only the lowest count is held against it.
+ */
 export function isLowEnd(device: DeviceSignals): boolean {
   const { memoryGb, cores } = device;
   if (memoryGb !== undefined && memoryGb <= 2) return true;
-  if (cores !== undefined && cores <= 2) return true;
-  return (
-    device.touch &&
-    ((memoryGb !== undefined && memoryGb <= 4) || (cores !== undefined && cores <= 4))
-  );
+  return cores !== undefined && cores <= 2;
 }
 
 /**

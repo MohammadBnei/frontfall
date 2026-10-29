@@ -38,7 +38,9 @@ describe("graphics profile", () => {
     expect(isPhone({ ...laptop, shortSide: 500 })).toBe(false);
     expect(isLowEnd({ ...laptop, cores: 2 })).toBe(true);
     expect(isLowEnd({ ...laptop, cores: 4 })).toBe(false);
-    expect(isLowEnd({ ...phone, cores: 4 })).toBe(true);
+    // An iPhone says 3 cores and no memory: nothing to hold against it.
+    expect(isLowEnd({ ...phone, cores: 3 })).toBe(false);
+    expect(isLowEnd({ ...phone, memoryGb: 4 })).toBe(false);
     expect(isLowEnd(phone)).toBe(false);
   });
 
