@@ -10,9 +10,12 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Measure a phone with `?perf`.** Add `?perf` to the game's address and a small panel shows the map's frame time, with a button to copy a report of the device, the picture used and how frames fared.
 - **The first steps now cover fronts and ships.** Your first solo game's guide grew from six steps to eight: after your first attack, a step explains fronts that give way (and that a fort holds), and after your first building, one explains sending troops across the water by ship and what a port is for. Both move on by themselves when it happens, or with Next, and both read as taps on a phone. The game itself is no easier.
 - **A tutorial, whenever you want it.** A Tutorial button under Play solo starts a short guided game on a small map with two nations at normal strength, and shows the first steps whether or not you put them away before. It leaves your solo setup as it was, and Play again replays the tutorial. The guide is a card you can read with the keyboard or a screen reader, and on a phone it speaks of taps. It loads only when you start it: the first visit is no heavier.
+- **A map ready when the game starts.** In an online lobby the map downloads while the players gather, so the start no longer waits for it.
+- **Light vibrations on a phone.** An attack against you, a land taken, a victory and a defeat each give a short buzz. A switch in the Accessibility panel turns it off; it is also off when reduced motion is on. Only on devices that can vibrate.
 
 ### Changed
 
+- **Softer changes of screen.** The menu, the lobby and the game fade in instead of cutting; with reduced motion, they simply appear.
 - **A right click leaves a build mode.** With a building picked (a city, say), a right click on the map goes back to attacking, like Esc, without opening the player menu. Without a build mode, it still opens that menu.
 
 - **The bar at the foot of the screen no longer moves.** Your troops, gold and land keep a fixed room, and figures show at most three digits (124K, 1.24M), so the bar and the sliders beside it stay still as the numbers climb, on computers and phones.

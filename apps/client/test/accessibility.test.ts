@@ -10,6 +10,7 @@ describe("accessibility settings", () => {
       highContrast: false,
       flatMap: false,
       graphics: "auto",
+      haptics: true,
     };
     expect(parseSettings(null)).toEqual(defaults);
     expect(parseSettings("not json")).toEqual(defaults);
@@ -28,8 +29,10 @@ describe("accessibility settings", () => {
       highContrast: true,
       flatMap: true,
       graphics: "saver",
+      haptics: true,
     });
     expect(parseSettings('{"graphics":"ultra"}').graphics).toBe("auto");
+    expect(parseSettings('{"haptics":false}').haptics).toBe(false);
   });
 });
 

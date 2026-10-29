@@ -13,6 +13,7 @@ import {
   fetchManifest,
   fetchMapData,
   fetchMaps,
+  warmMap,
   type MapInfo,
 } from "../src/game/maps.ts";
 import { SoloGame } from "../src/game/solo-game.ts";
@@ -142,5 +143,38 @@ describe("desync report", () => {
       await fetchMapData(GENERATED_MAPS[0] as MapInfo, undefined),
     );
     expect(solo.report()).toBeUndefined();
+  });
+});
+
+describe("warmMap", () => {
+  it("fetches a published map's manifest and terrain once, and nothing for a generated one", async () => {
+    const maps = await fetchMaps(PAGE, fromDisk);
+    const requested: string[] = [];
+    const spy = ((input: string | URL | Request) => {
+      requested.push(input instanceof Request ? input.url : String(input));
+      return fromDisk(input);
+    }) as typeof fetch;
+    const world = maps.find((map) => map.manifest);
+    if (!world) throw new Error("no published map");
+    await warmMap(world, spy);
+    expect(requested).toHaveLength(2);
+    await warmMap(world, spy);
+    expect(requested).toHaveLength(2);
+    await warmMap(GENERATED_MAPS[0] as MapInfo, spy);
+    expect(requested).toHaveLength(2);
+  });
+
+  it("forgets a failed fetch so that the next call tries again", async () => {
+    const maps = await fetchMaps(PAGE, fromDisk);
+    const other = maps.filter((map) => map.manifest)[1] ?? maps.find((map) => map.manifest);
+    if (!other) throw new Error("no published map");
+    let calls = 0;
+    const failing = (() => {
+      calls += 1;
+      return Promise.resolve(new Response(null, { status: 500 }));
+    }) as typeof fetch;
+    await warmMap(other, failing);
+    await warmMap(other, failing);
+    expect(calls).toBe(2);
   });
 });

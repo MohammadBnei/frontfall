@@ -17,6 +17,8 @@ export interface AccessibilitySettings {
   flatMap: boolean;
   /** How the map is drawn: chosen by the device, light, or as sharp as it goes. */
   graphics: GraphicsMode;
+  /** Short vibrations on a phone at a few moments of a game. */
+  haptics: boolean;
 }
 
 export const STORAGE_KEY = "frontfall.accessibility";
@@ -27,6 +29,7 @@ const DEFAULTS: AccessibilitySettings = {
   highContrast: false,
   flatMap: false,
   graphics: "auto",
+  haptics: true,
 };
 
 /** What was stored, with anything unreadable or out of range put back to the default. */
@@ -44,6 +47,7 @@ export function parseSettings(raw: string | null | undefined): AccessibilitySett
     settings.flatMap = stored["flatMap"] === true;
     const graphics = GRAPHICS_MODES.find((mode) => mode === stored["graphics"]);
     if (graphics) settings.graphics = graphics;
+    settings.haptics = stored["haptics"] !== false;
   } catch {
     // Not JSON: the defaults stand.
   }
@@ -122,7 +126,7 @@ export function accessibilityPanel(): HTMLDetailsElement {
 
   const toggle = (
     id: string,
-    key: "reduceMotion" | "highContrast" | "flatMap",
+    key: "reduceMotion" | "highContrast" | "flatMap" | "haptics",
     label: string,
   ): HTMLElement => {
     const input = h("input", { type: "checkbox", id });
@@ -156,6 +160,8 @@ export function accessibilityPanel(): HTMLDetailsElement {
       toggle("reduce-motion", "reduceMotion", "a11y.motion"),
       toggle("high-contrast", "highContrast", "a11y.contrast"),
       toggle("flat-map", "flatMap", "a11y.flatMap"),
+      // Only a device that can vibrate has a use for the switch.
+      ...("vibrate" in navigator ? [toggle("haptics", "haptics", "a11y.haptics")] : []),
       soundControls,
       h("p", { class: "accessibility-note", "data-i18n": "a11y.note" }),
       h("p", { class: "accessibility-note", "data-i18n": "a11y.graphicsNote" }),

@@ -2226,3 +2226,8 @@ button.feed-entry:focus-visible {
     animation: none;
   }
 }
+
+/* The map and the interface fade in together once the game screen is built. */
+.game {
+  animation: screen-in 0.3s ease-out;
+}

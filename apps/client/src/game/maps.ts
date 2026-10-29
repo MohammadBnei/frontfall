@@ -184,6 +184,27 @@ export async function fetchMapData(
   };
 }
 
+const warmed = new Set<string>();
+
+/**
+ * Fetches a published map's manifest and terrain ahead of the start, so that the browser holds
+ * them when the game asks: the lobby lasts longer than the download. Once per map; a failure
+ * is left for the game itself to report, and the next call tries again.
+ */
+export async function warmMap(info: MapInfo, fetcher: typeof fetch = fetch): Promise<void> {
+  if (!info.manifest || warmed.has(info.id)) return;
+  warmed.add(info.id);
+  try {
+    const manifest = await fetchManifest(info, fetcher);
+    if (!manifest) return;
+    const response = await fetcher(new URL(manifest.terrain.file, new URL(info.manifest)));
+    if (!response.ok) throw new Error(`map ${info.id}: HTTP ${String(response.status)}`);
+    await response.arrayBuffer();
+  } catch {
+    warmed.delete(info.id);
+  }
+}
+
 export function generateMap(id: string): MapData {
   const map = GENERATED.find((candidate) => candidate.id === id);
   if (!map) throw new RangeError(`unknown map ${id}`);

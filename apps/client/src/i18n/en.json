@@ -412,6 +412,7 @@
   "a11y.motion": "Reduce motion",
   "a11y.contrast": "High contrast",
   "a11y.flatMap": "Flat map, lighter for older devices",
+  "a11y.haptics": "Light vibrations on key moments (phones)",
   "a11y.note": "Reduce motion also follows your device setting.",
   "help.keyboardPick": "Keyboard: the cross marks the middle of the view. Enter or Space clicks it, Shift+Enter opens its menu",
   "end.achievements": "Achievements unlocked",

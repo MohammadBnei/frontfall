@@ -10,7 +10,7 @@ import {
   t,
   type MessageKey,
 } from "./i18n/index.ts";
-import { fetchMaps, type MapInfo } from "./game/maps.ts";
+import { fetchMaps, warmMap, type MapInfo } from "./game/maps.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
 import { BUILD } from "./net/build.ts";
 import { forgetSeat, saveSeat, seatIn } from "./net/seat.ts";
@@ -613,6 +613,9 @@ function goOnline(entry: OnlineEntry, chosen: GameSetup = setup, snapshot?: Stor
       },
       lobby(state, behind) {
         visibility = state.visibility;
+        // The map downloads while the players gather, so the start finds it ready.
+        const chosenMap = maps.find((candidate) => candidate.id === state.map);
+        if (chosenMap) void warmMap(chosenMap);
         // Any game is joined again from its link, after a reload too.
         history.replaceState(null, "", `?${new URLSearchParams({ game: state.game }).toString()}`);
         if (fromMenu && state.host === state.you) {
