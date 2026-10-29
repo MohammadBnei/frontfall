@@ -60,6 +60,7 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   token_invalid: "this game is over or the seat was given up",
   token_in_use: "the seat is still connected",
   invalid_settings: "no such map, or too many bots or seats for it",
+  not_operator: "only the operator, signed in, has the gold bonus, in a private game",
   restarting: "the server is about to restart; try again in a few minutes",
   invalid_game_name: "the game name is not allowed",
   not_enough_players: "wait for more players before starting",
@@ -111,6 +112,8 @@ export interface MessageContext {
   readonly games: Directory;
   /** Accounts, when players may sign in: their names are theirs alone. */
   readonly accounts?: Accounts | undefined;
+  /** Accounts of the operator, who may give themselves the gold bonus of R-MODE-09. */
+  readonly operators: ReadonlySet<string>;
   readonly maps: MapLimits;
   /** Bots the host of a game may add, within the map's player count. */
   readonly maxBots: number;
@@ -158,7 +161,8 @@ export function messageHandler(ctx: MessageContext): {
       reply(session, missing);
       return;
     }
-    const seat = room.join(session.name ?? "", session.peer, Date.now(), session.address);
+    const operator = session.account !== undefined && ctx.operators.has(session.account);
+    const seat = room.join(session.name ?? "", session.peer, Date.now(), session.address, operator);
     if (typeof seat === "string") {
       reply(session, seat);
       return;
@@ -306,13 +310,16 @@ export function messageHandler(ctx: MessageContext): {
         // A quick game keeps filling in with the new map's bots.
         const soloBots =
           current.room.settings.soloBots > 0 ? (ctx.maps.get(message.options.map)?.bots ?? 0) : 0;
+        const turnedOn = message.operatorGold === true;
         const error = current.room.configure(
           current.seat,
           { ...message.options, capacity: seats, soloBots, ...(name !== undefined && { name }) },
           Date.now(),
           message.seq,
+          message.operatorGold,
         );
         if (error) refuse(error);
+        else if (turnedOn) ctx.logger.info("operator_gold", { game: current.room.id });
         return;
       }
       case "start": {

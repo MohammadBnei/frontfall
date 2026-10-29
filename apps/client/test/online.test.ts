@@ -122,6 +122,7 @@ const START: Extract<ServerMessage, { type: "started" }> = {
   tickRate: 10,
   speed: 1,
   rules: { collapsingFronts: true, capitals: false },
+  goldBonus: null,
   players: [
     { id: 1, name: "Alice" },
     { id: 2, name: "Bob" },
@@ -279,6 +280,8 @@ describe("OnlineClient", () => {
       token: START.token,
       holdable: true,
       configured: 0,
+      operator: false,
+      goldBonus: null,
     });
     socket.receive(START);
     socket.receive({ type: "turns", turns: [{ tick: 0, orders: [] }] });
@@ -321,6 +324,8 @@ describe("OnlineClient", () => {
       token: START.token,
       holdable: false,
       configured: 0,
+      operator: false,
+      goldBonus: null,
     };
     socket.receive(lobby);
     online.configure({ ...options, bots: 0 });
@@ -436,6 +441,8 @@ describe("OnlineClient", () => {
       startsIn: null,
       holdable: false,
       configured: 0,
+      operator: false,
+      goldBonus: null,
       token: START.token,
     });
 
@@ -475,6 +482,8 @@ describe("OnlineClient", () => {
       startsIn: 1000,
       holdable: true,
       configured: 0,
+      operator: false,
+      goldBonus: null,
       token: START.token,
     });
     socket.drop();

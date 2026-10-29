@@ -43,6 +43,8 @@ export interface GameRules {
   readonly disabled: number;
   /** Special rules of the game (R-MODE-08). */
   readonly special: SpecialRules;
+  /** The player whose gold the operator's test bonus doubles (R-MODE-09), 0 for none. */
+  readonly goldBonus: number;
 }
 
 /** From the page to the simulation worker. */

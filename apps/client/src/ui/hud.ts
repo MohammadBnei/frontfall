@@ -179,6 +179,7 @@ export class Hud {
     teams: [],
     disabled: 0,
     special: { collapsingFronts: false, capitals: false },
+    goldBonus: 0,
   };
 
   private readonly touch: () => boolean;

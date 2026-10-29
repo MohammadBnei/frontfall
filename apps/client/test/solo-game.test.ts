@@ -64,6 +64,16 @@ describe("SoloGame", () => {
     expect(newGame(options).teamsById()).toEqual([]);
   });
 
+  it("hands the operator's gold bonus to the engine online (R-MODE-09)", () => {
+    const players = [
+      { id: 1, name: "Nico" },
+      { id: 2, name: "Lea" },
+    ];
+    const solo = newGame({ ...options, players, you: 2, goldBonus: 1 });
+    expect(solo.game.goldBonus).toBe(1);
+    expect(newGame({ ...options, players, you: 2 }).game.goldBonus).toBe(0);
+  });
+
   it("places the human where they click and reports the tiles that changed", () => {
     const solo = newGame(options);
     const tile = firstLand(options.map);

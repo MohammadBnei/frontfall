@@ -394,6 +394,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   const { handle, reject, seatOf } = messageHandler({
     games,
     accounts: auth?.accounts,
+    operators: options.operatorAccounts ?? new Set(),
     maps,
     maxBots,
     simulation,

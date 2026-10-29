@@ -46,8 +46,11 @@ const ACTIVE_EVERY_MS = 30_000;
 export interface LobbyActions {
   /** Host: start with the players present. */
   onStart(): void;
-  /** Host: new options and, for a public game, a new name. */
-  onConfigure(options: GameOptions, name?: string): void;
+  /**
+   * Host: new options and, for a public game, a new name; for the operator,
+   * whether their gold bonus is on (R-MODE-09).
+   */
+  onConfigure(options: GameOptions, name?: string, operatorGold?: boolean): void;
   /** Host of a quick game: stop the countdown. */
   onHold(): void;
   /** Host: remove another player from the game (R-MODE-05). */
@@ -151,6 +154,14 @@ export class LobbyScreen {
     this.onRulesChange();
   });
   private onRulesChange = (): void => undefined;
+  /** The operator's test bonus (R-MODE-09): offered only to them, in a private game. */
+  private readonly operatorGold = h("input", { id: "lobby-operator-gold", type: "checkbox" });
+  private readonly operatorGoldToggle = h(
+    "label",
+    { class: "toggle lobby-operator-gold", for: "lobby-operator-gold", hidden: true },
+    this.operatorGold,
+    h("span", { "data-i18n": "online.operatorGold" }),
+  );
   private readonly settings = h(
     "div",
     { class: "lobby-settings", hidden: true },
@@ -191,10 +202,13 @@ export class LobbyScreen {
       ),
     ),
     this.rules.element,
+    this.operatorGoldToggle,
   );
   private readonly summary = h("p", { class: "lobby-summary", id: "lobby-summary" });
   /** The special rules of the game, for those who do not set them. */
   private readonly rulesLine = h("p", { class: "lobby-summary", id: "lobby-rules-line" });
+  /** Every player of the game is told when the operator doubles their own gold (R-MODE-09). */
+  private readonly goldLine = h("p", { class: "lobby-summary", id: "lobby-operator-gold-line" });
   private shown: { key: MessageKey; params: Params } = { key: "status.connecting", params: {} };
   /** Countdown of a public game: when it starts, by this page's clock. */
   private startsAt: number | undefined;
@@ -245,7 +259,8 @@ export class LobbyScreen {
         // A public game always plays the default rules; the server refuses others.
         ...(this.lastLobby.visibility === "private" ? { rules: this.rules.read() } : {}),
       };
-      actions.onConfigure(options, name);
+      const operatorGold = this.operatorGoldToggle.hidden ? undefined : this.operatorGold.checked;
+      actions.onConfigure(options, name, operatorGold);
     };
     // The name goes out once typed: on Enter or when the field loses focus.
     this.gameName.addEventListener("change", () => {
@@ -272,6 +287,7 @@ export class LobbyScreen {
     this.teams.addEventListener("change", reconfigure);
     this.speed.addEventListener("change", reconfigure);
     this.onRulesChange = reconfigure;
+    this.operatorGold.addEventListener("change", reconfigure);
     for (const { input } of this.allowed) input.addEventListener("change", reconfigure);
     this.bots.addEventListener("input", () => {
       this.botsValue.textContent = this.bots.value;
@@ -309,6 +325,7 @@ export class LobbyScreen {
         this.status,
         this.summary,
         this.rulesLine,
+        this.goldLine,
         this.settings,
         this.players,
         this.invitation,
@@ -505,6 +522,9 @@ export class LobbyScreen {
     const played = activeRuleNames(lobby.rules);
     this.rulesLine.textContent = t("setup.rules.played", { rules: played.join(", ") });
     this.rulesLine.hidden = Boolean(editable) || played.length === 0;
+    const bonus = lobby.players.find((player) => player.id === lobby.goldBonus);
+    this.goldLine.textContent = bonus ? t("online.operatorGoldOn", { name: bonus.name }) : "";
+    this.goldLine.hidden = !bonus;
     // An answer to an earlier change would undo the later ones, and the next change would send it back.
     if (!editable || this.behind) return;
     // Only maps that seat every player already in.
@@ -552,6 +572,8 @@ export class LobbyScreen {
     this.nations.checked = lobby.nations;
     // A public game plays the default rules, shown but not offered for change.
     this.rules.show(lobby.rules, lobby.visibility === "private");
+    this.operatorGoldToggle.hidden = !lobby.operator;
+    this.operatorGold.checked = lobby.goldBonus === lobby.you;
     this.teams.replaceChildren(
       ...TEAM_CHOICES.map((teams) =>
         h("option", { value: teams }, t(`mode.${String(teams)}` as MessageKey)),

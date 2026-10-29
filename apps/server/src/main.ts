@@ -39,6 +39,15 @@ const seatsPerAddress =
   optionalNumber("FRONTFALL_SEATS_PER_ADDRESS", (seats) => ({ seatsPerAddress: seats })) ?? {};
 
 /**
+ * Accounts of the operator, by id, separated by commas or spaces: each may
+ * double their own gold in their private games, to test (R-MODE-09). Unset,
+ * no one can. See docs/server.md#operator-gold-bonus.
+ */
+const operatorAccounts = new Set(
+  (process.env.FRONTFALL_OPERATOR_ACCOUNTS ?? "").split(/[\s,]+/).filter((id) => id !== ""),
+);
+
+/**
  * Sign-in with Discord or Google: each service whose application id and
  * secret are set. By email: when an SMTP file is given. Either way the game
  * must know its public address and have a secret to sign sessions with.
@@ -94,6 +103,7 @@ const server = createGameServer({
   logger,
   dataDir: process.env.FRONTFALL_DATA || undefined,
   auth: authSettings(),
+  operatorAccounts,
   publicGame: {
     ...optionalNumber("FRONTFALL_COUNTDOWN_SECONDS", (seconds) => ({
       // A quick game must count down: without it, a lone player would wait for nothing.
@@ -132,5 +142,11 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
 server.http.listen(port, () => {
-  logger.info("server_started", { port, version, release, simulation });
+  logger.info("server_started", {
+    port,
+    version,
+    release,
+    simulation,
+    operators: operatorAccounts.size,
+  });
 });

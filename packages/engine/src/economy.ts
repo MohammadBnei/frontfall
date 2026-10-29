@@ -44,6 +44,13 @@ export function workError(game: Game, share: number): string | undefined {
 }
 
 /**
+ * How many times their usual gold the player of the operator's test bonus
+ * earns (R-MODE-09). Not a balance value: it never applies to a game anyone
+ * but the operator plays to win, and the balance digest stays as it was.
+ */
+export const OPERATOR_GOLD_FACTOR = 2;
+
+/**
  * Growth of troops and gold every tick of play (R-ECO-01 to R-ECO-05), and
  * elimination of players left without land.
  */
@@ -71,7 +78,9 @@ export function installEconomy(game: Game): void {
 
       // R-ECO-07: a worker earns B-WORK-GOLD times what a soldier does.
       const earning = player.troops + workers(player) * (game.balance.workGoldFactor - 1);
-      const earned = earning * game.balance.goldPerThousandTroops + player.goldRemainder;
+      // R-MODE-09: the operator's test bonus doubles one player's income.
+      const bonus = player.id === game.goldBonus ? OPERATOR_GOLD_FACTOR : 1;
+      const earned = earning * game.balance.goldPerThousandTroops * bonus + player.goldRemainder;
       player.gold += Math.floor(earned / goldDivisor);
       player.goldRemainder = earned % goldDivisor;
     }

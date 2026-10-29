@@ -68,6 +68,8 @@ const SERVER_MESSAGES: ServerMessage[] = [
     token: "q8Vb1aV9mN3x0WcY2tLk4Q",
     holdable: true,
     configured: 0,
+    operator: false,
+    goldBonus: null,
   },
   {
     type: "started",
@@ -82,6 +84,7 @@ const SERVER_MESSAGES: ServerMessage[] = [
     tickRate: 10,
     speed: 2,
     rules: { collapsingFronts: false, capitals: true },
+    goldBonus: 1,
     players: [{ id: 1, name: "Nico" }],
     you: 1,
     token: "0123456789abcdefABCDEF",
