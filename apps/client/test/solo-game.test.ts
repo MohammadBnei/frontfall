@@ -465,6 +465,7 @@ describe("SoloGame clicks", () => {
         kinds,
         relief: new Uint8Array(kinds.length),
         nations: [],
+        landmarks: [],
       },
     );
     let update = solo.step([{ type: "spawn", tile: at(9, 6) }]);
@@ -619,6 +620,7 @@ describe("SoloGame clicks", () => {
         kinds,
         relief: new Uint8Array(kinds.length),
         nations: [],
+        landmarks: [],
       },
     );
     // A start on the shore: ships leave from the coasts the player holds.
