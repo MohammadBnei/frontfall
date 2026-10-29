@@ -36,7 +36,6 @@ import { MapScene } from "./screen/map-scene.ts";
 import { Orders } from "./screen/orders.ts";
 import { Overlays } from "./screen/overlays.ts";
 import { PreviewHost } from "./screen/preview-host.ts";
-import { watchHudBoxes } from "./screen/hud-boxes.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
 /** How often the turns of an online game are checked for being due. */
@@ -108,6 +107,8 @@ export class GameScreen {
   /** The sound effects, once their code is fetched; none for a replay. */
   private sound: Sound | undefined;
   private frameHandle = 0;
+  /** The HUD's panels may have changed since they were last measured (`clearPanels`). */
+  private panelsMoved = true;
   private readonly marks = new ClickMarks();
   private readonly labels = new PlayerLabels();
   /** Players hidden on this screen (R-DIPLO-08), for this game only. */
@@ -395,6 +396,7 @@ export class GameScreen {
     window.addEventListener("keydown", keydown);
     const resize = (): void => {
       this.scene.resize();
+      this.panelsMoved = true;
     };
     window.addEventListener("resize", resize);
     // The tab closes or the page goes away in the middle of the game.
@@ -435,25 +437,6 @@ export class GameScreen {
       });
     }
     this.cleanups.push(
-      // The panels grow and shrink with their content: labels keep clear of them.
-      watchHudBoxes(
-        this.hud.element,
-        (boxes) => {
-          const guide = boxes.find(({ element }) => element.classList.contains("guide"));
-          const moved = this.feed?.clearOf(guide?.rect) ?? false;
-          this.labels.avoid(
-            boxes
-              // The feed just went under the guide or back: read where it is now.
-              .map(({ element, rect }) =>
-                moved && element.classList.contains("events-feed")
-                  ? element.getBoundingClientRect()
-                  : rect,
-              )
-              .filter((rect) => rect.width > 0),
-          );
-        },
-        this.element,
-      ),
       () => {
         window.removeEventListener("keydown", keydown);
       },
@@ -492,6 +475,7 @@ export class GameScreen {
     }
     let last = performance.now();
     const frame = (now: number): void => {
+      if (this.panelsMoved) this.clearPanels();
       this.input.update(now - last);
       last = now;
       this.scene.draw(now);
@@ -505,11 +489,29 @@ export class GameScreen {
     this.frameHandle = requestAnimationFrame(frame);
   }
 
+  /**
+   * Where the HUD's panels sit, for the feed to go under the guide and the
+   * labels to keep clear of them all. Read at the start of a frame, before
+   * the frame writes anything, so the browser lays the page out once for both:
+   * read right after an update wrote to the HUD, they forced a layout of their
+   * own, a millisecond or more ten times a second.
+   */
+  private clearPanels(): void {
+    this.panelsMoved = false;
+    const panels = [...this.hud.element.children];
+    const guide = panels.find((panel) => panel.classList.contains("guide"));
+    this.feed?.clearOf(guide?.getBoundingClientRect());
+    this.labels.avoid(
+      panels.map((panel) => panel.getBoundingClientRect()).filter((rect) => rect.width > 0),
+    );
+  }
+
   /** The wide layout (docs/hud-layout.md) needs its 1240 px at the interface size chosen in the menu. */
   private readonly layOut = (): void => {
     const wide =
       window.innerWidth >= (1240 * accessibility().scale) / 100 && window.innerHeight >= 560;
     this.element.toggleAttribute("data-wide", wide);
+    this.panelsMoved = true;
   };
 
   dispose(): void {
@@ -607,6 +609,8 @@ export class GameScreen {
     this.hud.update(update, performance.now());
     this.diplomacy.update(update);
     this.feed?.observe(update, lost ?? new Map(), performance.now());
+    // The panels grow and shrink with their content: measured on the next frame.
+    this.panelsMoved = true;
     if (update.replay) this.replayBar?.update(update.tick, update.replay, this.ticksPerSecond);
     if (update.winner !== undefined && !this.ended && !this.replayBar) {
       this.ended = true;

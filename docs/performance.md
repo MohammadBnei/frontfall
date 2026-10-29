@@ -397,8 +397,10 @@ the DevTools profiler, over 200 updates at ticks 607-808 and 1807-2008.
   update had written to the HUD, which forced the browser to lay the page
   out there and then; the player labels and the leaderboard wrote every
   number again even when unchanged, each write laying the page out anew; and
-  every number made a new `Intl.NumberFormat`. Panels are now measured by a
-  resize observer once the frame is laid out, text is written only when it
+  every number made a new `Intl.NumberFormat`. Panels are now measured at the
+  start of the next frame, before it writes anything, so the page is laid
+  out once for both (a resize observer, tried first, made WebKit report a
+  loop error as soon as the feed moved); text is written only when it
   changes, and formats are made once per language. The handler now takes 0.95 ms on average early (5.8 ms at worst) and 1.4 ms later.
 
 ### Rendering, real GPU
