@@ -194,6 +194,11 @@ export class GlobeView implements Renderer {
     return this.territory.groundTexture.image.data as Uint8Array;
   }
 
+  setPixelRatio(ratio: number): void {
+    // Three.js sizes the drawing buffer again for the same CSS size.
+    this.renderer.setPixelRatio(ratio);
+  }
+
   resize(width: number, height: number): void {
     this.renderer.setSize(width, height, false);
     this.cssWidth = Math.max(1, width);

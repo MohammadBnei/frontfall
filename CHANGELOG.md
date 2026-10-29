@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **A smoother map on high-density screens.** Moving, zooming and playing no longer stutter on a laptop whose graphics chip cannot draw every pixel of a Retina screen sixty times a second: the map is drawn a little less sharp while frames fall behind, and back at full sharpness as soon as they keep up. Phones draw the map at most at twice their screen's resolution. The map's shading also does less work for the same picture: borders up close, the sea's swell and the grain of the ground are cheaper to draw.
+
 ## [0.8.0] - 2026-10-29
 
 Own rules: fronts that collapse and a capital mode, a harder game, a lighter first visit, workers, an attack preview and build previews, and game speed.
