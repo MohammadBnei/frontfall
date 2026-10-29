@@ -605,7 +605,10 @@ export function createAuth(
       rename(account, request, response);
       return true;
     }
-    accounts.remove(account.id);
+    if (!accounts.remove(account.id)) {
+      json(response, 500, { error: "unsaved", message: "the account could not be deleted" });
+      return true;
+    }
     logger.info("account_deleted", { provider: account.provider });
     json(response, 200, me(undefined), [cookie(SESSION_COOKIE, "", 0)]);
     return true;

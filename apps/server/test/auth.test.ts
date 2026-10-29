@@ -416,6 +416,9 @@ describe("Accounts", () => {
     expect(accounts.rename(ana.id, "Anna")).toMatchObject({ ok: true });
     expect(accounts.get(ana.id)?.name).toBe("Anna");
     expect(errors.length).toBeGreaterThan(0);
+    // A deletion the file never got is refused, so the account cannot come back at the next start.
+    expect(accounts.remove(ana.id)).toBe(false);
+    expect(accounts.get(ana.id)?.name).toBe("Anna");
   });
 
   it("gives a name to a player whose name at the service has nothing usable", () => {

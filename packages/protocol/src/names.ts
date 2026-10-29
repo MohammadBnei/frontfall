@@ -189,15 +189,19 @@ function fold(text: string): string {
  * than 0 and 1 stay digits, so "Bob 2" and "Bob 3" are told apart.
  */
 export function nameKey(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/./gu, (char) => {
-      const latin = LOOK_ALIKES[char] ?? char;
-      return LOOK_ALIKE_GLYPHS[latin] ?? latin;
-    })
-    .replace(/[^\p{L}\p{N}]/gu, "");
+  return (
+    name
+      .normalize("NFKD")
+      // Accents on Latin, Greek and Cyrillic letters only: elsewhere, as in
+      // Hindi, Thai or Japanese, a mark is a vowel or a sound of its own.
+      .replace(/(?<=[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}]\p{M}*)\p{M}/gu, "")
+      .toLowerCase()
+      .replace(/./gu, (char) => {
+        const latin = LOOK_ALIKES[char] ?? char;
+        return LOOK_ALIKE_GLYPHS[latin] ?? latin;
+      })
+      .replace(/[^\p{L}\p{M}\p{N}]/gu, "")
+  );
 }
 
 /**
