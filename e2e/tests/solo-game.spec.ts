@@ -77,6 +77,8 @@ test("plays a solo game from the menu: spawn, then expand", async ({ page }) => 
       .catch(() => undefined);
     await page.waitForTimeout(300);
   }
+  // The pointer rests on the map, where it may show the preview of an attack in the same panel.
+  await page.locator(".stats").hover();
   await expect(page.locator(".attacks")).toBeHidden();
 
   expect(pageErrors).toEqual([]);
