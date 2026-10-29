@@ -312,7 +312,8 @@ export class GameScreen {
             // Without it the game goes on in silence.
             import("../audio/sound.ts").then(
               (module) => {
-                this.sound = new module.Sound();
+                if (this.disposed) return;
+                this.sound = new module.Sound(() => this.scene.camera);
               },
               () => undefined,
             );

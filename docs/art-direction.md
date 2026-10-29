@@ -89,12 +89,13 @@ Motion explains what is happening; it never decorates.
 
 ## Sound
 
-Planned for the same release, in the same spirit: soft, tactile, never shrill.
+Soft, tactile, never shrill. Wooden bars, a thumb piano and soft strings in a warm room (the `atlas` palette), all synthesised in the browser.
 
-- Short wooden or stone-like sounds for placing a building, a deeper one for a front breaking.
-- A low horn for a ship at sea, a rising whistle for a missile in flight.
-- Interface clicks are quiet and short. Sound is off until the player turns it on, with separate sliders for effects and ambience.
-- All sounds are recorded or synthesised for the project, or come from sources whose licence allows commercial use, and are listed in `CREDITS.md`.
+- Every effect has several variants, and the same one never plays twice in a row.
+- A sound happens where its event is: panned to its side of the screen, quieter, duller and more echoing the further it lies beyond the edge, and softer when the whole map is in view. The player's own doing always stays clear.
+- A light generative score runs under the game: a pad on a slow progression, a few melody notes and sparkles, drums that come in with the fighting and strings that come in with the empire. It stops when the game ends and while the tab is hidden.
+- Effects and music have their own sliders, and one switch mutes both. Nothing plays until the page has been clicked once.
+- Everything is made for the project, so nothing is listed in `CREDITS.md`. A recorded or third-party sound would need a licence that allows commercial use and an entry there.
 
 ## Quality criteria
 

@@ -1,16 +1,20 @@
-/** What the player chose for the sound effects, kept between visits. */
+/** What the player chose for the sound, kept between visits. */
 export interface SoundSettings {
-  /** 0 to 100. */
+  /** Level of the sound effects, 0 to 100. */
   volume: number;
+  /** Level of the music, 0 to 100; 0 leaves it off. */
+  music: number;
+  /** Silences everything: effects and music. */
   muted: boolean;
 }
 
 export const STORAGE_KEY = "frontfall.sound";
 export const DEFAULT_VOLUME = 60;
+export const DEFAULT_MUSIC = 35;
 
 /** What was stored, with anything unreadable or out of range put back to the default. */
 export function parseSound(raw: string | null | undefined): SoundSettings {
-  const settings: SoundSettings = { volume: DEFAULT_VOLUME, muted: false };
+  const settings: SoundSettings = { volume: DEFAULT_VOLUME, music: DEFAULT_MUSIC, muted: false };
   if (!raw) return settings;
   try {
     const value: unknown = JSON.parse(raw);
@@ -19,6 +23,10 @@ export function parseSound(raw: string | null | undefined): SoundSettings {
     const volume = stored["volume"];
     if (typeof volume === "number" && Number.isFinite(volume)) {
       settings.volume = Math.min(100, Math.max(0, Math.round(volume)));
+    }
+    const music = stored["music"];
+    if (typeof music === "number" && Number.isFinite(music)) {
+      settings.music = Math.min(100, Math.max(0, Math.round(music)));
     }
     settings.muted = stored["muted"] === true;
   } catch {

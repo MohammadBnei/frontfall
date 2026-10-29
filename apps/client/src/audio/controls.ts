@@ -3,12 +3,16 @@ import { h } from "../ui/dom.ts";
 import { soundSettings, updateSound } from "./settings.ts";
 
 /** These texts travel with the audio code, so the first visit does not carry them. */
-const TEXTS: Record<Language, { mute: string; volume: string }> = {
-  en: { mute: "Mute sound effects", volume: "Sound effects volume" },
-  fr: { mute: "Couper les effets sonores", volume: "Volume des effets sonores" },
+const TEXTS: Record<Language, { mute: string; volume: string; music: string }> = {
+  en: { mute: "Mute all sound", volume: "Sound effects volume", music: "Music volume" },
+  fr: {
+    mute: "Couper tout le son",
+    volume: "Volume des effets sonores",
+    music: "Volume de la musique",
+  },
 };
 
-/** The mute switch and the volume slider, for the Accessibility panel. */
+/** The mute switch and the two volume sliders, for the Accessibility panel. */
 export function soundPanel(): HTMLElement[] {
   const muted = h("input", { type: "checkbox", id: "sound-muted" });
   muted.checked = soundSettings().muted;
@@ -30,10 +34,24 @@ export function soundPanel(): HTMLElement[] {
   });
   const volumeText = h("label", { for: "sound-volume" });
 
+  const music = h("input", {
+    type: "range",
+    id: "music-volume",
+    min: "0",
+    max: "100",
+    step: "10",
+  });
+  music.value = String(soundSettings().music);
+  music.addEventListener("change", () => {
+    updateSound({ music: Number(music.value) });
+  });
+  const musicText = h("label", { for: "music-volume" });
+
   const words = (): void => {
     const texts = TEXTS[getLanguage()];
     muteText.textContent = texts.mute;
     volumeText.textContent = texts.volume;
+    musicText.textContent = texts.music;
   };
   words();
   onLanguageChange(words);
@@ -41,5 +59,6 @@ export function soundPanel(): HTMLElement[] {
   return [
     h("label", { class: "toggle", for: "sound-muted" }, muted, muteText),
     h("div", { class: "field" }, volumeText, volume),
+    h("div", { class: "field" }, musicText, music),
   ];
 }
