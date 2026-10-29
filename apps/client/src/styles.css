@@ -624,6 +624,11 @@ button.secondary:disabled {
   gap: 18px;
 }
 
+/* Nothing to say, no empty pill. */
+.banner:empty {
+  display: none;
+}
+
 .banner {
   position: absolute;
   top: 12px;

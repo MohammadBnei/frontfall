@@ -5,11 +5,13 @@ import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h } from "./dom.ts";
+import { hintSeen, setHintSeen } from "./hint-state.ts";
 import { formatCount, formatDuration, formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
 import { LeaderList } from "./leader-list.ts";
 import { PopulationBar } from "./population-bar.ts";
 import { BUILD_MODES, costOf, numberOf, offers } from "./build-modes.ts";
+import { safeStorage } from "./setup.ts";
 import { workText } from "./work-text.ts";
 
 // Also found here, where it was first defined.
@@ -775,6 +777,9 @@ export class Hud {
     return human?.alive === true && update.phase === "play" && (update.capitals?.threat ?? 0) !== 0;
   }
 
+  /** The first attack sent, here or in an earlier game: the play hint has done its job. */
+  private hintDone = hintSeen(safeStorage());
+
   private bannerText(update: GameUpdate, human: PlayerView | undefined): string {
     const seconds = Math.ceil(update.spawnTicksLeft / this.rules.ticksPerSecond);
     if (update.phase === "spawn") {
@@ -799,10 +804,14 @@ export class Hud {
     }
     if (this.mode !== "attack") return this.say(MODE_BANNERS[this.mode]);
     if (update.attacks.length > 0) {
+      if (!this.hintDone) {
+        this.hintDone = true;
+        setHintSeen(safeStorage());
+      }
       const troops = update.attacks.reduce((sum, attack) => sum + attack.troops, 0);
       return t("hud.attacking", { count: update.attacks.length, troops: formatCount(troops) });
     }
-    return this.say("hud.playHint");
+    return this.hintDone ? "" : this.say("hud.playHint");
   }
 
   /** The text of a click instruction, or its tap twin when a finger plays. */

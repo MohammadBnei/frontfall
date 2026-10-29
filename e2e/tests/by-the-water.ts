@@ -41,7 +41,8 @@ export async function startByTheWater(
     await page.mouse.click(point.x, point.y);
     await page.waitForTimeout(150);
     if ((await landShare(page)) > 0) {
-      await expect(page.locator(".banner")).toContainText("to expand", { timeout: 30_000 });
+      // Attacks open and the first one is over: the hint is up, or gone for good once an attack began.
+      await expect(page.locator(".banner")).toHaveText(/^$|to expand/, { timeout: 30_000 });
       return point;
     }
   }
