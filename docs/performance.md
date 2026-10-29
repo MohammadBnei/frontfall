@@ -450,8 +450,8 @@ What these numbers do show:
   texels per tick in a quick run.
 - The picture is chosen by the **Graphics** setting of the menu (auto, light or
   sharpest, [`ui/graphics.ts`](../apps/client/src/ui/graphics.ts)). In auto,
-  a weak device (2 GB or less of memory, two cores or fewer, or four or fewer
-  on a touch screen) gets the light picture: the flat map and a sharpest ratio
+  a weak device (2 GB or less of memory, or two cores or fewer; cores say
+  little on an iPhone, which reports 3 to 6) gets the light picture: the flat map and a sharpest ratio
   of 1. A phone with a finger and a screen under 600 px gets the full picture
   capped at 1.5, any other device the full picture capped at 2. If frames
   stay over 22 ms at the lowest ratio, the game switches to the light picture
