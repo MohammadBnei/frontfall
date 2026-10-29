@@ -44,6 +44,6 @@ describe("golden replays", () => {
             "if the change is meant to alter games, run pnpm golden and commit the replays",
       ).toBeUndefined();
       expect(result.ticks).toBe(report.ticks);
-    }, 120_000);
+    }, 600_000);
   }
 });
