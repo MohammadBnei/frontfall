@@ -80,6 +80,12 @@ export interface ServerOptions {
   auth?: AuthOptions | undefined;
   /** How often the usage counts are written to the data directory. */
   usageSaveIntervalMs?: number;
+  /**
+   * Ids of the accounts of the server's operator, who may turn on the gold
+   * bonus of R-MODE-09 for themselves in their private games, to test. Empty
+   * by default: no one can.
+   */
+  operatorAccounts?: ReadonlySet<string>;
 }
 
 /** Cloudflare drops a WebSocket that stays silent for 100 s. */
@@ -111,4 +117,5 @@ export const DEFAULT_GAME: GameSettings = {
   seatsPerAddress: 3,
   // A busy 4-hour game logs about 2 MiB; the order limits allow ten times more.
   maxLogBytes: 16 * 1024 * 1024,
+  goldBonus: 0,
 };

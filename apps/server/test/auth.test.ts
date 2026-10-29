@@ -3,7 +3,13 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { encodeClientMessage, parseServerMessage, PROTOCOL_VERSION } from "@frontfall/protocol";
+import {
+  encodeClientMessage,
+  parseServerMessage,
+  PROTOCOL_VERSION,
+  type ClientMessage,
+  type ServerMessage,
+} from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
 import { Accounts, accountsFile, nameKey } from "../src/accounts.ts";
@@ -386,6 +392,103 @@ describe("names of accounts", () => {
       value: { type: string };
     };
     expect(answer.value.type).toBe("welcome");
+  });
+});
+
+/** A socket that said hello, with the server's messages as they come. */
+async function playerSocket(base: string, name: string, cookie?: string) {
+  const socket = new WebSocket(`${base.replace("http", "ws")}/ws`, {
+    headers: { origin: "https://play.example", ...(cookie ? { cookie } : {}) },
+  });
+  const inbox: ServerMessage[] = [];
+  const waiting: (() => void)[] = [];
+  socket.on("message", (data: Buffer, isBinary: boolean) => {
+    const parsed = parseServerMessage(isBinary ? new Uint8Array(data) : data.toString("utf8"));
+    if (parsed.ok) inbox.push(parsed.value);
+    for (const wake of waiting.splice(0)) wake();
+  });
+  await new Promise((resolve, reject) => {
+    socket.once("open", resolve);
+    socket.once("error", reject);
+  });
+  const next = async <T extends ServerMessage["type"]>(
+    type: T,
+  ): Promise<Extract<ServerMessage, { type: T }>> => {
+    for (;;) {
+      const index = inbox.findIndex((message) => message.type === type);
+      if (index >= 0)
+        return inbox.splice(0, index + 1).at(-1) as Extract<ServerMessage, { type: T }>;
+      await new Promise<void>((resolve) => waiting.push(resolve));
+    }
+  };
+  const send = (message: ClientMessage): void => {
+    socket.send(encodeClientMessage(message));
+  };
+  send({ type: "hello", version: PROTOCOL_VERSION, name });
+  await next("welcome");
+  return { socket, next, send };
+}
+
+describe("operator's gold bonus (R-MODE-09)", () => {
+  const options = {
+    map: "world",
+    bots: 0,
+    difficulty: "normal",
+    nations: true,
+    teams: 0,
+    disabled: 0,
+    capacity: 4,
+    autoStart: false,
+  } as const;
+
+  it("is offered to a listed account only, and doubles that player's gold alone", async () => {
+    const operators = new Set<string>();
+    const base = await start({ operatorAccounts: operators });
+    const { session = "" } = await signIn(base);
+    const [account] = (
+      JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as { accounts: { id: string }[] }
+    ).accounts;
+    if (!account) throw new Error("no account");
+
+    // Signed in but not listed: the same as a guest.
+    const before = await playerSocket(base, "x", `frontfall_session=${session}`);
+    before.send({ type: "create", visibility: "private" });
+    expect((await before.next("lobby")).operator).toBe(false);
+    before.send({ type: "configure", options, operatorGold: true });
+    expect(await before.next("error")).toMatchObject({ code: "not_operator" });
+    before.socket.close();
+
+    operators.add(account.id);
+    const nico = await playerSocket(base, "x", `frontfall_session=${session}`);
+    nico.send({ type: "create", visibility: "private" });
+    const lobby = await nico.next("lobby");
+    expect(lobby).toMatchObject({ operator: true, goldBonus: null });
+    nico.send({ type: "configure", options, operatorGold: true });
+    expect((await nico.next("lobby")).goldBonus).toBe(lobby.you);
+
+    const guest = await playerSocket(base, "Guest");
+    guest.send({ type: "join", game: lobby.game });
+    expect(await guest.next("lobby")).toMatchObject({ operator: false, goldBonus: lobby.you });
+    nico.send({ type: "start" });
+    expect((await guest.next("started")).goldBonus).toBe(1);
+    nico.socket.close();
+    guest.socket.close();
+  });
+
+  it("is never offered in a public game", async () => {
+    const operators = new Set<string>();
+    const base = await start({ operatorAccounts: operators });
+    const { session = "" } = await signIn(base);
+    const { accounts } = JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as {
+      accounts: { id: string }[];
+    };
+    for (const { id } of accounts) operators.add(id);
+    const nico = await playerSocket(base, "x", `frontfall_session=${session}`);
+    nico.send({ type: "create", visibility: "public", name: "Open game" });
+    expect((await nico.next("lobby")).operator).toBe(false);
+    nico.send({ type: "configure", options, operatorGold: true });
+    expect(await nico.next("error")).toMatchObject({ code: "not_operator" });
+    nico.socket.close();
   });
 });
 

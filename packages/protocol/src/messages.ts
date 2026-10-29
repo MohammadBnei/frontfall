@@ -15,7 +15,7 @@ import { Order, PlayerNumber, type Turn } from "./orders.ts";
  * turn frames, so it bumps this version too; a test pins the order kinds of
  * the current version.
  */
-export const PROTOCOL_VERSION = 23;
+export const PROTOCOL_VERSION = 24;
 
 /** Ticks per second of the simulation at speed 1. The server closes one turn per tick. */
 export const TICK_RATE = 10;
@@ -69,6 +69,7 @@ export const ErrorCode = z.enum([
   "removed",
   "too_many_seats",
   "too_many_reports",
+  "not_operator",
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
@@ -190,6 +191,12 @@ export const ClientMessage = z.discriminatedUnion("type", [
       name: rawGameName.optional(),
       /** Counts the player's `configure` messages, echoed as `configured` in `lobby`. */
       seq: z.number().int().nonnegative().optional(),
+      /**
+       * Operator's test bonus (R-MODE-09): the host, signed in to an account the
+       * server lists as an operator's, doubles their own gold in a private game.
+       * Left out, it stays as it was.
+       */
+      operatorGold: z.boolean().optional(),
     })
     .strict(),
   /** Host only: start now, with at least the game's minimum of players. */
@@ -249,6 +256,10 @@ export const ServerMessage = z.discriminatedUnion("type", [
     holdable: z.boolean(),
     /** `seq` of the last `configure` from this player the server handled, 0 before any. */
     configured: z.number().int().nonnegative(),
+    /** Whether this player may turn on the operator's gold bonus (R-MODE-09). */
+    operator: z.boolean(),
+    /** The player whose gold is doubled by the operator's bonus (R-MODE-09), or null. */
+    goldBonus: PlayerNumber.nullable(),
   }),
   /** The game starts, or the player rejoined it. Player numbers are final from here. */
   z.object({
@@ -271,6 +282,8 @@ export const ServerMessage = z.discriminatedUnion("type", [
     speed: GameSpeed,
     /** Special rules every client plays with (R-MODE-08). */
     rules: GameRules,
+    /** The player whose gold every client doubles (R-MODE-09), or null. */
+    goldBonus: PlayerNumber.nullable(),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
     /** Secret that lets this player rejoin after a dropped connection. */

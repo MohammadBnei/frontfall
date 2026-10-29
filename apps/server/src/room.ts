@@ -80,6 +80,11 @@ export interface RoomSettings {
   seatsPerAddress: number;
   /** A game whose turn log grows past this many bytes is stopped. */
   maxLogBytes: number;
+  /**
+   * From the start, the player whose gold every client doubles: the
+   * operator's test bonus of a private game (R-MODE-09); 0 for none.
+   */
+  goldBonus: number;
 }
 
 export type RoomState = "open" | "starting" | "running" | "finished";
@@ -104,6 +109,8 @@ export interface Seat {
   activeAt: number;
   /** Last `configure` handled for this player, applied or refused, echoed in `lobby`. */
   configured: number;
+  /** Signed in to an account the server lists as an operator's (R-MODE-09). */
+  operator: boolean;
 }
 
 /** A running game as a restart keeps it (saved-games.ts). */
@@ -161,6 +168,8 @@ export class Room {
   private splitLogged = false;
   /** Addresses of the players the host removed: they cannot join this game again. */
   private readonly removed = new Set<string>();
+  /** Before the start, the operator who turned on their gold bonus (R-MODE-09). */
+  private goldBonusSeat: Seat | undefined;
   readonly log = new TurnLog();
 
   constructor(
@@ -207,7 +216,13 @@ export class Room {
     return this.startsAt === undefined ? null : Math.max(0, Math.ceil(this.startsAt - now));
   }
 
-  join(name: string, peer: Peer, now: number, address?: string): Seat | ErrorCode {
+  join(
+    name: string,
+    peer: Peer,
+    now: number,
+    address?: string,
+    operator = false,
+  ): Seat | ErrorCode {
     if (this.stateValue === "running" || this.stateValue === "finished") return "game_started";
     if (address !== undefined && this.removed.has(address)) return "removed";
     if (this.seats.length >= this.settings.capacity) return "game_full";
@@ -223,6 +238,7 @@ export class Room {
       orders: 0,
       activeAt: now,
       configured: 0,
+      operator,
     };
     this.seats.push(seat);
     this.openedAt ??= now;
@@ -295,6 +311,7 @@ export class Room {
     this.seats.splice(this.seats.indexOf(seat), 1);
     seat.gone = true;
     seat.peer = undefined;
+    if (this.goldBonusSeat === seat) this.goldBonusSeat = undefined;
     if (this.host === seat) this.host = this.nextHost();
     if (this.seats.length === 0) {
       this.finish("empty");
@@ -373,16 +390,25 @@ export class Room {
     return undefined;
   }
 
-  /** Host: map, bots, difficulty, seats and, for a public game, its name, until the start. */
+  /**
+   * Host: map, bots, difficulty, seats and, for a public game, its name, until
+   * the start. `operatorGold` turns the operator's gold bonus on or off for
+   * the host themselves, in a private game only (R-MODE-09).
+   */
   configure(
     seat: Seat,
     options: GameOptions & { name?: string; soloBots?: number },
     now: number,
     seq?: number,
+    operatorGold?: boolean,
   ): ErrorCode | undefined {
     const refused = this.hostOnly(seat);
     if (refused) return refused;
+    if (operatorGold !== undefined && (!seat.operator || this.settings.visibility !== "private")) {
+      return "not_operator";
+    }
     if (seq !== undefined) seat.configured = seq;
+    if (operatorGold !== undefined) this.goldBonusSeat = operatorGold ? seat : undefined;
     const { name, ...rest } = options;
     Object.assign(this.settings, rest);
     if (name !== undefined && this.settings.visibility === "public") this.settings.name = name;
@@ -609,6 +635,7 @@ export class Room {
         orders: 0,
         activeAt: now,
         configured: 0,
+        operator: false,
       });
     }
     return room;
@@ -625,6 +652,7 @@ export class Room {
     this.seats.forEach((seat, index) => {
       seat.id = index + 1;
     });
+    this.settings.goldBonus = this.goldBonusSeat?.id ?? 0;
     for (const seat of this.seats) seat.peer?.send(this.startedMessage(seat));
     this.observer.started?.(this);
   }
@@ -727,6 +755,8 @@ export class Room {
       token: seat.token,
       holdable: startsIn !== null && !this.held,
       configured: seat.configured,
+      operator: seat.operator && this.settings.visibility === "private",
+      goldBonus: this.goldBonusSeat?.id ?? null,
     });
   }
 
@@ -744,6 +774,7 @@ export class Room {
       tickRate: TICK_RATE,
       speed: this.settings.speed,
       rules: this.settings.rules,
+      goldBonus: this.settings.goldBonus === 0 ? null : this.settings.goldBonus,
       players: this.players(),
       you: seat.id,
       token: seat.token,

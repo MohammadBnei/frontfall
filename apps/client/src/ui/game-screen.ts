@@ -104,6 +104,8 @@ export class GameScreen {
   private ownableTiles = 1;
   /** Special rules of the game (R-MODE-08), for the end screen. */
   private special: Readonly<Record<string, boolean>> = {};
+  /** The player of the operator's gold bonus (R-MODE-09), 0 for none. */
+  private goldBonus = 0;
   private peakTiles = 0;
   private winShare = 100;
   private stats = new StatsRecorder(10);
@@ -167,7 +169,8 @@ export class GameScreen {
       this.actions.onFailure(key);
     });
     this.tracker =
-      facts && !options.record
+      // A game with the operator's gold bonus is a test (R-MODE-09): it counts for nothing.
+      facts && !options.record && !options.goldBonus
         ? usage().track({ ...facts, view: this.scene.kind }, Date.now())
         : undefined;
     this.published = map.manifest !== undefined;
@@ -307,8 +310,11 @@ export class GameScreen {
           this.stats = new StatsRecorder(info.rules.ticksPerSecond);
           this.ownableTiles = info.rules.ownableTiles;
           this.special = { ...info.rules.special };
+          this.goldBonus = info.rules.goldBonus;
           if (!options.record) {
-            this.achievements.start(info.rules, link ? undefined : options.difficulty);
+            if (info.rules.goldBonus === 0) {
+              this.achievements.start(info.rules, link ? undefined : options.difficulty);
+            }
             // Without it the game goes on in silence.
             import("../audio/sound.ts").then(
               (module) => {
@@ -851,6 +857,7 @@ export class GameScreen {
           canRecord: this.published,
           teams: this.teams,
           special: this.special,
+          goldBonus: this.goldBonus,
           details: `${this.options.map}, ${usage().device().device}`,
           kind: this.link ? "online" : this.options.record ? "replay" : "solo",
         },

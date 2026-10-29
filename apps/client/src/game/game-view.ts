@@ -35,6 +35,8 @@ export interface SoloOptions {
   disabled?: number | undefined;
   /** Special rules the game plays with (R-MODE-08); each one left out is off. */
   rules?: Partial<GameRules> | undefined;
+  /** Online: the player whose gold the operator's test bonus doubles (R-MODE-09); none when left out. */
+  goldBonus?: number | undefined;
   playerName: string;
   /** A practice game from the menu: the first steps guide it, whether or not they were done before. */
   tutorial?: boolean | undefined;

@@ -73,6 +73,11 @@ export interface GameSetup {
   disabled?: number;
   /** Special rules this game plays with (R-MODE-08); each one left out is off. */
   rules?: Partial<GameRules>;
+  /**
+   * The player whose gold the operator's test bonus doubles (R-MODE-09); 0 or
+   * left out for none, as in every game but a private one of the operator.
+   */
+  goldBonus?: number;
 }
 
 /** Special rules a game can be played with (R-MODE-08), all off unless the setup turns them on. */
@@ -88,6 +93,8 @@ export const NO_RULES: GameRules = { capitals: false, collapsingFronts: false };
 
 /** Marks the special rules in the state hash. */
 const RULES_TAG = 0x72756c65;
+/** Marks the operator's gold bonus in the state hash (R-MODE-09). */
+const GOLD_BONUS_TAG = 0x676f6c64;
 
 /** One bit per special rule that is on, for the state hash and the setup digest; 0 with none. */
 export function ruleBits(rules: GameRules): number {
@@ -231,6 +238,8 @@ export class Game {
   readonly disabled: number;
   /** Special rules of this game (R-MODE-08). */
   readonly rules: GameRules;
+  /** The player whose gold income is doubled by the operator's test bonus (R-MODE-09), 0 for none. */
+  readonly goldBonus: number;
   /** Capitals taken or razed, oldest first (R-CAP-03, R-CAP-04). Owned by the capital rules. */
   readonly capitalFalls: CapitalFall[] = [];
   /**
@@ -300,6 +309,11 @@ export class Game {
       collapsingFronts: setup.rules?.collapsingFronts === true,
     };
     this.balanceDigest = digestBalance(this.balance, this.rules);
+    const goldBonus = setup.goldBonus ?? 0;
+    if (goldBonus !== 0 && !this.playersById.has(goldBonus)) {
+      throw new RangeError(`gold bonus for unknown player ${String(goldBonus)}`);
+    }
+    this.goldBonus = goldBonus;
     // R-MODE-02: dealt in turn, so team sizes differ by one at most.
     this.sortedPlayers = [...this.playersById.values()]
       .sort((a, b) => a.id - b.id)
@@ -487,6 +501,11 @@ export class Game {
       hash = mix(hash, RULES_TAG);
       hash = mix(hash, ruleBits(this.rules));
     }
+    // And games without the operator's gold bonus.
+    if (this.goldBonus !== 0) {
+      hash = mix(hash, GOLD_BONUS_TAG);
+      hash = mix(hash, this.goldBonus);
+    }
     for (const c of this.quickCooldowns) {
       if (this.currentTick < c.until) {
         hash = mix(hash, c.player);
@@ -569,6 +588,10 @@ export class Game {
     mix(this.teams);
     mix(this.disabled);
     if (ruleBits(this.rules) !== 0) mix(ruleBits(this.rules));
+    if (this.goldBonus !== 0) {
+      mix(GOLD_BONUS_TAG);
+      mix(this.goldBonus);
+    }
     return hash >>> 0;
   }
 

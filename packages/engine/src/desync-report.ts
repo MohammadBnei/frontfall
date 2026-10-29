@@ -42,6 +42,8 @@ export interface DesyncReport {
   disabled?: number;
   /** Special rules the game was played with (R-MODE-08); absent when it had none. */
   rules?: Partial<GameRules>;
+  /** The player of the operator's gold bonus (R-MODE-09); absent from games without it. */
+  goldBonus?: number;
   /** The player whose client wrote the report. */
   you: number;
   /** Ticks the client had run; turns and hashes come from ticks below this. */
@@ -65,6 +67,7 @@ export function recreateGame(recorded: RecordedGame, terrain: Terrain): Game {
     ...(recorded.teams === undefined ? {} : { teams: recorded.teams }),
     ...(recorded.disabled === undefined ? {} : { disabled: recorded.disabled }),
     ...(recorded.rules === undefined ? {} : { rules: recorded.rules }),
+    ...(recorded.goldBonus === undefined ? {} : { goldBonus: recorded.goldBonus }),
   });
   installBots(game, recorded.bots.ids, recorded.bots.difficulty);
   installNations(game, recorded.nations ?? [], recorded.bots.difficulty);
@@ -182,6 +185,9 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
     ...(report.teams === undefined ? {} : { teams: readTeams(report.teams) }),
     ...(report.disabled === undefined ? {} : { disabled: readDisabled(report.disabled) }),
     ...(report.rules === undefined ? {} : { rules: readRules(report.rules) }),
+    ...(report.goldBonus === undefined
+      ? {}
+      : { goldBonus: readInteger(report.goldBonus, "goldBonus") }),
     you: readInteger(report.you, "you"),
     ticks: readInteger(report.ticks, "ticks"),
     turns: readList(report.turns, "turns").map((entry, i) => {
@@ -208,6 +214,13 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
   }
   if (!game.players.some((player) => player.id === game.you)) {
     throw new DesyncReportError("you is not one of the players");
+  }
+  if (
+    game.goldBonus !== undefined &&
+    game.goldBonus !== 0 &&
+    !game.players.some((player) => player.id === game.goldBonus)
+  ) {
+    throw new DesyncReportError("goldBonus is not one of the players");
   }
   return game;
 }

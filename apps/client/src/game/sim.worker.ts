@@ -131,6 +131,7 @@ async function start(request: Extract<WorkerRequest, { type: "start" }>): Promis
         teams: game.teamsById(),
         disabled: game.game.disabled,
         special: game.game.rules,
+        goldBonus: game.game.goldBonus,
         allianceRequestTicks,
         growthFloorPercent,
       },
