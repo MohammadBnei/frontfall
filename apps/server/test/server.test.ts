@@ -1158,7 +1158,7 @@ describe("WebSocket", () => {
   });
 
   it("caps the solo games one address keeps running, Play now included", async () => {
-    const host = await start();
+    const host = await start({ maxGamesPerAddress: 4 });
     const players = await Promise.all(["A", "B", "C", "D", "E"].map((name) => player(host, name)));
     for (const one of players.slice(0, 4)) {
       one.send({ type: "create" });

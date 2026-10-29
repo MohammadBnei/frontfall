@@ -109,7 +109,7 @@ const server = createGameServer({
   ...(process.env.FRONTFALL_TRUST_PROXY === "false" ? { trustProxy: false } : {}),
   ...optionalNumber("FRONTFALL_MAX_GAMES", (maxRooms) => ({ maxRooms })),
   ...optionalNumber("FRONTFALL_GAMES_PER_ADDRESS", (games) => ({
-    maxGamesPerAddress: Math.max(1, games),
+    maxGamesPerAddress: games,
   })),
   ...optionalNumber("FRONTFALL_MAX_CONNECTIONS", (maxConnections) => ({ maxConnections })),
   ...optionalNumber("FRONTFALL_MAX_PLAYERS", (maxPlayers) => ({ maxPlayers })),

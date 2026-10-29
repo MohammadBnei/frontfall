@@ -13,8 +13,12 @@ import type { LoadedGame } from "./saved-games.ts";
 /** Games the public list shows at most. */
 export const MAX_LISTED_GAMES = 100;
 
-/** Games not over that one address may have opened and still play in, unless set otherwise. */
-export const MAX_GAMES_PER_OWNER = 4;
+/**
+ * Games not over that one address may have opened and still play in, unless
+ * set otherwise: enough for a household or a phone network's shared address,
+ * few enough that a handful of addresses cannot fill the server. 0 lifts it.
+ */
+export const MAX_GAMES_PER_OWNER = 10;
 
 export interface DirectoryOptions {
   maxRooms: number;
@@ -112,7 +116,8 @@ export class Directory {
       if (room.owner !== owner || room.state === "finished") continue;
       if (waiting(room) || room.hasSeatFrom(owner)) count++;
     }
-    return count >= (this.options.maxGamesPerOwner ?? MAX_GAMES_PER_OWNER);
+    const limit = this.options.maxGamesPerOwner ?? MAX_GAMES_PER_OWNER;
+    return limit > 0 && count >= limit;
   }
 
   /** Whether the host kept every option of a quick game as "play" opened it. */
