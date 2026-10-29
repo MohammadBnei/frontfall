@@ -88,7 +88,7 @@ export class MapScene {
    */
   private frontsOffAt = 0;
   /** The structures last drawn, as a key that changes when any of them does. */
-  private drawnStructures = "";
+  private drawnStructures: readonly number[] = [];
   /** The structures of the game, as last drawn. */
   private structureMarks: StructureMark[] = [];
   /** The structure the player is about to place, drawn faded among them. */
@@ -158,7 +158,7 @@ export class MapScene {
     this.view = undefined;
     // The owners are already there to draw.
     this.mount()?.markAllChanged();
-    this.drawnStructures = "";
+    this.drawnStructures = [];
     if (this.latest) this.placeStructures(this.latest);
   }
 
@@ -319,7 +319,7 @@ export class MapScene {
     this.dispose();
     // The owners are already there to draw.
     this.mount()?.markAllChanged();
-    this.drawnStructures = "";
+    this.drawnStructures = [];
     if (this.latest) this.placeStructures(this.latest);
     return true;
   }
@@ -451,13 +451,14 @@ export class MapScene {
    */
   private placeStructures(update: GameUpdate): void {
     const capitals = update.players.filter((p) => p.alive && p.capital !== undefined);
-    const key =
-      update.structures
-        .map((s) => `${String(s.id)}:${String(s.player)}:${s.ready ? "1" : "0"}`)
-        .join(",") +
-      "|" +
-      capitals.map((p) => `${String(p.id)}:${String(p.capital)}`).join(",");
-    if (!this.view || !this.shown || key === this.drawnStructures) return;
+    // Numbers rather than a string: compared ten times a second, rarely different.
+    const key: number[] = [];
+    for (const s of update.structures) key.push(s.id, s.player, s.ready ? 1 : 0);
+    key.push(-1);
+    for (const p of capitals) key.push(p.id, p.capital as number);
+    const drawn = this.drawnStructures;
+    const same = key.length === drawn.length && key.every((value, i) => value === drawn[i]);
+    if (!this.view || !this.shown || same) return;
     this.drawnStructures = key;
     const { width } = this.mapSize;
     const { firstNation, teams } = this.shown;
