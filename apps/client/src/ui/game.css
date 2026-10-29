@@ -1,6 +1,14 @@
 .stat {
   display: flex;
   flex-direction: column;
+  /* Wide enough for the figures of a long game and the line below them (123.4K, +123K/s):
+     the bar keeps its width while troops and gold climb, and nothing beside it moves. */
+  min-width: 56px;
+  white-space: nowrap;
+}
+
+.stat:nth-child(3) {
+  min-width: 54px;
 }
 
 .stat-label {
@@ -13,11 +21,13 @@
 
 .stat-value {
   font-size: 18px;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-cap {
   color: var(--ff-slate-300);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .leaderboard {
@@ -554,7 +564,7 @@
 
 /* A finger confirms with a button, big enough to hit. */
 .bp-confirm {
-  min-width: 44px;
+  min-width: 54px;
   min-height: 44px;
   margin-top: 6px;
   pointer-events: auto;
@@ -1487,7 +1497,11 @@ button.feed-entry:focus-visible {
 }
 
 .game[data-wide] .bar .ratio {
-  width: 240px;
+  width: 204px;
+}
+
+.game[data-wide] .bar .stats {
+  gap: 12px;
 }
 
 .game[data-wide] .click-note,
@@ -2166,7 +2180,7 @@ button.feed-entry:focus-visible {
   .bar .pop-bar {
     position: static;
     justify-content: center;
-    width: 64px;
+    width: 56px;
     padding: 0 0 0 12px;
     border-left: 1px solid var(--ff-night-500);
   }

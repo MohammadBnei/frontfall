@@ -22,6 +22,8 @@ export interface MapCallbacks {
   readonly onPress?: (tile: number | undefined) => void;
   /** A press held still for LONG_PRESS_MS, or a right click: the player wants the menu of this tile. */
   readonly onTileHold?: (tile: number) => void;
+  /** A right click: true when the screen used it to leave a build mode, so no menu opens. */
+  readonly onSecondary?: () => boolean;
   /**
    * The tile under a hovering mouse changed, or under a finger resting on the
    * map; undefined off the map, when the mouse left or the finger lifted or moved on.
@@ -171,6 +173,11 @@ export class PointerGestures {
   aim(x: number, y: number): void {
     this.hoverAt = { x, y };
     this.hover(x, y);
+  }
+
+  /** A right click first leaves a build mode, as Esc does; the menu waits for the next one. */
+  secondary(): boolean {
+    return this.callbacks.onSecondary?.() ?? false;
   }
 
   /** A right click: the menu of the tile under the pointer, never a click. */

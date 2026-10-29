@@ -18,12 +18,16 @@ function numberFormat(key: string, options: Intl.NumberFormatOptions): Intl.Numb
   return format;
 }
 
-/** 950, 12.4K, 3.1M: short enough for the HUD, in the reader's language. */
+/**
+ * 950, 12.4K, 124K, 1.24M: short enough for the HUD, in the reader's language,
+ * and never more than three digits, so a figure takes about the same room
+ * whatever its size and the panels around it stay put.
+ */
 export function formatCount(value: number): string {
   const compact = value >= 10_000;
   return numberFormat(compact ? "compact" : "standard", {
     notation: compact ? "compact" : "standard",
-    maximumFractionDigits: 1,
+    ...(compact ? { maximumSignificantDigits: 3 } : { maximumFractionDigits: 1 }),
   }).format(value);
 }
 

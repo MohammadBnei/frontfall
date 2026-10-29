@@ -15,6 +15,14 @@ describe("HUD numbers", () => {
     expect(formatCount(3_100_000)).toBe("3.1M");
   });
 
+  it("keeps compact figures to three digits so they take about the same room", () => {
+    setLanguage("en");
+    expect(formatCount(123_456)).toBe("123K");
+    expect(formatCount(999_900)).toBe("1M");
+    expect(formatCount(1_240_000)).toBe("1.24M");
+    expect(formatCount(123_400_000)).toBe("123M");
+  });
+
   it("follows the reader's language", () => {
     setLanguage("fr");
     expect(formatCount(1_500)).toBe("1 500");
