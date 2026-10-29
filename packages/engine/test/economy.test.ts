@@ -107,15 +107,31 @@ describe("economy", () => {
     expect(gain(1000)).toBe(0);
   });
 
-  it("keeps troops above the cap without growing them", () => {
-    const { ada, run } = newGame();
+  it("keeps troops above the cap without growing them when nobody deserts", () => {
+    const { ada, run } = newGame({ desertionBasisPoints: 0 });
     ada.troops = 5000;
     run();
     expect(ada.troops).toBe(5000);
   });
 
+  it("lets B-DESERTION of the troops above the cap leave each second (R-ECO-02)", () => {
+    // Cap 1000; 5 % of the excess per second is 0.5 % per tick.
+    const { ada, run } = newGame({ desertionBasisPoints: 500 });
+    ada.troops = 5000;
+    run();
+    expect(ada.troops).toBe(5000 - 20);
+    // Half the excess is gone in about 14 s, nearly all of it in two minutes.
+    run(1200);
+    expect(ada.troops).toBeGreaterThanOrEqual(1000);
+    expect(ada.troops).toBeLessThan(1020);
+    // At the cap, nobody leaves and nothing grows.
+    ada.troops = 1000;
+    run();
+    expect(ada.troops).toBe(1000);
+  });
+
   it("pays gold in whole coins without losing the fractions (R-ECO-03, R-ECO-04)", () => {
-    const { ada, run } = newGame({ popPerTile: 0 });
+    const { ada, run } = newGame({ popPerTile: 0, desertionBasisPoints: 0 });
     // 1000 idle troops earn 5 gold per second: half a coin per tick.
     ada.troops = 1000;
     run();

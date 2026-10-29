@@ -55,6 +55,12 @@ export const NATION_MISSILE_LEADER_PERCENT = 30; // B-NATION-MISSILE-LEADER
 /** Border tiles a nation measures the distance to an enemy capital from (R-BOT-17). */
 const CAPITAL_SAMPLES = 64;
 
+/**
+ * A neighbour whose land is below this share of the nation's own, in %, is
+ * down to scraps: the nation looks overseas before it fights them (R-BOT-18).
+ */
+export const NATION_SCRAPS_PERCENT = 5; // B-NATION-SCRAPS
+
 /** Tiles from the attacker's land within which a nation puts a fort, as far back as it can. */
 const FORT_SETBACK = 8;
 
@@ -105,11 +111,14 @@ export function installNations(
   const cityCooldowns: Cooldowns = new Map();
   const portCooldowns: Cooldowns = new Map();
   const armCooldowns: Cooldowns = new Map();
+  const missileCooldowns: Cooldowns = new Map();
+  const missilePauseTicks = nationParams.missilePauseSeconds * balance.ticksPerSecond;
   persistCooldowns(game, `nations ${difficulty} ${String(graceSeconds)} ${nations.join(",")}`, [
     seaCooldowns,
     cityCooldowns,
     portCooldowns,
     armCooldowns,
+    missileCooldowns,
   ]);
 
   game.onTick(() => {
@@ -239,6 +248,12 @@ export function installNations(
     // Free land is cheaper than a fight, unless the neighbour is much weaker.
     const muchWeaker = weak && enemyDensity * 200 <= ownDensity * odds;
     const target = neutral >= 0 && !muchWeaker ? neutral : weak ? enemy : -1;
+    // R-BOT-18: scraps of a neighbour make no front; a larger prize may lie overseas.
+    const scraps =
+      enemy >= 0 &&
+      target === enemy &&
+      territory.tileCount(territory.ownerOf(enemy)) * 100 < tiles * NATION_SCRAPS_PERCENT;
+    if (scraps && sail(game, nation, armed(), odds, seaCooldowns, retryTicks, accept)) return;
     if (target >= 0) {
       const sent = target === enemy ? armed() : troops;
       const aim = target >= 0 && target === enemy ? capitalAim(game, target) : target;
@@ -423,7 +438,8 @@ export function installNations(
     ) {
       build(StructureKind.AirDefense);
     }
-    if (nation.gold < light) return;
+    // B-NATION-MISSILE-PAUSE: an easy nation fires seldom, a hard one as often as its silo reloads.
+    if (nation.gold < light || game.tick < (missileCooldowns.get(nation.id) ?? 0)) return;
     const target = missileTarget(nation);
     if (target === NEUTRAL) return;
     const topology = game.terrain.topology;
@@ -440,7 +456,9 @@ export function installNations(
     }
     if (city < 0) return;
     const order = { type: "missile", target: city, size: MissileSize.Light } as const;
-    if (missileError(game, nation, city, order.size) === undefined) game.apply(nation.id, order);
+    if (missileError(game, nation, city, order.size) !== undefined) return;
+    game.apply(nation.id, order);
+    missileCooldowns.set(nation.id, game.tick + missilePauseTicks);
   }
 
   /** The main attacker of the nation, or else the leading player if they hold enough land; NEUTRAL if neither. */
