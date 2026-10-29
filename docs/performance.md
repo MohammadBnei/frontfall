@@ -372,6 +372,35 @@ requested and the World game 2.2 s after Play. Panning ran at 22 frames per
 second in the spawn phase (p95 83 ms) and 20 once 63 bots were attacking
 (p95 100 ms): software rendering, not a frame rate a player would see.
 
+### Updates from the worker
+
+Measured on 2026-10-29: a solo game on World, seed 7, 25 bots and the
+nations, the player idle. The worker figures come from `SoloGame` run in
+Node, the page figures from the production build in headless Chromium with
+the DevTools profiler, over 200 updates at ticks 607-808 and 1807-2008.
+
+- **Copying the update is cheap.** An update is 3.6 kB early and 7 kB late
+  once serialised; the structured clone takes 0.06 to 0.15 ms. The territory
+  changes are transferred, not copied. Most fields are sent again unchanged
+  (structures 95 % of ticks, build costs and diplomacy almost always), but
+  sending only what changed would save little and risk stale panels.
+  A `SharedArrayBuffer` for the owners would need cross-origin isolation
+  headers, which the sign-in pop-ups would not survive; it is not needed.
+- **Name anchors, in the worker.** Every fifth tick the worker searches each
+  player's deepest tile with a distance transform: 7 to 12 ms over the whole
+  map. It now walks only the land, a third of World's tiles, found once per
+  game: 6 to 7 ms, the same anchors.
+- **The page's handler, on the main thread.** Taking an update in cost
+  4.9 ms on average (21 ms at worst) early in the game and 4.0 ms (15 ms)
+  later. Most of it was not the game's data but the page itself: the event
+  feed measured the guide, and the screen every HUD panel, right after the
+  update had written to the HUD, which forced the browser to lay the page
+  out there and then; the player labels and the leaderboard wrote every
+  number again even when unchanged, each write laying the page out anew; and
+  every number made a new `Intl.NumberFormat`. Panels are now measured by a
+  resize observer once the frame is laid out, text is written only when it
+  changes, and formats are made once per language. The handler now takes 0.95 ms on average early (5.8 ms at worst) and 1.4 ms later.
+
 ### Rendering, real GPU
 
 Measured on 2026-10-24 on a MacBook Air with an Apple M4, in Google Chrome
@@ -616,9 +645,9 @@ server. Reasons are now cut to 123 bytes.
 
 1. Run the render benchmark on phones (a mid-range Android phone, an iPhone)
    and bring the tick upload frame on the largest map under 16.7 ms.
-2. Move the simulation into its Web Worker and send each tick's change log to
-   the page as a transferable `Int32Array`. A `SharedArrayBuffer` would avoid
-   even that copy, but needs cross-origin isolation headers on the server.
+2. Keep the page's handler of an update under a millisecond as the HUD grows:
+   write to the page only what changed, and never read a size or a position
+   in it ("Updates from the worker").
 3. Wire `TerritoryLayer` and `UnitLayer` into the client in place of the
    current placeholder texture.
 4. Hide units, or draw them as points, when they are smaller than a pixel.

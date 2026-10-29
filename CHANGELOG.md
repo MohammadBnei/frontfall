@@ -17,6 +17,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **Your orders play at once in a solo game.** An order no longer waits up to a tenth of a second for the game's next beat: that beat plays as soon as the order is given, and the one after keeps its time, so the game runs at the same pace.
 - **Orders answer sooner.** A ring now shows under the pointer the moment you press on the map, instead of after you let go and the game has read the click; it turns into the usual answer once the order is read. Online, a turn that the network or a busy page delays no longer holds back every turn after it for three seconds: it plays a little late on its own, so your orders come back sooner, by about 60 ms in our measurements and much more after a hiccup.
+- **Fewer hitches on every tick.** Taking in each turn of the game costs the page about a fifth of what it did: the panels, the names over the land and the leaderboard no longer redraw what has not changed, so frames keep coming while the bots attack. Names over the land are also placed faster.
 
 ## [0.8.0] - 2026-10-29
 
