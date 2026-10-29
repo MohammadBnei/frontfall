@@ -6,6 +6,15 @@ export function present<T>(value: T | undefined): T[] {
   return value === undefined ? [] : [value];
 }
 
+/**
+ * Sets the text of an element unless it already reads so. Writing the same
+ * text again still replaces it, and the page is laid out again for it: the
+ * HUD's numbers change far less often than updates come.
+ */
+export function setText(element: Node, text: string): void {
+  if (element.textContent !== text) element.textContent = text;
+}
+
 /** Creates an element; attributes set to false or undefined are left out. */
 export function h<K extends keyof HTMLElementTagNameMap>(
   tag: K,

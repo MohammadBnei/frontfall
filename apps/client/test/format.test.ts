@@ -22,6 +22,17 @@ describe("HUD numbers", () => {
     expect(formatPercent(0.25)).toBe("25 %");
   });
 
+  it("switches language back and forth with formats made once", () => {
+    setLanguage("en");
+    expect(formatCount(1_500)).toBe("1,500");
+    setLanguage("fr");
+    expect(formatCount(1_500)).toBe("1 500");
+    setLanguage("en");
+    expect(formatCount(1_500)).toBe("1,500");
+    expect(formatPercent(0.054)).toBe("5.4%");
+    expect(formatPercent(0.25)).toBe("25%");
+  });
+
   it("keeps a decimal for small shares only", () => {
     setLanguage("en");
     expect(formatPercent(0.054)).toBe("5.4%");

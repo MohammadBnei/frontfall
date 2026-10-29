@@ -1,6 +1,6 @@
 import type { GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { t } from "../i18n/index.ts";
-import { h, swatch } from "./dom.ts";
+import { h, setText, swatch } from "./dom.ts";
 
 /** The rows of the leaderboard in the HUD. */
 export class LeaderList {
@@ -47,15 +47,19 @@ export class LeaderList {
         row = leaderRow(player, player.id === you, color(player.id), this.onPick);
         this.rows.set(player.id, row);
       }
-      row.item.value = ranked.indexOf(player) + 1;
-      row.name.textContent = player.name;
+      const rank = ranked.indexOf(player) + 1;
+      if (row.item.value !== rank) row.item.value = rank;
+      setText(row.name, player.name);
       // The name of the button is what it shows, so that "click Brask" works by voice; what it
       // does is its description. Set here, not once, so it follows a change of language.
-      row.button?.setAttribute("aria-description", t("diplo.playerMenu", { name: player.name }));
-      row.land.textContent = share(player.tiles);
+      const description = t("diplo.playerMenu", { name: player.name });
+      if (row.button?.getAttribute("aria-description") !== description) {
+        row.button?.setAttribute("aria-description", description);
+      }
+      setText(row.land, share(player.tiles));
       const teammate = teammates.has(player.id);
       row.ally.hidden = !teammate && !allies.has(player.id);
-      row.ally.textContent = t(teammate ? "diplo.teammateBadge" : "diplo.allyBadge");
+      setText(row.ally, t(teammate ? "diplo.teammateBadge" : "diplo.allyBadge"));
       row.traitor.hidden = !traitors.has(player.id);
       return row.item;
     });
