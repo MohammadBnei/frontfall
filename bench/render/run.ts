@@ -25,6 +25,9 @@ const flatCases = [
   { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [1280, 720] },
   // A phone in portrait at a device pixel ratio capped to 2.
   { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [780, 1688] },
+  // Close up, where borders curve, the ground gets its grain and the sea its swell.
+  { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [1280, 720], tilePixels: 4 },
+  { width: 2048, height: 1024, players: 32, units: 2_000, viewport: [1280, 720], tilePixels: 16 },
 ] as const;
 // The planet whole on screen, then close enough that every pixel is ground.
 const globeCases = [
@@ -79,6 +82,7 @@ try {
       viewportWidth: String(viewportWidth),
       viewportHeight: String(viewportHeight),
     });
+    if ("tilePixels" in c) query.set("tilePixels", String(c.tilePixels));
     if ("zoom" in c) {
       query.set("surface", "sphere");
       query.set("zoom", String(c.zoom));
