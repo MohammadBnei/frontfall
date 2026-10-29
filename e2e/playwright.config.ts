@@ -82,6 +82,8 @@ const local = {
         PORT: String(SERVER_PORT),
         FRONTFALL_STATIC: "../apps/client/dist",
         FRONTFALL_COUNTDOWN_SECONDS: "2",
+        // Every browser of the tests shares 127.0.0.1, and their games run side by side.
+        FRONTFALL_GAMES_PER_ADDRESS: "0",
       },
       url: `http://127.0.0.1:${String(SERVER_PORT)}/healthz`,
       reuseExistingServer: false,
@@ -98,6 +100,8 @@ const local = {
         PORT: String(DESYNC_PORT),
         FRONTFALL_STATIC: "../apps/client/dist",
         FRONTFALL_COUNTDOWN_SECONDS: "2",
+        // Every browser of the tests shares 127.0.0.1, and their games run side by side.
+        FRONTFALL_GAMES_PER_ADDRESS: "0",
       },
       url: `http://127.0.0.1:${String(DESYNC_PORT)}/healthz`,
       reuseExistingServer: false,

@@ -318,26 +318,26 @@ The game is over for this connection. Reasons: `abandoned` (every player is gone
 
 A request was refused; the connection stays open. `message` is for people, `code` for programs:
 
-| Code                 | Answer to                                      | Meaning                                                                                                        |
-| -------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `invalid_name`       | `hello`                                        | The name breaks the name rules                                                                                 |
-| `invalid_game_name`  | `create`, `configure`                          | The game name breaks the game name rules                                                                       |
-| `not_found`          | `join`, `kick`, `report`                       | No game has this id, or no other player has this number                                                        |
-| `game_full`          | `join`                                         | The game has no free seat                                                                                      |
-| `too_many_seats`     | `join`                                         | Players from this address already hold three seats of this public game                                         |
-| `removed`            | `join`                                         | The host removed a player from this address from this game                                                     |
-| `game_started`       | `join`, `configure`, `start`, `hold`, `kick`   | The game has already started                                                                                   |
-| `already_in_game`    | `play`, `create`, `join`                       | Leave the current game first                                                                                   |
-| `not_in_game`        | `configure`, `start`, `hold`, `kick`, `report` | The connection is not in a game                                                                                |
-| `not_host`           | `configure`, `start`, `hold`, `kick`           | Only the host can change, start or hold the game, or remove a player                                           |
-| `not_enough_players` | `start`                                        | A public game needs a second player                                                                            |
-| `invalid_settings`   | `configure`                                    | No published map has this id, or too many bots or seats for it                                                 |
-| `too_many_games`     | `play`, `create`                               | The server holds as many games as it can                                                                       |
-| `too_many_lobbies`   | `play`, `create`                               | This address already holds three games that have not started, or four it opened and plays in that are not over |
-| `token_invalid`      | `rejoin`                                       | The game is over or the seat was given up                                                                      |
-| `token_in_use`       | `rejoin`                                       | Another connection holds the seat; retry in 1 s                                                                |
-| `restarting`         | `play`, `create`, `join`                       | The server is about to restart; try again in a minute                                                          |
-| `too_many_reports`   | `report`                                       | This address sent too many reports lately; try again in a few minutes                                          |
+| Code                 | Answer to                                      | Meaning                                                                                                                    |
+| -------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `invalid_name`       | `hello`                                        | The name breaks the name rules                                                                                             |
+| `invalid_game_name`  | `create`, `configure`                          | The game name breaks the game name rules                                                                                   |
+| `not_found`          | `join`, `kick`, `report`                       | No game has this id, or no other player has this number                                                                    |
+| `game_full`          | `join`                                         | The game has no free seat                                                                                                  |
+| `too_many_seats`     | `join`                                         | Players from this address already hold three seats of this public game                                                     |
+| `removed`            | `join`                                         | The host removed a player from this address from this game                                                                 |
+| `game_started`       | `join`, `configure`, `start`, `hold`, `kick`   | The game has already started                                                                                               |
+| `already_in_game`    | `play`, `create`, `join`                       | Leave the current game first                                                                                               |
+| `not_in_game`        | `configure`, `start`, `hold`, `kick`, `report` | The connection is not in a game                                                                                            |
+| `not_host`           | `configure`, `start`, `hold`, `kick`           | Only the host can change, start or hold the game, or remove a player                                                       |
+| `not_enough_players` | `start`                                        | A public game needs a second player                                                                                        |
+| `invalid_settings`   | `configure`                                    | No published map has this id, or too many bots or seats for it                                                             |
+| `too_many_games`     | `play`, `create`                               | The server holds as many games as it can                                                                                   |
+| `too_many_lobbies`   | `play`, `create`                               | This address already holds three games that have not started, or ten (by default) it opened and plays in that are not over |
+| `token_invalid`      | `rejoin`                                       | The game is over or the seat was given up                                                                                  |
+| `token_in_use`       | `rejoin`                                       | Another connection holds the seat; retry in 1 s                                                                            |
+| `restarting`         | `play`, `create`, `join`                       | The server is about to restart; try again in a minute                                                                      |
+| `too_many_reports`   | `report`                                       | This address sent too many reports lately; try again in a few minutes                                                      |
 
 ### `reported`
 
