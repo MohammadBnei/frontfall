@@ -36,6 +36,7 @@ import { MapScene } from "./screen/map-scene.ts";
 import { Orders } from "./screen/orders.ts";
 import { Overlays } from "./screen/overlays.ts";
 import { PreviewHost } from "./screen/preview-host.ts";
+import { watchHudBoxes } from "./screen/hud-boxes.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 
 /** How often the turns of an online game are checked for being due. */
@@ -434,6 +435,21 @@ export class GameScreen {
       });
     }
     this.cleanups.push(
+      // The panels grow and shrink with their content: labels keep clear of them.
+      watchHudBoxes(this.hud.element, (boxes) => {
+        const guide = boxes.find(({ element }) => element.classList.contains("guide"));
+        const moved = this.feed?.clearOf(guide?.rect) ?? false;
+        this.labels.avoid(
+          boxes
+            // The feed just went under the guide or back: read where it is now.
+            .map(({ element, rect }) =>
+              moved && element.classList.contains("events-feed")
+                ? element.getBoundingClientRect()
+                : rect,
+            )
+            .filter((rect) => rect.width > 0),
+        );
+      }),
       () => {
         window.removeEventListener("keydown", keydown);
       },
@@ -581,13 +597,7 @@ export class GameScreen {
     this.labels.update(update.players, update.labels);
     this.hud.update(update, performance.now());
     this.diplomacy.update(update);
-    this.feed?.observe(update, lost ?? new Map(), performance.now(), this.hud.element);
-    // The panels grow and shrink with their content: measured once per update.
-    this.labels.avoid(
-      [...this.hud.element.children]
-        .map((child) => child.getBoundingClientRect())
-        .filter((rect) => rect.width > 0),
-    );
+    this.feed?.observe(update, lost ?? new Map(), performance.now());
     if (update.replay) this.replayBar?.update(update.tick, update.replay, this.ticksPerSecond);
     if (update.winner !== undefined && !this.ended && !this.replayBar) {
       this.ended = true;

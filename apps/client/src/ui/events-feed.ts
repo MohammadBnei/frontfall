@@ -98,9 +98,13 @@ export class EventsFeed {
    * Puts the feed under `above`, the first-steps guide while it shows at the
    * top left; none puts it back where the style sheet has it.
    */
-  below(above: { bottom: number } | undefined): void {
-    if (above) this.element.style.top = `${String(Math.round(above.bottom + 8))}px`;
-    else this.element.style.removeProperty("top");
+  /** Puts the feed under `above`, or back in its place; returns whether it moved. */
+  below(above: { bottom: number } | undefined): boolean {
+    const top = above ? `${String(Math.round(above.bottom + 8))}px` : "";
+    // Called with the panels' sizes: writing the same again would lay the page out for nothing.
+    if (this.element.style.top === top) return false;
+    this.element.style.top = top;
+    return true;
   }
 
   /** The label and hints again, in the current language. */
