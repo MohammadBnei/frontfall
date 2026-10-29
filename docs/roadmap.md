@@ -586,7 +586,7 @@ Ideas collected on 28 October 2026, not yet planned unless a version is named. *
 | Image-to-map command                                             | Tools          | Make a map from a picture                 | M    | v0.10      | Yes  |
 | Bot arena: a way to write a bot, headless tournaments            | Tools          | Bot authors, free balance testing         | L    | After v1.0 | Yes  |
 | Translations (Spanish, German, Portuguese…)                      | Content        | Players outside English and French        | S    | v0.10      | Yes  |
-| Original music and sounds, under a licence compatible with MIT   | Content        | Atmosphere                                | M    | After v1.0 | Yes  |
+| Original music and sounds, under a licence compatible with MIT   | Content        | Atmosphere                                | M    | v0.9       | Yes  |
 | Spoken event announcements for screen readers                    | Accessibility  | A game a blind player can follow          | M    | v0.10      |      |
 | Install on the home screen, full-screen on a phone               | Infrastructure | One tap from the phone                    | S    | v0.9       |      |
 | Container image for arm64 too                                    | Infrastructure | Run it on a Raspberry Pi or an ARM server | S    | v0.9       | Yes  |

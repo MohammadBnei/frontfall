@@ -5,6 +5,7 @@ import type { Cue } from "./cues.ts";
 const PATTERNS: Partial<Record<Cue, number | number[]>> = {
   attack: 40,
   conquest: 20,
+  grand: 30,
   victory: [30, 60, 30, 60, 80],
   defeat: [120, 80, 120],
 };
