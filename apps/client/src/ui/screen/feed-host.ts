@@ -48,14 +48,19 @@ export class FeedHost {
   }
 
   /** Shows what `update` brings, as the screen shows it, once the map has taken it in. */
-  observe(update: GameUpdate, lost: LandLost, now: number, hud: HTMLElement): void {
+  observe(update: GameUpdate, lost: LandLost, now: number): void {
     this.tip.update(update);
     for (const entry of this.watcher.observe(update, lost, this.ownerAt))
       this.feed.push(entry, now);
-    // The first steps own the top left while they show there, as a card: the feed goes under them.
-    const guide = hud.querySelector(".guide")?.getBoundingClientRect();
+  }
+
+  /**
+   * The first steps own the top left while they show there, as a card: the
+   * feed goes under them. Returns whether the feed moved.
+   */
+  clearOf(guide: DOMRect | undefined): boolean {
     const card = guide !== undefined && guide.height > 0 && guide.left < 40 && guide.width < 340;
-    this.feed.below(card && guide.top < window.innerHeight / 2 ? guide : undefined);
+    return this.feed.below(card && guide.top < window.innerHeight / 2 ? guide : undefined);
   }
 
   /** The pointer is over the land of `owner`, 0 for none. */
