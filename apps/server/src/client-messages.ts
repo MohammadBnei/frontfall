@@ -63,7 +63,7 @@ const ERROR_TEXT: Record<ErrorCode, string> = {
   restarting: "the server is about to restart; try again in a few minutes",
   invalid_game_name: "the game name is not allowed",
   not_enough_players: "wait for more players before starting",
-  too_many_lobbies: "you already have three games waiting to start",
+  too_many_lobbies: "you already have too many games open: start, finish or leave one first",
   removed: "the host removed you from this game",
   too_many_seats: "too many players from your network are already in this game",
   too_many_reports: "you have sent many reports lately; try again in a few minutes",
@@ -238,7 +238,13 @@ export function messageHandler(ctx: MessageContext): {
         }
         if (message.type === "play") {
           const name = gameName(message.name, session.name);
-          enter(session, ctx.games.quickMatch(session.address, name), "too_many_games");
+          const room = ctx.games.quickMatch(session.address, name);
+          // No game to join, and this address may open no other one.
+          if (!room && ctx.games.atGameLimit(session.address)) {
+            reply(session, "too_many_lobbies");
+            return;
+          }
+          enter(session, room, "too_many_games");
         } else if (message.type === "create") {
           const visibility = message.visibility ?? "private";
           let name: string | null = null;

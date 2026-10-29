@@ -105,7 +105,12 @@ const server = createGameServer({
   ...optionalNumber("FRONTFALL_CONNECTIONS_PER_MINUTE", (perMinute) => ({
     upgradeRate: { perSecond: Math.max(1, perMinute) / 60, burst: 40 },
   })),
+  // Players who reach the server straight from its own network could name any address.
+  ...(process.env.FRONTFALL_TRUST_PROXY === "false" ? { trustProxy: false } : {}),
   ...optionalNumber("FRONTFALL_MAX_GAMES", (maxRooms) => ({ maxRooms })),
+  ...optionalNumber("FRONTFALL_GAMES_PER_ADDRESS", (games) => ({
+    maxGamesPerAddress: Math.max(1, games),
+  })),
   ...optionalNumber("FRONTFALL_MAX_CONNECTIONS", (maxConnections) => ({ maxConnections })),
   ...optionalNumber("FRONTFALL_MAX_PLAYERS", (maxPlayers) => ({ maxPlayers })),
   ...optionalNumber("FRONTFALL_MAX_LOG_MIB", (mib) => ({ maxLogBytes: mib * 2 ** 20 })),

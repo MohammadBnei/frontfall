@@ -20,11 +20,19 @@ export interface ServerOptions {
    */
   simulation?: string;
   pingIntervalMs?: number;
+  /**
+   * Believe the X-Client-IP a reverse proxy on the private network sets
+   * (default). False for a server players reach directly from its own
+   * network, where any of them could send that header.
+   */
+  trustProxy?: boolean;
   maxConnectionsPerAddress?: number;
   /** Open WebSockets the whole server accepts. */
   maxConnections?: number;
   /** Games not yet started, public or private, that one address may hold. */
   maxLobbiesPerAddress?: number;
+  /** Games one address may have open or be playing at once, so a few cannot fill the server. */
+  maxGamesPerAddress?: number;
   maxRooms?: number;
   /** How long the public list of games is reused before it is built again; 1 s by default. */
   gameListMs?: number;

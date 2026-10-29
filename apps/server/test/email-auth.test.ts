@@ -2,10 +2,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { accountsFile } from "../src/accounts.ts";
 import type { Logger } from "../src/log.ts";
-import { mailFailure, readSmtpSettings, type MailMessage } from "../src/mail.ts";
+import { mailbox, mailFailure, readSmtpSettings, type MailMessage } from "../src/mail.ts";
 import { createGameServer, type GameServer } from "../src/server.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
@@ -71,13 +71,20 @@ async function start(dailyLimit?: number): Promise<string> {
   return `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
 }
 
-function post(base: string, path: string, body: unknown, cookie?: string): Promise<Response> {
+function post(
+  base: string,
+  path: string,
+  body: unknown,
+  cookie?: string,
+  headers: Record<string, string> = {},
+): Promise<Response> {
   return fetch(`${base}${path}`, {
     method: "POST",
     headers: {
       origin: ORIGIN,
       "content-type": "application/json",
       ...(cookie ? { cookie } : {}),
+      ...headers,
     },
     body: JSON.stringify(body),
   });
@@ -202,6 +209,49 @@ describe("sign-in by email", () => {
         (await post(base, "/auth/email", { email: `p${String(i)}@example.org` })).status,
       );
     expect(statuses).toEqual([202, 202, 202, 429]);
+  });
+
+  it("counts an IPv6 network as one, whatever address it picks in its /64", async () => {
+    const base = await start();
+    const statuses: number[] = [];
+    for (let i = 1; i <= 4; i++)
+      statuses.push(
+        (
+          await post(base, "/auth/email", { email: `p${String(i)}@example.org` }, undefined, {
+            "x-client-ip": `2001:db8:0:1::${String(i)}`,
+          })
+        ).status,
+      );
+    expect(statuses).toEqual([202, 202, 202, 429]);
+  });
+
+  it("keeps one network from spending the day's links alone", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const base = await start();
+      const statuses: number[] = [];
+      for (let i = 0; i < 11; i++) {
+        statuses.push(
+          (await post(base, "/auth/email", { email: `p${String(i)}@example.org` })).status,
+        );
+        vi.setSystemTime(Date.now() + 301_000);
+      }
+      expect(statuses.slice(0, 10).every((status) => status === 202)).toBe(true);
+      expect(statuses[10]).toBe(429);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts links by the mailbox they reach", async () => {
+    expect(mailbox("ana+games@example.org")).toBe("ana@example.org");
+    expect(mailbox("a.n.a+x@googlemail.com")).toBe("ana@gmail.com");
+    expect(mailbox("a.na@example.org")).toBe("a.na@example.org");
+    const base = await start();
+    for (const email of ["nelly+1@example.org", "nelly+2@example.org", "nelly+3@example.org"])
+      expect((await post(base, "/auth/email", { email })).status).toBe(202);
+    await settle();
+    expect(sent).toHaveLength(2);
   });
 
   it("stops sending for the day at the mailbox's limit", async () => {

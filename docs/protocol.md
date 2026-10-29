@@ -70,7 +70,7 @@ The name is cleaned up (Unicode NFC, trimmed, runs of spaces collapsed) and must
 { "type": "play", "name": "Partie de Nico" }
 ```
 
-Joins the game opened by `play` still waiting with the most players and a free seat, never a game that waits for its host, or opens a new one under `name` (optional; a name the rules below refuse falls back to "<player>'s game"). A game opened this way counts down 60 seconds from its first player, leaves at least half of that, 30 seconds, when the second player arrives, so a third can still come, and starts with the map's default bots if that player is still alone (the catalog's recommended players minus one, 24 at most).
+Joins the game opened by `play` still waiting with the most players and a free seat, never a game that waits for its host or whose host changed its options with `configure`, or opens a new one under `name` (optional; a name the rules below refuse falls back to "<player>'s game"). A game opened this way counts down 60 seconds from its first player, leaves at least half of that, 30 seconds, when the second player arrives, so a third can still come, and starts with the map's default bots if that player is still alone (the catalog's recommended players minus one, 24 at most).
 
 ### `create`
 
@@ -178,7 +178,7 @@ Leaves the current game for good. Before the start, the seat is freed; after it,
 { "type": "hash", "tick": 1250, "hash": 3735928559 }
 ```
 
-The client's 32-bit hash of its game state after running `tick`, sent for every tick that is a multiple of `HASH_INTERVAL` (50); other ticks are ignored, and so is a second hash from the same player for the same tick. Once every connected player has reported a tick, or a minute of play later, the server compares the hashes. Players whose hash differs from the majority's receive `desync`; when no majority exists, as with two players who disagree, every player who reported does. A client sending wrong hashes can only single itself out. The client of this repository computes them in its worker with the engine's `game.hash()` as it runs the turns, and sends them.
+The client's 32-bit hash of its game state after running `tick`, sent for every tick that is a multiple of `HASH_INTERVAL` (50); other ticks are ignored, and so is a second hash from the same player for the same tick. Once every connected player has reported a tick, or a minute of play later, the server compares the hashes. Players whose hash differs from the one more than half of the reports agree on receive `desync`; when no such majority exists, as with two players who disagree, nobody does and the server only logs the split. A client sending wrong hashes can only single itself out. The client of this repository computes them in its worker with the engine's `game.hash()` as it runs the turns, and sends them.
 
 ### `order`
 
@@ -300,7 +300,7 @@ Live play sends one turn per frame. Within a turn, orders are listed in the orde
 { "type": "desync", "tick": 1250, "hash": 3735928559, "expected": 305419896 }
 ```
 
-This player's hash for `tick` differed from the majority's: its game no longer matches the others. `hash` is the one this player sent, `expected` the majority's, or `null` when no majority exists. With the seed, the options and the turns the client already holds, they make a complete report of the desync. Sent once per player, and again when that player rejoins without replaying the game from the first turn.
+This player's hash for `tick` differed from the majority's: its game no longer matches the others. `hash` is the one this player sent, `expected` the majority's. The message allows `null` there, but the server never sends it: without a majority, nobody is told. With the seed, the options and the turns the client already holds, they make a complete report of the desync. Sent once per player, and again when that player rejoins without replaying the game from the first turn.
 
 ### `ended`
 
@@ -318,26 +318,26 @@ The game is over for this connection. Reasons: `abandoned` (every player is gone
 
 A request was refused; the connection stays open. `message` is for people, `code` for programs:
 
-| Code                 | Answer to                                      | Meaning                                                                |
-| -------------------- | ---------------------------------------------- | ---------------------------------------------------------------------- |
-| `invalid_name`       | `hello`                                        | The name breaks the name rules                                         |
-| `invalid_game_name`  | `create`, `configure`                          | The game name breaks the game name rules                               |
-| `not_found`          | `join`, `kick`, `report`                       | No game has this id, or no other player has this number                |
-| `game_full`          | `join`                                         | The game has no free seat                                              |
-| `too_many_seats`     | `join`                                         | Players from this address already hold three seats of this public game |
-| `removed`            | `join`                                         | The host removed a player from this address from this game             |
-| `game_started`       | `join`, `configure`, `start`, `hold`, `kick`   | The game has already started                                           |
-| `already_in_game`    | `play`, `create`, `join`                       | Leave the current game first                                           |
-| `not_in_game`        | `configure`, `start`, `hold`, `kick`, `report` | The connection is not in a game                                        |
-| `not_host`           | `configure`, `start`, `hold`, `kick`           | Only the host can change, start or hold the game, or remove a player   |
-| `not_enough_players` | `start`                                        | A public game needs a second player                                    |
-| `invalid_settings`   | `configure`                                    | No published map has this id, or too many bots or seats for it         |
-| `too_many_games`     | `play`, `create`                               | The server holds as many games as it can                               |
-| `too_many_lobbies`   | `create`                                       | This address already holds three games that have not started           |
-| `token_invalid`      | `rejoin`                                       | The game is over or the seat was given up                              |
-| `token_in_use`       | `rejoin`                                       | Another connection holds the seat; retry in 1 s                        |
-| `restarting`         | `play`, `create`, `join`                       | The server is about to restart; try again in a minute                  |
-| `too_many_reports`   | `report`                                       | This address sent too many reports lately; try again in a few minutes  |
+| Code                 | Answer to                                      | Meaning                                                                                                        |
+| -------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `invalid_name`       | `hello`                                        | The name breaks the name rules                                                                                 |
+| `invalid_game_name`  | `create`, `configure`                          | The game name breaks the game name rules                                                                       |
+| `not_found`          | `join`, `kick`, `report`                       | No game has this id, or no other player has this number                                                        |
+| `game_full`          | `join`                                         | The game has no free seat                                                                                      |
+| `too_many_seats`     | `join`                                         | Players from this address already hold three seats of this public game                                         |
+| `removed`            | `join`                                         | The host removed a player from this address from this game                                                     |
+| `game_started`       | `join`, `configure`, `start`, `hold`, `kick`   | The game has already started                                                                                   |
+| `already_in_game`    | `play`, `create`, `join`                       | Leave the current game first                                                                                   |
+| `not_in_game`        | `configure`, `start`, `hold`, `kick`, `report` | The connection is not in a game                                                                                |
+| `not_host`           | `configure`, `start`, `hold`, `kick`           | Only the host can change, start or hold the game, or remove a player                                           |
+| `not_enough_players` | `start`                                        | A public game needs a second player                                                                            |
+| `invalid_settings`   | `configure`                                    | No published map has this id, or too many bots or seats for it                                                 |
+| `too_many_games`     | `play`, `create`                               | The server holds as many games as it can                                                                       |
+| `too_many_lobbies`   | `play`, `create`                               | This address already holds three games that have not started, or four it opened and plays in that are not over |
+| `token_invalid`      | `rejoin`                                       | The game is over or the seat was given up                                                                      |
+| `token_in_use`       | `rejoin`                                       | Another connection holds the seat; retry in 1 s                                                                |
+| `restarting`         | `play`, `create`, `join`                       | The server is about to restart; try again in a minute                                                          |
+| `too_many_reports`   | `report`                                       | This address sent too many reports lately; try again in a few minutes                                          |
 
 ### `reported`
 

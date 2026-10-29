@@ -10,7 +10,7 @@ import {
   type SignInMethod,
 } from "./accounts.ts";
 import type { Logger } from "./log.ts";
-import { isEmailAddress, mailFailure, type Mailer } from "./mail.ts";
+import { isEmailAddress, mailbox, mailFailure, type Mailer } from "./mail.ts";
 import { AddressRate } from "./rate-limit.ts";
 
 /** Where a service sends the player to sign in, and where the server asks who they are. */
@@ -74,6 +74,8 @@ const LINK_RATE = { perSecond: 1 / 300, burst: 3 };
 /** Links one email address may receive: two, then one every ten minutes. */
 const LINK_RATE_PER_EMAIL = { perSecond: 1 / 600, burst: 2 };
 const DEFAULT_DAILY_LINKS = 150;
+/** Links one address may ask for in a day: well under the daily limit, which one network must not spend alone. */
+const LINK_RATE_PER_DAY = { perSecond: 10 / 86_400, burst: 10 };
 /** Links waiting to be opened, kept in memory: a restart only makes players ask again. */
 const MAX_PENDING_LINKS = 10_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -177,6 +179,11 @@ export function createAuth(
   const linkRatePerEmail = new AddressRate(
     LINK_RATE_PER_EMAIL.perSecond,
     LINK_RATE_PER_EMAIL.burst,
+    now(),
+  );
+  const dailyLinksPerAddress = new AddressRate(
+    LINK_RATE_PER_DAY.perSecond,
+    LINK_RATE_PER_DAY.burst,
     now(),
   );
   const dailyLinks = mail?.dailyLimit ?? DEFAULT_DAILY_LINKS;
@@ -353,10 +360,13 @@ export function createAuth(
     return { id, name: names.find((name): name is string => typeof name === "string") ?? "" };
   }
 
-  /** Changes to an account come from the game's own pages only. */
+  /**
+   * Changes to an account come from the game's own pages only: those of its
+   * public address, or of the origin the server is told to accept.
+   */
   function sameSite(request: IncomingMessage): boolean {
     const origin = request.headers.origin;
-    return origin !== undefined && isAllowedOrigin(origin);
+    return origin !== undefined && (origin === base.origin || isAllowedOrigin(origin));
   }
 
   function json(
@@ -457,7 +467,7 @@ export function createAuth(
         return;
       }
       const time = now();
-      if (!linkRate.take(address, time)) {
+      if (!linkRate.take(address, time) || !dailyLinksPerAddress.take(address, time)) {
         json(response, 429, { error: "rate", message: "too many links asked for" });
         return;
       }
@@ -471,7 +481,7 @@ export function createAuth(
       const subject = accounts.subject("email", email);
       json(response, 202, { sent: true });
       // Held back without a word: saying so would tell that someone asked for this address.
-      if (!linkRatePerEmail.take(subject, time)) return;
+      if (!linkRatePerEmail.take(mailbox(email), time)) return;
       linksToday.sent++;
       for (const [key, link] of pending) {
         if (link.expires <= time || pending.size >= MAX_PENDING_LINKS) pending.delete(key);

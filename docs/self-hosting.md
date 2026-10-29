@@ -89,7 +89,7 @@ Rehearse it once on a spare machine and time it: a backup you have never restore
 
 ## HTTPS and a domain
 
-Browsers need HTTPS for anything but `localhost`, so put a reverse proxy in front. It must forward WebSocket upgrades on `/ws`, and set the `X-Client-IP` header to the player's address, which the server uses for its limits per address. The server trusts that header only from a private or loopback address, as a proxy on the same host or Docker network is.
+Browsers need HTTPS for anything but `localhost`, so put a reverse proxy in front. It must forward WebSocket upgrades on `/ws`, and set the `X-Client-IP` header to the player's address, which the server uses for its limits per address. The server trusts that header only from a private or loopback address, as a proxy on the same host or Docker network is. Without a proxy, when players reach the server straight from its own network as at a LAN party, set `FRONTFALL_TRUST_PROXY=false` so none of them can pass for another address.
 
 With [Caddy](https://caddyserver.com/), which gets the certificate itself:
 

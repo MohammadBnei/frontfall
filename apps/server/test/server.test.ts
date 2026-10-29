@@ -183,6 +183,21 @@ describe("HTTP", () => {
     expect(response.headers.get("cache-control")).toContain("immutable");
   });
 
+  it("refuses a request target that names another host", async () => {
+    const host = await start();
+    const [address, port] = host.split(":");
+    const socket = connect(Number(port), address);
+    const reply = new Promise<string>((resolve) => {
+      let text = "";
+      socket.on("data", (chunk: Buffer) => (text += chunk.toString()));
+      socket.on("end", () => {
+        resolve(text);
+      });
+    });
+    socket.end("GET //evil.example/metrics HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
+    expect(await reply).toMatch(/^HTTP\/1\.1 400/);
+  });
+
   it("serves metrics to the host only, never through the proxy", async () => {
     const host = await start();
     const direct = await fetch(`http://${host}/metrics`);
@@ -1004,6 +1019,8 @@ describe("WebSocket", () => {
 
     const url = `http://${host}/admin/reports`;
     expect((await fetch(url, { headers: { "x-client-ip": "1.2.3.4" } })).status).toBe(404);
+    // A web page open in a browser on the server itself cannot reach them either.
+    expect((await fetch(url, { headers: { origin: "https://evil.example" } })).status).toBe(404);
     const { reports, targets } = (await (await fetch(url)).json()) as {
       reports: { reason: string; name: string; target: string }[];
       targets: { target: string; reports: number; names: string[] }[];
@@ -1107,6 +1124,45 @@ describe("WebSocket", () => {
     expect((await last.next("error")).code).toBe("too_many_lobbies");
     last.send({ type: "play" });
     expect((await last.next("lobby")).visibility).toBe("public");
+  });
+
+  it("drops a client that stops reading what it is sent", async () => {
+    const host = await start();
+    const client = await player(host, "A");
+    client.send({ type: "create" });
+    await client.next("lobby");
+    const [room] = [...(server?.games.all() ?? [])];
+    const peer = room?.seatOf(1)?.peer;
+    if (!peer) throw new Error("not seated");
+    const gone = closed(client.socket);
+    // The client reads nothing for a while: what the server sends piles up on its side.
+    const tcp = (client.socket as unknown as { _socket: { pause(): void; resume(): void } })
+      ._socket;
+    tcp.pause();
+    const frame = "x".repeat(1024 * 1024);
+    for (let i = 0; i < 64; i++) peer.send(frame);
+    tcp.resume();
+    expect(await gone).toBe(1006);
+  });
+
+  it("caps the solo games one address keeps running, Play now included", async () => {
+    const host = await start();
+    const players = await Promise.all(["A", "B", "C", "D", "E"].map((name) => player(host, name)));
+    for (const one of players.slice(0, 4)) {
+      one.send({ type: "create" });
+      await one.next("lobby");
+      one.send({ type: "start" });
+      await one.next("started");
+    }
+    const [, , , , last] = players;
+    if (!last) throw new Error("no fifth player");
+    last.send({ type: "create" });
+    expect((await last.next("error")).code).toBe("too_many_lobbies");
+    last.send({ type: "play" });
+    expect((await last.next("error")).code).toBe("too_many_lobbies");
+    players[0]?.send({ type: "leave" });
+    last.send({ type: "create" });
+    expect((await last.next("lobby")).visibility).toBe("private");
   });
 
   it("drops a client that stops answering pings", async () => {

@@ -14,7 +14,7 @@ import { Directory } from "./directory.ts";
 import { addressPseudonym, silentLogger } from "./log.ts";
 import { Metrics, type Snapshot } from "./metrics.ts";
 import { Moderation, validTarget } from "./moderation.ts";
-import { clientAddress, isLocalRequest, isLoopbackRequest } from "./address.ts";
+import { clientAddress as addressOf, isLocalRequest, isLoopbackRequest } from "./address.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { AddressRate, TokenBucket } from "./rate-limit.ts";
 import type { RoomObserver } from "./room.ts";
@@ -145,6 +145,9 @@ export function createGameServer(options: ServerOptions): GameServer {
     maxPlayers: options.maxPlayers ?? DEFAULT_MAX_PLAYERS,
     maxLogBytes: options.maxLogBytes ?? DEFAULT_MAX_LOG_BYTES,
     maxLobbiesPerOwner: options.maxLobbiesPerAddress ?? 3,
+    ...(options.maxGamesPerAddress !== undefined && {
+      maxGamesPerOwner: options.maxGamesPerAddress,
+    }),
     publicGame,
     privateGame,
     observer,
@@ -221,11 +224,18 @@ export function createGameServer(options: ServerOptions): GameServer {
   };
   /** The last public list sent, and when it was built. */
   let gameList: { at: number; body: CachedJson } | undefined;
+  const clientAddress = (request: IncomingMessage): string =>
+    addressOf(request, options.trustProxy ?? true);
   const connectionsByAddress = new Map<string, number>();
   const upgrades = new AddressRate(upgradeRate.perSecond, upgradeRate.burst, Date.now());
 
   const http = createServer((request, response) => {
-    const path = new URL(request.url ?? "/", "http://localhost").pathname;
+    // `//host/path` would parse as another host's path, past a proxy's matchers.
+    if (!request.url?.startsWith("/") || request.url.startsWith("//")) {
+      response.writeHead(400).end();
+      return;
+    }
+    const path = new URL(request.url, "http://localhost").pathname;
     if (path === "/healthz") {
       // An event loop that is blocked cannot answer at all; this catches a turn
       // timer that has stopped or fallen far behind while requests still get through.
@@ -319,10 +329,17 @@ export function createGameServer(options: ServerOptions): GameServer {
     serveStatic(options.staticRoot, path, request, response);
   });
 
+  // Headers that trickle in, or a body that never ends, must not hold a socket
+  // for minutes: a proxy usually cuts them sooner, a server reached directly relies on this.
+  http.headersTimeout = 10_000;
+  http.requestTimeout = 30_000;
+
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
 
   http.on("upgrade", (request, socket, head) => {
-    const path = new URL(request.url ?? "/", "http://localhost").pathname;
+    const path = request.url?.startsWith("//")
+      ? ""
+      : new URL(request.url ?? "/", "http://localhost").pathname;
     if (path !== "/ws" || !isAllowedOrigin(request.headers.origin, options.allowedOrigin)) {
       socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
       return;
@@ -619,7 +636,11 @@ export function createGameServer(options: ServerOptions): GameServer {
       logger.warn("accounts_off", { reason: "no data directory" });
       return undefined;
     }
-    const accounts = new Accounts(accountsFile(options.dataDir));
+    const accounts = new Accounts(accountsFile(options.dataDir), (error) => {
+      logger.warn("accounts_not_saved", {
+        reason: (error as NodeJS.ErrnoException).code ?? "write",
+      });
+    });
     const { error, usable } = accounts.load();
     if (error) logger.warn("accounts_not_loaded", { error: error.message });
     // Starting empty would replace a file that is still there at the first sign-in.
@@ -628,8 +649,12 @@ export function createGameServer(options: ServerOptions): GameServer {
       return undefined;
     }
     logger.info("accounts_loaded", { accounts: accounts.size });
-    return createAuth(settings, accounts, logger, (origin) =>
-      isAllowedOrigin(origin, options.allowedOrigin),
+    // Unset, the socket accepts any page; changes to an account never do.
+    return createAuth(
+      settings,
+      accounts,
+      logger,
+      (origin) => !!options.allowedOrigin && isAllowedOrigin(origin, options.allowedOrigin),
     );
   }
 

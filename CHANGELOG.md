@@ -34,6 +34,14 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Orders answer sooner.** A ring now shows under the pointer the moment you press on the map, instead of after you let go and the game has read the click; it turns into the usual answer once the order is read. Online, a turn that the network or a busy page delays no longer holds back every turn after it for three seconds: it plays a little late on its own, so your orders come back sooner, by about 60 ms in our measurements and much more after a hiccup.
 - **Fewer hitches on every tick.** Taking in each turn of the game costs the page about a fifth of what it did: the panels, the names over the land and the leaderboard no longer redraw what has not changed, so frames keep coming while the bots attack. Names over the land are also placed faster.
 
+### Security
+
+- **Names that only look like someone else's are refused.** A player name can no longer pass for a staff name with look-alike letters from another alphabet, full-width letters or accents, be invisible, or pile up stacked accents. In a game, and against an account's name, two names that read the same count as one: the second player gets a number after it.
+- **Limits that one network cannot dodge.** A player on IPv6 now counts as their whole home network for the per-address limits and for bans, as every IPv4 player already did. Sign-in links by email are limited to ten a day for one network, and to two then one every ten minutes for one mailbox, however the address is spelled.
+- **"Play now" only sends you into a standard game.** A quick game whose host changed its map, teams, bots, nations or other options no longer takes players who pressed Play now. One network may have four games open or running at once, so a handful of players can no longer fill the server with empty games; the message says to start, finish or leave one first.
+- **No false desync warning.** In a game where the players' checks disagree with no clear majority, nobody is told their game went out of step any more: one player could make an honest opponent look out of sync.
+- **Account changes only from the game's own page,** even on a server that leaves the origin of its game socket open. The operator's routes answer only commands typed on the server itself, never a web page open there.
+
 ## [0.8.0] - 2026-10-29
 
 Own rules: fronts that collapse and a capital mode, a harder game, a lighter first visit, workers, an attack preview and build previews, and game speed.

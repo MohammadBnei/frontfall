@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "n
 import { isIP } from "node:net";
 import { join } from "node:path";
 import type { ReportReason } from "@frontfall/protocol";
+import { network } from "./address.ts";
 import { AddressRate } from "./rate-limit.ts";
 
 /** Reports older than this are forgotten (R-MODE-06). */
@@ -52,7 +53,17 @@ export interface ReportedTarget {
 
 /** A target the ban list takes: an IP address, or a reference as reports give them. */
 export function validTarget(target: string): boolean {
-  return isIP(target) !== 0 || /^[A-Za-z0-9_-]{16}$/.test(target);
+  return (
+    isIP(target) !== 0 ||
+    /^[A-Za-z0-9_-]{16}$/.test(target) ||
+    (target.endsWith("::/64") && isIP(target.slice(0, -3)) === 6)
+  );
+}
+
+/** A ban target as connections are matched against it: an IPv6 address bans its /64. */
+function banTarget(target: string): string {
+  if (target.endsWith("/64")) return network(target.slice(0, -3));
+  return isIP(target) ? network(plain(target)) : target;
 }
 
 /** The usual `::ffff:` form of an IPv4 address seen on an IPv6 socket, as plain IPv4. */
@@ -207,7 +218,8 @@ export class Moderation {
   }
 
   /** Bans `target` for `days`, or for good when `days` is undefined; replaces an earlier ban of it. */
-  ban(target: string, days: number | undefined, note: string | undefined, now: number): Ban {
+  ban(given: string, days: number | undefined, note: string | undefined, now: number): Ban {
+    const target = banTarget(given);
     const ban: Ban = {
       target,
       until: days === undefined ? null : new Date(now + days * DAY_MS).toISOString(),
@@ -219,7 +231,8 @@ export class Moderation {
   }
 
   /** Lifts the ban of `target`; false when there was none. */
-  unban(target: string, now: number): boolean {
+  unban(given: string, now: number): boolean {
+    const target = banTarget(given);
     const before = this.bans.length;
     this.bans = this.list(now).filter((ban) => ban.target !== target);
     if (this.bans.length === before) return false;
@@ -305,7 +318,7 @@ function parseBans(text: string): Ban[] {
       throw new Error(`${at}: until must be a date, such as 2026-12-01, or null`);
     if (note !== undefined && typeof note !== "string") throw new Error(`${at}: note must be text`);
     return {
-      target: isIP(target) ? plain(target) : target,
+      target: banTarget(target),
       until: typeof until === "string" ? new Date(until).toISOString() : null,
       ...(note ? { note } : {}),
     };

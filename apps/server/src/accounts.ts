@@ -1,7 +1,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { MAX_NAME_LENGTH, normalizeName } from "@frontfall/protocol";
+import { nameKey as foldName, MAX_NAME_LENGTH, normalizeName } from "@frontfall/protocol";
 
 /** Services a player may sign in with. */
 export const PROVIDERS = ["discord", "google"] as const;
@@ -66,15 +66,13 @@ const FILE_VERSION = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Two names that look alike to players are the same name: case, accents
- * aside, spaces and punctuation do not tell them apart.
+ * Two names that look alike to players are the same name: case, accents,
+ * spaces, punctuation and look-alike letters of other scripts do not tell
+ * them apart. Kept in memory only: the keys are rebuilt from the names on
+ * every load, so a change of the folding needs no change of the file.
  */
 export function nameKey(name: string): string {
-  return name
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]/gu, "");
+  return foldName(name);
 }
 
 /** The accounts file, under the server's data directory. */
@@ -97,8 +95,14 @@ export class Accounts {
    */
   private salt = randomBytes(32).toString("base64url");
 
-  /** @param file where the accounts are kept; unset keeps them in memory only, for tests. */
-  constructor(private readonly file: string | undefined) {}
+  /**
+   * @param file where the accounts are kept; unset keeps them in memory only, for tests.
+   * @param onWriteError told when the file could not be written, as on a full disk.
+   */
+  constructor(
+    private readonly file: string | undefined,
+    private readonly onWriteError: (error: Error) => void = () => undefined,
+  ) {}
 
   get size(): number {
     return this.byId.size;
@@ -293,19 +297,28 @@ export class Accounts {
     return true;
   }
 
-  /** Readable by the server's user only, replaced at once so that a crash never leaves half a file. */
+  /**
+   * Readable by the server's user only, replaced at once so that a crash never
+   * leaves half a file. A write that fails, as on a full disk, must not stop
+   * the server: the accounts stay right in memory and the next change writes
+   * them all again.
+   */
   private save(): void {
     if (this.file === undefined) return;
-    mkdirSync(join(this.file, ".."), { recursive: true, mode: 0o700 });
-    const temporary = `${this.file}.tmp`;
-    const body = JSON.stringify({
-      version: FILE_VERSION,
-      salt: this.salt,
-      accounts: [...this.byId.values()],
-    });
-    writeFileSync(temporary, body, { mode: 0o600 });
-    chmodSync(temporary, 0o600);
-    renameSync(temporary, this.file);
+    try {
+      mkdirSync(join(this.file, ".."), { recursive: true, mode: 0o700 });
+      const temporary = `${this.file}.tmp`;
+      const body = JSON.stringify({
+        version: FILE_VERSION,
+        salt: this.salt,
+        accounts: [...this.byId.values()],
+      });
+      writeFileSync(temporary, body, { mode: 0o600 });
+      chmodSync(temporary, 0o600);
+      renameSync(temporary, this.file);
+    } catch (error) {
+      this.onWriteError(error as Error);
+    }
   }
 }
 
