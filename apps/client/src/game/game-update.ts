@@ -27,7 +27,7 @@ import type {
   GameUpdate,
   StructureType,
 } from "./game-view.ts";
-import { labelAnchors } from "./label-anchors.ts";
+import { labelAnchors, type LabelSpace } from "./label-anchors.ts";
 
 const STRUCTURE_TYPES: Readonly<Record<StructureKind, StructureType>> = {
   [StructureKind.City]: "city",
@@ -97,7 +97,7 @@ function diplomacyEvents(game: Game): DiplomacyEvent[] {
  * takes the territory changes and the diplomacy events the engine logged, so
  * each tick's are sent once: call it once per update.
  */
-export function gameUpdate(game: Game, you: number, depth: Uint16Array): GameUpdate {
+export function gameUpdate(game: Game, you: number, labelSpace: LabelSpace): GameUpdate {
   const territory = game.territory;
   const players = game.players().map((player) => ({
     id: player.id,
@@ -187,7 +187,7 @@ export function gameUpdate(game: Game, you: number, depth: Uint16Array): GameUpd
   territory.clearChanges();
   if (game.tick % LABEL_TICKS === 0) {
     const width = game.terrain.topology.width;
-    update.labels = labelAnchors(territory.owners, width, players.length, depth);
+    update.labels = labelAnchors(territory.owners, width, players.length, labelSpace);
   }
   if (game.rules.capitals) {
     update.capitals = {
