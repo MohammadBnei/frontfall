@@ -47,6 +47,12 @@ test("the first steps follow the player, and stay hidden once put away", async (
   await expect(guide).toHaveAttribute("data-step", "attack");
   await expect(guide).toContainText("Retreat");
   await page.locator("#guide-next").click();
+  await expect(guide).toHaveAttribute("data-step", "fronts");
+  await expect(guide).toContainText("gives way");
+  await page.locator("#guide-next").click();
+  await page.locator("#guide-next").click();
+  await expect(guide).toHaveAttribute("data-step", "sail");
+  await expect(guide).toContainText("Port");
   await page.locator("#guide-next").click();
   await expect(guide).toHaveAttribute("data-step", "defend");
   await expect(guide).toContainText("Fort");

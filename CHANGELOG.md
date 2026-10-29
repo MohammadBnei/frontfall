@@ -8,6 +8,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 - **A Graphics setting, and a lighter picture for phones that struggle.** The menu's Accessibility section has a new Graphics choice: Automatic (the default), Light and Sharpest. Automatic picks by your device: a weak one gets the light picture, the flat map drawn at your screen's own pixels, a phone gets the full map at 1.5 times its screen's pixels instead of twice, and a game that still cannot keep up at the lowest sharpness switches to the light picture by itself and remembers it. Sharpest keeps the picture as sharp as the screen allows whatever the device. The choice applies to the next game.
 - **Measure a phone with `?perf`.** Add `?perf` to the game's address and a small panel shows the map's frame time, with a button to copy a report of the device, the picture used and how frames fared.
+- **The first steps now cover fronts and ships.** Your first solo game's guide grew from six steps to eight: after your first attack, a step explains fronts that give way (and that a fort holds), and after your first building, one explains sending troops across the water by ship and what a port is for. Both move on by themselves when it happens, or with Next, and both read as taps on a phone. The game itself is no easier.
 
 ### Changed
 
