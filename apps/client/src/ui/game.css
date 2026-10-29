@@ -1032,7 +1032,7 @@ button.feed-entry:focus-visible {
    banner's width, up to three lines (docs/hud-layout.md). */
 @media (width < 720px) {
   .events-feed {
-    top: 78px;
+    top: 90px;
     left: 50%;
     align-items: center;
     width: calc(100vw - 24px);
@@ -1436,7 +1436,7 @@ button.feed-entry:focus-visible {
   }
 
   .game:has(.guide) .click-note {
-    top: 140px;
+    top: 170px;
     bottom: auto;
     z-index: auto;
     background: rgb(10 19 28 / 90%);
@@ -1891,7 +1891,7 @@ button.feed-entry:focus-visible {
   }
 }
 
-/* A short screen has no room to keep the buttons in sight: they follow the content, in two columns. */
+/* A short screen: the panel scrolls as a whole, the buttons stick to its foot. */
 @media (max-height: 560px) {
   .end-screen {
     display: block;
@@ -1904,10 +1904,23 @@ button.feed-entry:focus-visible {
     overflow: visible;
   }
 
+  /* The buttons stay in sight at the foot of the panel while the rest scrolls. */
+  .end-screen .end-actions,
   .end-screen:has(.end-stats-chart) .end-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding-top: 0;
+    position: sticky;
+    bottom: -24px;
+    z-index: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    margin: 0 -24px -24px;
+    padding: 10px 24px 12px;
+    background: var(--ff-night-700);
+    box-shadow: 0 -8px 12px rgb(0 0 0 / 25%);
+  }
+
+  .end-actions > * {
+    flex: 1;
   }
 }
 
