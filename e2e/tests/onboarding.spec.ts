@@ -123,6 +123,10 @@ test("the line about expanding goes away for good after the first attack", async
   }
   // Once the attack is over the line does not come back, in this game or the next.
   await expect(banner).toBeHidden({ timeout: 30_000 });
+  // Left from the menu, so that the page opened next does not offer this game back.
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.locator("#leave").click();
+  await expect(page.locator("#menu")).toBeVisible();
   await page.goto("./?map=strait&bots=1&difficulty=easy&nations=0&speed=5");
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
