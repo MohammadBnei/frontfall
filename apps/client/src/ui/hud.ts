@@ -1,5 +1,5 @@
 import { DEFAULT_BALANCE } from "@frontfall/engine";
-import { attackPreview, goldPerSecond } from "../game/attack-preview.ts";
+import { attackPreview, goldPerSecond, soldiersOf } from "../game/attack-preview.ts";
 import type { GameRules } from "../game/messages.ts";
 import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
 import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts";
@@ -93,6 +93,7 @@ export class Hud {
   private readonly ratioInput = h("input", {
     id: "attack-ratio",
     type: "range",
+    "data-i18n-attr": "aria-label:hud.ratio",
     min: MIN_RATIO,
     max: 100,
     step: 1,
@@ -372,7 +373,12 @@ export class Hud {
     const workRow = h(
       "div",
       { class: "ratio-row work-row" },
-      h("label", { for: "work-share", class: "work-label" }),
+      h(
+        "label",
+        { for: "work-share", class: "work-label" },
+        icon("workers"),
+        h("span", { class: "ratio-name" }),
+      ),
       this.workInput,
       this.workValue,
     );
@@ -399,7 +405,12 @@ export class Hud {
           h(
             "div",
             { class: "ratio-row" },
-            h("label", { for: "attack-ratio", "data-i18n": "hud.ratio" }),
+            h(
+              "label",
+              { for: "attack-ratio" },
+              icon("attack"),
+              h("span", { class: "ratio-name", "data-i18n": "hud.ratio" }),
+            ),
             this.ratioInput,
             this.ratioValue,
           ),
@@ -451,7 +462,7 @@ export class Hud {
   setRatio(percent: number): void {
     const value = Math.max(MIN_RATIO, Math.min(100, Math.round(percent)));
     this.ratioInput.value = String(value);
-    this.ratioValue.textContent = formatPercent(value / 100);
+    this.renderShares();
     if (this.last) this.renderPreview(this.last);
   }
 
@@ -463,7 +474,7 @@ export class Hud {
   /** Shows a work share on the slider, with the gold it brings, before the game has it. */
   private showWork(share: number): void {
     this.workInput.value = String(share);
-    this.workValue.textContent = formatPercent(share / 100);
+    this.renderShares();
     if (this.last) {
       const human = this.you(this.last);
       if (human) this.renderGold(human);
@@ -536,6 +547,7 @@ export class Hud {
       this.gold.textContent = formatCount(human.gold);
       this.syncWork(human);
       this.renderGold(human);
+      this.renderShares();
       this.land.textContent = this.share(human.tiles);
       this.population.update(human.troops, human.cap, update.economy.growth);
       this.renderBuild(update, human);
@@ -559,6 +571,35 @@ export class Hud {
     this.workInput.disabled = !human.alive;
   }
 
+  /**
+   * What each slider means in absolute terms, live: the troops an attack
+   * sends, and the gold a second the workers add.
+   */
+  private renderShares(): void {
+    const human = this.last ? this.you(this.last) : undefined;
+    const ratio = formatPercent(this.ratio / 100);
+    const work = formatPercent(this.work / 100);
+    let sent = "";
+    let extra = "";
+    if (human) {
+      const soldiers = soldiersOf({ troops: human.troops, workShare: this.work });
+      sent = formatCount(Math.floor((soldiers * this.ratio) / 100));
+      const gold = (workShare: number): number =>
+        goldPerSecond({ troops: human.troops, workShare });
+      extra = formatCount(Math.floor(gold(this.work) - gold(0)));
+    }
+    this.ratioValue.textContent = sent ? `${ratio} · ${sent}` : ratio;
+    this.workValue.textContent = extra ? `${work} · +${extra}/s` : work;
+    this.ratioInput.setAttribute(
+      "aria-valuetext",
+      workText("attackValue", { share: ratio, troops: sent || "0" }),
+    );
+    this.workInput.setAttribute(
+      "aria-valuetext",
+      workText("workValue", { share: work, rate: extra || "0" }),
+    );
+  }
+
   /** Gold a second from the troops, with the share the slider shows. */
   private renderGold(human: PlayerView): void {
     const rate = goldPerSecond({ troops: human.troops, workShare: this.work });
@@ -567,8 +608,12 @@ export class Hud {
 
   /** Labels made here rather than from the catalogues (ui/work-text.ts). */
   private translateWork(): void {
-    const label = this.element.querySelector(".work-label");
+    const label = this.element.querySelector(".work-label .ratio-name");
     if (label) label.textContent = workText("work");
+    this.workInput.setAttribute("aria-label", workText("work"));
+    const attackHint = workText("attackHint");
+    this.ratioInput.title = attackHint;
+    this.ratioInput.labels?.[0]?.setAttribute("title", attackHint);
     const hint = workText("workHint", { factor: DEFAULT_BALANCE.workGoldFactor });
     this.workInput.title = hint;
     this.workInput.closest(".work-row")?.setAttribute("title", hint);

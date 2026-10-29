@@ -30,6 +30,8 @@ export const ICON_NAMES = [
   "message",
   "alliance",
   "requests",
+  "attack",
+  "workers",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -60,6 +62,8 @@ const SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" foc
   <symbol id="i-message" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M4 3.8h16a1.2 1.2 0 0 1 1.2 1.2v10.2a1.2 1.2 0 0 1-1.2 1.2h-8l-5 4.6v-4.6H4a1.2 1.2 0 0 1-1.2-1.2V5A1.2 1.2 0 0 1 4 3.8zM8 8.6a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM12 8.6a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6zM16 8.6a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6z"/></symbol>
   <symbol id="i-alliance" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.6" cy="12" r="5.2"/><circle cx="15.4" cy="12" r="5.2"/></g></symbol>
   <symbol id="i-requests" viewBox="0 0 24 24"><path d="M12 2.8a6 6 0 0 0-6 6v4.2l-2.2 3.8h16.4L18 13V8.8a6 6 0 0 0-6-6zM9.8 19h4.4a2.2 2.2 0 0 1-4.4 0z"/></symbol>
+  <symbol id="i-attack" viewBox="0 0 24 24"><path d="M20.5 3.5v5.4l-9 9-5.4-5.4zM5 13.6l5.4 5.4-1.7 1.7-5.4-5.4zM3.3 17.4l3.3 3.3-2.4.6a1 1 0 0 1-1.1-1.1z"/></symbol>
+  <symbol id="i-workers" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M15.8 2.8a5.6 5.6 0 0 1 4.9 7.7l-3.2-3.2-2.2.6-.6 2.2 3.2 3.2A5.6 5.6 0 0 1 10 9.3a5.6 5.6 0 0 1 5.8-6.5zM9.6 11.9l2.5 2.5-7 7a1.8 1.8 0 0 1-2.5-2.5z"/></symbol>
 </svg>`;
 
 const NS = "http://www.w3.org/2000/svg";

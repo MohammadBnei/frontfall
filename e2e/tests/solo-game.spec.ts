@@ -341,3 +341,17 @@ test("a right click leaves a build mode like Esc, and opens the menu otherwise",
   await expect(map).toHaveAttribute("data-mode", "attack");
   await expect(page.locator(".player-menu:not([hidden])")).toHaveCount(0);
 });
+
+test("the attack slider shows the troops it sends beside its share", async ({ page }) => {
+  await page.goto("./?map=skirmish&bots=2&difficulty=easy");
+  await page.locator("#play").click();
+  const map = page.locator("#map");
+  await expect(map).toBeVisible();
+  const box = await map.boundingBox();
+  if (!box) throw new Error("the map has no box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  const value = page.locator("#attack-ratio ~ .range-value");
+  await expect(value).toHaveText(/^30\s?% · \d/);
+  await page.locator("#attack-ratio").fill("60");
+  await expect(value).toHaveText(/^60\s?% · \d/);
+});
