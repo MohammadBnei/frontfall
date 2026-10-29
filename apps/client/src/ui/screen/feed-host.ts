@@ -56,11 +56,11 @@ export class FeedHost {
 
   /**
    * The first steps own the top left while they show there, as a card: the
-   * feed goes under them. Returns whether the feed moved.
+   * feed goes under them.
    */
-  clearOf(guide: DOMRect | undefined): boolean {
+  clearOf(guide: DOMRect | undefined): void {
     const card = guide !== undefined && guide.height > 0 && guide.left < 40 && guide.width < 340;
-    return this.feed.below(card && guide.top < window.innerHeight / 2 ? guide : undefined);
+    this.feed.below(card && guide.top < window.innerHeight / 2 ? guide : undefined);
   }
 
   /** The pointer is over the land of `owner`, 0 for none. */

@@ -98,13 +98,11 @@ export class EventsFeed {
    * Puts the feed under `above`, the first-steps guide while it shows at the
    * top left; none puts it back where the style sheet has it.
    */
-  /** Puts the feed under `above`, or back in its place; returns whether it moved. */
-  below(above: { bottom: number } | undefined): boolean {
+  /** Puts the feed under `above`, or back in its place. */
+  below(above: { bottom: number } | undefined): void {
     const top = above ? `${String(Math.round(above.bottom + 8))}px` : "";
-    // Called with the panels' sizes: writing the same again would lay the page out for nothing.
-    if (this.element.style.top === top) return false;
-    this.element.style.top = top;
-    return true;
+    // Called on every frame after an update: writing the same again would lay the page out for nothing.
+    if (this.element.style.top !== top) this.element.style.top = top;
   }
 
   /** The label and hints again, in the current language. */
