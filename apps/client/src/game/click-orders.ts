@@ -313,7 +313,10 @@ function warshipFor(game: Game, you: number, tile: number, reach: number): Click
       if (orderError(game, human, order) === undefined) return { order };
     }
     // No warship and no port by a click on the land: buying one comes first.
-    if (!port) return { refused: ships.length > 0 || water === tile ? "noWarship" : "port" };
+    if (!port) {
+      if (water !== tile) return { refused: ships.length > 0 ? "noWarship" : "port" };
+      return { refused: ships.length > 0 ? "noWarship" : "noShip" };
+    }
   }
   if (!port) return { refused: "port" };
   const order: Order = { type: "warship", port: port.tile };

@@ -201,6 +201,8 @@ export type ClickRefusal =
   | "warships"
   /** No warship of the player's can sail to that water. */
   | "noWarship"
+  /** The player has no warship yet: a port buys one. */
+  | "noShip"
   /** No silo of the player's is built and loaded (R-BUILD-04). */
   | "silo"
   /** Another structure stands closer than B-BUILD-SPACING. */
