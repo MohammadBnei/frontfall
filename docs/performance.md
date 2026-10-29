@@ -250,7 +250,11 @@ whole map in one draw call:
 
 After each tick, the changed tiles mark their rows dirty in chunks of
 `max(64, width / 32)` columns, and only those chunks are uploaded with
-`texSubImage2D`, one call per run of dirty chunks in a row.
+`texSubImage2D`: rows go by bands of 4, a rectangle per run of chunks dirty
+in the band rather than a call per run in each row, for about twice the
+texels (150,000 on World, under the 1 MiB budget). Each call has a fixed cost in the browser's GPU
+process and in the driver, which the M4 measurements below showed as most of
+a frame with a tick.
 
 ### Units
 
@@ -272,7 +276,7 @@ uploaded.
   times more pixels for no visible gain on a tile map. Below that,
   [`RenderScale`](../apps/client/src/render/render-scale.ts) lowers it in
   steps of 0.8 down to 0.75 while the median of 24 frames drawn back to back
-  is over 22 ms, and raises it again once frames keep the display's pace; a
+  is over 20 ms, and raises it again once frames keep the display's pace; a
   step up that proves too slow is not tried again for 30 s, then twice as
   long each time. The territory shader runs once per pixel, so on a laptop's
   high-density screen this is what keeps the map at the display's pace.

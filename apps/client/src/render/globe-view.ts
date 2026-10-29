@@ -218,7 +218,7 @@ export class GlobeView implements Renderer {
     this.camera.updateProjectionMatrix();
     this.territory.setGlobePose(globeRays(pose));
     this.territory.setTime(this.clock());
-    this.territory.flush();
+    this.territory.flush(this.renderer);
     // At the middle of the screen a row of tiles has the flat map's size.
     const tilesPerPixel = (2 * view.halfHeight) / this.cssHeight;
     this.ships.setScale(shipScale(SHIP_SIZES.transport, tilesPerPixel));

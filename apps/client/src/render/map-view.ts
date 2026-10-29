@@ -417,7 +417,7 @@ export class MapView implements Renderer {
   render(view: CameraView): void {
     applyView(this.camera, view, this.options.width, this.options.height);
     this.territory.setTime(this.clock());
-    this.territory.flush();
+    this.territory.flush(this.renderer);
     const tilesPerPixel = (2 * view.halfWidth) / this.cssWidth;
     const sized = (kind: keyof typeof SHIP_SIZES): number =>
       shipScale(
