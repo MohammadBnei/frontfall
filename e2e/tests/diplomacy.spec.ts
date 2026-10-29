@@ -176,6 +176,8 @@ test("sends a bot a quick message, which the feed shows (R-DIPLO-07)", async ({ 
 test("a feed line with a place centres the map on it, and stays while the pointer is on it", async ({
   page,
 }) => {
+  // The game starts, then the pointer rests for 9 s: a loaded runner needs more than 30 s.
+  test.setTimeout(90_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
   await startGame(page, 1);
