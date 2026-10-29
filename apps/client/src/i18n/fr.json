@@ -23,6 +23,8 @@
   "mode.4": "4 équipes",
   "setup.rules.capitals": "Mode capitale",
   "setup.rules.capitalsHint": "Prenez la capitale d’un joueur et tout son empire est à vous. Gardez bien la vôtre.",
+  "menu.tutorial": "Tutoriel",
+  "menu.tutorialHint": "Une courte partie guidée sur une petite carte : s’étendre, attaquer, bâtir et naviguer. À rejouer quand vous voulez.",
   "menu.play": "Jouer en solo",
   "menu.language": "Langue",
   "difficulty.easy": "Facile",

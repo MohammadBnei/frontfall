@@ -140,6 +140,7 @@ function showMenu(): void {
     setup,
     maps,
     play,
+    tutorial,
     (entry, chosen) => {
       setup = chosen;
       saveSetup(setup, storage);
@@ -217,20 +218,48 @@ function play(chosen: GameSetup): void {
   }, failedToLoad);
 }
 
+/**
+ * A short guided game on a small map, for learning the basics. It is a game
+ * of its own: the setup in the menu, and the one saved, stay as they were.
+ */
+function tutorial(): void {
+  const practice: GameSetup = {
+    map: "skirmish",
+    bots: 2,
+    difficulty: "normal",
+    nations: false,
+    rules: { ...DEFAULT_RULES },
+    playerName: setup.playerName,
+    tutorial: true,
+  };
+  const map = maps.find((candidate) => candidate.id === practice.map);
+  if (!map) return;
+  if (!hasWebGL2()) {
+    usage().error("webgl");
+    showNotice("webgl.missing");
+    return;
+  }
+  void Promise.all([localProfile(), loadGameWithStyles()]).then(([profile, code]) => {
+    preferColor(HUMAN_ID, profile.read().color);
+    begin(map, code, practice);
+  }, failedToLoad);
+}
+
 function failedToLoad(error: unknown): void {
   console.error(error);
   showNotice("game.failed");
 }
 
-function begin(map: MapInfo, code: GameModule): void {
+function begin(map: MapInfo, code: GameModule, chosen: GameSetup = setup): void {
   game?.dispose();
   const seed = Math.floor(Math.random() * 0x7fffffff);
   game = new code.GameScreen(
-    { ...setup, playerName: setup.playerName || t("menu.namePlaceholder"), seed, ...testing },
+    { ...chosen, playerName: chosen.playerName || t("menu.namePlaceholder"), seed, ...testing },
     map,
     {
       onNewGame: () => {
-        play(setup);
+        if (chosen.tutorial) tutorial();
+        else play(setup);
       },
       onMenu: showMenu,
       onFailure: (key) => {

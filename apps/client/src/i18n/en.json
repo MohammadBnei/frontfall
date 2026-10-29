@@ -23,6 +23,8 @@
   "mode.4": "4 teams",
   "setup.rules.capitals": "Capital mode",
   "setup.rules.capitalsHint": "Take a player's capital and their whole empire is yours. Guard your own.",
+  "menu.tutorial": "Tutorial",
+  "menu.tutorialHint": "A short guided game on a small map: expand, attack, build and sail. Play it again whenever you like.",
   "menu.play": "Play solo",
   "menu.language": "Language",
   "difficulty.easy": "Easy",

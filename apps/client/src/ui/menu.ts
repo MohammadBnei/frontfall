@@ -45,6 +45,8 @@ export class Menu {
     initial: GameSetup,
     mapList: readonly MapInfo[],
     onPlay: (setup: GameSetup) => void,
+    /** A short guided game on a small map, apart from the setup above. */
+    onTutorial: () => void,
     onOnline: (entry: OnlineEntry, setup: GameSetup) => void,
     /** A replay file the player picked, to watch. */
     onReplay: (file: File) => void,
@@ -287,6 +289,14 @@ export class Menu {
         ),
       ),
       h("button", { type: "submit", class: "primary", id: "play", "data-i18n": "menu.play" }),
+      h("button", {
+        type: "button",
+        class: "secondary",
+        id: "tutorial",
+        "aria-describedby": "tutorial-hint",
+        "data-i18n": "menu.tutorial",
+      }),
+      h("p", { class: "hint", id: "tutorial-hint", "data-i18n": "menu.tutorialHint" }),
     );
     const profileSection = h(
       "details",
@@ -322,6 +332,7 @@ export class Menu {
       },
       replayPicker(onReplay),
     );
+    form.querySelector("#tutorial")?.addEventListener("click", onTutorial);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       onPlay({ ...this.setup });

@@ -36,6 +36,8 @@ export interface SoloOptions {
   /** Special rules the game plays with (R-MODE-08); each one left out is off. */
   rules?: Partial<GameRules> | undefined;
   playerName: string;
+  /** A practice game from the menu: the first steps guide it, whether or not they were done before. */
+  tutorial?: boolean | undefined;
   /**
    * For tests that play a game to its end: ticks run per beat of the clock
    * (1 by default), and a time limit in minutes instead of B-MAX-DURATION.
