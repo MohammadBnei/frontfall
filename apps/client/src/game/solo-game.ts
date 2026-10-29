@@ -27,6 +27,7 @@ import type {
 } from "./game-view.ts";
 import { orderForClick, previewForClick } from "./click-orders.ts";
 import { gameUpdate } from "./game-update.ts";
+import { labelSpace, type LabelSpace } from "./label-anchors.ts";
 import { HUMAN_ID, createSimulation, newSetup } from "./simulation.ts";
 
 export type * from "./game-view.ts";
@@ -46,7 +47,8 @@ export class SoloGame {
   readonly you: number;
   /** Online games report state hashes; a solo game has no one to compare with. */
   private readonly online: boolean;
-  private readonly depth: Uint16Array;
+  /** Where names can go, for the labels of every update that has them. */
+  private readonly labelSpace: LabelSpace;
   private readonly players: PlayerSetup[];
   private readonly botIds: number[];
   private readonly nationIds: number[];
@@ -107,10 +109,10 @@ export class SoloGame {
     if (options.record) {
       this.recorded = new Map(options.record.turns.map((turn) => [turn.tick, turn.orders]));
     }
-    this.depth = new Uint16Array(grid.size);
     let ownable = 0;
     for (let tile = 0; tile < grid.size; tile++) if (terrain.isOwnable(tile)) ownable++;
     this.ownableTiles = ownable;
+    this.labelSpace = labelSpace(grid.width, grid.height, (tile) => terrain.isOwnable(tile));
   }
 
   /** The game as it stands, to start from after a reload (#39). */
@@ -187,7 +189,7 @@ export class SoloGame {
         this.hashes.push({ tick: turn.tick, local: hash });
       }
     }
-    const update = gameUpdate(this.game, this.you, this.depth);
+    const update = gameUpdate(this.game, this.you, this.labelSpace);
     if (hashes.length > 0) update.hashes = hashes;
     return update;
   }
@@ -204,7 +206,7 @@ export class SoloGame {
     while (this.game.tick < end) {
       this.game.step({ tick: this.game.tick, orders: this.recorded.get(this.game.tick) ?? [] });
     }
-    const update = gameUpdate(this.game, this.you, this.depth);
+    const update = gameUpdate(this.game, this.you, this.labelSpace);
     update.replay = { ticks: record.ticks, expected: record.hash };
     if (this.game.tick >= record.ticks) update.replay.hash = this.game.hash();
     return update;
