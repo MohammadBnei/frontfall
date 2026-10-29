@@ -9,6 +9,9 @@ export class GuideHost {
   private guide: Guide | undefined;
   /** The player's land when the attacks opened, for the guide. */
   private tilesAtPlay: number | undefined;
+  /** Seen since the guide began: a ship of the player's at sea, a front giving way. */
+  private sailed = false;
+  private collapsed = false;
 
   constructor(
     /** Where the guide goes: the HUD. */
@@ -44,6 +47,8 @@ export class GuideHost {
       return;
     }
     if (update.phase === "play") this.tilesAtPlay ??= tiles;
+    if (update.boats.some((boat) => boat.player === update.you)) this.sailed = true;
+    if (update.events.some((event) => event.type === "collapsed")) this.collapsed = true;
     guide.update(
       {
         phase: update.phase,
@@ -52,9 +57,12 @@ export class GuideHost {
         cities: update.structures.filter((s) => s.player === update.you && s.type === "city")
           .length,
         forts: update.structures.filter((s) => s.player === update.you && s.type === "fort").length,
+        ports: update.structures.filter((s) => s.player === update.you && s.type === "port").length,
+        sailed: this.sailed,
+        collapsed: this.collapsed,
         playerMenu: this.playerMenu(),
       },
-      update.build.cityCost,
+      { city: update.build.cityCost, port: update.build.portCost },
     );
   }
 
