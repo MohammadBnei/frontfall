@@ -250,7 +250,7 @@ export class GameScreen {
       () => this.latest,
       () => this.diplomacy.open,
     );
-    if (this.guided && !guideDone(safeStorage())) this.guide.start();
+    if (this.guided && (this.options.tutorial || !guideDone(safeStorage()))) this.guide.start();
     this.element = document.createElement("div");
     this.element.className = "game";
     this.element.append(

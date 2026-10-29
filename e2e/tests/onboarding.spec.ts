@@ -80,3 +80,33 @@ test("a refused build names what was refused", async ({ page }) => {
   await page.mouse.click(box.x + 4, box.y + box.height - 4);
   await expect(page.locator("#click-note")).toContainText(/^City: /);
 });
+
+test("the tutorial is a guided game of its own, even after the first steps were put away", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("frontfall.guide", "done");
+  });
+  await page.goto("./");
+  await expect(page.locator("#tutorial")).toBeVisible();
+  await page.locator("#tutorial").click();
+  await expect(page.locator("#map")).toBeVisible();
+  await expect(page.locator("#guide")).toHaveAttribute("data-step", "start");
+
+  // Putting the guide away works there as in any game.
+  await page.locator("#guide-hide").click();
+  await expect(page.locator("#guide")).toHaveCount(0);
+});
+
+test.describe("in French", () => {
+  test.use({ locale: "fr-FR" });
+
+  test("the tutorial button is read, and reached, with the keyboard", async ({ page }) => {
+    await page.goto("./");
+    const button = page.locator("#tutorial");
+    await expect(button).toHaveText("Tutoriel");
+    await button.focus();
+    await expect(button).toBeFocused();
+    await expect(page.locator("#tutorial-hint")).toContainText("guidée");
+  });
+});
