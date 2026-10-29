@@ -313,9 +313,12 @@ export interface DiplomacyEvent {
     | "collapsed"
     | "capital"
     | "razed"
-    | "eliminated";
+    | "eliminated"
+    | "landmark";
   a: number;
   b: number;
+  /** For "landmark": which one `a` took from `b`, by its index in the map's list (R-LAND-03). */
+  landmark?: number;
   /** Where a front collapsed, for "collapsed" (R-ATTACK-10). */
   tile?: number;
   /** A quick message, by number (R-DIPLO-07). */

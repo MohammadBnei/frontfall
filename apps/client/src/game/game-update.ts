@@ -84,11 +84,16 @@ function diplomacy(game: Game, you: number): DiplomacyView {
 
 /** What the engine logged between players since the last update, in order (R-DIPLO-04). */
 function diplomacyEvents(game: Game): DiplomacyEvent[] {
-  return game.diplomacyEvents.splice(0).map(({ type, a, b, phrase, tile, gold }) => {
+  return game.diplomacyEvents.splice(0).map(({ type, a, b, phrase, tile, gold, landmark }) => {
     const event: DiplomacyEvent = { type, a, b };
     if (phrase !== undefined) event.phrase = phrase;
     if (tile !== undefined) event.tile = tile;
     if (gold !== undefined) event.gold = gold;
+    if (landmark !== undefined) {
+      event.landmark = landmark;
+      const at = game.terrain.landmarks[landmark]?.tile;
+      if (at !== undefined) event.tile = at;
+    }
     return event;
   });
 }

@@ -308,7 +308,11 @@ export class Game {
       capitals: setup.rules?.capitals === true,
       collapsingFronts: setup.rules?.collapsingFronts === true,
     };
-    this.balanceDigest = digestBalance(this.balance, this.rules);
+    this.balanceDigest = digestBalance(
+      this.balance,
+      this.rules,
+      setup.terrain.landmarks.length > 0,
+    );
     const goldBonus = setup.goldBonus ?? 0;
     if (goldBonus !== 0 && !this.playersById.has(goldBonus)) {
       throw new RangeError(`gold bonus for unknown player ${String(goldBonus)}`);
@@ -651,11 +655,13 @@ function mix(hash: number, value: number): number {
  * written in does not matter. The values of a special rule count only in a
  * game played with it, so other games hash as they did before it existed.
  */
-function digestBalance(balance: Balance, rules: GameRules): number {
+function digestBalance(balance: Balance, rules: GameRules, landmarks: boolean): number {
   let digest = 0x811c9dc5;
   const record = balance as unknown as Record<string, number | readonly number[]>;
   for (const key of Object.keys(record).sort()) {
     if (!rules.capitals && key.startsWith("capital")) continue;
+    // Likewise landmarks (R-LAND) count only on a map that has some.
+    if (!landmarks && key.startsWith("landmark")) continue;
     for (let i = 0; i < key.length; i++) digest = Math.imul(digest ^ key.charCodeAt(i), 0x01000193);
     const value = record[key];
     for (const number of typeof value === "number" ? [value] : (value ?? [])) {
@@ -738,6 +744,12 @@ function checkBalance(balance: Balance): void {
     "capitalAlert",
     "capitalGraceTicks",
     "capitalGarrisonPercent",
+    "landmarkGoldPercent",
+    "landmarkGrowthPercent",
+    "landmarkFortressRadius",
+    "landmarkFortressPercent",
+    "landmarkTradePercent",
+    "landmarkShieldRadius",
   ] as const) {
     if (!Number.isSafeInteger(balance[key]) || balance[key] < 0) {
       throw new RangeError(`balance ${key} must be a non-negative integer`);
@@ -754,6 +766,11 @@ function checkBalance(balance: Balance): void {
     throw new RangeError("balance workGoldFactor must be a positive integer");
   }
   for (const key of ["capitalSpoilsPercent", "capitalRazePercent"] as const) {
+    if (!Number.isSafeInteger(balance[key]) || balance[key] < 0 || balance[key] > 100) {
+      throw new RangeError(`balance ${key} must be from 0 to 100`);
+    }
+  }
+  for (const key of ["landmarkShieldChancePercent", "landmarkAssaultPercent"] as const) {
     if (!Number.isSafeInteger(balance[key]) || balance[key] < 0 || balance[key] > 100) {
       throw new RangeError(`balance ${key} must be from 0 to 100`);
     }

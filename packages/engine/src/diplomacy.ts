@@ -50,6 +50,8 @@ export interface DiplomacyEvent {
    * `a` took `b`'s capital and with it all their land ("capital"), or `a`'s
    * capital was razed and moved ("razed", with `b` the same player).
    * "eliminated": `a` took the last tile of `b`, and with it `gold` (R-ECO-08).
+   * "landmark": `a` took the landmark numbered `landmark` from `b`, NEUTRAL
+   * when nobody held it (R-LAND-03).
    */
   readonly type:
     | "allied"
@@ -65,7 +67,8 @@ export interface DiplomacyEvent {
     | "collapsed"
     | "capital"
     | "razed"
-    | "eliminated";
+    | "eliminated"
+    | "landmark";
   readonly a: number;
   readonly b: number;
   /** A "quick" event's message, by number (R-DIPLO-07). */
@@ -74,6 +77,8 @@ export interface DiplomacyEvent {
   readonly tile?: number;
   /** What an "eliminated" player's taker got (R-ECO-08). */
   readonly gold?: number;
+  /** A "landmark" event's landmark, by its index in the map's list. */
+  readonly landmark?: number;
 }
 
 /** Refusals of diplomacy orders, so that interfaces can tell them apart without parsing text. */

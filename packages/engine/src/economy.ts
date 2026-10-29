@@ -2,6 +2,7 @@ import type { Balance } from "./balance.ts";
 import type { Game, Player } from "./game.ts";
 import { logEvent } from "./diplomacy.ts";
 import { mulDiv, percentOf } from "./integer-math.ts";
+import { LandmarkEffect, withLandmarks } from "./landmarks.ts";
 import { spawnSettings } from "./spawn.ts";
 import { workingCities } from "./structures.ts";
 
@@ -77,7 +78,7 @@ export function installEconomy(game: Game): void {
       growTroops(game, player);
 
       // R-ECO-07: a worker earns B-WORK-GOLD times what a soldier does.
-      const earning = player.troops + workers(player) * (game.balance.workGoldFactor - 1);
+      const earning = goldEarning(game, player);
       // R-MODE-09: the operator's test bonus doubles one player's income.
       const bonus = player.id === game.goldBonus ? OPERATOR_GOLD_FACTOR : 1;
       const earned = earning * game.balance.goldPerThousandTroops * bonus + player.goldRemainder;
@@ -85,6 +86,22 @@ export function installEconomy(game: Game): void {
       player.goldRemainder = earned % goldDivisor;
     }
   });
+}
+
+/**
+ * What a player's gold income is counted on (R-ECO-03): their troops, a
+ * worker counting B-WORK-GOLD times (R-ECO-07), more for each gold landmark
+ * they hold (R-LAND-02).
+ */
+export function goldEarning(game: Game, player: Player): number {
+  const earning = player.troops + workers(player) * (game.balance.workGoldFactor - 1);
+  return withLandmarks(
+    game,
+    player.id,
+    LandmarkEffect.Gold,
+    game.balance.landmarkGoldPercent,
+    earning,
+  );
 }
 
 /**
@@ -114,7 +131,22 @@ function growTroops(game: Game, player: Player): void {
     }
     return;
   }
-  player.troops += troopGrowth(game.balance, cap, player.troops);
+  player.troops += playerGrowth(game, player, cap);
+}
+
+/** R-ECO-02: troops a player gains this tick, faster for each growth landmark they hold (R-LAND-02), never past the cap. */
+export function playerGrowth(game: Game, player: Player, cap: number): number {
+  const gain = troopGrowth(game.balance, cap, player.troops);
+  if (gain === 0) return 0;
+  const { landmarkGrowthPercent } = game.balance;
+  const boosted = withLandmarks(
+    game,
+    player.id,
+    LandmarkEffect.Growth,
+    landmarkGrowthPercent,
+    gain,
+  );
+  return Math.min(boosted, cap - player.troops);
 }
 
 /**
