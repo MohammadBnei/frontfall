@@ -88,3 +88,30 @@ describe("guide storage", () => {
     }).not.toThrow();
   });
 });
+
+describe("play hint storage", () => {
+  it("is remembered once seen, and survives storage that throws", async () => {
+    const { hintSeen, setHintSeen } = await import("../src/ui/hint-state.ts");
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    } as unknown as Storage;
+    expect(hintSeen(storage)).toBe(false);
+    setHintSeen(storage);
+    expect(hintSeen(storage)).toBe(true);
+    const broken = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    } as unknown as Storage;
+    expect(hintSeen(undefined)).toBe(false);
+    expect(hintSeen(broken)).toBe(false);
+    expect(() => {
+      setHintSeen(broken);
+    }).not.toThrow();
+  });
+});

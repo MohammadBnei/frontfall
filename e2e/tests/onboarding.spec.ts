@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { spiral, startByTheWater } from "./by-the-water.ts";
 
 /** Starts a solo game on a small map, as a new player does. */
 async function startSolo(page: import("@playwright/test").Page): Promise<void> {
@@ -109,4 +110,23 @@ test.describe("in French", () => {
     await expect(button).toBeFocused();
     await expect(page.locator("#tutorial-hint")).toContainText("guidée");
   });
+});
+
+test("the line about expanding goes away for good after the first attack", async ({ page }) => {
+  const banner = page.locator(".banner");
+  const start = await startByTheWater(page, "");
+  // The first order: expand into land beside the start, unless the spawn clicks already did.
+  for (const point of spiral(start, 6, 6)) {
+    if (!(await banner.textContent())?.includes("to expand")) break;
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(150);
+  }
+  // Once the attack is over the line does not come back, in this game or the next.
+  await expect(banner).toBeHidden({ timeout: 30_000 });
+  await page.goto("./?map=strait&bots=1&difficulty=easy&nations=0&speed=5");
+  await page.locator("#play").click();
+  await expect(page.locator("#map")).toBeVisible();
+  await page.mouse.click(start.x, start.y);
+  await expect(page.locator(".stats .stat").nth(2).locator(".stat-value")).not.toHaveText("0%");
+  await expect(banner).toBeHidden({ timeout: 30_000 });
 });
