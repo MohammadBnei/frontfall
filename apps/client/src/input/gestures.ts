@@ -14,6 +14,12 @@ export interface PointerSample {
 export interface MapCallbacks {
   /** A press released without moving: the player picked this tile. */
   readonly onTileClick?: (tile: number, finger: boolean) => void;
+  /**
+   * A press began on this tile and may end in a click, so the screen can
+   * answer it at once; undefined when it no longer can (a drag, a pinch, a
+   * long press, a pointer taken away). A click follows the press it ends.
+   */
+  readonly onPress?: (tile: number | undefined) => void;
   /** A press held still for LONG_PRESS_MS, or a right click: the player wants the menu of this tile. */
   readonly onTileHold?: (tile: number) => void;
   /**
@@ -58,6 +64,8 @@ export class PointerGestures {
   /** How far the press travels before it is a drag, by what pressed it. */
   private threshold = DRAG_THRESHOLD_PX;
   private pinch: Pinch | undefined;
+  /** A press was announced through onPress and has not ended yet. */
+  private pressing = false;
   private hovered: number | undefined;
   /** The hover comes from a finger: it ends with the press. */
   private touchHover = false;
@@ -82,6 +90,11 @@ export class PointerGestures {
       this.pressY = sample.y;
       this.pressTime = sample.time;
       this.threshold = sample.finger ? FINGER_DRAG_THRESHOLD_PX : DRAG_THRESHOLD_PX;
+      const tile = this.camera.screenToTile(sample.x, sample.y);
+      if (tile !== undefined) {
+        this.pressing = true;
+        this.callbacks.onPress?.(tile);
+      }
       // Fingers cannot hover: the one resting on the map shows whose land it is on.
       if (sample.finger) {
         this.touchHover = true;
@@ -89,6 +102,7 @@ export class PointerGestures {
       }
     } else {
       this.mode = "pinch";
+      this.unpress();
       this.pinch = this.measurePinch();
       this.endTouchHover();
     }
@@ -106,6 +120,7 @@ export class PointerGestures {
     if (this.mode === "press") {
       if (Math.hypot(x - this.pressX, y - this.pressY) > this.threshold) {
         this.mode = "pan";
+        this.unpress();
         this.endTouchHover();
         this.camera.panBy(x - this.pressX, y - this.pressY);
       }
@@ -138,8 +153,9 @@ export class PointerGestures {
       this.hoverAt = { x: sample.x, y: sample.y };
       this.hover(sample.x, sample.y);
     }
-    if (!click) return;
-    const tile = this.camera.screenToTile(sample.x, sample.y);
+    const tile = click ? this.camera.screenToTile(sample.x, sample.y) : undefined;
+    if (tile === undefined || held) this.unpress();
+    else this.pressing = false;
     if (tile === undefined) return;
     if (held) this.callbacks.onTileHold?.(tile);
     else this.callbacks.onTileClick?.(tile, sample.finger === true);
@@ -165,7 +181,9 @@ export class PointerGestures {
 
   /** The pointer was taken away by the browser: forget it without a click. */
   cancel(id: number): void {
-    if (this.pointers.has(id)) this.release(id);
+    if (!this.pointers.has(id)) return;
+    this.unpress();
+    this.release(id);
   }
 
   /** Forgets every pointer, for instance when the window loses focus. */
@@ -173,6 +191,7 @@ export class PointerGestures {
     this.pointers.clear();
     this.mode = "idle";
     this.pinch = undefined;
+    this.unpress();
     this.endTouchHover();
   }
 
@@ -191,6 +210,13 @@ export class PointerGestures {
     if (this.hovered === undefined) return;
     this.hovered = undefined;
     this.callbacks.onHover?.(undefined);
+  }
+
+  /** The press under way will not end in a click. */
+  private unpress(): void {
+    if (!this.pressing) return;
+    this.pressing = false;
+    this.callbacks.onPress?.(undefined);
   }
 
   private endTouchHover(): void {
