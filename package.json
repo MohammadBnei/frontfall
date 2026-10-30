@@ -30,6 +30,7 @@
     "maps": "pnpm --filter @frontfall/tools maps",
     "announce": "pnpm --filter @frontfall/tools announce",
     "playtest-report": "pnpm --filter @frontfall/tools playtest-report",
+    "usage:report": "pnpm --filter @frontfall/tools usage:report",
     "sim": "pnpm --filter @frontfall/bench sim",
     "balance": "pnpm --filter @frontfall/bench balance",
     "balance:doctrines": "pnpm --filter @frontfall/bench balance:doctrines",

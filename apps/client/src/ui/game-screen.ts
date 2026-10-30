@@ -815,6 +815,7 @@ export class GameScreen {
     // What this screen shows from here on: hidden players go by their number.
     update = withHidden(update, this.hidden);
     if (!this.replayBar) this.stats.observe(update);
+    this.tracker?.observe(update, this.scene.report().frameMs, performance.now());
     this.labels.update(update.players, update.labels);
     // A trade ship docked: the gold it brought this player rises over the port.
     for (const event of update.events) {
