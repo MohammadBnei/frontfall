@@ -438,7 +438,7 @@
     width: 170px;
   }
   .attacks {
-    bottom: 64px;
+    bottom: 148px;
     width: auto;
     max-width: calc(100vw - 206px);
   }
@@ -475,11 +475,6 @@
   /* The slider is what a finger drags: it never gets less than 44 px, whatever the text beside it. */
   .ratio {
     grid-template-columns: auto minmax(44px, 1fr) auto;
-  }
-
-  /* In the tray there is room for the name. */
-  .build > .work-row .ratio-name {
-    display: inline;
   }
 }
 
@@ -1914,23 +1909,10 @@ button.feed-entry:focus-visible {
 }
 
 /* Above the bar of a phone, the preview keeps to one line: whose land, and how much of it.
-   The work share leaves the bar for the top of the build tray (ui/hud.ts), beside what gold buys. */
+   The work share stays under the attack slider, within a finger's reach. */
 @media (width < 720px), (height < 560px) {
   .preview-text {
     display: none;
-  }
-
-  .build > .work-row {
-    display: flex;
-    grid-column: 1 / -1;
-    gap: 10px;
-    align-items: center;
-    padding: 2px 6px 6px;
-  }
-
-  .build > .work-row input {
-    flex: 1;
-    min-width: 0;
   }
 }
 
@@ -2580,21 +2562,45 @@ button.feed-entry:focus-visible {
     gap: 0 8px;
   }
 
-  .ratio > .ratio-row:not(.work-row) .range-value {
+  .ratio > .ratio-row .range-value {
     grid-row: 1;
     grid-column: 1 / -1;
     justify-self: end;
     padding-right: 2px;
   }
 
-  .ratio > .ratio-row:not(.work-row) label {
+  .ratio > .ratio-row label {
     grid-row: 2;
     grid-column: 1;
   }
 
-  .ratio > .ratio-row:not(.work-row) input {
+  .ratio > .ratio-row input {
     grid-row: 2;
     grid-column: 2;
+  }
+
+  /* The work share sits under the attack share: its own two rows, the share over the rail. */
+  .ratio > .work-row .range-value {
+    grid-row: 3;
+  }
+
+  .ratio > .work-row label {
+    grid-row: 4;
+  }
+
+  .ratio > .work-row input {
+    grid-row: 4;
+  }
+
+  .ratio .work-row .ratio-name {
+    display: none;
+  }
+}
+
+/* On the narrowest phones the buttons of the tools cover the right of the panel: the shares keep left. */
+@media (width < 360px) {
+  .ratio > .ratio-row .range-value {
+    justify-self: start;
   }
 }
 

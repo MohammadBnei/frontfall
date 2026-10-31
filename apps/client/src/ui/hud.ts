@@ -26,7 +26,6 @@ export const DEFAULT_RATIO = 30;
 /** Steps of the work share slider (R-ECO-07), in percent: fine enough, and easy to hit with a finger. */
 const WORK_STEP = 5;
 /** Where the build panel is a tray and the bar has room for one slider only (game.css). */
-const NARROW = "(width < 720px), (height < 560px)";
 /** How long the attack preview stays once the pointer or the finger has left the land it was about. */
 const PREVIEW_LINGER_MS = 1500;
 /** Troops under which the army is nearly gone, and the share of the cap that counts as full. */
@@ -498,16 +497,6 @@ export class Hud {
     );
     applyTranslations(this.element);
     this.translateWork();
-    // Where the bar has no room for a second slider, the work share opens with the
-    // buildings, at the top of their tray (game.css).
-    const narrow = matchMedia(NARROW);
-    const ratioPanel = workRow.parentElement;
-    const place = (): void => {
-      if (narrow.matches) buildPanel.prepend(workRow);
-      else ratioPanel?.append(workRow);
-    };
-    narrow.addEventListener("change", place);
-    place();
   }
 
   /** A building's name, with what the next one costs when the game has said. */

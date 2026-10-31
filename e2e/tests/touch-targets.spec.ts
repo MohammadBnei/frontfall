@@ -48,6 +48,13 @@ for (const size of SIZES) {
     const open = await measure(page, "#attack-ratio");
     expect(closed.width).toBeGreaterThanOrEqual(44);
     expect(open.width).toBeGreaterThanOrEqual(44);
+    // The work share is beside the attack share, not behind the build button.
+    await page.locator("#build-toggle").tap();
+    await expect(page.locator(".build")).toBeHidden();
+    const work = await measure(page, "#work-share");
+    expect(work.width).toBeGreaterThanOrEqual(44);
+    expect(work.height).toBeGreaterThanOrEqual(44);
+    expect(page.viewportSize()?.height ?? 0).toBeGreaterThan(work.y + work.height - 1);
   });
 }
 
