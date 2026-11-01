@@ -2562,34 +2562,35 @@ button.feed-entry:focus-visible {
     gap: 0 8px;
   }
 
+  /* Two rows each, the share over its rail. The attack share keeps the lowest pair, under the
+     thumb and where it always was; the work share sits above it. */
   .ratio > .ratio-row .range-value {
-    grid-row: 1;
+    grid-row: 3;
     grid-column: 1 / -1;
     justify-self: end;
     padding-right: 2px;
   }
 
   .ratio > .ratio-row label {
-    grid-row: 2;
+    grid-row: 4;
     grid-column: 1;
   }
 
   .ratio > .ratio-row input {
-    grid-row: 2;
+    grid-row: 4;
     grid-column: 2;
   }
 
-  /* The work share sits under the attack share: its own two rows, the share over the rail. */
   .ratio > .work-row .range-value {
-    grid-row: 3;
+    grid-row: 1;
   }
 
   .ratio > .work-row label {
-    grid-row: 4;
+    grid-row: 2;
   }
 
   .ratio > .work-row input {
-    grid-row: 4;
+    grid-row: 2;
   }
 
   .ratio .work-row .ratio-name {
