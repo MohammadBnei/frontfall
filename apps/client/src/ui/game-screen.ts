@@ -1,3 +1,4 @@
+import { probe } from "./probe.ts";
 import {
   NO_OPERATOR,
   type DesyncReport,
@@ -429,7 +430,9 @@ export class GameScreen {
           );
         },
         onUpdate: (update) => {
-          this.apply(update);
+          probe.time("update (apply)", () => {
+            this.apply(update);
+          });
         },
         onClick: (tile, outcome, note) => {
           // A refused build names what was refused: the oldest click in flight is the one answered.
@@ -580,6 +583,7 @@ export class GameScreen {
     if (this.options.tutorial && !this.options.snapshot) this.showIntro();
     // `?perf` shows the frame time of the map and a report to copy, for measuring a phone.
     if (new URLSearchParams(location.search).has("perf")) {
+      probe.on = true;
       void import("./perf-report.ts").then(({ mountPerfReport }) => {
         if (!this.disposed) this.cleanups.push(mountPerfReport(this.element, this.scene));
       });
@@ -587,15 +591,26 @@ export class GameScreen {
     let last = performance.now();
     const frame = (now: number): void => {
       if (this.panelsMoved) this.clearPanels();
-      this.input.update(now - last);
+      if (probe.on) probe.add("raf gap", now - last);
+      const begun = probe.on ? performance.now() : 0;
+      probe.time("input", () => {
+        this.input.update(now - last);
+      });
       last = now;
-      this.scene.draw(now);
+      probe.time("draw (all)", () => {
+        this.scene.draw(now);
+      });
       const camera = this.scene.camera;
-      this.labels.place(camera, camera.scale);
-      this.feed?.expire(now);
-      this.marks.place(camera, now);
-      this.goldFloats.place(camera, now);
-      this.previews.place();
+      probe.time("labels", () => {
+        this.labels.place(camera, camera.scale);
+      });
+      probe.time("feed+marks+floats+previews", () => {
+        this.feed?.expire(now);
+        this.marks.place(camera, now);
+        this.goldFloats.place(camera, now);
+        this.previews.place();
+      });
+      if (probe.on) probe.add("frame js", performance.now() - begun);
       this.frameHandle = requestAnimationFrame(frame);
     };
     this.frameHandle = requestAnimationFrame(frame);

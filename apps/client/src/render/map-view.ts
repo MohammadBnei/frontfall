@@ -1,3 +1,4 @@
+import { probe } from "../ui/probe.ts";
 import * as THREE from "three";
 import { MAP_COLORS, STRUCTURE_COLORS } from "../palette.ts";
 import type { CameraView } from "./camera.ts";
@@ -646,7 +647,9 @@ export class MapView implements Renderer {
     this.renderer.getDrawingBufferSize(this.bufferSize);
     this.territory.setViewport(this.bufferSize.x, this.bufferSize.y);
     this.territory.setTime(this.clock());
-    this.territory.flush(this.renderer);
+    probe.time("map upload", () => {
+      this.territory.flush(this.renderer);
+    });
     const tilesPerPixel = (2 * view.halfWidth) / this.cssWidth;
     if (
       this.marksChanged ||
@@ -691,6 +694,13 @@ export class MapView implements Renderer {
       this.frames++;
       this.inspect();
     }
+  }
+
+  private readonly pixel = new Uint8Array(4);
+
+  sync(): void {
+    const gl = this.renderer.getContext();
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
   }
 
   private frames = 0;

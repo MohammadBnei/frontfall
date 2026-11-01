@@ -1,3 +1,4 @@
+import { probe } from "../probe.ts";
 import { TileKind } from "@frontfall/engine";
 import type { MapData, MapInfo } from "../../game/maps.ts";
 import type { GameUpdate } from "../../game/solo-game.ts";
@@ -453,8 +454,14 @@ export class MapScene {
     const wanted = urgent || (gentle && now - this.drawnAt >= GENTLE_FRAME_MS);
     const drawn = this.view !== undefined && wanted;
     if (this.view && drawn) {
-      this.placeShips(now);
-      this.view.render(view);
+      probe.time("ships place", () => {
+        this.placeShips(now);
+      });
+      const target = this.view;
+      probe.time("map render", () => {
+        target.render(view);
+      });
+      if (probe.on) probe.time("gpu wait", () => target.sync?.());
       const fault = this.view.fault?.();
       if (fault) {
         console.error(`the map cannot be drawn: ${fault}`);

@@ -160,6 +160,8 @@ export interface Renderer {
   render(view: CameraView): void;
   /** Why the frames come out blank (a shader that did not build, a lost context), once known. */
   fault?(): string | undefined;
+  /** Waits for the graphics card to finish what was sent (`?perf` timings only). */
+  sync?(): void;
   dispose(): void;
 }
 

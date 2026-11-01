@@ -1,6 +1,7 @@
 import { RELEASE } from "../release.ts";
 import { t } from "../i18n/index.ts";
 import { h } from "./dom.ts";
+import { probe } from "./probe.ts";
 import type { GraphicsProfile } from "./graphics.ts";
 
 /** What a game reports of its smoothness: the device, the profile and how frames fare. */
@@ -40,6 +41,7 @@ export function mountPerfReport(host: HTMLElement, source: PerfSource): () => vo
       `cores ${String(navigator.hardwareConcurrency)} memory ${String(nav.deviceMemory ?? "?")} GB touch ${String(matchMedia("(pointer: coarse)").matches)}`,
       `profile ${now.profile.saver ? "saver" : `cap ${String(now.profile.maxPixelRatio)}`} flat ${String(now.flat)} ratio ${now.ratio.toFixed(2)}`,
       `frame ${now.frameMs > 0 ? now.frameMs.toFixed(1) : "?"} ms (${now.frameMs > 0 ? (1000 / now.frameMs).toFixed(0) : "?"} fps)`,
+      ...probe.lines(),
     ];
   };
   const text = h("pre", { class: "perf-report-text" });
