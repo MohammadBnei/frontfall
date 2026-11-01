@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **Lighter on the graphics card.** While the camera stays still, the map is now drawn 30 times a second instead of 60 between two ticks (the fade of changed land, ships gliding, effects). Moving or zooming the view, and every change you make, still draw at once. The graphics card does about half the work during a normal game, which helps laptops and Safari most.
+
 ## [0.9.5] - 2026-10-31
 
 ### Added

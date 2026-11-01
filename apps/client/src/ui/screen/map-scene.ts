@@ -33,6 +33,8 @@ import { safeStorage } from "../setup.ts";
 import { sailing, ShipMotion } from "./ship-motion.ts";
 
 /** Matches the fade of the territory layer, with a frame to spare. */
+/** Between two frames drawn for slow motion alone: 30 a second. The frame clock jitters, hence the margin. */
+const GENTLE_FRAME_MS = 1000 / 30 - 3;
 const FADE_MS = 130;
 
 /** Tiles taken light their front this long (territory layer), with a frame to spare. */
@@ -443,9 +445,13 @@ export class MapScene {
       this.view?.setPixelRatio(this.scale.ratio);
       this.dirty = true;
     }
-    const drawn =
-      this.view !== undefined &&
-      (moved || this.dirty || moving || fading || frontsOff || this.view.animating?.() === true);
+    const urgent = moved || this.dirty || frontsOff;
+    // Between two ticks (a tenth of a second) only the cell fade, the ships' glide and the effects move,
+    // and the map's shader runs once per pixel, which is the GPU's whole load: 30 frames a second are
+    // enough for them. A new view, a change from the game or from the player draws at once.
+    const gentle = moving || this.settling || fading || this.view?.animating?.() === true;
+    const wanted = urgent || (gentle && now - this.drawnAt >= GENTLE_FRAME_MS);
+    const drawn = this.view !== undefined && wanted;
     if (this.view && drawn) {
       this.placeShips(now);
       this.view.render(view);
@@ -457,12 +463,19 @@ export class MapScene {
         return;
       }
       this.drawnView = view;
+      this.drawnAt = now;
       // Ships still glide after their last tick: one more frame to settle them.
-      this.dirty = moving;
+      this.dirty = false;
+      this.settling = moving;
     }
     if (this.scale.frame(now, drawn)) this.rescaled = true;
     if (this.scale.takeFloored()) this.lighten();
   }
+
+  /** When the map was last drawn, on the frame clock. */
+  private drawnAt = 0;
+  /** A frame is owed after the last one drawn with ships moving. */
+  private settling = false;
 
   private placeShips(now: number): void {
     const view = this.view;
