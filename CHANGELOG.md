@@ -4,6 +4,12 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-11-01
+
+### Fixed
+
+- **Smooth again in Safari.** On Safari (and any browser with the same slow path), the map could stall for 20 to 70 ms a frame while you played without moving the view, and the game then dropped to the economy graphics. The map's changes now reach the graphics card in a form Safari handles at once: the stall is gone (about 14 frames a second back to 30 at rest, 60 when moving the view, on a Mac). Other browsers were not affected and draw the same map.
+
 ## [0.9.6] - 2026-11-01
 
 ### Changed
