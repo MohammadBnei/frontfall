@@ -832,6 +832,8 @@ export class TerritoryLayer {
   private readonly bandChunks: Uint32Array;
   private readonly bandFirst: Int32Array;
   private readonly bandLast: Int32Array;
+  /** Where a rectangle is gathered before it is sent (uploadBands). */
+  private sendScratch: { owners: Uint16Array; times: Float32Array } | undefined;
   private readonly wrapsX: boolean;
   /** Ground colours as baked, to put back where fallout clears; made on first use. */
   private pristineGround: Uint8Array | undefined;
@@ -1164,13 +1166,19 @@ export class TerritoryLayer {
     }
     const gl = renderer.getContext() as WebGL2RenderingContext;
     const { state, properties } = renderer;
-    const saved = [gl.UNPACK_ROW_LENGTH, gl.UNPACK_SKIP_PIXELS, gl.UNPACK_SKIP_ROWS].map(
-      (name) => [name, state.getParameter(name) as number] as const,
-    );
     state.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     state.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     state.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    state.pixelStorei(gl.UNPACK_ROW_LENGTH, width);
+    // Each rectangle is copied into a small buffer of its own and sent from it, with
+    // no row length or offsets to the driver: some (Safari's) go through the whole
+    // source array, tens of milliseconds a frame on a large map, when they are used.
+    const owners = this.ownerTexture.image.data as Uint16Array;
+    const times = this.takenAtTexture.image.data as Float32Array;
+    this.sendScratch ??= {
+      owners: new Uint16Array(width * BAND_ROWS),
+      times: new Float32Array(width * BAND_ROWS),
+    };
+    const { owners: ownersOut, times: timesOut } = this.sendScratch;
     const sends = [
       { texture: this.ownerTexture, format: gl.RED_INTEGER, type: gl.UNSIGNED_SHORT },
       { texture: this.takenAtTexture, format: gl.RED, type: gl.FLOAT },
@@ -1192,17 +1200,24 @@ export class TerritoryLayer {
         while (chunk < CHUNKS_PER_ROW && ((mask >>> chunk) & 1) === 1) chunk++;
         const x = first * chunkWidth;
         const columns = Math.min(width, chunk * chunkWidth) - x;
-        state.pixelStorei(gl.UNPACK_SKIP_PIXELS, x);
-        state.pixelStorei(gl.UNPACK_SKIP_ROWS, y);
+        for (let row = 0; row < rows; row++) {
+          const from = (y + row) * width + x;
+          ownersOut.set(owners.subarray(from, from + columns), row * columns);
+          timesOut.set(times.subarray(from, from + columns), row * columns);
+        }
+        const count = columns * rows;
         for (const { texture, format, type } of sends) {
           const { __webglTexture } = properties.get(texture) as { __webglTexture: WebGLTexture };
           state.bindTexture(gl.TEXTURE_2D, __webglTexture);
-          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, columns, rows, format, type, texture.image.data);
+          const data =
+            texture === this.ownerTexture
+              ? ownersOut.subarray(0, count)
+              : timesOut.subarray(0, count);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, columns, rows, format, type, data);
         }
-        texels += columns * rows;
+        texels += count;
       }
     }
-    for (const [name, value] of saved) state.pixelStorei(name, value);
     return texels;
   }
 
