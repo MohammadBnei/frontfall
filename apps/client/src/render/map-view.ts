@@ -412,6 +412,16 @@ export class MapView implements Renderer {
       // The map is as playable without them, with the land under fallout left plain.
       () => undefined,
     );
+    this.warm();
+  }
+
+  /**
+   * Has the browser build the shaders in parallel and off the main thread, now,
+   * so that the first frame does not wait on them (a stall of a second or so
+   * otherwise). A frame drawn before they are ready simply waits, as it did.
+   */
+  private warm(): void {
+    this.renderer.compileAsync(this.scene, this.camera).catch(() => undefined);
   }
 
   setPlayerColor(id: number, color: string): void {
