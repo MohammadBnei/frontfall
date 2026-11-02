@@ -244,10 +244,9 @@ export class Moderation {
    * Reads the ban list again, after the operator edited the file by hand.
    * A file that does not read leaves the list as it was, and throws.
    */
-  reload(): void {
+  reload(now = Date.now()): void {
     if (this.directory === undefined) return;
     const text = readIfAny(this.file("bans.json"));
-    const now = Date.now();
     // Bans that ran out are dropped, and leave the file at its next write.
     this.bans =
       text === undefined

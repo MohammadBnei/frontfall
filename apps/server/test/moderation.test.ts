@@ -94,7 +94,7 @@ describe("Moderation (R-MODE-06)", () => {
     expect(moderation.banned("198.51.100.2", T0)).toBeUndefined();
 
     const restarted = new Moderation(dir, T0);
-    restarted.reload();
+    restarted.reload(T0);
     expect(restarted.list(T0)).toHaveLength(2);
     expect(restarted.unban("203.0.113.7", T0)).toBe(true);
     expect(restarted.unban("203.0.113.7", T0)).toBe(false);
@@ -119,14 +119,14 @@ describe("Moderation (R-MODE-06)", () => {
         bans: [{ target: "203.0.113.7", until: "2026-12-01" }, { target: "2001:db8::1" }],
       }),
     );
-    moderation.reload();
+    moderation.reload(T0);
     expect(moderation.list(T0).map((ban) => [ban.target, ban.until])).toEqual([
       ["203.0.113.7", "2026-12-01T00:00:00.000Z"],
       ["2001:db8:0:0::/64", null],
     ]);
     writeFileSync(file, JSON.stringify({ bans: [{ target: "nobody" }] }));
     expect(() => {
-      moderation.reload();
+      moderation.reload(T0);
     }).toThrow("entry 1");
     // The list stays as it was.
     expect(moderation.list(T0)).toHaveLength(2);
