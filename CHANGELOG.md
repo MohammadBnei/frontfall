@@ -4,6 +4,16 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-11-02
+
+### Fixed
+
+- **Phone controls back in reach.** On a phone the attack slider stays at the foot of the screen, with the work share above it, instead of moving into the build tray.
+
+### Changed
+
+- **No more hitch when a game opens.** The map's graphics are now prepared by the browser before the first frame, so the first picture no longer stalls (about 0.6 s measured on a Mac, now about 0.05 s).
+
 ## [0.9.7] - 2026-11-01
 
 ### Fixed
