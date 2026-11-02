@@ -1,4 +1,3 @@
-import { probe } from "./probe.ts";
 import {
   NO_OPERATOR,
   type DesyncReport,
@@ -6,6 +5,7 @@ import {
   type OperatorBonuses,
   type Turn,
 } from "@frontfall/engine";
+import { probe } from "./probe.ts";
 import { accessibility, motionReduced, onMotionChange } from "./accessibility.ts";
 import { TICK_RATE } from "@frontfall/protocol";
 import { BASE_PACE } from "../game/pace.ts";
@@ -593,23 +593,23 @@ export class GameScreen {
       if (this.panelsMoved) this.clearPanels();
       if (probe.on) probe.add("raf gap", now - last);
       const begun = probe.on ? performance.now() : 0;
-      probe.time("input", () => {
-        this.input.update(now - last);
-      });
+      let phase = probe.mark();
+      this.input.update(now - last);
+      probe.since("input", phase);
       last = now;
-      probe.time("draw (all)", () => {
-        this.scene.draw(now);
-      });
+      phase = probe.mark();
+      this.scene.draw(now);
+      probe.since("draw (all)", phase);
       const camera = this.scene.camera;
-      probe.time("labels", () => {
-        this.labels.place(camera, camera.scale);
-      });
-      probe.time("feed+marks+floats+previews", () => {
-        this.feed?.expire(now);
-        this.marks.place(camera, now);
-        this.goldFloats.place(camera, now);
-        this.previews.place();
-      });
+      phase = probe.mark();
+      this.labels.place(camera, camera.scale);
+      probe.since("labels", phase);
+      phase = probe.mark();
+      this.feed?.expire(now);
+      this.marks.place(camera, now);
+      this.goldFloats.place(camera, now);
+      this.previews.place();
+      probe.since("feed+marks+floats+previews", phase);
       if (probe.on) probe.add("frame js", performance.now() - begun);
       this.frameHandle = requestAnimationFrame(frame);
     };

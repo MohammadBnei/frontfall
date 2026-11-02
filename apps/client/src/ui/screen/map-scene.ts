@@ -1,4 +1,3 @@
-import { probe } from "../probe.ts";
 import { TileKind } from "@frontfall/engine";
 import type { MapData, MapInfo } from "../../game/maps.ts";
 import type { GameUpdate } from "../../game/solo-game.ts";
@@ -30,12 +29,13 @@ import {
 } from "../graphics.ts";
 import { usage } from "../../usage.ts";
 import { accessibility, motionReduced } from "../accessibility.ts";
+import { probe } from "../probe.ts";
 import { safeStorage } from "../setup.ts";
 import { sailing, ShipMotion } from "./ship-motion.ts";
 
-/** Matches the fade of the territory layer, with a frame to spare. */
 /** Between two frames drawn for slow motion alone: 30 a second. The frame clock jitters, hence the margin. */
 const GENTLE_FRAME_MS = 1000 / 30 - 3;
+/** Matches the fade of the territory layer, with a frame to spare. */
 const FADE_MS = 130;
 
 /** Tiles taken light their front this long (territory layer), with a frame to spare. */
@@ -454,14 +454,17 @@ export class MapScene {
     const wanted = urgent || (gentle && now - this.drawnAt >= GENTLE_FRAME_MS);
     const drawn = this.view !== undefined && wanted;
     if (this.view && drawn) {
-      probe.time("ships place", () => {
-        this.placeShips(now);
-      });
-      const target = this.view;
-      probe.time("map render", () => {
-        target.render(view);
-      });
-      if (probe.on) probe.time("gpu wait", () => target.sync?.());
+      let phase = probe.mark();
+      this.placeShips(now);
+      probe.since("ships place", phase);
+      phase = probe.mark();
+      this.view.render(view);
+      probe.since("map render", phase);
+      if (probe.on) {
+        phase = probe.mark();
+        this.view.sync?.();
+        probe.since("gpu wait", phase);
+      }
       const fault = this.view.fault?.();
       if (fault) {
         console.error(`the map cannot be drawn: ${fault}`);

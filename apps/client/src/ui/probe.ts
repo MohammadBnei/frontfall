@@ -15,6 +15,14 @@ export const probe = {
     probe.add(name, performance.now() - start);
     return result;
   },
+  /** The start of a phase: the clock when the probe is on, 0 when off (no closure to build each frame). */
+  mark(): number {
+    return probe.on ? performance.now() : 0;
+  },
+  /** Keeps how long a phase begun at `mark()` took; nothing when the probe is off. */
+  since(name: string, started: number): void {
+    if (probe.on) probe.add(name, performance.now() - started);
+  },
   add(name: string, ms: number): void {
     let ring = rings.get(name);
     if (!ring) {

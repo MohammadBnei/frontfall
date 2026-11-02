@@ -25,7 +25,6 @@ export const MIN_RATIO = 5;
 export const DEFAULT_RATIO = 30;
 /** Steps of the work share slider (R-ECO-07), in percent: fine enough, and easy to hit with a finger. */
 const WORK_STEP = 5;
-/** Where the build panel is a tray and the bar has room for one slider only (game.css). */
 /** How long the attack preview stays once the pointer or the finger has left the land it was about. */
 const PREVIEW_LINGER_MS = 1500;
 /** Troops under which the army is nearly gone, and the share of the cap that counts as full. */

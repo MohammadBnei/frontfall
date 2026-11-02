@@ -1,6 +1,6 @@
-import { probe } from "../ui/probe.ts";
 import * as THREE from "three";
 import { MAP_COLORS, STRUCTURE_COLORS } from "../palette.ts";
+import { probe } from "../ui/probe.ts";
 import type { CameraView } from "./camera.ts";
 import type { EffectsLayer } from "./effects-layer.ts";
 import type { FalloutLayer } from "./fallout-layer.ts";
@@ -647,9 +647,9 @@ export class MapView implements Renderer {
     this.renderer.getDrawingBufferSize(this.bufferSize);
     this.territory.setViewport(this.bufferSize.x, this.bufferSize.y);
     this.territory.setTime(this.clock());
-    probe.time("map upload", () => {
-      this.territory.flush(this.renderer);
-    });
+    const uploading = probe.mark();
+    this.territory.flush(this.renderer);
+    probe.since("map upload", uploading);
     const tilesPerPixel = (2 * view.halfWidth) / this.cssWidth;
     if (
       this.marksChanged ||
