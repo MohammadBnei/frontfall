@@ -38,6 +38,10 @@ The game runs in a container of 2 CPUs and 768 MiB, with a 512 MiB heap, beside 
 
 So the production server holds about **3000 players at once, some 190 full games of 16 or many more small ones**. Measure again with the bench before raising a limit, and on the machine itself if it changes.
 
+## How much traffic it holds
+
+The limit of 3000 players at once is the figure to compare with traffic, and it holds with room to spare: the bench went on to 5600. Ten times the busiest hour is therefore covered for any busiest hour of up to 300 players at once, and five times it for up to 600. The server keeps no history of how many players it had at once ([the gauge](server.md#metrics) shows the present), so this note states the limit and not a margin against a measured peak. The usage statistics of the site say how many people come in an hour; when the busiest hour gets close to 300 players at once, measure again on the machine itself and raise the limits only after that.
+
 ## When full
 
 - Past `FRONTFALL_MAX_PLAYERS` seated players, or `FRONTFALL_MAX_LOG_MIB` of turn logs, "Play now", creating and joining a game get `too_many_games`: the page says the server is full. Players of a running game always get their seat back.
