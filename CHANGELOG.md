@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Changed
+
+- **Natural mountains.** Ranges are now warm rock with snow only on the high crests, lit by a warm sun with cool shade, and their ridges branch like real ones instead of shining like foil. Hills fade into the plain with a ragged edge instead of standing out as pale ovals. The map draws as fast as before.
+
 ### For self-hosters and contributors
 
 - **The road to v1.0 is shorter.** v0.9.9 is the last version with new features, then v1.0 comes out of beta on the flat map after a week without incident. The 3D globe moves to v1.1 and community maps, replay links and spectators to v1.x. New contributions are best aimed at the [v0.9.9 milestone](https://github.com/nic0lasm/frontfall/milestone/16); `docs/roadmap.md` has the exit checks.

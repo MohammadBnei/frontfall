@@ -150,6 +150,11 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
   const level = (x: number, y: number): number => smooth[at(x, y)] as number;
   const crest = (x: number, y: number): number => fine[at(x, y)] as number;
 
+  // Lattices that fit the width a whole number of times, so the noise has no seam where a map wraps.
+  const broadPeriod = wrapsX ? Math.max(1, Math.round(width / 19)) : 0;
+  const finePeriod = wrapsX ? Math.max(1, Math.round(width / 6)) : 0;
+  const broadCells = wrapsX ? broadPeriod / width : 1 / 19;
+  const fineCells = wrapsX ? finePeriod / width : 1 / 6;
   const color: [number, number, number] = [0, 0, 0];
   const mixed: [number, number, number] = [0, 0, 0];
   for (let y = 0, tile = 0; y < height; y++) {
@@ -160,14 +165,22 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
       if (isWater[tile] === 1) continue;
       const kind = kinds[tile] as number;
       const h = smooth[tile] as number;
-      climate(polar, Math.sqrt(toWater[tile] as number) / tilesPerDegree, h, biome, color);
+      // Where the colour of the uplands starts is moved by broad noise, so a region of
+      // hills fades in raggedly instead of as the smooth oval of its outline.
+      const uplands =
+        h > 0
+          ? h +
+            (valueNoise(x * broadCells, y / 19, broadPeriod) - 0.5) * 10 +
+            (valueNoise(x * fineCells, y / 6 + 31, finePeriod) - 0.5) * 4
+          : h;
+      climate(polar, Math.sqrt(toWater[tile] as number) / tilesPerDegree, uplands, biome, color);
       if (kind === 4) {
         // Impassable ground: rock, under ice toward the poles.
         mix(rock, biome.snow, smoothstep(55, 70, polar), color);
       } else {
         // Uplands pale toward the highland tone, then bare rock, then snow on the highest peaks.
-        mix(color, highland, smoothstep(10, 26, h) * 0.45, mixed);
-        mix(mixed, rock, smoothstep(22, 30, h) * 0.8, color);
+        mix(color, highland, smoothstep(12, 26, uplands) * 0.2, mixed);
+        mix(mixed, rock, smoothstep(22, 30, uplands) * 0.7, color);
         mix(color, biome.snow, smoothstep(28.5, 31, h) * 0.7, color);
       }
       // Light from the north-west: slopes that face it lighten, the others darken.
@@ -188,6 +201,28 @@ export function bakeTerrainColors(options: TerrainColorOptions): Uint8Array {
   }
   extendLandColors(out, isWater, toLand, width, height, wrapsX);
   return out;
+}
+
+/** A hash of a lattice point, in [0, 1). */
+function latticeHash(x: number, y: number): number {
+  return (
+    (Math.imul(Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1), 0x9e3779b1) >>> 8) / 0x1000000
+  );
+}
+
+/** Smooth value noise in [0, 1), one lattice cell a unit, repeating every `period` cells across when that is above 0. */
+export function valueNoise(x: number, y: number, period = 0): number {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx);
+  const uy = fy * fy * (3 - 2 * fy);
+  const x0 = period > 0 ? ((ix % period) + period) % period : ix;
+  const x1 = period > 0 ? (x0 + 1) % period : ix + 1;
+  const top = latticeHash(x0, iy) + (latticeHash(x1, iy) - latticeHash(x0, iy)) * ux;
+  const bottom = latticeHash(x0, iy + 1) + (latticeHash(x1, iy + 1) - latticeHash(x0, iy + 1)) * ux;
+  return top + (bottom - top) * uy;
 }
 
 /** Scratch colour of the cold climates. */
@@ -213,7 +248,7 @@ function climate(
     1,
     belt * (0.4 + 0.6 * coastal) + 0.55 * Math.exp(-((polar / 11) ** 2)),
   );
-  const warmth = 1 - polar / 72 - height * 0.012;
+  const warmth = 1 - polar / 72 - Math.max(0, height) * 0.008;
   // Wet to dry, at the latitude's warmth.
   if (moisture > 0.62) mix(biome.grassland, biome.forest, smoothstep(0.62, 0.9, moisture), out);
   else if (moisture > 0.32)

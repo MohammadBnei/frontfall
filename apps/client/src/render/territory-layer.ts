@@ -249,8 +249,6 @@ const fragmentShader = /* glsl */ `
   /** An sRGB colour given in 0 to 255, in the linear light the shader works in. */
   vec3 srgb3(float r, float g, float b) { return pow(vec3(r, g, b) / 255.0, vec3(2.2)); }
 
-  float heightAt(vec2 p, float lod) { return textureLod(heightMap, p / worldSize, lod).r; }
-
   /** The height map through a cubic B-spline (four bilinear taps): smooth slopes, no tile kinks in the lighting. */
   float heightCubic(vec2 at, float lod) {
     vec2 coord = at - 0.5;
@@ -270,25 +268,38 @@ const fragmentShader = /* glsl */ `
     return mix(mix(a3, a2, sx), mix(a1, a0, sx), sy);
   }
 
-  /** Relief height: the baked hills, plus ridged detail on the mountains, in ranges that run together (octaves fade when a pixel gets too big for them). */
-  float reliefH(vec2 p, float lod, float pixel) {
-    float h = heightCubic(p, lod + 0.6);
+  /** Where the baked relief is read: bent by a few tiles of noise, so the rough outlines of the relief regions turn into ragged ones instead of smooth ovals. Decoration only: the rules keep their tiles. */
+  vec2 reliefWarp(vec2 p) {
+    return 7.0 * (vec2(nz(p * 0.04), nz(p * 0.04 + 9.7)) - 0.5);
+  }
+
+  /**
+   * Relief height: the baked hills, raised and lowered by broad noise so a region's edge and peaks are uneven,
+   * plus ridged detail on the mountains, in ranges that run together (octaves fade when a pixel gets too big for them).
+   * The low-frequency inputs (warp, bend, broad) are worked out once a pixel and shared by its three samples.
+   */
+  float reliefH(vec2 p, vec2 warp, vec2 bend, float broad, float lod, float pixel, out float raw, out float base) {
+    raw = heightCubic(p + warp, lod + 0.6);
+    float h = raw + (broad - 0.5) * 0.3 * smoothstep(0.05, 0.4, raw);
+    base = h;
     float m = smoothstep(0.30, 0.68, h);
     float f1 = smoothstep(2.5, 7.0, 9.0 / pixel);
     float f2 = smoothstep(2.5, 7.0, 4.0 / pixel);
     // Ridges only where there are mountains, hills only on the foothills.
     if (m > 0.0) {
-      vec2 q = vec2(0.906 * p.x + 0.423 * p.y, -0.423 * p.x + 0.906 * p.y);
-      q += 7.0 * (vec2(nz(p * 0.085), nz(p * 0.085 + 9.3)) - 0.5);
-      float n1 = nz(q * vec2(0.06, 0.024)) * 0.7 + nz(q * vec2(0.13, 0.05) + 2.0) * 0.3;
+      // Isotropic ridged noise on bent coordinates: ridges that branch into a network, never parallel stripes.
+      vec2 q = p + bend;
+      float n1 = nz(q * 0.075) * 0.65 + nz(q * 0.16 + 2.0) * 0.35;
       float r1 = 1.0 - abs(2.0 * n1 - 1.0);
-      r1 = r1 * r1 * r1 * r1;
-      float n2 = nz(q * vec2(0.15, 0.06) + 3.7) * 0.6 + nz(q * vec2(0.33, 0.13)) * 0.4;
+      r1 = r1 * r1 * r1;
+      float n2 = nz(q * 0.22 + 3.7) * 0.6 + nz(q * 0.47) * 0.4;
       float r2 = 1.0 - abs(2.0 * n2 - 1.0);
       r2 = r2 * r2;
-      h += (0.30 * r1 * f1 + 0.07 * r2 * f2) * m;
-    } else if (h > 0.08 && f2 > 0.0) {
-      h += (nz(p * 0.33 + 4.0) - 0.5) * 0.06 * f2 * smoothstep(0.08, 0.35, h);
+      h += (0.2 * r1 * f1 * (0.55 + 0.9 * broad) + 0.06 * r2 * f2) * m;
+    } else if (h > 0.08) {
+      // Rolling hills inside a raised region, not a flat dome.
+      float rise = smoothstep(0.08, 0.35, h);
+      h += ((nz(p * 0.09 + 2.0) - 0.5) * 0.09 * f1 + (nz(p * 0.33 + 4.0) - 0.5) * 0.05 * f2) * rise;
     }
     return h;
   }
@@ -619,16 +630,27 @@ const fragmentShader = /* glsl */ `
     vec3 landColor = albedo;
     if (landCover > 0.0) {
       float eN = clamp(pixel, 0.12, 0.5);
-      float h0 = reliefH(at, lod, pixel);
-      float hx = reliefH(at + vec2(eN, 0.0), lod, pixel);
-      float hy = reliefH(at + vec2(0.0, eN), lod, pixel);
+      vec2 warp = reliefWarp(at);
+      // The same two noises, rescaled, bend the ridges and raise or lower the ground.
+      vec2 bend = 1.15 * warp.yx;
+      float broad = 0.5 + (warp.x + warp.y) / 14.0;
+      float raw;
+      float hb;
+      float h0 = reliefH(at, warp, bend, broad, lod, pixel, raw, hb);
+      float rawSide;
+      float baseSide;
+      float hx = reliefH(at + vec2(eN, 0.0), warp, bend, broad, lod, pixel, rawSide, baseSide);
+      float hy = reliefH(at + vec2(0.0, eN), warp, bend, broad, lod, pixel, rawSide, baseSide);
       hm = smoothstep(0.30, 0.68, h0);
-      vec3 normal = normalize(vec3(-(hx - h0) / eN * 13.0, -(hy - h0) / eN * 13.0, 1.0));
+      // Hills are lit gently, mountains steeply: the edge of a hill region is a soft swell, not a cliff around an oval.
+      float rocky = smoothstep(0.55, 0.85, h0);
+      float relief = mix(6.0, 13.0, rocky);
+      vec3 normal = normalize(vec3(-(hx - h0) / eN * relief, -(hy - h0) / eN * relief, 1.0));
       vec3 sun = normalize(vec3(-0.62, -0.62, 0.50));
       float lit = dot(normal, sun) / sun.z;
-      float cavity = pixel > 1.0 ? 0.0 : 0.25 * (heightAt(at + vec2(2.0 * eN, 0.0), lod) + heightAt(at - vec2(2.0 * eN, 0.0), lod)
-        + heightAt(at + vec2(0.0, 2.0 * eN), lod) + heightAt(at - vec2(0.0, 2.0 * eN), lod) - 4.0 * heightAt(at, lod));
-      shade = clamp(1.0 + (lit - 1.0) * mix(0.85, 2.3, hm) - cavity * 3.5, 0.4, 1.5);
+      // Folds: how far the relief here sits below its surroundings, read from the smooth heights (bilinear taps made a checkerboard close up).
+      float fold = pixel > 1.0 ? 0.0 : max(0.0, heightCubic(at + warp, lod + 2.6) - raw);
+      shade = clamp(1.0 + (lit - 1.0) * mix(0.8, 1.55, hm) - fold * 1.6, 0.5, 1.32);
       vec3 base = groundSample.rgb;
       float baseLight = luma(base);
       float v1 = nz(at * 0.11) * 0.6 + nz(at * 0.31) * 0.4;
@@ -640,14 +662,20 @@ const fragmentShader = /* glsl */ `
       albedo *= mix(1.0, 0.62 + 0.75 * mix(0.5, canopy, fineFade), forest);
       albedo = mix(albedo, albedo * vec3(0.86, 1.1, 0.9), forest * 0.5);
       // Mountains: rock in the valleys and on the slopes, pale crests, a little snow on the highest.
-      float crest = clamp((h0 - heightCubic(at, lod + 0.6)) / 0.3, 0.0, 1.0);
+      float crest = clamp((h0 - hb) / 0.22, 0.0, 1.0);
       float steep = 1.0 - normal.z;
-      vec3 rock = srgb3(98.0, 104.0, 114.0);
-      vec3 rockLight = srgb3(176.0, 172.0, 164.0);
-      albedo = mix(albedo, mix(rock, rockLight, crest), hm * (0.42 + 0.3 * smoothstep(0.04, 0.2, steep)));
-      albedo *= 1.0 - 0.22 * hm * (1.0 - crest);
-      albedo = mix(albedo, srgb3(226.0, 232.0, 238.0), hm * smoothstep(0.62, 0.95, crest) * (0.45 + 0.55 * nz(at * 0.5)) * 0.85);
-      landColor = albedo * shade;
+      // Warm earthy rock, alpine meadow left on the gentle slopes, snow only on the high crests.
+      vec3 rock = srgb3(96.0, 88.0, 78.0);
+      vec3 rockLight = srgb3(150.0, 139.0, 122.0);
+      // Bare rock belongs to the mountains; hills keep their grass and only show stone on their steep sides.
+      float bare = rocky * (0.3 + 0.45 * smoothstep(0.03, 0.18, steep)) + (hm - rocky) * 0.35 * smoothstep(0.1, 0.3, steep);
+      albedo = mix(albedo, mix(rock, rockLight, crest) * (0.9 + 0.2 * nz(at * 0.4)), bare);
+      albedo *= 1.0 - 0.16 * rocky * (1.0 - crest);
+      float snow = smoothstep(0.88, 1.0, hb + 0.1 * crest) * smoothstep(0.5, 0.9, crest + 0.3 * nz(at * 0.5));
+      albedo = mix(albedo, srgb3(214.0, 220.0, 228.0), hm * snow * 0.8);
+      // Warm light on the slopes facing the sun, cool shade in the folds: depth without chrome.
+      vec3 tint = mix(vec3(0.9, 0.94, 1.04), vec3(1.05, 1.0, 0.9), smoothstep(0.7, 1.25, shade));
+      landColor = albedo * shade * mix(vec3(1.0), tint, 0.35 + 0.65 * hm);
       landColor *= 1.0 + 0.2 * detail * fineFade;
       landColor *= 1.0 + 0.2 * (1.0 - smoothstep(0.0, max(0.3, 1.6 * pixel), coastIn));
     }

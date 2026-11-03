@@ -19,15 +19,17 @@ The mock-ups are drawn for this page with generated terrain. They fix the look, 
 
 Light comes from the north-west. Land is lit from a height texture (one byte a tile, smoothed through a cubic B-spline), with ridged detail added in two octaves that fade out when a pixel becomes too big for them; the same height field drives shading and colour. The map is a table of stained glass: lit relief below, tinted glass above, a dark lead line between.
 
-| Part         | Treatment                                                                                                                                         |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plains       | The biome colour, varied in tone and brightness by two scales of noise, so a field is never flat                                                  |
-| Forest       | Darker and greener, with a canopy grain that fades out zoomed out                                                                                 |
-| Mountains    | Rock in the valleys and on the steep slopes, pale crests, a little snow on the highest; the ridges are decoration, not the altitude the game uses |
-| Shading      | Slope facing the light, with a cavity term in the folds, 0.4 to 1.5 of the base colour                                                            |
-| Sea          | Four tones of depth (shelf, middle, open, abyss), a slow swell, glints that twinkle, a surf line on the shore and two waves creeping in           |
-| Coast        | A smooth curve (B-spline of the coast distance), never steps of tiles; a fine cold line on the owned side                                         |
-| Edge of view | A vignette at world zoom only, as the map is an object on a dark table                                                                            |
+| Part         | Treatment                                                                                                                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Plains       | The biome colour, varied in tone and brightness by two scales of noise, so a field is never flat                                                                                                                                                                         |
+| Forest       | Darker and greener, with a canopy grain that fades out zoomed out                                                                                                                                                                                                        |
+| Hills        | Kept in their grass and lit gently; where the upland colour starts is moved by noise, so a region of hills fades in raggedly, never as an oval                                                                                                                           |
+| Mountains    | Warm earthy rock on the crests and steep slopes, meadow left on the gentle ones, snow only on the highest crests; ridges branch into a network (isotropic ridged noise on bent coordinates), never parallel stripes; they are decoration, not the altitude the game uses |
+| Shading      | Slope facing the light, folds darkened from the smooth heights, 0.5 to 1.32 of the base colour; warm light on the lit side, cool shade on the other, strongest on the mountains                                                                                          |
+| Outline      | The baked relief is read through a few tiles of noise, so the rough outline of a relief region turns ragged; the rules keep their tiles                                                                                                                                  |
+| Sea          | Four tones of depth (shelf, middle, open, abyss), a slow swell, glints that twinkle, a surf line on the shore and two waves creeping in                                                                                                                                  |
+| Coast        | A smooth curve (B-spline of the coast distance), never steps of tiles; a fine cold line on the owned side                                                                                                                                                                |
+| Edge of view | A vignette at world zoom only, as the map is an object on a dark table                                                                                                                                                                                                   |
 
 Unclaimed land stays dark and quiet so that every territory colour stands out from it (at least 2.7:1, as in the brand guide). There are no rivers: the maps hold no hydrography.
 

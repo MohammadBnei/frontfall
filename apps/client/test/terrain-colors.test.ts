@@ -5,6 +5,7 @@ import {
   TERRAIN_COLORS,
   bakeTerrainColors,
   encodeCoast,
+  valueNoise,
 } from "../src/render/terrain-colors.ts";
 
 const luminance = (rgba: Uint8Array, tile: number): number =>
@@ -98,5 +99,17 @@ describe("bakeTerrainColors", () => {
     expect(desert[0]).toBeGreaterThan(desert[1] - 5);
     expect(forest[1]).toBeGreaterThan(forest[0]);
     expect(luminance(rgba, at(24))).toBeGreaterThan(luminance(rgba, at(0)));
+  });
+
+  it("breaks up the uplands with noise that stays in range and has no seam where a map wraps", () => {
+    for (let i = 0; i < 200; i++) {
+      const value = valueNoise(i * 0.37, i * 0.91);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(1);
+    }
+    // With a period of 7 cells, x = 0 and x = 7 are the same point.
+    for (const y of [0.2, 3.5, 11.9])
+      expect(valueNoise(7, y, 7)).toBeCloseTo(valueNoise(0, y, 7), 10);
+    expect(valueNoise(6.999, 2.5, 7)).toBeCloseTo(valueNoise(-0.001, 2.5, 7), 6);
   });
 });
