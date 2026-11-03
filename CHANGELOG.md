@@ -10,6 +10,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Cleaner fronts.** The embers of a front now drift up from anywhere on the land just taken instead of forming a grid of dots, and its glow follows the line smoothly at every zoom, without steps.
 - **Lighter countries.** A country's colour is now a light glass over the land, gathered along its border, so the relief and the ground stay visible once the map is conquered; pale colours no longer wash the map out.
 - **A calmer map late in a game.** Zoomed out, a player's cities, forts and ports that stand close together are drawn as one piece with a count from further apart, so the map is no longer covered with pieces.
+- **A fresh look when the game is shared.** The link preview and the picture on the About page now show the game as it looks today, on the Europe map.
 
 ### For self-hosters and contributors
 
