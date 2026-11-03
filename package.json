@@ -22,6 +22,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "pnpm --filter @frontfall/e2e test",
     "clean-room": "node tools/src/clean-room-cli.ts",
+    "provenance": "node tools/src/provenance-cli.ts",
     "bench": "pnpm --filter @frontfall/bench engine",
     "bench:render": "pnpm --filter @frontfall/bench render",
     "perf:engine": "pnpm --filter @frontfall/bench gate",

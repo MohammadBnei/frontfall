@@ -261,6 +261,34 @@ jobs:
           if [ -n "$accepted" ]; then args+=(--accept "$accepted"); fi
           pnpm perf:engine -- "${args[@]}"
 
+  provenance:
+    name: Provenance check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - run: corepack enable
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # The commits of the push or pull request; a new branch is compared with next.
+      - name: Check who wrote the commits and what they add
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            range="$BASE_SHA..HEAD"
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            range="$BEFORE_SHA..HEAD"
+          else
+            range="origin/next..HEAD"
+          fi
+          node tools/src/provenance-cli.ts --range "$range"
+
   clean-room:
     name: Clean room
     runs-on: ubuntu-24.04
