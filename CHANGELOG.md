@@ -17,6 +17,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **A calmer map late in a game.** Zoomed out, a player's cities, forts and ports that stand close together are drawn as one piece with a count from further apart, so the map is no longer covered with pieces.
 - **A fresh look when the game is shared.** The link preview and the picture on the About page now show the game as it looks today, on the Europe map.
 - **The world behind the menu.** The main menu now sits over a dimmed map of a game in progress instead of a plain night background; high contrast keeps it plain.
+- **The ships list on a narrow phone.** The lines of your ships and of the attacks on you now stay inside their panel and wrap, so the troops and the time left stay readable on a 320-pixel screen.
 
 ### For self-hosters and contributors
 
