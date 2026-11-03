@@ -1,5 +1,6 @@
 import "./guide.css";
 import { h } from "./dom.ts";
+import { CHAPTER_IDS, type ChapterId } from "./guide.ts";
 import { tutorialText, type TutorialKey } from "./tutorial-text.ts";
 
 /** A dialog over the game, in the layout of the help: `div.overlay > section.help`. The overlays (ui/screen/overlays.ts) keep the rest inert and focus the primary button. */
@@ -56,7 +57,12 @@ export function introDialog(onStart: () => void, onLeave: () => void): HTMLEleme
 }
 
 /** After the last step: five rules to keep, and the way to a real game. */
-export function outroDialog(onPlay: () => void, onStay: () => void): HTMLElement {
+export function outroDialog(
+  done: readonly string[],
+  onChapter: (chapter: ChapterId) => void,
+  onPlay: () => void,
+  onStay: () => void,
+): HTMLElement {
   const play = button("outro.play", "primary", onPlay);
   const root = dialog(
     "tutorial-outro",
@@ -68,6 +74,23 @@ export function outroDialog(onPlay: () => void, onStay: () => void): HTMLElement
       ...(["outro.rule1", "outro.rule2", "outro.rule3", "outro.rule4", "outro.rule5"] as const).map(
         (rule) => h("li", {}, tutorialText(rule)),
       ),
+    ),
+    h("h3", { class: "tutorial-chapters-title" }, tutorialText("outro.chapters")),
+    h(
+      "ul",
+      { class: "tutorial-chapters" },
+      ...CHAPTER_IDS.map((chapter) => {
+        const read = done.includes(chapter);
+        const open = h(
+          "button",
+          { type: "button", class: "secondary", "data-chapter": chapter },
+          `${read ? "✓ " : ""}${tutorialText(`chapter.${chapter}`)}`,
+        );
+        open.addEventListener("click", () => {
+          onChapter(chapter);
+        });
+        return h("li", {}, open);
+      }),
     ),
     h("div", { class: "tutorial-actions" }, button("outro.stay", "secondary", onStay), play),
   );

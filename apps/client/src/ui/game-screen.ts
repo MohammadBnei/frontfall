@@ -24,7 +24,7 @@ import {
   type MessageKey,
 } from "../i18n/index.ts";
 import type { ViewKind } from "../render/renderer.ts";
-import { guideDone, setGuideDone } from "./guide-state.ts";
+import { chaptersDone, guideDone, markChapter, setGuideDone } from "./guide-state.ts";
 import { safeStorage } from "./setup.ts";
 // The end screen loads while the game starts, out of the first download.
 import type { endScreen } from "./end-screen.ts";
@@ -316,7 +316,7 @@ export class GameScreen {
       },
     );
     if (this.guided && (this.options.tutorial || !guideDone(safeStorage()))) {
-      this.guide.start(this.options.tutorial === true);
+      this.guide.start(this.options.tutorial === true ? "bases" : "first");
     }
     this.element = document.createElement("div");
     this.element.className = "game";
@@ -1007,6 +1007,16 @@ export class GameScreen {
       this.overlays.pause();
       this.overlays.show(
         outroDialog(
+          chaptersDone(safeStorage()),
+          (chapter) => {
+            this.overlays.close();
+            void import("./guide.ts").then(({ CHAPTERS }) => {
+              this.guide.start(CHAPTERS[chapter], () => {
+                markChapter(safeStorage(), chapter);
+                this.showOutro();
+              });
+            });
+          },
           () => {
             (this.actions.onRealGame ?? this.actions.onMenu)();
           },
@@ -1060,7 +1070,7 @@ export class GameScreen {
           ? () => {
               setGuideDone(safeStorage(), false);
               this.overlays.close();
-              this.guide.start(this.options.tutorial === true);
+              this.guide.start(this.options.tutorial === true ? "bases" : "first");
             }
           : undefined,
       }),

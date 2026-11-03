@@ -353,17 +353,21 @@ game and wants to play it:
   stopped behind it: what the game is in three lines, and what the card in the
   corner will do. A reload of the practice game goes back to the game, not to
   the introduction.
-- **Thirteen steps** in the same card as the first steps: start, doctrine,
-  growing on free land, the share of troops that attacks, workers and gold,
-  city-states, a city, a port and the boat, a fort, an ally, diplomacy
-  (gifts, embargo, tribute, traitors), the late game (silo, missiles, air
-  defense, warships) and how a game is won. The steps that ask for an action
-  wait for it; the ones that only explain wait for Next. The steps are in
-  `STEPS` and the shorter list of a first game in `FIRST_STEPS`
-  (`ui/guide.ts`).
+- **A core of eight steps** in the same card as the first steps, all of them
+  things to do: start (on a wide stretch of land, not the neck), doctrine,
+  growing on free land, the share of troops that attacks, a city, an attack on
+  a neighbour (with the attacks panel and the retreat), a port and the boat,
+  a fort. The steps that ask for an action wait for it, and Next always moves
+  on. They are in `BASES` (`ui/guide.ts`); `STEPS` lists every step and the
+  shorter list of a first game is `FIRST_STEPS`.
+- **Three chapters**, each of two short steps and played in the same game from
+  the last word: gold and city-states, allies and diplomacy, missiles and how
+  a game is won (`CHAPTERS`). A chapter does not skip steps for what the
+  player built. The chapters read are kept in `localStorage`
+  (`frontfall.chapters`) and shown with a tick.
 - **A last word.** Next on the last step opens a dialog with five rules to
-  keep and two ways on: a real game of the menu's setup, or staying in the
-  practice game.
+  keep, the chapters, and two ways on: a real game of the menu's setup, or
+  staying in the practice game. A chapter ends back on this dialog.
 
 The texts of the card and of both dialogs are in `ui/tutorial-text.ts`, in
 both languages, not in the catalogues: they load with the guide and weigh

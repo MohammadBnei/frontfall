@@ -28,6 +28,7 @@ const EN = {
   "name.work": "Gold",
   "name.citystates": "City-states",
   "name.build": "A city",
+  "name.attack": "Attack",
   "name.port": "A port",
   "name.defend": "A fort",
   "name.players": "Allies",
@@ -37,20 +38,21 @@ const EN = {
 
   // Step texts, for a mouse and for a finger where the gesture changes
   start:
-    "Click any land to place your start. Pick open ground, away from the other colours. You can move it until the countdown ends.",
+    "Click any land to place your start. Pick a wide stretch of open ground, away from the other colours, not a narrow neck. You can move it until the countdown ends.",
   startTouch:
-    "Tap any land to place your start. Pick open ground, away from the other colours. You can move it until the countdown ends.",
+    "Tap any land to place your start. Pick a wide stretch of open ground, away from the other colours, not a narrow neck. You can move it until the countdown ends.",
   doctrine:
     "Pick a doctrine on the cards: Conqueror strikes fast, Merchant lives off trade, Bastion holds the line. New here? Bastion forgives mistakes. It cannot change once the game starts.",
-  expandWait: "Start placed. When the countdown ends, the game begins.",
+  expandWait:
+    "Start placed. When the countdown ends, attacks open: look at the free land around you, that is what you will take first.",
   expand:
     "Free land never fights back. Click land next to yours to take it: the more land you hold, the higher your troop cap.",
   expandTouch:
     "Free land never fights back. Tap land next to yours to take it: the more land you hold, the higher your troop cap.",
   troops:
-    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start. Shortcut: Shift + 1 to 0.",
+    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start. In the bar, k means thousand and M million; troops sit over their cap. Shortcut: Shift + 1 to 0.",
   troopsTouch:
-    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start.",
+    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start. In the bar, k means thousand and M million; troops sit over their cap.",
   work: "Gold comes in on its own. The Workers slider puts troops at home to work: more gold, but workers neither attack nor defend. Raise it while nobody threatens you, lower it when a neighbour attacks.",
   citystates:
     "Small players called city-states sit around the map. They are weak, ally with nobody and keep gold. Attack one: you take its land, and all its gold with its last tile.",
@@ -58,6 +60,10 @@ const EN = {
     "A city raises your troop cap, so you grow faster. Click City (C), then your land. While the gold comes in, keep expanding.",
   buildTouch:
     "A city raises your troop cap, so you grow faster. Tap City, then your land: a second tap places it. While the gold comes in, keep expanding.",
+  attack:
+    "To attack a neighbour, click its land: the troops you send follow the slider. The panel at the bottom left lists your attacks and lets you pull back. Being attacked? The feed at the top says so: keep troops at home and build a fort. No neighbour yet? Skip this one.",
+  attackTouch:
+    "To attack a neighbour, tap its land: the troops you send follow the slider. The panel at the bottom left lists your attacks and lets you pull back. Being attacked? The feed at the top says so: keep troops at home and build a fort. No neighbour yet? Skip this one.",
   port: "A port sends trade ships to other players’ ports, and both sides earn gold. Click Port (O), then your coast. To cross water with troops, click a far coast: a boat carries them, no port needed.",
   portTouch:
     "A port sends trade ships to other players’ ports, and both sides earn gold. Tap Port, then your coast. To cross water with troops, tap a far coast: a boat carries them, no port needed.",
@@ -66,9 +72,9 @@ const EN = {
   defendTouch:
     "A fort makes the land around it dearer to take: build it behind a front that is attacked. Tap Fort, then your border: a second tap places it.",
   players:
-    "An ally cannot attack you: the cheapest defence there is. Right click a neighbour, or click its name in the leaderboard, and ask for an alliance.",
+    "An ally cannot attack you: the cheapest defence there is. Right click a neighbour, or click its name in the leaderboard, and ask for an alliance. City-states never ally: pick a real player, or press Next.",
   playersTouch:
-    "An ally cannot attack you: the cheapest defence there is. Long press a neighbour, or tap its name in the leaderboard, and ask for an alliance.",
+    "An ally cannot attack you: the cheapest defence there is. Long press a neighbour, or tap its name in the leaderboard, and ask for an alliance. City-states never ally: pick a real player, or press Next.",
   diplomacy:
     "Allies can send each other troops and gold. An embargo cuts a rival’s trade. Facing a much bigger player, you can pay tribute for a truce. Betray an ally and every player sees a traitor.",
   missiles:
@@ -102,6 +108,10 @@ const EN = {
   "outro.rule3": "Cities for growth, forts where you are attacked, ports for gold.",
   "outro.rule4": "Ally your neighbours, and watch the leaderboard for the leader.",
   "outro.rule5": "Save for missiles late in the game.",
+  "outro.chapters": "Go further, when you like:",
+  "chapter.economy": "Gold and city-states",
+  "chapter.allies": "Allies and diplomacy",
+  "chapter.late": "Missiles and winning",
   "outro.play": "Play a real game",
   "outro.stay": "Keep playing here",
 } as const;
@@ -123,6 +133,7 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   "name.work": "L’or",
   "name.citystates": "Cités-États",
   "name.build": "Une ville",
+  "name.attack": "Attaquer",
   "name.port": "Un port",
   "name.defend": "Un fort",
   "name.players": "Alliés",
@@ -131,20 +142,21 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   "name.win": "Gagner",
 
   start:
-    "Cliquez sur une terre pour poser votre départ. Choisissez de la place libre, loin des autres couleurs. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
+    "Cliquez sur une terre pour poser votre départ. Choisissez une grande étendue libre, loin des autres couleurs, pas un goulet étroit. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
   startTouch:
-    "Touchez une terre pour poser votre départ. Choisissez de la place libre, loin des autres couleurs. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
+    "Touchez une terre pour poser votre départ. Choisissez une grande étendue libre, loin des autres couleurs, pas un goulet étroit. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
   doctrine:
     "Choisissez une doctrine sur les cartes : le Conquérant frappe vite, le Marchand vit du commerce, le Bastion tient la ligne. Premier jeu ? Le Bastion pardonne les erreurs. Elle ne change plus une fois la partie lancée.",
-  expandWait: "Départ posé. À la fin du compte à rebours, la partie commence.",
+  expandWait:
+    "Départ posé. À la fin du compte à rebours, les attaques s’ouvrent : repérez la terre libre autour de vous, c’est ce que vous prendrez d’abord.",
   expand:
     "La terre libre ne se défend pas. Cliquez sur une terre voisine de la vôtre pour la prendre : plus vous avez de terres, plus votre plafond de troupes monte.",
   expandTouch:
     "La terre libre ne se défend pas. Touchez une terre voisine de la vôtre pour la prendre : plus vous avez de terres, plus votre plafond de troupes monte.",
   troops:
-    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début. Raccourci : Maj + 1 à 0.",
+    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début. Dans la barre, k veut dire mille et M million ; les troupes sont sur leur plafond. Raccourci : Maj + 1 à 0.",
   troopsTouch:
-    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début.",
+    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début. Dans la barre, k veut dire mille et M million ; les troupes sont sur leur plafond.",
   work: "L’or arrive tout seul. La glissière Ouvriers met des troupes au travail : plus d’or, mais les ouvriers n’attaquent ni ne défendent. Montez-la tant que personne ne vous menace, baissez-la quand un voisin attaque.",
   citystates:
     "De petits joueurs appelés cités-États sont posés autour de la carte. Faibles, alliés à personne, ils gardent de l’or. Attaquez-en une : vous prenez ses terres, et tout son or avec sa dernière case.",
@@ -152,6 +164,10 @@ const FR: Readonly<Record<TutorialKey, string>> = {
     "Une ville augmente votre plafond de troupes : vous grandissez plus vite. Cliquez sur Ville (C), puis sur votre terre. Pendant que l’or arrive, continuez à vous étendre.",
   buildTouch:
     "Une ville augmente votre plafond de troupes : vous grandissez plus vite. Touchez Ville, puis votre terre : un second toucher la pose. Pendant que l’or arrive, continuez à vous étendre.",
+  attack:
+    "Pour attaquer un voisin, cliquez sur sa terre : les troupes envoyées suivent la glissière. Le panneau en bas à gauche liste vos attaques et permet de battre en retraite. On vous attaque ? Le fil d’événements en haut le dit : gardez des troupes à la maison et bâtissez un fort. Pas encore de voisin ? Passez.",
+  attackTouch:
+    "Pour attaquer un voisin, touchez sa terre : les troupes envoyées suivent la glissière. Le panneau en bas à gauche liste vos attaques et permet de battre en retraite. On vous attaque ? Le fil d’événements en haut le dit : gardez des troupes à la maison et bâtissez un fort. Pas encore de voisin ? Passez.",
   port: "Un port envoie des navires de commerce vers les ports des autres joueurs, et les deux camps gagnent de l’or. Cliquez sur Port (O), puis sur votre côte. Pour traverser l’eau avec des troupes, cliquez sur une côte lointaine : un bateau les porte, sans port.",
   portTouch:
     "Un port envoie des navires de commerce vers les ports des autres joueurs, et les deux camps gagnent de l’or. Touchez Port, puis votre côte. Pour traverser l’eau avec des troupes, touchez une côte lointaine : un bateau les porte, sans port.",
@@ -160,9 +176,9 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   defendTouch:
     "Un fort rend la terre autour de lui plus chère à prendre : posez-le derrière un front attaqué. Touchez Fort, puis votre frontière : un second toucher le pose.",
   players:
-    "Un allié ne peut pas vous attaquer : la défense la moins chère qui soit. Clic droit sur un voisin, ou clic sur son nom dans le classement, puis proposez une alliance.",
+    "Un allié ne peut pas vous attaquer : la défense la moins chère qui soit. Clic droit sur un voisin, ou clic sur son nom dans le classement, puis proposez une alliance. Les cités-États n’en font jamais : visez un vrai joueur, ou passez.",
   playersTouch:
-    "Un allié ne peut pas vous attaquer : la défense la moins chère qui soit. Appui long sur un voisin, ou toucher son nom dans le classement, puis proposez une alliance.",
+    "Un allié ne peut pas vous attaquer : la défense la moins chère qui soit. Appui long sur un voisin, ou toucher son nom dans le classement, puis proposez une alliance. Les cités-États n’en font jamais : visez un vrai joueur, ou passez.",
   diplomacy:
     "Les alliés peuvent s’envoyer des troupes et de l’or. Un embargo coupe le commerce d’un rival. Face à un joueur bien plus grand, vous pouvez payer un tribut pour une trêve. Trahissez un allié et tout le monde voit un traître.",
   missiles:
@@ -194,6 +210,10 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   "outro.rule3": "Des villes pour grandir, des forts où l’on vous attaque, des ports pour l’or.",
   "outro.rule4": "Alliez-vous à vos voisins, et surveillez le classement pour repérer le leader.",
   "outro.rule5": "Gardez de quoi payer des missiles en fin de partie.",
+  "outro.chapters": "Pour aller plus loin, quand vous voulez :",
+  "chapter.economy": "L’or et les cités-États",
+  "chapter.allies": "Alliés et diplomatie",
+  "chapter.late": "Missiles et victoire",
   "outro.play": "Jouer une vraie partie",
   "outro.stay": "Continuer à jouer ici",
 };

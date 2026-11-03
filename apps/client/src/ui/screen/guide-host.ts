@@ -1,6 +1,6 @@
 import type { GameUpdate } from "../../game/solo-game.ts";
 // The guide loads when first shown, out of the first download.
-import type { Guide } from "../guide.ts";
+import type { Guide, Step } from "../guide.ts";
 import { setGuideDone } from "../guide-state.ts";
 import { safeStorage } from "../setup.ts";
 
@@ -15,6 +15,7 @@ export class GuideHost {
   /** Things done once, that the game then forgets: an attack on a city-state, a request for an alliance. */
   private cityStateAttacked = false;
   private asked = false;
+  private attacked = false;
 
   constructor(
     /** Where the guide goes: the HUD. */
@@ -45,21 +46,22 @@ export class GuideHost {
     document.removeEventListener("keydown", this.onKey);
   }
 
-  /** Shows the guide from its first step, over the one showing if any; `full` for the tutorial. */
-  start(full: boolean): void {
-    void import("../guide.ts").then(({ Guide, STEPS, FIRST_STEPS }) => {
+  /** Shows the guide from its first step, over the one showing if any: a first game's steps, the tutorial's core, or one chapter's. */
+  start(steps: "first" | "bases" | readonly Step[], onFinish: () => void = this.onFinish): void {
+    void import("../guide.ts").then(({ Guide, BASES, FIRST_STEPS }) => {
       this.guide?.element.remove();
       this.ratioMoved = false;
       this.workMoved = false;
       this.cityStateAttacked = false;
       this.asked = false;
+      this.attacked = false;
       this.guide = new Guide(
         this.coarsePointer.matches,
         () => {
           setGuideDone(safeStorage(), true);
         },
-        full ? STEPS : FIRST_STEPS,
-        this.onFinish,
+        steps === "first" ? FIRST_STEPS : steps === "bases" ? BASES : steps,
+        onFinish,
       );
       this.parent.append(this.guide.element);
       const latest = this.latest();
@@ -90,6 +92,7 @@ export class GuideHost {
     if (update.attacks.some((attack) => cityStates.has(attack.target))) {
       this.cityStateAttacked = true;
     }
+    if (update.attacks.some((attack) => attack.target !== 0)) this.attacked = true;
     const { diplomacy } = update;
     if (diplomacy.outgoing.length > 0 || diplomacy.allies.length > 0) this.asked = true;
     guide.update(
@@ -105,6 +108,7 @@ export class GuideHost {
         workMoved: this.workMoved,
         cityStates: cityStates.size > 0,
         cityStateAttacked: this.cityStateAttacked,
+        attacked: this.attacked,
         asked: this.asked,
         gold: you?.gold ?? 0,
       },

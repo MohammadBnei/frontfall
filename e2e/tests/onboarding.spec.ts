@@ -161,34 +161,28 @@ test("the tutorial goes through every step, says goodbye, and leads to a real ga
   await page.locator("#tutorial-intro").getByRole("button", { name: "Start" }).click();
 
   const guide = page.locator("#guide");
-  const steps = [
-    "start",
-    "doctrine",
-    "expand",
-    "troops",
-    "work",
-    "citystates",
-    "build",
-    "port",
-    "defend",
-    "players",
-    "diplomacy",
-    "missiles",
-    "win",
-  ];
+  const steps = ["start", "doctrine", "expand", "troops", "build", "attack", "port", "defend"];
   for (const [index, step] of steps.entries()) {
     await expect(guide).toHaveAttribute("data-step", step);
     await expect(guide).toContainText(`Step ${String(index + 1)}/${String(steps.length)}`);
     if (index < steps.length - 1) await page.locator("#guide-next").click();
   }
-  // Nothing in it states a figure of the balance but the share that wins.
-  await expect(guide).toContainText("75 %");
   await page.locator("#guide-next").click();
   await expect(guide).toHaveCount(0);
   const outro = page.locator("#tutorial-outro");
   await expect(outro).toBeVisible();
   await expect(outro).toContainText("You know the game");
-  await expect(outro.locator("li")).toHaveCount(5);
+  await expect(outro.locator(".tutorial-rules li")).toHaveCount(5);
+  // A chapter goes on in the same game, and comes back to the last word when it ends.
+  await outro.locator("[data-chapter=late]").click();
+  await expect(outro).toHaveCount(0);
+  await expect(guide).toHaveAttribute("data-step", "missiles");
+  await expect(guide).toContainText("Step 1/2");
+  await page.locator("#guide-next").click();
+  await expect(guide).toContainText("75 %");
+  await page.locator("#guide-next").click();
+  await expect(outro).toBeVisible();
+  await expect(outro.locator("[data-chapter=late]")).toContainText("✓");
   // The game waits behind it; staying puts it back in motion.
   await outro.getByRole("button", { name: "Keep playing here" }).click();
   await expect(outro).toHaveCount(0);
@@ -200,7 +194,7 @@ test("the tutorial's last word starts a real game", async ({ page }) => {
   await page.goto("./?map=skirmish&bots=1&difficulty=easy");
   await page.locator("#tutorial").click();
   await page.locator("#tutorial-intro").getByRole("button", { name: "Start" }).click();
-  for (let step = 0; step < 13; step++) await page.locator("#guide-next").click();
+  for (let step = 0; step < 8; step++) await page.locator("#guide-next").click();
   // The practice game runs at double speed.
   await expect(page.locator("#speed")).toContainText("2");
   await page.locator("#tutorial-outro").getByRole("button", { name: "Play a real game" }).click();

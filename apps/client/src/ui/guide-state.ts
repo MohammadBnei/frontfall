@@ -19,3 +19,24 @@ export function setGuideDone(storage: Storage | undefined, done: boolean): void 
     // Without storage the guide simply shows again next game.
   }
 }
+
+/** The tutorial's chapters the player went through, as a comma-separated list. */
+export const CHAPTERS_KEY = "frontfall.chapters";
+
+export function chaptersDone(storage: Storage | undefined): readonly string[] {
+  try {
+    return (storage?.getItem(CHAPTERS_KEY) ?? "").split(",").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function markChapter(storage: Storage | undefined, chapter: string): void {
+  try {
+    const done = new Set(chaptersDone(storage));
+    done.add(chapter);
+    storage?.setItem(CHAPTERS_KEY, [...done].join(","));
+  } catch {
+    // Without storage the chapter simply shows as new next time.
+  }
+}

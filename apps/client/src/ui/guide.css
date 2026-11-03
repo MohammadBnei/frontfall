@@ -338,3 +338,21 @@
     display: none;
   }
 }
+
+.tutorial-chapters-title {
+  margin: 12px 0 6px;
+  font-size: 0.95rem;
+}
+
+.tutorial-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.tutorial-chapters button {
+  min-height: 44px;
+}

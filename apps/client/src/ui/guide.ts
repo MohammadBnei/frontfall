@@ -13,6 +13,7 @@ export const STEPS = [
   "work",
   "citystates",
   "build",
+  "attack",
   "port",
   "defend",
   "players",
@@ -21,6 +22,27 @@ export const STEPS = [
   "win",
 ] as const;
 export type Step = (typeof STEPS)[number];
+
+/** The tutorial's core: things to do in the game, one after the other, about three minutes. */
+export const BASES: readonly Step[] = [
+  "start",
+  "doctrine",
+  "expand",
+  "troops",
+  "build",
+  "attack",
+  "port",
+  "defend",
+];
+
+/** Short lessons that follow the core, each playable on its own, in the same game. */
+export const CHAPTERS = {
+  economy: ["work", "citystates"],
+  allies: ["players", "diplomacy"],
+  late: ["missiles", "win"],
+} as const satisfies Record<string, readonly Step[]>;
+export type ChapterId = keyof typeof CHAPTERS;
+export const CHAPTER_IDS = Object.keys(CHAPTERS) as ChapterId[];
 
 /** The few steps of a first game that is not the tutorial: what a new player needs to last. */
 export const FIRST_STEPS: readonly Step[] = [
@@ -56,6 +78,8 @@ export interface GuideState {
   /** Whether the game has city-states, and whether the player attacked one. */
   cityStates: boolean;
   cityStateAttacked: boolean;
+  /** Whether the player sent an attack at another player or a city-state, rather than at free land. */
+  attacked: boolean;
   /** Whether the player asked another player for an alliance, or has an ally. */
   asked: boolean;
   /** The player's gold, for the meter of the steps that cost some. */
@@ -88,11 +112,13 @@ function done(step: Step, state: GuideState): boolean {
     case "troops":
       return state.ratioMoved || built;
     case "work":
-      return state.workMoved || built;
+      return state.workMoved;
     case "citystates":
-      return !state.cityStates || state.cityStateAttacked || built;
+      return !state.cityStates || state.cityStateAttacked;
     case "build":
       return state.cities > 0;
+    case "attack":
+      return state.attacked || state.ports > 0 || state.forts > 0;
     case "port":
       return state.ports > 0;
     case "defend":
@@ -147,6 +173,7 @@ const TOUCH_TEXTS: ReadonlySet<Step> = new Set([
   "expand",
   "troops",
   "build",
+  "attack",
   "port",
   "defend",
   "players",
