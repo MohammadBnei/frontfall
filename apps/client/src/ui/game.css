@@ -256,6 +256,7 @@
 
 .attack-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   margin: 0;
   padding: 0;
@@ -263,6 +264,7 @@
 }
 
 .attack {
+  min-width: 0;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -441,6 +443,10 @@
     bottom: 148px;
     width: auto;
     max-width: calc(100vw - 206px);
+  }
+  /* The panel is narrow here: let the ship lines wrap instead of cutting off the troops and the time. */
+  .threat-focus {
+    white-space: normal;
   }
   .ratio {
     left: 12px;
