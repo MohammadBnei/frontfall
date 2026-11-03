@@ -14,6 +14,7 @@ import { FUN, PERF, SKILL_GAP_POINTS, SURVIVAL_EASY_MIN, WIN_TARGETS } from "./t
  *
  *   pnpm campaign -- --map world --seeds 1-12 --minutes 30
  *   pnpm campaign -- --profiles nico --difficulties easy,normal --rule capitals
+ *   pnpm campaign -- --map world,europe,lyon --balance cityLand=6000
  */
 const { values } = parseArgs({
   args: process.argv.slice(2).filter((a) => a !== "--"),
@@ -27,6 +28,8 @@ const { values } = parseArgs({
     rule: { type: "string", multiple: true, default: [] },
     // A nation value tried in place of docs/balance.md's, e.g. --nation hard.capPercent=92.
     nation: { type: "string", multiple: true, default: [] },
+    // A balance value tried in place of docs/balance.md's, e.g. --balance boatSpeed=1.
+    balance: { type: "string", multiple: true, default: [] },
     json: { type: "string" },
   },
 });
@@ -37,6 +40,8 @@ const seeds = values.seeds.split(",").flatMap((part) => {
   for (let s = Number(from); s <= Number(to); s++) out.push(s);
   return out;
 });
+// The difficulty must hold on every map, not on the one it was tuned on: one row per map.
+const maps = values.map.split(",");
 const profiles = values.profiles.split(",") as ProfileName[];
 const difficulties = values.difficulties.split(",") as BotDifficulty[];
 const rules = Object.fromEntries(values.rule.map((r) => [r, true]));
@@ -48,20 +53,29 @@ for (const entry of values.nation) {
   (nationValues[difficulty] ??= {})[key] = Number(value);
 }
 if (values.nation.length) console.log(`nation values tried: ${values.nation.join(", ")}`);
+const balanceValues: Record<string, number> = {};
+for (const entry of values.balance) {
+  const match = /^(\w+)=(-?\d+)$/.exec(entry);
+  if (!match) throw new Error(`--balance ${entry}: want key=number`);
+  balanceValues[match[1] as string] = Number(match[2]);
+}
+if (values.balance.length) console.log(`balance values tried: ${values.balance.join(", ")}`);
 
 const setups: CampaignSetup[] = [];
-for (const profile of profiles)
-  for (const difficulty of difficulties)
-    for (const seed of seeds)
-      setups.push({
-        map: values.map,
-        seed,
-        profile,
-        difficulty,
-        minutes: Number(values.minutes),
-        ...(values.rule.length ? { rules } : {}),
-        ...(nationValues[difficulty] ? { nations: nationValues[difficulty] } : {}),
-      });
+for (const map of maps)
+  for (const profile of profiles)
+    for (const difficulty of difficulties)
+      for (const seed of seeds)
+        setups.push({
+          map,
+          seed,
+          profile,
+          difficulty,
+          minutes: Number(values.minutes),
+          ...(values.rule.length ? { rules } : {}),
+          ...(nationValues[difficulty] ? { nations: nationValues[difficulty] } : {}),
+          ...(values.balance.length ? { balance: balanceValues } : {}),
+        });
 
 const run = promisify(execFile);
 const child = fileURLToPath(new URL("child.ts", import.meta.url));
@@ -98,90 +112,97 @@ if (reports.length < setups.length)
   verdicts.push(`${String(setups.length - reports.length)} games crashed: see CRASH above`);
 const rows: Record<string, string | number>[] = [];
 const winRate: Record<string, number> = {};
-for (const profile of profiles) {
+for (const map of maps) {
+  for (const profile of profiles) {
+    for (const difficulty of difficulties) {
+      const rs = reports.filter(
+        (r) =>
+          r.setup.map === map && r.setup.profile === profile && r.setup.difficulty === difficulty,
+      );
+      if (rs.length === 0) continue;
+      const win = pct(rs.filter((r) => r.won).length, rs.length);
+      // Verdicts name the map only when several are played, as before otherwise.
+      const at = maps.length > 1 ? `${map}/` : "";
+      winRate[`${map}/${profile}/${difficulty}`] = win;
+      const [lo, hi] = WIN_TARGETS[profile][difficulty];
+      const ok = win >= lo && win <= hi;
+      if (!ok)
+        verdicts.push(
+          `${at}${profile}/${difficulty}: wins ${win.toFixed(0)} %, target ${String(lo)}-${String(hi)} %`,
+        );
+      const survive = pct(rs.filter((r) => r.aliveAtEnd).length, rs.length);
+      if (difficulty === "easy" && survive < SURVIVAL_EASY_MIN[profile]) {
+        verdicts.push(
+          `${at}${profile}/easy: survives ${survive.toFixed(0)} %, wants ${String(SURVIVAL_EASY_MIN[profile])} %`,
+        );
+      }
+      const dead = median(rs.map((r) => (r.deadMinutes * 100) / r.playedMinutes));
+      if (profile !== "beginner" && dead > FUN.deadMinutesMaxPercent) {
+        verdicts.push(
+          `${at}${profile}/${difficulty}: ${dead.toFixed(0)} % dead minutes (no land change), max ${String(FUN.deadMinutesMaxPercent)} %`,
+        );
+      }
+      const stale = pct(rs.filter((r) => r.stalemate).length, rs.length);
+      if (stale > FUN.stalemateMaxPercent)
+        verdicts.push(`${at}${profile}/${difficulty}: ${stale.toFixed(0)} % of games stall`);
+      const refused = pct(
+        rs.reduce((a, r) => a + r.refused, 0),
+        rs.reduce((a, r) => a + r.sent, 0),
+      );
+      if (profile === "veteran" && refused > FUN.refusedMaxPercentVeteran) {
+        verdicts.push(`${at}${profile}/${difficulty}: ${refused.toFixed(0)} % of orders refused`);
+      }
+      const p99 = median(rs.map((r) => r.tickP99Ms));
+      const max = Math.max(...rs.map((r) => r.tickMaxMs));
+      if (p99 > PERF.tickP99MaxMs || max > PERF.tickMaxMs) {
+        verdicts.push(
+          `${at}${profile}/${difficulty}: tick p99 ${p99.toFixed(1)} ms, worst ${max.toFixed(0)} ms`,
+        );
+      }
+      for (const r of rs)
+        for (const v of r.violations)
+          verdicts.push(`RULE seed ${String(r.setup.seed)} ${at}${profile}/${difficulty}: ${v}`);
+      const fights = rs.flatMap((r) =>
+        r.firstFightMinute === undefined ? [] : [r.firstFightMinute],
+      );
+      rows.push({
+        ...(maps.length > 1 ? { map } : {}),
+        profile,
+        difficulty,
+        games: rs.length,
+        "win %": Math.round(win),
+        target: `${String(lo)}-${String(hi)}`,
+        ok: ok ? "yes" : "NO",
+        // Information only: the campaign's criterion is the outright win.
+        "won or led >40 % at end": Math.round(
+          pct(rs.filter((r) => r.won || r.led).length, rs.length),
+        ),
+        "alive %": Math.round(survive),
+        "share % (med)": Math.round(median(rs.map((r) => r.finalSharePercent))),
+        "dead min %": Math.round(dead),
+        "under attack %": Math.round(median(rs.map((r) => r.underAttackPercent))),
+        "1st fight min": fights.length ? Math.round(median(fights)) : "-",
+        "refused %": Math.round(refused),
+        stalled: Math.round(stale),
+        "tick p99 ms": Number(p99.toFixed(1)),
+      });
+    }
+  }
+}
+for (const map of maps)
   for (const difficulty of difficulties) {
-    const rs = reports.filter(
-      (r) => r.setup.profile === profile && r.setup.difficulty === difficulty,
-    );
-    if (rs.length === 0) continue;
-    const win = pct(rs.filter((r) => r.won).length, rs.length);
-    winRate[`${profile}/${difficulty}`] = win;
-    const [lo, hi] = WIN_TARGETS[profile][difficulty];
-    const ok = win >= lo && win <= hi;
-    if (!ok)
-      verdicts.push(
-        `${profile}/${difficulty}: wins ${win.toFixed(0)} %, target ${String(lo)}-${String(hi)} %`,
-      );
-    const survive = pct(rs.filter((r) => r.aliveAtEnd).length, rs.length);
-    if (difficulty === "easy" && survive < SURVIVAL_EASY_MIN[profile]) {
-      verdicts.push(
-        `${profile}/easy: survives ${survive.toFixed(0)} %, wants ${String(SURVIVAL_EASY_MIN[profile])} %`,
-      );
-    }
-    const dead = median(rs.map((r) => (r.deadMinutes * 100) / r.playedMinutes));
-    if (profile !== "beginner" && dead > FUN.deadMinutesMaxPercent) {
-      verdicts.push(
-        `${profile}/${difficulty}: ${dead.toFixed(0)} % dead minutes (no land change), max ${String(FUN.deadMinutesMaxPercent)} %`,
-      );
-    }
-    const stale = pct(rs.filter((r) => r.stalemate).length, rs.length);
-    if (stale > FUN.stalemateMaxPercent)
-      verdicts.push(`${profile}/${difficulty}: ${stale.toFixed(0)} % of games stall`);
-    const refused = pct(
-      rs.reduce((a, r) => a + r.refused, 0),
-      rs.reduce((a, r) => a + r.sent, 0),
-    );
-    if (profile === "veteran" && refused > FUN.refusedMaxPercentVeteran) {
-      verdicts.push(`${profile}/${difficulty}: ${refused.toFixed(0)} % of orders refused`);
-    }
-    const p99 = median(rs.map((r) => r.tickP99Ms));
-    const max = Math.max(...rs.map((r) => r.tickMaxMs));
-    if (p99 > PERF.tickP99MaxMs || max > PERF.tickMaxMs) {
-      verdicts.push(
-        `${profile}/${difficulty}: tick p99 ${p99.toFixed(1)} ms, worst ${max.toFixed(0)} ms`,
-      );
-    }
-    for (const r of rs)
-      for (const v of r.violations)
-        verdicts.push(`RULE seed ${String(r.setup.seed)} ${profile}/${difficulty}: ${v}`);
-    const fights = rs.flatMap((r) =>
-      r.firstFightMinute === undefined ? [] : [r.firstFightMinute],
-    );
-    rows.push({
-      profile,
-      difficulty,
-      games: rs.length,
-      "win %": Math.round(win),
-      target: `${String(lo)}-${String(hi)}`,
-      ok: ok ? "yes" : "NO",
-      // Information only: the campaign's criterion is the outright win.
-      "won or led >40 % at end": Math.round(
-        pct(rs.filter((r) => r.won || r.led).length, rs.length),
-      ),
-      "alive %": Math.round(survive),
-      "share % (med)": Math.round(median(rs.map((r) => r.finalSharePercent))),
-      "dead min %": Math.round(dead),
-      "under attack %": Math.round(median(rs.map((r) => r.underAttackPercent))),
-      "1st fight min": fights.length ? Math.round(median(fights)) : "-",
-      "refused %": Math.round(refused),
-      stalled: Math.round(stale),
-      "tick p99 ms": Number(p99.toFixed(1)),
-    });
-  }
-}
-for (const difficulty of difficulties) {
-  const order: ProfileName[] = ["beginner", "nico", "veteran"];
-  for (let i = 1; i < order.length; i++) {
-    const [lower, upper] = [order[i - 1] as ProfileName, order[i] as ProfileName];
-    const a = winRate[`${lower}/${difficulty}`];
-    const b = winRate[`${upper}/${difficulty}`];
-    if (a !== undefined && b !== undefined && b - a < SKILL_GAP_POINTS && !(a >= 95 && b >= 95)) {
-      verdicts.push(
-        `${difficulty}: ${upper} (${b.toFixed(0)} %) barely beats ${lower} (${a.toFixed(0)} %): skill does not pay`,
-      );
+    const order: ProfileName[] = ["beginner", "nico", "veteran"];
+    for (let i = 1; i < order.length; i++) {
+      const [lower, upper] = [order[i - 1] as ProfileName, order[i] as ProfileName];
+      const a = winRate[`${map}/${lower}/${difficulty}`];
+      const b = winRate[`${map}/${upper}/${difficulty}`];
+      if (a !== undefined && b !== undefined && b - a < SKILL_GAP_POINTS && !(a >= 95 && b >= 95)) {
+        verdicts.push(
+          `${maps.length > 1 ? `${map}/` : ""}${difficulty}: ${upper} (${b.toFixed(0)} %) barely beats ${lower} (${a.toFixed(0)} %): skill does not pay`,
+        );
+      }
     }
   }
-}
 console.table(rows);
 console.log(
   `\n${String(reports.length)} of ${String(setups.length)} games in ${((performance.now() - began) / 1000).toFixed(0)} s`,

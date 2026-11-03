@@ -27,6 +27,8 @@ export interface CampaignSetup {
   readonly rules?: Partial<GameRules>;
   /** Nation values tried in place of docs/balance.md's, for this game only. */
   readonly nations?: Readonly<Record<string, number>>;
+  /** Balance values tried in place of docs/balance.md's, for this game only. */
+  readonly balance?: Readonly<Record<string, number>>;
 }
 
 /** The game at one moment: where the player stands, who leads, and why the player held back since the last one. */
@@ -117,7 +119,12 @@ export function playCampaignGame(
 ): CampaignReport {
   const began = performance.now();
   const { terrain, manifest } = publishedMap(setup.map);
-  const balance = DEFAULT_BALANCE;
+  const balance = { ...DEFAULT_BALANCE };
+  const values = balance as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(setup.balance ?? {})) {
+    if (typeof values[key] !== "number") throw new Error(`no numeric balance value ${key}`);
+    values[key] = value;
+  }
   const players = [{ id: 1, name: setup.profile }];
   const nations: number[] = [];
   for (const { name, tile } of manifest.nations) {
