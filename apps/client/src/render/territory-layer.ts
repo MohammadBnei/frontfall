@@ -755,7 +755,8 @@ const fragmentShader = /* glsl */ `
 
       // Fronts: a thin ember line with a soft glow, a darker strip behind it, sparks and smoke.
       float front = 1.0 - smoothstep(fadeSeconds, frontSeconds, age);
-      if (pixel <= 1.0) {
+      // Blended between tiles close up and, at any zoom, near a front, so its glow has no steps of tiles.
+      if (pixel <= 1.0 || dFront < 14.0) {
         vec2 q = at - 0.5;
         ivec2 c = ivec2(floor(q));
         vec2 u = q - vec2(c);

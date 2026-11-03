@@ -173,8 +173,9 @@ export class EffectTracker {
       const tile = tiles[i] as number;
       const owner = owners[tile] as number;
       if (owner === 0) continue;
-      const x = (tile % width) + 0.5;
-      const y = Math.floor(tile / width) + 0.5;
+      // Anywhere on the tile, not its centre: embers drift up from the front, never a grid of dots.
+      const x = (tile % width) + this.random();
+      const y = Math.floor(tile / width) + this.random();
       if (!this.visible(x, y)) continue;
       started++;
       this.emit({
@@ -184,9 +185,9 @@ export class EffectTracker {
         dy: -0.6 - this.random() * 0.6,
         birth: now,
         life: 0.8 + this.random() * 0.4,
-        size0: 1.2,
+        size0: 0.8 + this.random() * 0.8,
         size1: 0.3,
-        minPixels: 2.5,
+        minPixels: 1.5 + this.random() * 1.5,
         color: FLASH,
         alpha: 0.55,
         shape: "dot",
