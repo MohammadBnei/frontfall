@@ -830,30 +830,11 @@ const fragmentShader = /* glsl */ `
         // A front along a coast is mostly sea: keep it quieter there.
         float fa = front * mix(0.3, 1.0, smoothstep(0.8, 3.0, coastIn / max(pixel, 1e-4)));
         owned *= 1.0 - 0.5 * fa * exp(-dFront / 15.0);
-        vec3 ember = vec3(1.0, 0.2, 0.03);
-        vec3 hot = vec3(1.0, 0.62, 0.16);
-        float flicker = mix(0.92, 0.84 + 0.16 * sin(now * 7.0), frontMotion);
-        owned += ember * exp(-dFront / 3.6) * fa * 0.8 * flicker;
-        owned = mix(owned, ember, (1.0 - smoothstep(1.0, 2.5, dFront)) * fa * 0.95);
-        owned = mix(owned, hot, (1.0 - smoothstep(0.1, 0.9, dFront)) * fa * 0.9);
-        if (pixel > 0.03) {
-          // Sparks drift up from the burning line; smoke puffs rise and fade.
-          float cell = max(0.6, 10.0 * pixel);
-          vec2 sp = at / cell + vec2(0.0, t * 0.7);
-          vec2 cid = floor(sp);
-          float hv = hs(cid);
-          if (hv > 0.72) {
-            vec2 pos = vec2(hs(cid + 7.1), hs(cid + 3.3)) * 0.6 + 0.2;
-            float dd = length((fract(sp) - pos) * vec2(1.0, 1.2));
-            float life = 1.0 - fract(sp.y);
-            float spark = (1.0 - smoothstep(0.0, 0.26 + 0.1 * life, dd)) * (0.5 + 0.5 * sin(t * 6.0 + hv * 50.0)) * life;
-            owned += vec3(1.0, 0.55, 0.15) * spark * fa * exp(-dFront / 8.0) * 2.8;
-          }
-          float puffSize = max(1.5, 36.0 * pixel);
-          float pn = nz(at / puffSize + vec2(0.12 * t, 0.25 * t)) * 0.65 + nz(at / (puffSize * 0.5) + vec2(1.7, 0.4 * t)) * 0.35;
-          float puff = smoothstep(0.45, 0.75, pn) * exp(-max(dFront - 2.0, 0.0) / 13.0) * fa * smoothstep(0.03, 0.25, pixel);
-          owned = mix(owned, owned * vec3(0.5, 0.45, 0.45) + vec3(0.04, 0.025, 0.02), puff * 0.45);
-        }
+        // A bright dashed core marching forward, an ember edge and a short glow; still with less motion.
+        float dash = step(0.35, fract((at.x + at.y) / (12.0 * pixel) - now * 2.0 * frontMotion));
+        owned += vec3(1.0, 0.32, 0.08) * exp(-dFront / 5.0) * fa * 1.1;
+        owned = mix(owned, vec3(1.0, 0.45, 0.15), (1.0 - smoothstep(1.6, 2.3, dFront)) * fa);
+        owned = mix(owned, vec3(1.0, 0.97, 0.9), (1.0 - smoothstep(0.5, 1.1, dFront)) * fa * dash);
       }
       // A tile taken a moment ago fades in, so fronts creep instead of jumping each tick.
       color = mix(color, owned, fadeIn * landCover);
