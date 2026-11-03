@@ -723,16 +723,16 @@ const fragmentShader = /* glsl */ `
       float dFront = mix(toFront, min(ring, toFront + 4.0), ringMix);
       // Pale colours already sit close to white: they get less of every brightening.
       float pale = smoothstep(0.35, 0.75, ownerLight);
-      float prox = pow(1.0 - clamp(dpx / (mine ? 9.0 : 10.0), 0.0, 1.0), 1.5);
+      float prox = pow(1.0 - clamp(dpx / (mine ? 12.0 : 14.0), 0.0, 1.0), 1.5);
       // The owner's colour is a translucent tint over the lit land, deeper in
       // the heart, brighter at the rim, a little uneven from patch to patch.
       float vn = nz(at * 0.05 + float(owner) * 5.3) * 0.6 + nz(at * 0.17 + float(owner) * 2.1) * 0.4;
-      vec3 glass = ownerColor * mix(vec3(0.9, 1.0, 1.1), vec3(1.1, 1.0, 0.86), vn) * (0.74 + 0.52 * vn) * (0.45 + 0.6 * shade) * mix(1.0, 0.72, pale);
-      vec3 fill = mix(albedo * shade * 1.25, glass, mix(0.58, 0.76, zoomedOut) * mix(1.0, 0.8, pale) * (1.0 - 0.22 * hm));
+      vec3 glass = ownerColor * mix(vec3(0.9, 1.0, 1.1), vec3(1.1, 1.0, 0.86), vn) * (0.74 + 0.52 * vn) * (0.45 + 0.6 * shade) * mix(1.0, 0.55, pale);
+      vec3 fill = mix(albedo * shade * 1.25, glass, mix(0.32, 0.5, zoomedOut) * mix(1.0, 0.75, pale) * (1.0 - 0.22 * hm));
       fill *= 1.0 + 0.2 * detail * fineFade + (fineFade > 0.0 ? 0.07 * (nz(at * 3.3) - 0.5) * fineFade : 0.0) + forest * (canopy - 0.5) * 0.3;
       fill *= mix(0.9, 1.0, prox);
       vec3 rimColor = mix(ownerColor, vec3(1.0), (mine ? 0.5 : 0.18) * (1.0 - 0.7 * pale)) * mix(mine ? 1.35 : 1.18, 1.0, pale);
-      fill = mix(fill, rimColor, (mine ? 0.45 : 0.58) * (1.0 - 0.4 * pale) * prox);
+      fill = mix(fill, rimColor, (mine ? 0.55 : 0.7) * (1.0 - 0.3 * pale) * prox);
       // A faint bevel: the rim catches the north-west light, the south-east one sinks.
       fill *= 1.0 + 0.28 * dot(inward, vec2(0.707, 0.707)) * (1.0 - smoothstep(0.0, 3.5, dpx));
       if (pointed) fill = mix(fill, vec3(1.0), 0.16);

@@ -35,7 +35,7 @@ Unclaimed land stays dark and quiet so that every territory colour stands out fr
 
 ## Territories
 
-- The owner colour is a translucent tint over the lit land (58 % close up, 76 % at world zoom), a little uneven from patch to patch (±26 %), lighter and more saturated in the first 10 px along the border, with a faint bevel that catches the north-west light. Hills stay visible under a territory.
+- The owner colour is a light translucent tint over the lit land (32 % close up, 50 % at world zoom, a quarter less for pale colours, which are also darkened), a little uneven from patch to patch (±26 %), so the relief and the ground stay visible under every country. The colour gathers in the first 14 px along the border, lighter and more saturated, so a country reads by its edge, with a faint bevel that catches the north-west light (choice of 2026-11-03).
 - The player's own territory gets no special colour; it is marked by the name label and a wider, whiter rim, as are allies (dashed) and the land under the pointer.
 - Names and troop counts sit on the territory in a bold sans with a soft shadow, sized by territory area, and fade out when a territory is too small to hold them.
 
