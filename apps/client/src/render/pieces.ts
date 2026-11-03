@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { BUILDING_KINDS, settleLevel, type BuildingKind, type Level } from "./pieces-geo.ts";
-import { COLUMNS, ROWS as BUILDING_ROWS, SPAN, paintAtlas } from "./pieces-paint.ts";
+import { COLUMNS, DISC, ROWS as BUILDING_ROWS, SPAN, paintAtlas } from "./pieces-paint.ts";
 
 /**
  * The game pieces of the flat map (docs/art-direction.md, pieces and
  * pictograms), drawn once into a small atlas when the game starts and sampled
- * by one instanced quad per kind. Buildings are painted miniatures on a base in
- * the owner's colour (pieces-paint.ts); ships and missiles are still token
- * plates with a white glyph. Kept out of the first visit: the page loads it
+ * by one instanced quad per kind. Buildings are map markers, a white
+ * pictogram on a dark disc ringed in the owner's colour (pieces-paint.ts);
+ * missiles, and ships without their hulls, are token plates with a white glyph. Kept out of the first visit: the page loads it
  * while the menu is open.
  */
 
@@ -176,25 +176,16 @@ function drawUnitAtlas(): THREE.DataTexture {
 
 let unitAtlas: THREE.DataTexture | undefined;
 
-interface FigurineAtlas {
-  readonly colour: THREE.DataTexture;
-  readonly owner: THREE.DataTexture;
-}
+let markerAtlas: THREE.DataTexture | undefined;
 
-let figurineAtlas: FigurineAtlas | undefined;
-
-function drawFigurineAtlas(): FigurineAtlas {
-  const { colour, owner, width, height } = paintAtlas();
-  const mips = (texture: THREE.DataTexture): THREE.DataTexture => {
-    texture.generateMipmaps = true;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-    return texture;
-  };
-  const one = new THREE.DataTexture(owner, width, height, THREE.RedFormat);
-  one.unpackAlignment = 1;
-  return { colour: mips(new THREE.DataTexture(colour, width, height)), owner: mips(one) };
+function drawMarkerAtlas(): THREE.DataTexture {
+  const { data, width, height } = paintAtlas();
+  const texture = new THREE.DataTexture(data, width, height);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 const vertexShader = /* glsl */ `
@@ -244,14 +235,14 @@ const unitFragmentShader = /* glsl */ `
 `;
 
 /**
- * The painted atlas holds display-space colours (what the painter saw), so the
- * piece is put together in that space and converted once at the end: stone and
- * metal as painted, the owner's parts as a grey times the owner's colour, and a
- * darker tint for a light colour so a roof stands out from land of the same hue.
+ * The marker atlas holds shares (pieces-paint.ts): the pictogram's white in
+ * red, the owner's colour in green, the dark of the disc in what they leave of
+ * the coverage. The owner's colour goes in whole, however light, so amber stays
+ * amber; the dark disc and the dark line round the ring part it from land of
+ * the same hue. A piece being built has a paler pictogram, no halo and a dashed ring.
  */
-const figurineFragmentShader = /* glsl */ `
+const markerFragmentShader = /* glsl */ `
   uniform sampler2D atlas;
-  uniform sampler2D ownerAtlas;
   uniform vec2 cell;
   in vec3 vColor;
   in vec2 vUv;
@@ -259,16 +250,23 @@ const figurineFragmentShader = /* glsl */ `
   layout(location = 0) out highp vec4 outColor;
 
   void main() {
-    vec2 at = (cell + vec2(vUv.x, 1.0 - vUv.y)) / vec2(${String(COLUMNS)}.0, ${String(BUILDING_ROWS)}.0);
-    vec4 t = texture(atlas, at);
+    vec4 t = texture(atlas, (cell + vec2(vUv.x, 1.0 - vUv.y)) / vec2(${String(COLUMNS)}.0, ${String(BUILDING_ROWS)}.0));
     if (t.a < 0.004) discard;
-    float own = texture(ownerAtlas, at).r;
-    float light = dot(vColor, vec3(0.2126, 0.7152, 0.0722));
-    vec3 tint = pow(vColor, vec3(1.0 / 2.2)) * mix(1.0, 0.7, smoothstep(0.45, 0.7, light));
-    vec3 paint = (t.rgb + own * tint) / t.a;
-    // Greyer and fainter while it is being built.
-    paint = mix(vec3(dot(paint, vec3(0.3, 0.59, 0.11))), paint, 0.35 + 0.65 * vFade);
-    outColor = linearToOutputTexel(vec4(pow(paint, vec3(2.2)), t.a * (0.55 + 0.45 * vFade)));
+    float a = t.a;
+    float ink = t.r;
+    float own = t.g;
+    if (vFade < 0.5) {
+      vec2 p = vUv - 0.5;
+      float s = sin(atan(p.y, p.x) * 16.0);
+      float dash = clamp(s / max(fwidth(s), 1e-3) + 0.5, 0.0, 1.0);
+      float kept = own * dash * (1.0 - smoothstep(${(DISC / SPAN + 0.03).toFixed(3)}, ${(DISC / SPAN + 0.04).toFixed(3)}, length(p)));
+      a -= own - kept;
+      own = kept;
+      ink *= 0.55;
+      if (a < 0.004) discard;
+    }
+    vec3 rgb = vec3(0.006, 0.01, 0.02) * max(a - ink - own, 0.0) + vec3(ink) + vColor * own;
+    outColor = linearToOutputTexel(vec4(rgb / a, a * (0.8 + 0.2 * vFade)));
   }
 `;
 
@@ -280,14 +278,11 @@ export interface PieceLayerOptions {
   readonly capacity: number;
   /** Side of the piece in tiles. */
   readonly size: number;
-  /** What the piece is: a painted building, or a token plate with a glyph. */
+  /** What the piece is: a building's marker, or a token plate with a glyph. */
   readonly kind: PieceKind;
   /** Drawn after layers with a lower order, over them. */
   readonly order: number;
 }
-
-/** Local height of the base's centre in the 100-unit piece (pieces-paint.ts): the tile is under it. */
-const GROUND_Y = -9;
 
 /**
  * Every piece of one kind in a single instanced draw call, the same contract
@@ -323,27 +318,25 @@ export class PieceLayer {
     let material: THREE.ShaderMaterial;
     let geometry: THREE.PlaneGeometry;
     if (building) {
-      figurineAtlas ??= drawFigurineAtlas();
+      markerAtlas ??= drawMarkerAtlas();
       this.row = BUILDING_KINDS.indexOf(kind);
       this.column = { value: new THREE.Vector2(0, this.row) };
       material = new THREE.ShaderMaterial({
         glslVersion: THREE.GLSL3,
         vertexShader,
-        fragmentShader: figurineFragmentShader,
+        fragmentShader: markerFragmentShader,
         transparent: true,
         depthTest: false,
         depthWrite: false,
         uniforms: {
           ...shared,
-          atlas: { value: figurineAtlas.colour },
-          ownerAtlas: { value: figurineAtlas.owner },
+          atlas: { value: markerAtlas },
           cell: this.column,
         },
       });
-      // The quad shows 120 units of the 100-unit piece; the base sits on the tile, the figure rises north of it.
-      const side = (options.size * SPAN.width) / 100;
+      // The quad shows 120 units of the 100-unit piece, the marker centred on its tile.
+      const side = (options.size * SPAN) / 100;
       geometry = new THREE.PlaneGeometry(side, side);
-      geometry.translate(0, ((GROUND_Y - (SPAN.top + SPAN.height / 2)) / 100) * options.size, 0);
     } else {
       unitAtlas ??= drawUnitAtlas();
       this.row = UNIT_KINDS.indexOf(kind);
@@ -420,7 +413,7 @@ export class PieceLayer {
   }
 
   /**
-   * Tells a painted building how large it is on screen, in CSS pixels, to pick
+   * Tells a building's marker how large it is on screen, in CSS pixels, to pick
    * its level of detail.
    */
   setPixels(pixels: number): void {

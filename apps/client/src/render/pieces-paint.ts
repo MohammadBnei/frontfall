@@ -1,258 +1,140 @@
-import {
-  BUILDING_KINDS,
-  partsAt,
-  type BuildingKind,
-  type Level,
-  type Op,
-  type Role,
-} from "./pieces-geo.ts";
+import { BUILDING_KINDS, GRID, pictogram, type BuildingKind, type Level } from "./pieces-geo.ts";
 
 /**
- * The painted miniatures of the eight buildings (docs/art-direction.md, pieces):
- * each is drawn once, at three levels of detail, into an atlas of 2D canvas
- * pixels when the game starts. A figurine stands on a painted base, lit from
- * the north-west, with a soft shadow falling to the south-east. The owner's
- * colour is left out of the pixels and added by the shader, so one atlas serves
- * every player: the roofs, banners and base are painted in grey and carry a
- * separate mask.
+ * The map markers of the nine buildings (docs/art-direction.md, piece
+ * geometry), painted once into an atlas when the game starts: a dark
+ * see-through disc with the white pictogram, ringed and haloed in the owner's
+ * colour. The pixels hold shares, not colours, so one atlas serves every
+ * player: red is the white of the pictogram, green the owner's colour, the
+ * rest of the coverage (alpha) the dark of the disc; all three premultiplied.
  */
 
 /** Pixels of one cell of the atlas: one building at one level of detail. */
 export const CELL = 128;
 /** One column for each level of detail. */
-export const COLUMNS = 3;
+export const COLUMNS = 2;
 export const ROWS = BUILDING_KINDS.length;
-/** The part of the 100-unit piece a cell shows: a margin all round for the shadow and the stroke. */
-export const SPAN = { left: -60, top: -110, width: 120, height: 120 } as const;
+/** Units across a cell, the marker's centre in the middle; the piece itself is 100 units wide. */
+export const SPAN = 120;
 
-type Rgb = readonly [number, number, number];
+/** Radius of the disc, in units of the 100-unit piece; the ring is centred on its edge. */
+export const DISC = 42;
+/** The ring is thicker where the marker is small, so it stays a clear line of colour. */
+const RING: Record<Level, number> = { 0: 7, 1: 5 };
+/** Width of the halo outside the ring, and of the dark line between the two. */
+const HALO = 11;
+const RIM = 1.6;
+/** Units per unit of the pictogram's grid. */
+export const GLYPH = 2.15;
 
-/** Stone, metal, wood and the small accents, by material and face (lit top, front, shaded side). */
-const MATERIAL: Record<string, Rgb> = {
-  wallF: [226, 215, 189],
-  wallS: [180, 167, 137],
-  wallT: [246, 239, 220],
-  metalF: [174, 184, 196],
-  metalS: [112, 124, 138],
-  metalT: [217, 223, 230],
-  goldF: [240, 181, 58],
-  goldS: [185, 128, 26],
-  goldT: [255, 220, 126],
-  woodF: [169, 132, 86],
-  woodS: [123, 92, 56],
-  woodT: [201, 163, 115],
-  dark: [38, 44, 54],
-  glass: [143, 208, 230],
-  flame: [255, 138, 31],
-  white: [244, 244, 239],
-};
+/** The pictogram and the owner's colour are painted as pure red and green, so each channel is its share. */
+const WHITE = "#f00";
+const OWN = (alpha: number): string => `rgba(0,255,0,${String(alpha)})`;
 
-/** How light the grey of each face of the owner's colour is painted; the shader multiplies it by the colour. */
-const OWN_GREY: Record<string, number> = { ownF: 0.82, ownS: 0.5, ownT: 1, ownDF: 0.42 };
-
-/** A hairline would vanish at world zoom: the stroke is heavier where the detail is coarser. */
-const STROKE: readonly [number, number, number] = [3, 1.9, 1.35];
-
-const rgb = ([r, g, b]: Rgb, factor = 1): string => {
-  const mix = (v: number): number =>
-    Math.round(Math.max(0, Math.min(255, factor <= 1 ? v * factor : v + (255 - v) * (factor - 1))));
-  return `rgb(${String(mix(r))},${String(mix(g))},${String(mix(b))})`;
-};
-
-const grey = (g: number): Rgb => {
-  const v = Math.round(Math.max(0, Math.min(1, g)) * 255);
-  return [v, v, v];
-};
-
-const isOwner = (role: Role): boolean => role.startsWith("own");
-
-/** The colour a part is painted in; an owner's part is grey, tinted later. */
-function fillOf(role: Role): Rgb {
-  return isOwner(role) ? grey(OWN_GREY[role] ?? 0.8) : (MATERIAL[role] ?? [255, 0, 255]);
-}
-
-function trace(ctx: CanvasRenderingContext2D, op: Op): void {
+function circle(ctx: CanvasRenderingContext2D, r: number): void {
   ctx.beginPath();
-  switch (op.kind) {
-    case "polygon":
-      op.points.forEach(([x, y], i) => {
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.closePath();
-      break;
-    case "ellipse":
-      ctx.ellipse(op.cx, op.cy, op.rx, op.ry, op.turn, 0, Math.PI * 2);
-      break;
-    case "cylinder":
-      ctx.moveTo(op.cx - op.r, op.yb - op.h);
-      ctx.lineTo(op.cx - op.r, op.yb);
-      ctx.ellipse(op.cx, op.yb, op.r, op.r * 0.38, 0, Math.PI, 0, true);
-      ctx.lineTo(op.cx + op.r, op.yb - op.h);
-      ctx.closePath();
-      break;
-    case "dome":
-      ctx.moveTo(op.cx - op.r, op.yb);
-      ctx.bezierCurveTo(
-        op.cx - op.r,
-        op.yb - op.h * 1.25,
-        op.cx + op.r,
-        op.yb - op.h * 1.25,
-        op.cx + op.r,
-        op.yb,
-      );
-      ctx.closePath();
-      break;
-    case "cone":
-      ctx.moveTo(op.cx - op.r, op.yb);
-      ctx.lineTo(op.cx, op.yb - op.h);
-      ctx.lineTo(op.cx + op.r, op.yb);
-      ctx.ellipse(op.cx, op.yb, op.r, op.r * 0.38, 0, 0, Math.PI, false);
-      ctx.closePath();
-      break;
-  }
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
 }
 
-/** A round part shades from the lit left side to the dark right one, like a painted turning. */
-function turned(ctx: CanvasRenderingContext2D, op: Op, base: Rgb): string | CanvasGradient {
-  if (op.kind !== "cylinder" && op.kind !== "dome" && op.kind !== "cone") return rgb(base);
-  const gradient = ctx.createLinearGradient(op.cx - op.r, 0, op.cx + op.r, 0);
-  gradient.addColorStop(0, rgb(base, 1.18));
-  gradient.addColorStop(0.45, rgb(base));
-  gradient.addColorStop(1, rgb(base, 0.62));
-  return gradient;
-}
-
-const BASE = { rx: 47, ry: 15.5, y: -9 } as const;
-
-function baseEllipse(ctx: CanvasRenderingContext2D, dy: number, shrink: number): void {
+/** Fills the band between two radii. */
+function band(
+  ctx: CanvasRenderingContext2D,
+  inner: number,
+  outer: number,
+  style: string | CanvasGradient,
+): void {
+  ctx.fillStyle = style;
   ctx.beginPath();
-  ctx.ellipse(0, BASE.y + dy, BASE.rx - shrink, BASE.ry - shrink, 0, 0, Math.PI * 2);
+  ctx.arc(0, 0, outer, 0, Math.PI * 2);
+  ctx.arc(0, 0, inner, 0, Math.PI * 2, true);
+  ctx.fill();
 }
 
-/** The shadow and the painted base. In the mask pass only the base, in white. */
-function ground(ctx: CanvasRenderingContext2D, mask: boolean): void {
-  if (mask) {
-    ctx.fillStyle = "#fff";
-    baseEllipse(ctx, 3, 0);
-    ctx.fill();
-    return;
+/** The pictogram in white, its cut-outs cleared, on its own canvas so they show the disc. */
+function glyph(canvas: HTMLCanvasElement, kind: BuildingKind, level: Level): HTMLCanvasElement {
+  const g = canvas.getContext("2d");
+  if (!g) throw new Error("no 2D canvas for the pieces");
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, CELL, CELL);
+  const k = (CELL / SPAN) * GLYPH;
+  g.setTransform(k, 0, 0, k, CELL / 2 - (GRID / 2) * k, CELL / 2 - (GRID / 2) * k);
+  g.fillStyle = WHITE;
+  for (const shape of pictogram(kind, level)) {
+    g.globalCompositeOperation = shape.cut ? "destination-out" : "source-over";
+    g.beginPath();
+    shape.points.forEach(([x, y], i) => {
+      if (i === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    });
+    g.closePath();
+    g.fill();
   }
-  // A soft contact shadow falling south-east.
+  g.globalCompositeOperation = "source-over";
+  return canvas;
+}
+
+/** One marker, centred on the origin, in units of the 100-unit piece. */
+function marker(
+  ctx: CanvasRenderingContext2D,
+  scratch: HTMLCanvasElement,
+  kind: BuildingKind,
+  level: Level,
+): void {
+  const ring = RING[level];
+  const outer = DISC + ring / 2;
+  // The halo in the owner's colour, fading outwards past a thin dark line that keeps the ring apart from land of its hue.
+  const halo = ctx.createRadialGradient(0, 0, outer + RIM, 0, 0, outer + RIM + HALO);
+  halo.addColorStop(0, OWN(0.5));
+  halo.addColorStop(0.45, OWN(0.18));
+  halo.addColorStop(1, OWN(0));
+  band(ctx, outer + RIM, outer + RIM + HALO, halo);
+  band(ctx, outer - 0.5, outer + RIM, "rgba(0,0,0,0.6)");
+  // The disc: dark, a little see-through.
+  ctx.fillStyle = "rgba(0,0,0,0.84)";
+  circle(ctx, DISC);
+  ctx.fill();
   ctx.save();
-  ctx.translate(8, -3);
-  ctx.scale(1, 0.34);
-  const shadow = ctx.createRadialGradient(0, 0, 4, 0, 0, 44);
-  shadow.addColorStop(0, "rgba(10,12,16,0.55)");
-  shadow.addColorStop(0.65, "rgba(10,12,16,0.28)");
-  shadow.addColorStop(1, "rgba(10,12,16,0)");
-  ctx.fillStyle = shadow;
-  ctx.beginPath();
-  ctx.arc(0, 0, 46, 0, Math.PI * 2);
-  ctx.fill();
+  circle(ctx, DISC - ring / 2);
+  ctx.clip();
+  ctx.drawImage(glyph(scratch, kind, level), -SPAN / 2, -SPAN / 2, SPAN, SPAN);
   ctx.restore();
-  // Dark rim, lighter top, and a thin pale lip on the lit side.
-  ctx.fillStyle = rgb(grey(OWN_GREY.ownDF ?? 0.42));
-  baseEllipse(ctx, 3, 0);
-  ctx.fill();
-  ctx.fillStyle = rgb(grey(0.78));
-  baseEllipse(ctx, 0, 1);
-  ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.6)";
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.ellipse(0, BASE.y, BASE.rx - 2.5, BASE.ry - 2.5, 0, Math.PI * 1.02, Math.PI * 1.95);
+  ctx.lineWidth = ring;
+  ctx.strokeStyle = OWN(1);
+  circle(ctx, DISC);
   ctx.stroke();
 }
 
 /**
- * One building at one level, in the 100-unit space of pieces-geo with the
- * origin at the bottom centre. `mask` paints the owner's parts white and the
- * rest black instead of colours.
+ * The atlas: a cell per kind (rows) and level of detail (columns), as
+ * premultiplied shares: red the white pictogram, green the owner's colour,
+ * alpha the coverage, the dark of the disc being what the two leave of it.
  */
-function figurine(
-  ctx: CanvasRenderingContext2D,
-  kind: BuildingKind,
-  level: Level,
-  mask: boolean,
-): void {
-  ground(ctx, mask);
-  const width = STROKE[level];
-  for (const op of partsAt(kind, level)) {
-    trace(ctx, op);
-    if (mask) {
-      ctx.fillStyle = isOwner(op.role) ? "#fff" : "#000";
-      ctx.fill();
-      continue;
-    }
-    const base = fillOf(op.role);
-    ctx.fillStyle = op.role.startsWith("gold") ? rgb(base) : turned(ctx, op, base);
-    ctx.fill();
-    ctx.lineWidth = width;
-    ctx.lineJoin = "round";
-    ctx.strokeStyle =
-      op.role === "glass" || op.role === "dark" ? "rgba(0,0,0,0.3)" : "rgba(32,26,20,0.6)";
-    ctx.stroke();
-    // A pale rim on the lit faces keeps a light roof from melting into a light land.
-    if (op.role.endsWith("T") && op.kind === "polygon") {
-      ctx.save();
-      ctx.clip();
-      ctx.lineWidth = width * 2.4;
-      ctx.strokeStyle = "rgba(255,255,255,0.4)";
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-}
-
-function paintAll(canvas: HTMLCanvasElement, mask: boolean): Uint8ClampedArray {
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("no 2D canvas for the pieces");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const k = CELL / SPAN.width;
-  BUILDING_KINDS.forEach((kind, row) => {
-    for (let level = 0; level < COLUMNS; level++) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(level * CELL, row * CELL, CELL, CELL);
-      ctx.clip();
-      ctx.translate(level * CELL - SPAN.left * k, row * CELL - SPAN.top * k);
-      ctx.scale(k, k);
-      figurine(ctx, kind, level as Level, mask);
-      ctx.restore();
-    }
-  });
-  return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-}
-
-/**
- * The atlas as two planes of premultiplied pixels: `colour` holds what is not
- * the owner's (red, green, blue, and the coverage in alpha), `owner` the grey
- * shading of the parts that are, which the shader multiplies by the colour.
- */
-export function paintAtlas(): {
-  colour: Uint8Array;
-  owner: Uint8Array;
-  width: number;
-  height: number;
-} {
+export function paintAtlas(): { data: Uint8Array; width: number; height: number } {
   const canvas = document.createElement("canvas");
   canvas.width = COLUMNS * CELL;
   canvas.height = ROWS * CELL;
-  const full = paintAll(canvas, false);
-  const mask = paintAll(canvas, true);
-  const colour = new Uint8Array(full.length);
-  const owner = new Uint8Array(full.length / 4);
-  for (let i = 0; i < owner.length; i++) {
-    const at = i * 4;
-    const alpha = (full[at + 3] ?? 0) / 255;
-    // The mask is white on the owner's parts and black elsewhere: its red is their share of the pixel.
-    const share = (mask[at] ?? 0) / 255;
-    for (let c = 0; c < 3; c++) {
-      colour[at + c] = Math.round((full[at + c] ?? 0) * (1 - share) * alpha);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("no 2D canvas for the pieces");
+  const scratch = document.createElement("canvas");
+  scratch.width = CELL;
+  scratch.height = CELL;
+  const k = CELL / SPAN;
+  BUILDING_KINDS.forEach((kind, row) => {
+    for (let level = 0; level < COLUMNS; level++) {
+      ctx.save();
+      ctx.translate((level + 0.5) * CELL, (row + 0.5) * CELL);
+      ctx.scale(k, k);
+      marker(ctx, scratch, kind, level as Level);
+      ctx.restore();
     }
-    colour[at + 3] = full[at + 3] ?? 0;
-    owner[i] = Math.round((full[at] ?? 0) * share * alpha);
+  });
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const data = new Uint8Array(pixels.length);
+  for (let i = 0; i < pixels.length; i += 4) {
+    const alpha = (pixels[i + 3] ?? 0) / 255;
+    data[i] = Math.round((pixels[i] ?? 0) * alpha);
+    data[i + 1] = Math.round((pixels[i + 1] ?? 0) * alpha);
+    data[i + 3] = pixels[i + 3] ?? 0;
   }
-  return { colour, owner, width: canvas.width, height: canvas.height };
+  return { data, width: canvas.width, height: canvas.height };
 }

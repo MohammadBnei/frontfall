@@ -1,20 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILDING_KINDS,
+  GRID,
   levelFor,
-  outline,
-  parts,
-  partsAt,
+  pictogram,
   settleLevel,
   type BuildingKind,
   type Level,
   type Point,
 } from "../src/render/pieces-geo.ts";
+import { GLYPH } from "../src/render/pieces-paint.ts";
 
+/** Marker sizes on screen; the pictogram is drawn at its share of them. */
 const SIZES = [16, 20, 24] as const;
 const SAMPLES = 4;
-/** The local box every piece fits in, drawn square. */
-const BOX = { x: -56, y: -104, side: 112 };
 
 function inside(polygon: readonly Point[], x: number, y: number): boolean {
   let odd = false;
@@ -26,22 +25,27 @@ function inside(polygon: readonly Point[], x: number, y: number): boolean {
   return odd;
 }
 
-/** How much of each pixel of a `size`-px square the piece covers, 0 to 1. */
-function coverage(kind: BuildingKind, size: number, level: Level = 0): Float32Array {
-  const outlines = partsAt(kind, level).map(outline);
-  const grid = new Float32Array(size * size);
-  const step = BOX.side / (size * SAMPLES);
-  for (let py = 0; py < size; py++) {
-    for (let px = 0; px < size; px++) {
+/** Pixels across the pictogram of a marker `size` px wide. */
+const glyphPixels = (size: number): number => Math.round((size * GRID * GLYPH) / 100);
+
+/** How much of each pixel of a `pixels`-px square the pictogram covers, 0 to 1, cut-outs and all. */
+function coverage(kind: BuildingKind, pixels: number, level: Level = 0): Float32Array {
+  const shapes = pictogram(kind, level);
+  const grid = new Float32Array(pixels * pixels);
+  const step = GRID / (pixels * SAMPLES);
+  for (let py = 0; py < pixels; py++) {
+    for (let px = 0; px < pixels; px++) {
       let hits = 0;
       for (let sy = 0; sy < SAMPLES; sy++) {
         for (let sx = 0; sx < SAMPLES; sx++) {
-          const x = BOX.x + (px * SAMPLES + sx + 0.5) * step;
-          const y = BOX.y + (py * SAMPLES + sy + 0.5) * step;
-          if (outlines.some((o) => inside(o, x, y))) hits++;
+          const x = (px * SAMPLES + sx + 0.5) * step;
+          const y = (py * SAMPLES + sy + 0.5) * step;
+          let filled = false;
+          for (const shape of shapes) if (inside(shape.points, x, y)) filled = !shape.cut;
+          if (filled) hits++;
         }
       }
-      grid[py * size + px] = hits / (SAMPLES * SAMPLES);
+      grid[py * pixels + px] = hits / (SAMPLES * SAMPLES);
     }
   }
   return grid;
@@ -59,7 +63,7 @@ function overlap(a: Float32Array, b: Float32Array): number {
   return both / either;
 }
 
-/** How far the skyline is from being its own mirror image, 0 (even) to 1: heights of the columns against their mirror columns. */
+/** How far the skyline is from being its own mirror image, 0 (even) to 1. */
 function lopsidedness(kind: BuildingKind, size: number): number {
   const grid = coverage(kind, size);
   const heights = Array.from({ length: size }, (_, x) => {
@@ -80,58 +84,66 @@ function lopsidedness(kind: BuildingKind, size: number): number {
   return apart / total;
 }
 
-describe("pieces geometry", () => {
-  it("describes the nine buildings, each with parts kept at every level", () => {
+describe("pieces pictograms", () => {
+  it("draws the nine buildings, each with a silhouette and its details", () => {
     expect(BUILDING_KINDS).toHaveLength(9);
     for (const kind of BUILDING_KINDS) {
-      expect(partsAt(kind, 0).length, kind).toBeGreaterThan(0);
-      expect(partsAt(kind, 1).length, kind).toBeGreaterThan(partsAt(kind, 0).length - 1);
-      expect(partsAt(kind, 2)).toHaveLength(parts(kind).length);
+      expect(pictogram(kind, 0).filter((shape) => !shape.cut).length, kind).toBeGreaterThan(0);
+      expect(pictogram(kind, 1).length, kind).toBeGreaterThanOrEqual(pictogram(kind, 0).length);
     }
   });
 
-  it("chooses the level of detail from the size on screen", () => {
-    expect([16, 29, 30, 69, 70, 200].map(levelFor)).toEqual([0, 0, 1, 1, 2, 2]);
-  });
-
-  it("keeps the same silhouette when the details are added", () => {
+  it("stays inside the disc", () => {
+    // The disc's inner edge is 38 units from the centre, a grid unit GLYPH of them.
+    const reach = 38 / GLYPH;
     for (const kind of BUILDING_KINDS) {
-      const coarse = coverage(kind, 24, 0);
-      const fine = coverage(kind, 24, 2);
-      expect(overlap(coarse, fine), kind).toBeGreaterThan(0.93);
-    }
-  });
-
-  it("draws nothing finer than the first level can show in its silhouette", () => {
-    for (const kind of BUILDING_KINDS) {
-      for (const op of partsAt(kind, 0)) {
-        // Fronts only: the sides and tops of a block are thin by construction.
-        if (op.kind !== "polygon" || !op.role.endsWith("F")) continue;
-        const xs = op.points.map(([x]) => x);
-        const ys = op.points.map(([, y]) => y);
-        const width = Math.max(...xs) - Math.min(...xs);
-        const height = Math.max(...ys) - Math.min(...ys);
-        expect(Math.min(width, height), `${kind} ${op.role}`).toBeGreaterThanOrEqual(2.5);
+      for (const shape of pictogram(kind, 1)) {
+        if (shape.cut) continue;
+        for (const [x, y] of shape.points) {
+          expect(Math.hypot(x - GRID / 2, y - GRID / 2), kind).toBeLessThanOrEqual(reach);
+        }
       }
     }
   });
 
-  it.each(SIZES)("tells the nine silhouettes apart at %i px", (size) => {
-    const grids = BUILDING_KINDS.map((kind) => coverage(kind, size));
+  it("chooses the level of detail from the size on screen", () => {
+    expect([16, 29, 30, 200].map(levelFor)).toEqual([0, 0, 1, 1]);
+  });
+
+  it("keeps the same silhouette when the details are added", () => {
+    for (const kind of BUILDING_KINDS) {
+      expect(overlap(coverage(kind, 24, 0), coverage(kind, 24, 1)), kind).toBeGreaterThan(0.8);
+    }
+  });
+
+  it("draws nothing finer than the first level can show", () => {
+    for (const kind of BUILDING_KINDS) {
+      for (const shape of pictogram(kind, 0)) {
+        const xs = shape.points.map(([x]) => x);
+        const ys = shape.points.map(([, y]) => y);
+        const width = Math.max(...xs) - Math.min(...xs);
+        const height = Math.max(...ys) - Math.min(...ys);
+        expect(Math.min(width, height), kind).toBeGreaterThanOrEqual(1.4);
+      }
+    }
+  });
+
+  it.each(SIZES)("tells the nine pictograms apart on a marker of %i px", (size) => {
+    const grids = BUILDING_KINDS.map((kind) => coverage(kind, glyphPixels(size)));
     for (let i = 0; i < grids.length; i++) {
       for (let j = i + 1; j < grids.length; j++) {
         const value = overlap(grids[i] as Float32Array, grids[j] as Float32Array);
         expect(
           value,
           `${BUILDING_KINDS[i] as string} / ${BUILDING_KINDS[j] as string}`,
-        ).toBeLessThan(0.8);
+        ).toBeLessThan(0.72);
       }
     }
   });
 
   it.each(SIZES)("keeps the city, the fort and the palace clearly apart at %i px", (size) => {
     const [city, fort, palace] = (["city", "fort", "palace"] as const).map((kind) =>
-      coverage(kind, size),
+      coverage(kind, glyphPixels(size)),
     );
     expect(overlap(city as Float32Array, fort as Float32Array)).toBeLessThan(0.66);
     expect(overlap(city as Float32Array, palace as Float32Array)).toBeLessThan(0.7);
@@ -144,7 +156,7 @@ describe("pieces geometry", () => {
     expect(lopsidedness("fort", 48)).toBeLessThan(0.15);
   });
 
-  it("makes the fort low and wide and the city tall and narrow", () => {
+  it("makes the fort low and wide and the city tall", () => {
     const rows = (kind: BuildingKind): number => {
       const grid = coverage(kind, 24);
       let top = 24;
@@ -159,19 +171,15 @@ describe("pieces geometry", () => {
 });
 
 describe("settleLevel", () => {
-  it("rises past a threshold only by a margin, and falls back the same way", () => {
+  it("rises past the threshold only by a margin, and falls back the same way", () => {
     expect(settleLevel(0, 31)).toBe(0);
     expect(settleLevel(0, 34)).toBe(1);
     expect(settleLevel(1, 29)).toBe(1);
     expect(settleLevel(1, 26)).toBe(0);
-    expect(settleLevel(1, 72)).toBe(1);
-    expect(settleLevel(1, 78)).toBe(2);
-    expect(settleLevel(2, 68)).toBe(2);
-    expect(settleLevel(2, 60)).toBe(1);
   });
 
   it("jumps straight to the level a large change calls for", () => {
-    expect(settleLevel(0, 120)).toBe(2);
-    expect(settleLevel(2, 10)).toBe(0);
+    expect(settleLevel(0, 120)).toBe(1);
+    expect(settleLevel(1, 10)).toBe(0);
   });
 });
