@@ -77,7 +77,7 @@ type Grouped = (typeof GROUPED)[number];
 const isGrouped = (type: string): type is Grouped => (GROUPED as readonly string[]).includes(type);
 
 /** Two pieces closer than this many of their own sizes on screen are drawn as one group. */
-const GROUP_REACH = 1.35;
+const GROUP_REACH = 2.2;
 /** Where a group's satellites stand and its count, as fractions of the piece's size, y up. */
 const SATELLITES = [
   [-0.42, 0.22],
@@ -85,7 +85,7 @@ const SATELLITES = [
 ] as const;
 const COUNT_SHIFT = [0.4, -0.12] as const;
 /** Side of the count's coin, in CSS pixels. */
-const COIN_PIXELS = 20;
+const COIN_PIXELS = 18;
 /** Zoom must change by this much (a ratio's logarithm) before the groups are worked out again. */
 const REGROUP_STEP = 0.02;
 
