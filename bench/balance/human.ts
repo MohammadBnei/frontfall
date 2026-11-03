@@ -120,6 +120,8 @@ export class HumanPlayer {
     const me = game.player(this.id) as Player;
     const fits = (tile: number): Order | undefined => {
       if (game.territory.ownerOf(tile) !== this.id) return undefined;
+      // A player who looks at the map puts a port on the open sea, not on a lake or a river with nobody to trade with.
+      if (kind === StructureKind.Port && !game.terrain.isOceanCoast(tile)) return undefined;
       const order: Order = { type: "build", structure: kind, tile };
       return orderError(game, me, order) === undefined ? order : undefined;
     };
