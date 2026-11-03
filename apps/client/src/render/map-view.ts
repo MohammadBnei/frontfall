@@ -518,6 +518,11 @@ export class MapView implements Renderer {
     this.effects?.capitalFell(tile, this.clock());
   }
 
+  /** A player in `color` lost their last tile, around `tile`. */
+  eliminated(tile: number, color: string): void {
+    this.effects?.eliminated(tile, color, this.clock());
+  }
+
   /** The capital of the player at this screen is under threat (R-CAP-05), or `undefined` once safe. */
   capitalThreat(tile: number | undefined): void {
     this.effects?.capitalThreat(tile);

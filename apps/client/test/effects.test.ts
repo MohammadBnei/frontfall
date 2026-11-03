@@ -128,6 +128,50 @@ describe("EffectTracker", () => {
     expect(shapes.filter((s) => s === "dot")).toHaveLength(6);
   });
 
+  it("sinks a ship that leaves the sea sunk: a dark patch, foam, wreckage and smoke, not a landing", () => {
+    const { tracker: t, particles } = tracker();
+    t.ships([boat(1, 10), trade(2, 30)], 0);
+    t.ships(
+      [
+        { ...boat(1, 10), state: "sinking" },
+        { ...trade(2, 30), state: "sinking" },
+      ],
+      1,
+    );
+    const colours = new Set(particles.map((p) => p.color));
+    expect(colours.has("#CFE8F5")).toBe(true);
+    expect(colours.has("#8A9099")).toBe(true);
+    // No coin floats up from a trade ship that went down.
+    expect(colours.has("#F2C14E")).toBe(false);
+    expect(particles.filter((p) => p.shape === "ring")).toHaveLength(2);
+    // The ship is gone: a later frame without it starts nothing more.
+    const count = particles.length;
+    t.ships([], 2);
+    expect(particles).toHaveLength(count);
+  });
+
+  it("lands and docks by the state the ship leaves the sea with", () => {
+    const { tracker: t, particles } = tracker();
+    t.ships([boat(1, 10), trade(2, 30)], 0);
+    t.ships(
+      [
+        { ...boat(1, 10), state: "landing" },
+        { ...trade(2, 30), state: "docking" },
+      ],
+      1,
+    );
+    expect(particles.filter((p) => p.shape === "ring")).toHaveLength(2);
+    expect(particles.filter((p) => p.color === "#F2C14E")).toHaveLength(1);
+  });
+
+  it("holds a sinking to one fading patch when motion is refused", () => {
+    const { tracker: t, particles } = tracker(false);
+    t.ships([boat(1, 10)], 0);
+    t.ships([{ ...boat(1, 10), state: "sinking" }], 1);
+    expect(particles).toHaveLength(1);
+    expect(particles[0]?.size1).toBe(particles[0]?.size0);
+  });
+
   it("holds still when motion is reduced: trails stay, the rest is one fading disc", () => {
     const { tracker: t, particles } = tracker(false);
     t.ships([missile(1, 10), boat(2, 20)], 0);
@@ -259,6 +303,28 @@ describe("EffectTracker collapsed fronts (R-ATTACK-10)", () => {
     const { tracker: t, particles } = tracker();
     t.setView({ centerX: 10, centerY: 5, halfWidth: 3, halfHeight: 3 }, 0.1);
     t.collapsed(tile, 2);
+    expect(particles).toEqual([]);
+  });
+});
+
+describe("EffectTracker, eliminations", () => {
+  it("spreads two rings and embers in the colour of the player who is out", () => {
+    const { tracker: t, particles } = tracker();
+    t.eliminated(2550, "#3366CC", 1);
+    expect(particles.filter((p) => p.shape === "ring")).toHaveLength(2);
+    expect(particles.filter((p) => p.shape === "dot")).toHaveLength(11);
+    expect(particles.some((p) => p.color === "#3366CC")).toBe(true);
+  });
+
+  it("holds still as one disc of their colour, and starts nothing out of view", () => {
+    const still = tracker(false);
+    still.tracker.eliminated(2550, "#3366CC", 1);
+    expect(still.particles).toHaveLength(1);
+    expect(still.particles[0]?.color).toBe("#3366CC");
+    expect(still.particles[0]?.size1).toBe(still.particles[0]?.size0);
+    const { tracker: t, particles } = tracker();
+    t.setView({ centerX: 10, centerY: 10, halfWidth: 5, halfHeight: 5 }, 0.1);
+    t.eliminated(2590, "#3366CC", 1);
     expect(particles).toEqual([]);
   });
 });

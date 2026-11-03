@@ -50,6 +50,9 @@ const FLASH = "#FFE2A8";
 /** The burst of a missile stopped in the air: cool, apart from the warm flash of a strike. */
 const AIR = "#BFE3FF";
 const GOLD = "#F2C14E";
+/** A sunk ship: its timber and its smoke (the churned water is FOAM). */
+const TIMBER = "#B08A5E";
+const SMOKE = "#8A9099";
 /** The ember of an active front (territory-layer.ts). */
 const EMBER = "#F25C2A";
 /** Tiles of depth a collapse takes on a 2^19-tile map, scaled like the blasts (R-ATTACK-10). */
@@ -125,10 +128,17 @@ export class EffectTracker {
     this.budget = BURST_BUDGET;
     const pass = ++this.pass;
     for (const mark of marks) {
-      // A ship docking, landing or sinking has already vanished as far as the effects go.
-      if (mark.id === undefined || mark.state) continue;
-      const kind = mark.kind ?? "transport";
+      if (mark.id === undefined) continue;
       const seen = this.known.get(mark.id);
+      // A ship docking, landing or sinking has left the sea: how it went decides the effect.
+      if (mark.state) {
+        if (seen) {
+          this.known.delete(mark.id);
+          this.vanished(seen, now, mark.state);
+        }
+        continue;
+      }
+      const kind = mark.kind ?? "transport";
       if (!seen) {
         const added: Seen = {
           kind,
@@ -293,6 +303,56 @@ export class EffectTracker {
     this.emit(disc(x, y, now, 0.5, radius * 0.8, radius * 1.6, FLASH, 0.8, 14));
   }
 
+  /**
+   * A player is out of the game: two rings of their colour spread from where
+   * they lost their last tile, wider and slower than a fallen capital, and
+   * embers of their colour drift out and go dark. Held still it is one disc
+   * of their colour that only fades.
+   */
+  eliminated(tile: number, color: string, now: number): void {
+    const { width } = this.options;
+    const x = (tile % width) + 0.5;
+    const y = Math.floor(tile / width) + 0.5;
+    if (!this.visible(x, y)) return;
+    const radius = CAPITAL_DEPTH * this.blast * 1.3;
+    if (!this.moving) {
+      this.emit(disc(x, y, now, 2, radius * 2, radius * 2, color, 0.35, 16));
+      return;
+    }
+    this.emit({
+      ...ringOf(x, y, now, radius * 0.3, radius * 2.6),
+      color,
+      life: 2.2,
+      alpha: 1,
+      minPixels: 24,
+    });
+    this.emit(disc(x, y, now, 1.2, radius * 0.6, radius * 1.4, color, 0.45, 24));
+    this.emit({
+      ...ringOf(x, y, now + 0.35, radius * 0.2, radius * 1.8),
+      color: FLASH,
+      life: 1.8,
+      alpha: 0.6,
+    });
+    for (let i = 0; i < 10; i++) {
+      const angle = (i / 10) * Math.PI * 2 + this.random() * 0.6;
+      const speed = radius * (0.35 + this.random() * 0.35);
+      this.emit({
+        x,
+        y,
+        dx: Math.cos(angle) * speed,
+        dy: Math.sin(angle) * speed,
+        birth: now + this.random() * 0.3,
+        life: 1.6 + this.random() * 0.6,
+        size0: 1.3,
+        size1: 0.2,
+        minPixels: 3,
+        color: i % 3 === 0 ? FLASH : color,
+        alpha: 0.9,
+        shape: "dot",
+      });
+    }
+  }
+
   /** Where the pulse of a threatened capital is drawn, or nothing once it is safe. */
   setThreat(tile: number | undefined): void {
     this.threat = tile;
@@ -376,12 +436,14 @@ export class EffectTracker {
     }
   }
 
-  private vanished(unit: Seen, now: number): void {
+  private vanished(unit: Seen, now: number, state?: "docking" | "landing" | "sinking"): void {
     // A missile that vanishes leaves nothing of its own: how it ended arrives apart (struck, intercepted).
     if (unit.kind === "missile" || unit.kind === "heavyMissile") return;
     if (!this.visible(unit.x, unit.y) || this.budget <= 0) return;
     this.budget--;
-    if (unit.kind === "transport") {
+    if (state === "sinking") {
+      this.sinking(unit, now);
+    } else if (unit.kind === "transport") {
       this.landing(unit, now);
     } else if (unit.kind === "trade") {
       // A trade ship docks: a ring on the port, and a coin that floats up.
@@ -478,6 +540,63 @@ export class EffectTracker {
   }
 
   /** A ring and a few drops where a transport reaches the shore. */
+  /**
+   * A ship sunk at sea: a dark patch where the hull went down, a ring of foam,
+   * wreckage that drifts apart and smoke that rises and spreads; a warship also
+   * flares once. Held still it is the patch alone, which only fades.
+   */
+  private sinking(unit: Seen, now: number): void {
+    const size = unit.kind === "trade" ? 1.4 : unit.kind === "warship" ? 1.1 : 1;
+    // Sized against the hull on screen (21 to 34 CSS pixels long), so it reads at any zoom.
+    const hull = 24 * size;
+    if (!this.moving) {
+      this.emit(disc(unit.x, unit.y, now, 2.4, 3 * size, 3 * size, FOAM, 0.35, hull));
+      return;
+    }
+    this.emit(disc(unit.x, unit.y, now, 2.2, 1.6 * size, 3.2 * size, FOAM, 0.3, hull));
+    this.emit({
+      ...disc(unit.x, unit.y, now, 1.5, 2 * size, 12 * size, FOAM, 0.85, hull * 1.2),
+      shape: "ring",
+    });
+    if (unit.kind === "warship") {
+      this.emit(disc(unit.x, unit.y, now, 0.4, 1.5, 3, FLASH, 0.9, hull * 0.8));
+    }
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 + this.random();
+      const speed = 2 + this.random() * 1.5;
+      this.emit({
+        x: unit.x + 0.5,
+        y: unit.y + 0.5,
+        dx: Math.cos(angle) * speed,
+        dy: Math.sin(angle) * speed,
+        birth: now,
+        life: 1.8 + this.random() * 0.6,
+        size0: 0.9 * size,
+        size1: 0.6 * size,
+        minPixels: 4.5,
+        color: i % 2 === 0 ? TIMBER : unit.color,
+        alpha: 0.9,
+        shape: "dot",
+      });
+    }
+    for (let i = 0; i < 4; i++) {
+      this.emit({
+        x: unit.x + 0.5 + (this.random() - 0.5),
+        y: unit.y + 0.5 + (this.random() - 0.5),
+        dx: (this.random() - 0.5) * 0.6,
+        dy: -0.9 - this.random() * 0.6,
+        birth: now + i * 0.18,
+        life: 1.8 + this.random() * 0.5,
+        size0: 1.2 * size,
+        size1: 5 * size,
+        minPixels: 10 + i * 3,
+        color: SMOKE,
+        alpha: 0.65,
+        shape: "dot",
+      });
+    }
+  }
+
   private landing(unit: Seen, now: number): void {
     if (!this.moving) {
       this.emit(disc(unit.x, unit.y, now, 1, 4, 4, unit.color, 0.45, 8));

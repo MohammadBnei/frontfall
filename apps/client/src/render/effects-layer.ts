@@ -269,6 +269,11 @@ export class EffectsLayer {
     this.tracker.capitalFell(tile, now);
   }
 
+  /** A player in `color` lost their last tile around `tile`: their colour spreads in two rings and falls as embers. */
+  eliminated(tile: number, color: string, now: number): void {
+    this.tracker.eliminated(tile, color, now);
+  }
+
   /** The capital of the player at this screen is under threat (R-CAP-05), or `undefined` once safe: it pulses. */
   capitalThreat(tile: number | undefined): void {
     this.tracker.setThreat(tile);

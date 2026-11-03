@@ -146,6 +146,8 @@ export interface Renderer {
   collapsed?(tile: number): void;
   /** A capital fell or was razed on `tile` (R-CAP-03, R-CAP-04); a renderer without effects leaves it out. */
   capitalFell?(tile: number): void;
+  /** A player in `color` lost their last tile, around `tile`; a renderer without effects leaves it out. */
+  eliminated?(tile: number, color: string): void;
   /** The capital of the player at this screen is under threat (R-CAP-05), or `undefined` once safe. */
   capitalThreat?(tile: number | undefined): void;
   /** Every structure on the map, replacing the previous ones. */

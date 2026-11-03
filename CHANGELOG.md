@@ -10,6 +10,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **Ships that sink, players who fall.** A ship sunk at sea now goes down in foam, wreckage and smoke instead of vanishing (a sunk transport no longer looks like a landing), and a player knocked out of the game leaves two rings and embers of their colour where they lost their last tile.
 - **Natural mountains.** Ranges are now warm rock with snow only on the high crests, lit by a warm sun with cool shade, and their ridges branch like real ones instead of shining like foil. Hills fade into the plain with a ragged edge instead of standing out as pale ovals, and ice caps stay smooth white ice. The map draws as fast as before.
 - **Cleaner fronts.** The embers of a front now drift up from anywhere on the land just taken instead of forming a grid of dots, and its glow follows the line smoothly at every zoom, without steps.
 - **Lighter countries.** A country's colour is now a light glass over the land, gathered along its border, so the relief and the ground stay visible once the map is conquered; pale colours no longer wash the map out.

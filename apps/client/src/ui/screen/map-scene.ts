@@ -371,6 +371,8 @@ export class MapScene {
       this.shown?.ticksPerSecond ?? 10,
       this.updatedAt,
     );
+    // The last tile each player lost in this update: where an elimination is drawn.
+    const lost = new Map<number, number>();
     if (update.owners) {
       this.owners.set(update.owners);
       this.minimap?.noteAll();
@@ -382,7 +384,9 @@ export class MapScene {
       for (let i = 0; i < changedTiles.length; i++) {
         const tile = changedTiles[i] as number;
         const owner = changedOwners[i] as number;
-        this.minimap?.noteChange(tile, this.owners[tile] as number, owner, now);
+        const before = this.owners[tile] as number;
+        if (before !== owner && before !== 0) lost.set(before, tile);
+        this.minimap?.noteChange(tile, before, owner, now);
         this.owners[tile] = owner;
       }
       this.view?.markChanged(changedTiles);
@@ -397,6 +401,12 @@ export class MapScene {
       if (event.type === "capital" || event.type === "razed") {
         const tile = this.latest?.players.find((p) => p.id === event.b)?.capital;
         if (tile !== undefined) this.view?.capitalFell?.(tile);
+      }
+      if (event.type === "eliminated" && this.shown) {
+        const tile =
+          lost.get(event.b) ?? this.latest?.players.find((p) => p.id === event.b)?.capital;
+        const { firstNation, teams } = this.shown;
+        if (tile !== undefined) this.view?.eliminated?.(tile, colorOf(event.b, firstNation, teams));
       }
     }
     const mine = update.players.find((p) => p.id === update.you)?.capital;
