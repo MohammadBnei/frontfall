@@ -179,13 +179,15 @@ test("a feed line with a place centres the map on it, and stays while the pointe
   test.setTimeout(90_000);
   const pageErrors: Error[] = [];
   page.on("pageerror", (error) => pageErrors.push(error));
-  await startGame(page, 1);
-  await page.locator(".leader-button").click();
+  // Two bots at the slowest pace: a lone bot at ×5 could win the game while the pointer
+  // waits, and the end screen would then cover the feed.
+  await startGame(page, 2, "", 1);
+  await page.locator(".leader-button").first().click();
   const menu = page.locator("#player-menu");
   await menu.locator(".menu-action.messages").click();
   await menu.locator(".quick-phrase").first().click();
-  const line = page.locator(".events-feed button.feed-entry").first();
-  await expect(line).toContainText("Hello!");
+  const line = page.locator(".events-feed button.feed-entry", { hasText: "Hello!" }).first();
+  await expect(line).toBeVisible();
   await expect(line).toHaveAttribute("title", "Centre the map on it");
   await line.click();
   expect(pageErrors).toEqual([]);
