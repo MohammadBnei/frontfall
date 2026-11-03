@@ -153,7 +153,7 @@ A snapshot is the whole state of a game between two ticks, in a compact binary f
 The checks come in this order, and nothing of the state is read before the first five pass:
 
 1. at most `SNAPSHOT_MAX_BYTES` (1 MiB);
-2. the four magic bytes and format `SNAPSHOT_FORMAT`, now 2 (version 2 added each player's work share);
+2. the four magic bytes and format `SNAPSHOT_FORMAT`, now 5 (version 2 added each player's work share, version 5 packs each trade ship's route at two bits a tile);
 3. the same `build` as the reader's;
 4. the game from `create()` has not started, and its `game.setupDigest()` matches: seed, balance, map, players, teams and what the game leaves out;
 5. the checksum of the state's bytes;

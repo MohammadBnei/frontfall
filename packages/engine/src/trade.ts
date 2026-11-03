@@ -34,13 +34,14 @@ export interface TradeShip {
 const SEARCH_TILES_PER_TICK = 25_000;
 
 /**
- * B-TRADE-RANGE on this map, in water tiles: set for a map of 2^19 tiles,
- * it grows with the side of larger maps like the spawn radius, so ports as
- * far apart as players start still trade.
+ * B-TRADE-RANGE on this map, in water tiles. By default it reaches the whole
+ * sea, so that every map trades alike. A shorter range, set for a map of 2^19
+ * tiles, grows with the side of larger maps like the spawn radius, up to the
+ * 65,535 tiles a route holds.
  */
 export function tradeRange(game: Game): number {
   const { tradeRange: range, spawnRadius } = game.balance;
-  return Math.max(range, mulDiv(range, spawnSettings(game).radius, spawnRadius));
+  return Math.min(0xffff, Math.max(range, mulDiv(range, spawnSettings(game).radius, spawnRadius)));
 }
 
 /** Water tiles from which a route counts as far when a port draws its partner (R-UNIT-03). */
@@ -171,7 +172,7 @@ export function installTrade(game: Game): void {
       // Far ports and ports of allies are drawn twice as often.
       const weighted: number[] = [];
       for (const tile of partners) {
-        const length = (routes.route(port.tile, tile) as Int32Array).length;
+        const length = routes.length(port.tile, tile) as number;
         const owner = ports.get(tile)?.player ?? 0;
         weighted.push(tile);
         if (length >= FAR_ROUTE) weighted.push(tile);

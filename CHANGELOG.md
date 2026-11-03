@@ -11,6 +11,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### Changed
 
 - **The ground up close.** Zoomed right in, the plains show plots of fields with hedges and the forests show their tree crowns; zoomed out, the map is unchanged.
+- **Trade across the whole sea.** A port now trades with every port on the same sea, however far, instead of those within 500 tiles. On Europe and Lyon, where the open sea is wide, a player's ports on the ocean found no partner and earned almost nothing while the nations got rich: normal was nearly unbeatable there and fair on World. All maps now play alike. Games with ports play out differently from 0.9.8, so replays recorded before do not replay.
 - **Ships that sink, players who fall.** A ship sunk at sea now goes down in foam, wreckage and smoke instead of vanishing (a sunk transport no longer looks like a landing), and a player knocked out of the game leaves two rings and embers of their colour where they lost their last tile.
 - **Tips at the right moment.** The first time you are attacked, put under embargo, asked for an alliance, sit on idle gold or see fallout, a short "Good to know" card says what it means and what to do. Each shows once, never blocks the game, and "Stop these tips" turns them all off.
 - **A tutorial you can follow.** The tutorial now teaches eight things to do, one after the other, in about three minutes: choose a start on wide land, a doctrine, grow, set your attack share, build a city, attack a neighbour, then a port and a fort. It never blocks you, and the allies step no longer waits for a city-state that never allies. When you are done, short chapters on gold and city-states, allies and diplomacy, and missiles and winning can be played whenever you like, in the same game.
@@ -24,6 +25,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### For self-hosters and contributors
 
+- **Sea routes take far less memory.** Each route between two ports is kept once, packed at two bits a tile, instead of as two arrays of tiles: 3 to 8 MB at 20 minutes of a game with some 250 ports, where they took up to 200 MB. Snapshots move to format 5 and pack trade ships' routes the same way, so a long game saved for a reload stays under its 1 MiB. The six golden replays and the pinned hash were rebuilt for the new trade range.
 - **Automated play is limited.** A player may send a burst of 30 orders, then 6 a second, more than a hand keeps up for long. The server drops what comes faster and counts it in `frontfall_throttled_orders_total`; games and records are unchanged.
 - **The road to v1.0 is shorter.** v0.9.9 is the last version with new features, then v1.0 comes out of beta on the flat map after a week without incident. The 3D globe moves to v1.1 and community maps, replay links and spectators to v1.x. New contributions are best aimed at the [v0.9.9 milestone](https://github.com/nic0lasm/frontfall/milestone/16); `docs/roadmap.md` has the exit checks.
 

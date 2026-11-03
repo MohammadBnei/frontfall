@@ -551,6 +551,21 @@ Route searches never make a tick slower than 14 ms. The slow ticks left, as
 in the second game with 72 ports, come from large attacks and enclosures
 when every player is rich, and spend no time on routes.
 
+Since 1.0 a port trades with every port on its sea (B-TRADE-RANGE), so each
+search walks the whole sea and every pair of ports on it has a route: by 20
+minutes of a campaign game, some 250 ports and 8,000 to 34,000 routes of up
+to thousands of tiles. Kept as arrays of tiles both ways, they took 150 MB
+on World at the old range and 207 MB on Europe at the new one. A route is
+now kept once, packed at two bits a tile (the neighbour each step goes to),
+and unpacked for the ship that sails it: 3.3 MB on Europe and 7.5 MB on
+World at 20 minutes. Snapshots pack trade ships' routes the same way, so a
+Europe game at 20 minutes saves in 340 KB instead of 2.9 MB, over the
+1 MiB a snapshot may weigh. Loading a snapshot searches every port's routes
+again: 3 s on Europe and up to 15 s on World at 20 minutes on a loaded
+4-thread runner, still faster than replaying the game from its start.
+Measured with `bench/campaign` games of Nico at normal, seed 1; the engine
+gate stays within its rule (5 % over 10 rounds).
+
 ### Warships and missiles
 
 The warship rules (sailing, captures, fire) and the missile rules (flight,

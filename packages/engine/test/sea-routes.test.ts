@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createGame } from "../src/create-game.ts";
-import { SeaRoutes } from "../src/sea-routes.ts";
+import { SeaRoutes, packRoute, unpackRoute } from "../src/sea-routes.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
@@ -137,5 +137,35 @@ describe("sea routes (#44)", () => {
     for (let i = 0; i < 20; i++) routes.work();
     expect(routes.openPorts()).toEqual([b]);
     expect(routes.partnersOf(b)).toEqual([]);
+  });
+
+  it("keeps a route packed, two bits a tile, and unpacks the same tiles either way", () => {
+    // Round the end of a wall, across a wrapping edge, so the route turns and steps over the seam.
+    const { grid, routes, game } = mapOf(
+      40,
+      9,
+      (x, y) => x === 5 || x === 30 || (x === 20 && y < 7),
+      true,
+    );
+    const [a, b] = [grid.index(5, 2), grid.index(30, 2)];
+    for (const port of [a, b]) routes.open(port);
+    const there = routes.route(a, b) as Int32Array;
+    expect(there.length).toBeGreaterThan(10);
+    expect(routes.length(a, b)).toBe(there.length);
+    expect(routes.length(b, a)).toBe(there.length);
+    expect([...(routes.route(b, a) as Int32Array)]).toEqual([...there].reverse());
+    const packed = packRoute(game.terrain.topology, there);
+    expect(packed.moves.length).toBe(Math.ceil((there.length - 1) / 4));
+    expect([...unpackRoute(game.terrain.topology, packed)]).toEqual([...there]);
+    // Each caller gets an array of its own.
+    expect(routes.route(a, b)).not.toBe(there);
+  });
+
+  it("packs only paths that step from a tile to its neighbour", () => {
+    const { grid, game } = mapOf(10, 3, () => false);
+    const topology = game.terrain.topology;
+    expect(() => packRoute(topology, Int32Array.of(grid.index(0, 1), grid.index(2, 1)))).toThrow();
+    const corner = { first: grid.index(0, 0), length: 2, moves: Uint8Array.of(3) };
+    expect(() => unpackRoute(topology, corner)).toThrow();
   });
 });

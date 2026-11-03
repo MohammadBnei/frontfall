@@ -1,5 +1,6 @@
 import type { Game } from "./game.ts";
 import { TileKind } from "./terrain.ts";
+import type { Topology } from "./topology.ts";
 
 /**
  * Routes by sea between ports (#44). When a port opens, one search from it
@@ -12,15 +13,19 @@ import { TileKind } from "./terrain.ts";
  * wait in line and `work` searches at most that many water tiles per call,
  * so a search spreads over several ticks instead of stalling one; a port
  * has its routes once its search is over. A route lists the water tiles from the side of its first
- * port to the side of its second, neither coast included; ships share the
- * arrays and never write to them.
+ * port to the side of its second, neither coast included.
+ *
+ * Every port of a sea has a route to every other, so a map with hundreds of
+ * ports holds tens of thousands of routes. Each is kept once, packed: its
+ * first tile, then each next one as the neighbour it is, two bits a step.
+ * `route` unpacks it, the way asked, into an array of its own.
  */
 export class SeaRoutes {
   private readonly game: Game;
   private readonly range: number;
   private readonly size: number;
-  /** Routes by `from * size + to`, both ways. */
-  private readonly routes = new Map<number, Int32Array>();
+  /** Routes by `from * size + to`, one way only: the other way is the same tiles backwards. */
+  private readonly routes = new Map<number, PackedRoute>();
   /** Open ports, and the ports each one has routes to, in the order they opened. */
   private readonly partners = new Map<number, number[]>();
   private readonly search: SeaSearch;
@@ -40,7 +45,17 @@ export class SeaRoutes {
 
   /** The route from port `from` to port `to`, or undefined when they are out of reach of each other. */
   route(from: number, to: number): Int32Array | undefined {
-    return this.routes.get(from * this.size + to);
+    const { topology } = this.game.terrain;
+    const there = this.routes.get(from * this.size + to);
+    if (there) return unpackRoute(topology, there);
+    const back = this.routes.get(to * this.size + from);
+    return back && unpackRoute(topology, back).reverse();
+  }
+
+  /** Water tiles of the route from port `from` to port `to`, or undefined when there is none; unpacks nothing. */
+  length(from: number, to: number): number | undefined {
+    return (this.routes.get(from * this.size + to) ?? this.routes.get(to * this.size + from))
+      ?.length;
   }
 
   /** Ports with a route from this one, in the order they opened. */
@@ -128,8 +143,7 @@ export class SeaRoutes {
     for (const other of others) {
       const path = this.search.pathTo(other);
       if (!path) continue;
-      this.routes.set(other * this.size + port, path);
-      this.routes.set(port * this.size + other, path.slice().reverse());
+      this.routes.set(other * this.size + port, packRoute(topology, path));
       mine.push(other);
       this.partners.get(other)?.push(port);
     }
@@ -153,6 +167,46 @@ export class SeaRoutes {
       if (theirs) theirs.splice(theirs.indexOf(port), 1);
     }
   }
+}
+
+/** A route of `length` water tiles: the first one, then each next one as its index among the neighbours of the one before. */
+export interface PackedRoute {
+  readonly first: number;
+  readonly length: number;
+  /** Two bits a step, four steps a byte, the first step in the low bits. */
+  readonly moves: Uint8Array;
+}
+
+const neighbours = new Int32Array(4);
+
+/** Packs a path of water tiles each next to the one before, as sea routes are; throws on any other. */
+export function packRoute(topology: Topology, path: Int32Array): PackedRoute {
+  const moves = new Uint8Array(Math.ceil(Math.max(0, path.length - 1) / 4));
+  for (let i = 1; i < path.length; i++) {
+    const count = topology.neighborsInto(path[i - 1] as number, neighbours);
+    let move = 0;
+    while (move < count && neighbours[move] !== path[i]) move++;
+    // A route steps from a tile to one of its neighbours, of which a tile has four at most.
+    if (move === count || move > 3) throw new Error("a sea route skips a tile");
+    moves[(i - 1) >> 2] = ((moves[(i - 1) >> 2] as number) | (move << (((i - 1) & 3) * 2))) & 0xff;
+  }
+  return { first: path[0] ?? -1, length: path.length, moves };
+}
+
+/** The tiles of a packed route; throws on a step to a neighbour the tile does not have, which only damage gives. */
+export function unpackRoute(topology: Topology, route: PackedRoute): Int32Array {
+  const path = new Int32Array(route.length);
+  let tile = route.first;
+  for (let i = 0; i < route.length; i++) {
+    if (i > 0) {
+      const count = topology.neighborsInto(tile, neighbours);
+      const move = ((route.moves[(i - 1) >> 2] as number) >> (((i - 1) & 3) * 2)) & 3;
+      if (move >= count) throw new Error("a sea route steps off the map");
+      tile = neighbours[move] as number;
+    }
+    path[i] = tile;
+  }
+  return path;
 }
 
 /**

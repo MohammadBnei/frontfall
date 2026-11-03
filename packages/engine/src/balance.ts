@@ -105,7 +105,7 @@ export interface Balance {
   fortStrengthPercent: number;
   /** B-FORT-LOSSES, percent of the usual troops a defender loses with a tile a fort covers */
   fortLossPercent: number;
-  /** B-TRADE-RANGE, longest trade route between two ports, in water tiles */
+  /** B-TRADE-RANGE, longest trade route between two ports, in water tiles; 65,535, the most a route holds, reaches the whole sea */
   tradeRange: number;
   /** B-TRADE-INTERVAL, ticks between two departures from one port */
   tradeIntervalTicks: number;
@@ -276,7 +276,7 @@ export const DEFAULT_BALANCE: Balance = {
   fortRadius: 25,
   fortStrengthPercent: 200,
   fortLossPercent: 50,
-  tradeRange: 500,
+  tradeRange: 65_535,
   tradeIntervalTicks: 10,
   tradeMax: 100,
   tradeOdds: 100,

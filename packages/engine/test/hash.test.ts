@@ -76,7 +76,10 @@ describe("Game.hash", () => {
     for (const key of Object.keys(DEFAULT_BALANCE) as (keyof Balance)[]) {
       const value = DEFAULT_BALANCE[key];
       const changed =
-        typeof value === "number" ? value + 1 : value.map((v, i) => (i === 0 ? v + 1 : v));
+        // A value already at the most a route holds (B-TRADE-RANGE) goes down instead.
+        typeof value === "number"
+          ? value + (value < 0xffff ? 1 : -1)
+          : value.map((v, i) => (i === 0 ? v + 1 : v));
       expect(hashWith({ ...DEFAULT_BALANCE, [key]: changed }), key).not.toBe(reference);
     }
   });
@@ -108,6 +111,6 @@ describe("Game.hash", () => {
     // Update this value only for a deliberate change to the rules, and say so in the changelog.
     const game = scriptedGame(600);
     expect(game.players().map((p) => game.territory.tileCount(p.id))).toEqual([374, 526, 448, 452]);
-    expect(game.hash()).toBe(4226087970);
+    expect(game.hash()).toBe(3090808922);
   });
 });

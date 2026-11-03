@@ -1,11 +1,12 @@
 import { DOCTRINE_COUNT } from "./doctrines.ts";
 import type { Game } from "./game.ts";
 import type { MissileSize } from "./missiles.ts";
+import { packRoute, unpackRoute } from "./sea-routes.ts";
 import { SnapshotError, SnapshotReader, SnapshotWriter, checksum } from "./snapshot-bytes.ts";
 import type { StructureKind } from "./structures.ts";
 
 /** Version of the snapshot format of docs/engine.md; a reader refuses any other. */
-export const SNAPSHOT_FORMAT = 4;
+export const SNAPSHOT_FORMAT = 5;
 
 /**
  * Most bytes a snapshot may take. The state grows with the map and how
@@ -155,7 +156,13 @@ function writeState(game: Game, out: SnapshotWriter): void {
   out.uint(game.tradeShips.length);
   for (const t of game.tradeShips) {
     for (const value of [t.id, t.player, t.port, t.from, t.to, t.step]) out.uint(value);
-    out.path(t.path);
+    // A trade ship's route can cross the whole sea, thousands of tiles: packed, two bits a tile.
+    const route = packRoute(game.terrain.topology, t.path);
+    out.uint(route.length);
+    if (route.length > 0) {
+      out.uint(route.first);
+      out.blob(route.moves);
+    }
   }
   out.uint(game.nextWarshipId);
   out.uint(game.warships.length);
@@ -222,6 +229,20 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
     return value === -1 ? undefined : value;
   };
 
+  const tradeRoute = (): Int32Array => {
+    const length = from.below(size + 1, "path length");
+    if (length === 0) return new Int32Array(0);
+    const first = tile();
+    const moves = from.blob();
+    if (moves.length !== Math.ceil((length - 1) / 4))
+      throw new SnapshotError("trade route of another length");
+    try {
+      return unpackRoute(game.terrain.topology, { first, length, moves });
+    } catch {
+      throw new SnapshotError("trade route off the map");
+    }
+  };
+
   game.restoreTick(tick);
   const word = (): number => {
     const value = from.int();
@@ -286,7 +307,7 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
       from: start,
       to: end,
       step,
-      path: from.path(size),
+      path: tradeRoute(),
     });
   }
   game.nextWarshipId = id();

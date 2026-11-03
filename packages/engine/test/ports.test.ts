@@ -5,7 +5,7 @@ import type { Order, Player } from "../src/game.ts";
 import { orderError } from "../src/orders.ts";
 import { StructureKind, structureCost } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
-import { tradeGold, tradeRange } from "../src/trade.ts";
+import { tradeGold, tradeRange as tradeRangeOf } from "../src/trade.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
 const balance: Balance = {
@@ -213,17 +213,20 @@ describe("trade", () => {
     b.step();
     expect(a.game.hash()).not.toBe(b.game.hash());
   });
-  it("reaches farther on larger maps, like the spawn radius (B-TRADE-RANGE)", () => {
-    const range = (width: number, height: number) =>
-      tradeRange(
+  it("reaches the whole sea, and a shorter range grows on larger maps like the spawn radius (B-TRADE-RANGE)", () => {
+    const range = (width: number, height: number, tradeRange = DEFAULT_BALANCE.tradeRange) =>
+      tradeRangeOf(
         createGame({
           terrain: new Terrain(new WorldGrid(width, height), new Uint8Array(width * height)),
           seed: 1,
           players: [],
+          balance: { ...DEFAULT_BALANCE, tradeRange },
         }),
       );
-    expect(range(256, 128)).toBe(DEFAULT_BALANCE.tradeRange);
-    expect(range(1024, 512)).toBe(DEFAULT_BALANCE.tradeRange);
-    expect(range(2048, 1024)).toBe(2 * DEFAULT_BALANCE.tradeRange);
+    expect(range(256, 128)).toBe(0xffff);
+    expect(range(2048, 1024)).toBe(0xffff);
+    expect(range(256, 128, 500)).toBe(500);
+    expect(range(1024, 512, 500)).toBe(500);
+    expect(range(2048, 1024, 500)).toBe(1000);
   });
 });
