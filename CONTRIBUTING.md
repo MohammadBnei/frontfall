@@ -4,6 +4,8 @@ Thanks for taking the time to help. This page explains how to propose a change a
 
 ## Your first contribution
 
+Until v1.0, v0.9.9 is the last version with new features: new proposals wait for v1.1 and v1.x, and what is merged now is fixes and polish. Issues in the [v0.9.9 milestone](https://github.com/nic0lasm/frontfall/milestone/16) are the ones that matter most.
+
 1. Pick an issue labelled [`good first issue`](https://github.com/nic0lasm/frontfall/labels/good%20first%20issue) or [`help wanted`](https://github.com/nic0lasm/frontfall/labels/help%20wanted).
 2. Comment on it to claim it, so nobody else starts the same work.
 3. If you get stuck, ask in [Discussions](https://github.com/nic0lasm/frontfall/discussions). No question is too small.
@@ -64,7 +66,7 @@ A replay that fails after a change not meant to alter games, a refactor or a spe
 
 ## Pull requests
 
-1. Branch from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`.
+1. Branch from `next`, where finished work lands before a release (`main` is what is deployed): `feat/…`, `fix/…`, `docs/…`, `chore/…`.
 2. Keep the change focused; split unrelated work into separate pull requests.
 3. Title in [Conventional Commits](https://www.conventionalcommits.org/) form, for example `feat(engine): add troop growth`. CI checks it.
 4. Make sure `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test:coverage` and `pnpm build` pass. CI runs the same commands, plus the end-to-end tests (`pnpm build && pnpm test:e2e`, after a one-time `pnpm --filter @frontfall/e2e exec playwright install chromium firefox`; Firefox runs headed, so without a display `--project root --project prefix` runs Chromium alone; CI splits the suite over six runners with `--shard=1/6` to `--shard=6/6`, which work locally too) and the clean-room scan. A pre-commit hook formats and lints the files you stage.

@@ -1,12 +1,12 @@
 # Roadmap
 
-Frontfall is built in two phases. Phase 1 (v0.1 to v0.9) delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), and makes it steady and good to look at: deployments that do not cut games, balance tuned on real games, phones, a full visual redesign, rules of its own, performance under load, sound and a polished first visit. Phase 2 (v0.9.x to v1.0) puts the same game on a 3D globe, right after v0.9.0, then opens it to community maps. The rules do not change between the two: the globe is a new view, not a new game.
+Frontfall is built in two phases. Phase 1 (v0.1 to v1.0) delivers the game on a flat map that wraps east to west, playable online at [nclsmgr.com/frontfall](https://nclsmgr.com/frontfall/), and makes it steady and good to look at: deployments that do not cut games, balance tuned on real games, phones, a full visual redesign, rules of its own, performance under load, sound and a polished first visit. Phase 2 (v1.1 and after) puts the same game on a 3D globe, then opens it to community maps. The rules do not change between the two: the globe is a new view, not a new game.
 
-The game is in beta until v1.0, and its page says so. v1.0 is the first version that is a complete territory strategy game, played on the 3D globe, on a server that is run like a product.
+The game is in beta until v1.0, and its page says so. v1.0 is the first version that is a complete, polished territory strategy game on the flat map, on a server that is run like a product. v0.9.9 is the last version with new features: after it, only fixes go in until v1.0.
 
 The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
-**Where it stands.** v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps and three generated quick maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. People I do not know now play it every day, so the next versions put running the game first: v0.5 makes deployments harmless and measures how games actually go, before any balance number changes. The globe moves from v0.6 to v0.9.x, the first releases after v0.9.0, after a redesign of the look (v0.7) and rules that are Frontfall's own (v0.8), so that the globe shows the final game. [Changes after v0.4](#changes-after-v04) and [Changes after v0.4.1](#changes-after-v041) say what moved and why.
+**Where it stands.** v0.9.8 is live and v0.9.9, the last version with new features, is next; the paragraph below is the story of the early versions. v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps and three generated quick maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. People I do not know now play it every day, so the next versions put running the game first: v0.5 makes deployments harmless and measures how games actually go, before any balance number changes. The globe moves from v0.6 to v0.9.x, the first releases after v0.9.0, after a redesign of the look (v0.7) and rules that are Frontfall's own (v0.8), so that the globe shows the final game. [Changes after v0.4](#changes-after-v04) and [Changes after v0.4.1](#changes-after-v041) say what moved and why.
 
 ## Overview
 
@@ -22,10 +22,11 @@ The game ships as a series of playable versions instead of one release at the en
 | [v0.6.x · First minutes](#v06x--first-minutes)                         | Find the game's page, learn the basics as you play, face bots whose level is right and keep your data safe.                              | Next    |      – |        – |
 | [v0.7 · Look and feel](#v07--look-and-feel)                            | Play a game that is beautiful and readable: every building is recognised at a glance, with sound effects.                                | Planned |      9 |  25 days |
 | [v0.8 · Own rules](#v08--own-rules)                                    | Choose special rules from a menu of their own: collapsing fronts and a capital-taking mode.                                              | Planned |      6 |  18 days |
-| [v0.9 · Load, smoothness and polish](#v09--load-smoothness-and-polish) | Play smoothly on a modest laptop and a phone, with a quick response to every click, sound and music, and a server that holds under load. | Next    |     14 |        – |
-| [v0.9.x · 3D globe](#v09x--3d-globe)                                   | The same game on a planet you can spin, and switch between the flat map and the globe mid-game.                                          | Planned |      9 |  27 days |
-| [v0.10 · Community maps](#v010--community-maps)                        | Play maps and translations made by other players, share a replay by link and watch games as a spectator.                                 | Planned |      8 |  16 days |
-| [v1.0 · Globe release, out of beta](#v10--globe-release-out-of-beta)   | The complete game on the 3D globe, online, balanced and run without interruptions. The beta label comes off.                             | Planned |      6 |   6 days |
+| [v0.9 · Load, smoothness and polish](#v09--load-smoothness-and-polish) | Play smoothly on a modest laptop and a phone, with a quick response to every click, sound and music, and a server that holds under load. | Shipped |     14 |        – |
+| [v0.9.9 · Release candidate](#v099--release-candidate)                 | The last new features, with graphics, performance, balance and operations brought to the level of v1.0.                                  | Next    |     15 |        – |
+| [v1.0 · Out of beta](#v10--out-of-beta)                                | The complete, polished game on the flat map, online, balanced and run without interruptions. The beta label comes off.                   | Planned |      5 |   5 days |
+| [v1.1 · 3D globe](#v11--3d-globe)                                      | The same game on a planet you can spin, and switch between the flat map and the globe mid-game.                                          | Planned |      9 |  27 days |
+| [v1.x · Community maps](#v1x--community-maps)                          | Play maps and translations made by other players, share a replay by link and watch games as a spectator.                                 | Planned |      8 |  16 days |
 
 M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
 
@@ -41,14 +42,15 @@ flowchart LR
     V07["v0.7 · Look and feel"]
     V08["v0.8 · Own rules"]
     V09["v0.9 · Load, smoothness and polish"]
+    V099["v0.9.9 · Release candidate"]
+    V10["v1.0 · Out of beta"]
   end
   subgraph P2["Phase 2: globe and community"]
-    V09x["v0.9.x · 3D globe"]
-    V010["v0.10 · Community maps"]
-    V10["v1.0 · Globe release, out of beta"]
+    V11["v1.1 · 3D globe"]
+    V1x["v1.x · Community maps"]
   end
-  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V09 --> V09x --> V010 --> V10
-  V01 -. "rendering contracts" .-> V09x
+  V01 --> V02 --> V03 --> V04 --> V05 --> V06 --> V07 --> V08 --> V09 --> V099 --> V10 --> V11 --> V1x
+  V01 -. "rendering contracts" .-> V11
 ```
 
 A solid arrow means the later version cannot ship before the earlier one. Work on a later version can start early when it does not compete with the current one: the relay server and the lobby protocol of v0.2 were built alongside v0.1, and the globe renderer and picking (#53, #56) were tried during v0.3 as a time-boxed spike ([ADR 0005](adr/0005-globe-spike.md)), to test the Renderer contract against a second implementation before more of the 2D view was built on it.
@@ -411,9 +413,66 @@ Frontfall plays much like the games it was inspired by. This version gives it ru
 
 14 items; the estimate is set when the scope is closed. The backup (V9-03) moved to v0.6.x because the data volume now holds accounts. The view switch (#66) moves to v0.9.x with the globe it switches to. Sound and music came back in from after v1.0, at the request of the players who tested v0.8.0.
 
-## v0.9.x · 3D globe
+## v0.9.9 · Release candidate
 
-**Outcome.** Released as `v0.9.x`, right after `v0.9.0`. The same game on a planet you can spin, with no edge and no seam, and a switch between the flat map and the globe in the middle of a game.
+**Outcome.** The last version with new features. The graphics, the performance and the balance reach the level v1.0 ships at, on a server that is tested under load. After v0.9.9, only fixes go in until v1.0.
+
+**Playable when**
+
+1. The graphics are approved by me: pictograms legible at every zoom (tested with outside players), no visual defect left from the redesign.
+2. Budgets from `docs/performance.md` met, Safari included: 60 fps on World at 1080p with 64 players on the reference laptop, 30 fps on three real phones, tick p95 under 8 ms, client memory under 500 MB, and the first visit within its download budget.
+3. Balance: each difficulty keeps its victory target at the bench, and a pass on real games finds no dominant strategy.
+4. A load test at five times the busiest hour holds, a review of the server inputs, the content security policy and the dependencies finds nothing open, and the way back to the origin if Cloudflare is down is documented and tried once.
+5. Automated play is detected and limited.
+6. Players outside the project have played it and what they found is filed.
+
+| Issue                                                                                                                      | Size |
+| -------------------------------------------------------------------------------------------------------------------------- | ---- |
+| [#62](https://github.com/nic0lasm/frontfall/issues/62) Engine hot paths                                                    | L    |
+| [#63](https://github.com/nic0lasm/frontfall/issues/63) Cheaper updates from the worker to the renderer                     | M    |
+| [#64](https://github.com/nic0lasm/frontfall/issues/64) Rendering levels of detail                                          | M    |
+| [#67](https://github.com/nic0lasm/frontfall/issues/67) Download size and load time                                         | S    |
+| [#101](https://github.com/nic0lasm/frontfall/issues/101) Frame rate measured on three real phones                          | S    |
+| [#110](https://github.com/nic0lasm/frontfall/issues/110) Icon legibility at every zoom, tested with five outside players   | S    |
+| [#49](https://github.com/nic0lasm/frontfall/issues/49) Balance pass on real games                                          | M    |
+| [#123](https://github.com/nic0lasm/frontfall/issues/123) Load test and a capacity note                                     | M    |
+| [#124](https://github.com/nic0lasm/frontfall/issues/124) Security review                                                   | M    |
+| [#126](https://github.com/nic0lasm/frontfall/issues/126) Plan B if Cloudflare is down                                      | S    |
+| [#127](https://github.com/nic0lasm/frontfall/issues/127) Detect automated play and limit it                                | S    |
+| [#142](https://github.com/nic0lasm/frontfall/issues/142) Fix the unstable long-press diplomacy test                        | S    |
+| [#33](https://github.com/nic0lasm/frontfall/issues/33) Playtest with outside players                                       | S    |
+| [#161](https://github.com/nic0lasm/frontfall/issues/161) Your ships listed, and a warning when an enemy ship heads for you | M    |
+| [#162](https://github.com/nic0lasm/frontfall/issues/162) A full-screen button where the browser allows it                  | S    |
+
+## v1.0 · Out of beta
+
+**Outcome.** The complete, polished game on the flat map, online, balanced and run without interruptions. The beta label comes off. The globe follows in v1.1.
+
+**Playable when**
+
+1. Every check of v0.1 to v0.9.9 still passes.
+2. A full online game with 8 or more players, with structures, ships and missiles, is played to the end at `nclsmgr.com/frontfall` with zero desyncs.
+3. Over the 7 days before the tag: uptime above 99.5 %, no game ended by a deployment, and fewer than 1 game in 100 with a client error report.
+4. Every release since v0.5 has player release notes, and every bug filed from the game in those 7 days has an answer.
+5. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`, without the beta label.
+6. The README shows screenshots and a short clip of a real game.
+7. The redesign is approved by me, and balance holds on the real games played so far, with the measures of v0.5 and v0.8.
+8. A legal notice (publisher and host) and terms of use are published in English and French, and the privacy page matches what the game counts.
+9. A written decision says that nothing is sold before v1.0 and what comes after.
+
+| Issue                                                                                                               | Size |
+| ------------------------------------------------------------------------------------------------------------------- | ---- |
+| [#136](https://github.com/nic0lasm/frontfall/issues/136) Beta exit review: look, balance over real games, open bugs | S    |
+| [#133](https://github.com/nic0lasm/frontfall/issues/133) Legal notice and terms of use, English and French          | S    |
+| [#134](https://github.com/nic0lasm/frontfall/issues/134) Decision record: money, accounts and cosmetics after v1.0  | S    |
+| [#52](https://github.com/nic0lasm/frontfall/issues/52) Release v1.0                                                 | S    |
+| [#74](https://github.com/nic0lasm/frontfall/issues/74) Launch announcement                                          | S    |
+
+The trademark filing for the name and logo ([#135](https://github.com/nic0lasm/frontfall/issues/135)) is done by the owner and does not block v1.0.
+
+## v1.1 · 3D globe
+
+**Outcome.** Released as `v1.1`, right after v1.0. The same game on a planet you can spin, with no edge and no seam, and a switch between the flat map and the globe in the middle of a game.
 
 **Playable when**
 
@@ -437,7 +496,7 @@ Frontfall plays much like the games it was inspired by. This version gives it ru
 
 9 items, about 27 days. The spike of v0.3 already draws World on a sphere behind `?view=globe` and switches with G; what is left is listed in [ADR 0005](adr/0005-globe-spike.md).
 
-## v0.10 · Community maps
+## v1.x · Community maps
 
 **Outcome.** Play maps and translations made by other players, and follow each release from the game.
 
@@ -461,32 +520,17 @@ Frontfall plays much like the games it was inspired by. This version gives it ru
 
 8 items, about 16 days. The landing page, "how to play" and rematch moved to v0.6.x, since people who do not find the game cannot make maps for it. The [ideas](#new-ideas) open to contributors land here. Ranked games are not in it: they need accounts, which stay out of the plan ([Not planned yet](#not-planned-yet)).
 
-## v1.0 · Globe release, out of beta
+## Changes after v0.9.8
 
-**Outcome.** The complete game on the 3D globe, online, balanced and run without interruptions. The beta label comes off.
+With v0.9.8 live, the road to v1.0 was cut down to one more version. What moved, and why:
 
-**Playable when**
-
-1. Every check of v0.1 to v0.10, including v0.9.x, still passes.
-2. A full online game with 8 or more players, with structures, ships and missiles, is played to the end on the globe at `nclsmgr.com/frontfall` with zero desyncs.
-3. Over the 30 days before the tag: uptime above 99.5 %, no game ended by a deployment, and fewer than 1 game in 100 with a client error report.
-4. Every release since v0.5 has player release notes, and every bug filed from the game in those 30 days has an answer.
-5. Tag `v1.0.0` with release notes, the matching image on GHCR and the build live on `nclsmgr.com/frontfall`, without the beta label.
-6. The README shows screenshots and a short clip of a real game on the globe.
-7. The redesign is approved by me, and balance holds over at least 100 real games, with the measures of v0.5 and v0.8.
-8. A legal notice (publisher and host) and terms of use are published in English and French, and the privacy page matches what the game counts.
-9. A written decision says that nothing is sold before v1.0 and what comes after.
-
-| ID    | Issue                                                                      | Size | Depends on |
-| ----- | -------------------------------------------------------------------------- | ---- | ---------- |
-| M5-10 | [#52](https://github.com/nic0lasm/frontfall/issues/52) Release v1.0        | S    | All above  |
-| M8-07 | [#74](https://github.com/nic0lasm/frontfall/issues/74) Launch announcement | S    | #52, #73   |
-| V1-01 | Legal notice and terms of use, English and French                          | S    | None       |
-| V1-02 | Decision record: money, accounts and cosmetics after v1.0, nothing before  | S    | None       |
-| V1-03 | Trademark filing for the name and logo (done by the owner)                 | S    | None       |
-| V1-04 | Beta exit review: look, balance over real games, open bugs                 | S    | All above  |
-
-6 items, about 6 days, once v0.10 is done.
+| Change                                                                                                 | Why                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v0.9.9 becomes the last version with new features, then v1.0                                           | The game is playable and the remaining work is polish: graphics, performance, balance and operations.                                                 |
+| The globe moves from v0.9.x to v1.1, and community maps from v0.10 to v1.x                             | The globe is still a prototype behind `?view=globe`; shipping it well takes weeks that v1.0 should not wait for. v1.0 is the flat map, done properly. |
+| The stability window before the tag is 7 days instead of 30                                            | v0.9.9 will already have run on the public server, and fixes land as release candidates.                                                              |
+| Legal notice, terms of use and the decision on money stay in v1.0; the trademark filing moves after it | They are about what the game says it is; the filing depends on a third party.                                                                         |
+| Balance pass (#49) and icon legibility (#110) move into v0.9.9                                         | They decide the look and feel v1.0 ships with.                                                                                                        |
 
 ## Changes after v0.8.0
 
@@ -571,26 +615,26 @@ Once v0.1 and v0.2 were live and I had played them, I moved a few things. The or
 
 ## New ideas
 
-Ideas collected on 28 October 2026, not yet planned unless a version is named. **Open** marks a task that is isolated, well bounded and touches none of the files that several people edit at once, so that a contributor can take it; it is filed as a `good first issue` or `help wanted` issue.
+Ideas collected on 28 October 2026, not yet planned unless a version is named. Versions v0.10 and v0.9.x in older notes now read v1.x and v1.1. **Open** marks a task that is isolated, well bounded and touches none of the files that several people edit at once, so that a contributor can take it; it is filed as a `good first issue` or `help wanted` issue.
 
 | Idea                                                             | Area           | What it gives players                     | Size | Version    | Open |
 | ---------------------------------------------------------------- | -------------- | ----------------------------------------- | ---- | ---------- | ---- |
-| Daily challenge: map and start drawn from the date, result local | Game           | A reason to come back                     | M    | v0.10      |      |
+| Daily challenge: map and start drawn from the date, result local | Game           | A reason to come back                     | M    | v1.x       |      |
 | Short scenarios ("hold on for ten minutes in Europe")            | Game           | Learn by playing, five-minute games       | M    | After v1.0 |      |
 | Sandbox: no bots, no end, to try every building                  | Game           | Discover without pressure                 | S    | v0.8       |      |
-| Replay exported as a GIF or short video                          | Social         | Sharing, hence visibility                 | M    | v0.10      | Yes  |
-| Discord webhook announcing public games and winners              | Social         | Fills public games                        | S    | v0.10      | Yes  |
-| Invitation link with a QR code                                   | Social         | Invite a friend from a phone              | S    | v0.10      |      |
-| Public statistics page on `/api/stats`                           | Tools          | Transparency                              | S    | v0.10      | Yes  |
-| Map editor in the browser                                        | Tools          | Community maps without a command line     | L    | v0.10      | Yes  |
-| Image-to-map command                                             | Tools          | Make a map from a picture                 | M    | v0.10      | Yes  |
+| Replay exported as a GIF or short video                          | Social         | Sharing, hence visibility                 | M    | v1.x       | Yes  |
+| Discord webhook announcing public games and winners              | Social         | Fills public games                        | S    | v1.x       | Yes  |
+| Invitation link with a QR code                                   | Social         | Invite a friend from a phone              | S    | v1.x       |      |
+| Public statistics page on `/api/stats`                           | Tools          | Transparency                              | S    | v1.x       | Yes  |
+| Map editor in the browser                                        | Tools          | Community maps without a command line     | L    | v1.x       | Yes  |
+| Image-to-map command                                             | Tools          | Make a map from a picture                 | M    | v1.x       | Yes  |
 | Bot arena: a way to write a bot, headless tournaments            | Tools          | Bot authors, free balance testing         | L    | After v1.0 | Yes  |
-| Translations (Spanish, German, Portuguese…)                      | Content        | Players outside English and French        | S    | v0.10      | Yes  |
+| Translations (Spanish, German, Portuguese…)                      | Content        | Players outside English and French        | S    | v1.x       | Yes  |
 | Original music and sounds, under a licence compatible with MIT   | Content        | Atmosphere                                | M    | v0.9       | Yes  |
-| Spoken event announcements for screen readers                    | Accessibility  | A game a blind player can follow          | M    | v0.10      |      |
+| Spoken event announcements for screen readers                    | Accessibility  | A game a blind player can follow          | M    | v1.x       |      |
 | Install on the home screen, full-screen on a phone               | Infrastructure | One tap from the phone                    | S    | v0.9       |      |
 | Container image for arm64 too                                    | Infrastructure | Run it on a Raspberry Pi or an ARM server | S    | v0.9       | Yes  |
-| One-click deployment guides (Fly.io, Railway, a small VPS)       | Infrastructure | More people can run a game for friends    | S    | v0.10      | Yes  |
+| One-click deployment guides (Fly.io, Railway, a small VPS)       | Infrastructure | More people can run a game for friends    | S    | v1.x       | Yes  |
 | `/metrics` for Prometheus with a Grafana dashboard               | Infrastructure | Serious operation for hosts               | S    | v0.9       | Yes  |
 | Fix the unstable long-press diplomacy end-to-end test            | Quality        | A CI that can be trusted                  | S    | Now        | Yes  |
 
