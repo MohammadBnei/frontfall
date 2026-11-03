@@ -21,6 +21,9 @@ import { workText } from "./work-text.ts";
 // Also found here, where it was first defined.
 export { offers };
 
+/** How long the work slider waits for another change before it sends its order. */
+const WORK_SEND_DELAY_MS = 150;
+
 /** B-ATTACK-RATIO-MIN and the interface default of R-ATTACK-02, in percent. */
 export const MIN_RATIO = 5;
 export const DEFAULT_RATIO = 30;
@@ -121,6 +124,7 @@ export class Hud {
   private readonly workValue = h("output", { for: "work-share", class: "range-value" });
   /** A share sent to the game and not yet in its updates: the slider keeps it meanwhile. */
   private workPending: number | undefined;
+  private workTimer: number | undefined;
   /** What the attack preview is about: the owner of the land under the pointer, if any. */
   private hovered: number | undefined;
   private hoverTimer: ReturnType<typeof setTimeout> | undefined;
@@ -232,10 +236,14 @@ export class Hud {
     this.workInput.addEventListener("input", () => {
       this.showWork(Number(this.workInput.value));
     });
-    // Sent once the slider is let go, or at each key press: one order per choice.
+    // Sent once the slider is let go, or when the key presses stop: a key held down repeats
+    // faster than the server takes orders, so only the last choice of a burst is sent.
     this.workInput.addEventListener("change", () => {
       this.workPending = Number(this.workInput.value);
-      actions.onWork(this.workPending);
+      window.clearTimeout(this.workTimer);
+      this.workTimer = window.setTimeout(() => {
+        if (this.workPending !== undefined) actions.onWork(this.workPending);
+      }, WORK_SEND_DELAY_MS);
     });
     this.showWork(0);
 
