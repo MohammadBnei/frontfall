@@ -33,6 +33,34 @@ docker stats --no-stream frontfall-frontfall-1
 docker exec frontfall-frontfall-1 wget -qO- http://127.0.0.1:8080/metrics
 ```
 
+## If Cloudflare is down
+
+Players reach the game through Cloudflare. When Cloudflare has an incident, the game can be up behind it and still unreachable: the container keeps running and the games in progress go on without their players, who come back to their seat within five minutes of dropping out (`reconnectGraceMs`, see [server.md](server.md)).
+
+**1. Tell the origin from Cloudflare.** Open [cloudflarestatus.com](https://www.cloudflarestatus.com/), then ask the origin itself. Port 80 and 443 of the host are closed to everyone but Cloudflare's ranges (`restreindre-origine.sh` in the host repository), so let your own address in for the length of the test. On the host, with `MY_IP` the public address of the machine you test from:
+
+```sh
+sudo iptables -I NCLSMGR-ORIGINE 1 -s MY_IP/32 -j RETURN
+```
+
+From that machine, with `ORIGIN_IP` the address of the host:
+
+```sh
+curl -sSik --resolve nclsmgr.com:443:ORIGIN_IP https://nclsmgr.com/frontfall/healthz
+```
+
+`-k` is needed: the host presents a Cloudflare origin certificate, which no browser or curl trusts by itself. `200 ok` with `X-Frontfall-Version` means the game plays and only the way in is cut. Do the same on `/frontfall/api/status` for the count of games and players. Then close the door again, on the host:
+
+```sh
+sudo systemctl restart nclsmgr-pare-feu-origine
+```
+
+The restart rebuilds the filter from Cloudflare's ranges, so the rule for your address is gone; a reboot does the same.
+
+**2. What is, and is not, possible.** Direct access is a way to check the host, not a way to let players in: the origin certificate is signed for Cloudflare only, so a browser refuses the connection, and the site sends `Strict-Transport-Security` with `preload`, so there is no click-through. Letting players in without Cloudflare would take a public certificate on the host and DNS records that bypass the proxy, which is not prepared. During a Cloudflare incident the plan is therefore to check the host as above, say wherever the game is announced that the game is up and Cloudflare is the cause, and wait.
+
+**3. Tried once.** The test of step 1 was run on the date and with the result noted here: not yet.
+
 ## Read the logs
 
 The container logs to journald, one JSON object per line:
