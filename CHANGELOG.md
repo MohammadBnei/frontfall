@@ -11,6 +11,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 - **Lighter countries.** A country's colour is now a light glass over the land, gathered along its border, so the relief and the ground stay visible once the map is conquered; pale colours no longer wash the map out.
 - **A calmer map late in a game.** Zoomed out, a player's cities, forts and ports that stand close together are drawn as one piece with a count from further apart, so the map is no longer covered with pieces.
 - **A fresh look when the game is shared.** The link preview and the picture on the About page now show the game as it looks today, on the Europe map.
+- **The world behind the menu.** The main menu now sits over a dimmed map of a game in progress instead of a plain night background; high contrast keeps it plain.
 
 ### For self-hosters and contributors
 
