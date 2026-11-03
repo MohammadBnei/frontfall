@@ -129,6 +129,14 @@ export async function fetchMaps(base: string, fetcher: typeof fetch = fetch): Pr
     if (!response.ok) throw new Error(`HTTP ${String(response.status)}`);
     const catalog = MapCatalog.parse(await response.json());
     for (const map of catalog.maps) {
+      // The catalogue only points at files served next to it.
+      if (
+        new URL(map.manifest, url).origin !== url.origin ||
+        new URL(map.thumbnail, url).origin !== url.origin
+      ) {
+        console.warn(`map ${map.id}: files outside the catalogue's origin, skipped`);
+        continue;
+      }
       published.push({
         id: map.id,
         width: map.width,

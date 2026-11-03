@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { extname, join, normalize, sep } from "node:path";
 
@@ -91,9 +91,17 @@ export async function loadStaticFile(
   if (!absolute.startsWith(root.endsWith(sep) ? root : root + sep)) return undefined;
 
   try {
-    const info = await stat(absolute);
-    if (!info.isFile()) return undefined;
-    const body = await readFile(absolute);
+    // One handle for the check and the read: the file cannot change in between.
+    const handle = await open(absolute, "r");
+    let info;
+    let body;
+    try {
+      info = await handle.stat();
+      if (!info.isFile()) return undefined;
+      body = await handle.readFile();
+    } finally {
+      await handle.close();
+    }
     const { etag, gzip } = derive(absolute, info.mtimeMs, body);
     return {
       body,

@@ -1,11 +1,13 @@
 import {
   chmodSync,
+  closeSync,
+  fstatSync,
+  openSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -162,7 +164,13 @@ export function loadGames(directory: string, simulation: string): LoadResult {
     }
     let text: string | undefined;
     try {
-      if (statSync(file).size <= MAX_FILE_BYTES) text = readFileSync(file, "utf8");
+      // One descriptor for the size and the content: the file cannot change in between.
+      const fd = openSync(file, "r");
+      try {
+        if (fstatSync(fd).size <= MAX_FILE_BYTES) text = readFileSync(fd, "utf8");
+      } finally {
+        closeSync(fd);
+      }
     } catch {
       // Unreadable: refused below.
     } finally {

@@ -215,6 +215,13 @@ export interface Auth {
  * works once and for a few minutes. The player gets a signed cookie that
  * the page cannot read, sent with every request and the game socket.
  */
+/** The address with exactly one trailing slash (no pattern: it would be quadratic on a long run of slashes). */
+function withTrailingSlash(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === "/") end -= 1;
+  return `${url.slice(0, end)}/`;
+}
+
 export function createAuth(
   options: AuthOptions,
   accounts: Accounts,
@@ -222,7 +229,7 @@ export function createAuth(
   isAllowedOrigin: (origin: string | undefined) => boolean,
   now: () => number = Date.now,
 ): Auth {
-  const base = new URL(options.publicUrl.replace(/\/*$/, "/"));
+  const base = new URL(withTrailingSlash(options.publicUrl));
   const secure = base.protocol === "https:";
   const cookiePath = base.pathname;
   const providers = PROVIDERS.filter((provider) => options.clients[provider] !== undefined);
