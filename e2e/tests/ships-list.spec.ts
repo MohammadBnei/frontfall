@@ -2,19 +2,26 @@ import { expect, test } from "@playwright/test";
 import { landShare, startByTheWater } from "./by-the-water.ts";
 
 test("lists a ship while it sails and drops it once it has landed", async ({ page }) => {
-  const start = await startByTheWater(page, "&bots=0");
+  const start = await startByTheWater(page, "&bots=0&speed=1");
   const before = await landShare(page);
-  // The game runs fast and a ship lands within a second or two: a watcher records every line
-  // of the list the moment it is written, so the test never races the landing.
+  // A ship still lands quickly: a watcher records every line of the list the moment it is
+  // written (a mutation observer and a short timer, since browsers batch differently), so the
+  // test never races the landing. The game runs at its normal pace to give it more time.
   await page.evaluate(() => {
     const seen: string[] = [];
     Object.assign(window, { seenShips: seen });
-    new MutationObserver(() => {
+    const record = (): void => {
       for (const row of document.querySelectorAll(".threat-boatOut")) {
         const text = row.textContent;
         if (text !== "" && !seen.includes(text)) seen.push(text);
       }
-    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+    };
+    new MutationObserver(record).observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
+    window.setInterval(record, 20);
   });
   const seen = (): Promise<string[]> =>
     page.evaluate(() => (window as unknown as { seenShips: string[] }).seenShips);
