@@ -245,6 +245,52 @@ const fragmentShader = /* glsl */ `
   }
 
   float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+  /**
+   * Close up only, what a map seen from a low flight shows: plots of fields of uneven sizes
+   * with hedges on some of their sides on the plains, and clumps of tree crowns lit from the
+   * north-west in the forests. Hashes alone, no texture read; a factor on the albedo, 1 where
+   * nothing is added.
+   */
+  vec3 closeGround(vec2 at, float forest, float hm, float ice, float pixel) {
+    vec3 m = vec3(1.0);
+    float plain = (1.0 - forest) * (1.0 - smoothstep(0.15, 0.4, hm)) * (1.0 - ice);
+    if (plain > 0.01) {
+      // Blocks about four tiles across, turned and bent, each cut once along its length or its width.
+      vec2 q = mat2(0.94, 0.34, -0.34, 0.94) * at * 0.26 + 0.9 * vec2(nz(at * 0.07), nz(at * 0.07 + 7.0));
+      vec2 cell = floor(q);
+      vec2 f = q - cell;
+      float h1 = hs(cell + 17.0);
+      float h2 = hs(cell + 41.0);
+      float cut = 0.3 + 0.4 * hs(cell + 5.0);
+      bool across = h2 > 0.5;
+      float side = (across ? f.x : f.y) < cut ? 0.0 : 1.0;
+      float h3 = hs(cell * 2.0 + side + 3.0);
+      vec3 crop = h3 > 0.66 ? vec3(1.12, 1.06, 0.82) : (h3 < 0.3 ? vec3(0.9, 1.05, 0.9) : vec3(1.0));
+      // Hedges on the block's sides and on the cut, each kept or left out by a hash.
+      vec2 e = min(f, 1.0 - f);
+      float toCut = abs((across ? f.x : f.y) - cut);
+      float hedgeWidth = max(0.015, 0.4 * pixel);
+      float edge = min(min(e.x, e.y), toCut);
+      float hedge = (1.0 - smoothstep(hedgeWidth, 2.5 * hedgeWidth, edge)) * step(0.35, h1);
+      float furrowFade = 1.0 - smoothstep(0.025, 0.05, pixel);
+      float furrow = 1.0 + 0.035 * furrowFade * sin(((across ? f.y : f.x) + h1) * 90.0);
+      vec3 fields = crop * (0.93 + 0.14 * h1) * furrow * (1.0 - 0.22 * hedge);
+      m = mix(m, fields, plain);
+    }
+    float treeFade = 1.0 - smoothstep(0.04, 0.09, pixel);
+    if (forest > 0.01 && treeFade > 0.0) {
+      // Crowns of uneven size, set anywhere in their cell, with clearings where the noise is low.
+      vec2 t = at * 1.6;
+      vec2 tc = floor(t);
+      float r = 0.18 + 0.14 * hs(tc + 3.3);
+      vec2 d = t - tc - (vec2(hs(tc), hs(tc + 9.1)) * (1.0 - 2.0 * r) + r);
+      float crown = (1.0 - smoothstep(0.75 * r, r, length(d))) * step(0.3, nz(at * 0.7) + 0.35 * hs(tc + 1.7));
+      float lightSide = clamp(0.5 - (d.x + d.y) / r * 0.6, 0.0, 1.0);
+      m *= mix(1.0, mix(0.8, 0.96 + 0.22 * lightSide, crown), forest * treeFade);
+    }
+    return m;
+  }
+
 
   /** An sRGB colour given in 0 to 255, in the linear light the shader works in. */
   vec3 srgb3(float r, float g, float b) { return pow(vec3(r, g, b) / 255.0, vec3(2.2)); }
@@ -676,6 +722,9 @@ const fragmentShader = /* glsl */ `
       albedo *= 1.0 - 0.16 * rocky * (1.0 - crest);
       float snow = smoothstep(0.88, 1.0, hb + 0.1 * crest) * smoothstep(0.5, 0.9, crest + 0.3 * nz(at * 0.5));
       albedo = mix(albedo, srgb3(214.0, 220.0, 228.0), max(hm * snow * 0.8, ice * 0.5));
+      // Close up, fields, crowns and stones, faded in before they could shimmer.
+      float close = 1.0 - smoothstep(0.08, 0.18, pixel);
+      if (close > 0.0) albedo *= mix(vec3(1.0), closeGround(at, forest, hm, ice, pixel) * (1.0 - bare) + vec3(bare), close);
       // Warm light on the slopes facing the sun, cool shade in the folds: depth without chrome.
       vec3 tint = mix(vec3(0.9, 0.94, 1.04), vec3(1.05, 1.0, 0.9), smoothstep(0.7, 1.25, shade));
       landColor = albedo * shade * mix(vec3(1.0), tint, 0.35 + 0.65 * hm);
