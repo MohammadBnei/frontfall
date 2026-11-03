@@ -69,8 +69,8 @@ out vec2 vLoc; out vec2 vWorld; flat out float vL; flat out float vKind; flat ou
 void main() {
   float kind = iKind.x;
   vec2 hull = kind < 0.5 ? vec2(1.6, 21.0) : (kind < 1.5 ? vec2(2.5, 27.0) : vec2(3.5, 42.0));
-  // The marker is drawn 15 % longer than the hull, since its pointed ends read shorter than a hull's.
-  float L = max(hull.x, hull.y * phone * tilesPerPixel) * 1.15;
+  // The marker is drawn longer than the hull, since its pointed ends read shorter than a hull's: the diamond most.
+  float L = max(hull.x, hull.y * phone * tilesPerPixel) * (kind < 0.5 ? 1.25 : 1.15);
   // A tight quad: the marker and its halo, and behind a moving ship its wake.
   vec2 loc = vec2(mix(iKind.z > 0.02 ? -1.85 : -0.68, 0.68, position.x + 0.5), position.y);
   float c = cos(iAng), s = sin(iAng);
@@ -115,8 +115,8 @@ void main() {
   float aa = tilesPerPixel / vL, det = vDet;
   vec3 own = vCol, white = vec3(0.97, 0.98, 1.0), ink = vec3(0.03, 0.05, 0.09);
   // Far away a slim marker is fattened to a beam of a few pixels, so that the colour reads.
-  float W = vKind > 1.5 ? 0.18 : (vKind > 0.5 ? 0.34 : 0.25);
-  W = mix(max(W, (vKind > 1.5 ? 6.5 : 7.0) * aa), W, det);
+  float W = vKind > 1.5 ? 0.19 : (vKind > 0.5 ? 0.34 : 0.27);
+  W = mix(max(W, (vKind > 1.5 ? 7.0 : 7.5) * aa), W, det);
   vec2 p = vLoc, q = vec2(p.x, abs(p.y));
   PC = vec3(0.0); PA = 0.0;
 
