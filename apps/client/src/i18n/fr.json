@@ -464,6 +464,7 @@
   "feedback.thanks": "Merci ! C’est compté, sans votre nom.",
   "feedback.idea": "Proposer une idée",
   "feedback.bug": "Signaler un bug",
+  "feedback.legal": "Mentions légales",
   "perf.copy": "Copier le rapport",
   "perf.copied": " Copié",
   "perf.failed": " Copie impossible : sélectionnez le texte ci-dessus",

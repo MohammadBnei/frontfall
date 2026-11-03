@@ -48,7 +48,8 @@ header img {
 }
 nav {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   font-size: 15px;
 }
 h1 {

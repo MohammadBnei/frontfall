@@ -464,6 +464,7 @@
   "feedback.thanks": "Thanks! Counted, without your name.",
   "feedback.idea": "Share an idea",
   "feedback.bug": "Report a bug",
+  "feedback.legal": "Legal notice",
   "perf.copy": "Copy report",
   "perf.copied": " Copied",
   "perf.failed": " Could not copy: select the text above",

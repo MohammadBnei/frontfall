@@ -69,6 +69,7 @@ const TEXT = {
     invalid: "This name is not allowed.",
     privacy: "Privacy",
     terms: "Terms",
+    legal: "Legal notice",
   },
   fr: {
     offer: "Facultatif : connectez-vous pour garder votre nom et vos succès.",
@@ -109,6 +110,7 @@ const TEXT = {
     invalid: "Ce nom n'est pas autorisé.",
     privacy: "Confidentialité",
     terms: "Conditions",
+    legal: "Mentions légales",
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -450,6 +452,12 @@ export class AccountBox {
         "a",
         { href: fr ? "terms.fr.html" : "terms.html", target: "_blank", rel: "noopener" },
         text("terms"),
+      ),
+      " · ",
+      h(
+        "a",
+        { href: fr ? "legal.fr.html" : "legal.html", target: "_blank", rel: "noopener" },
+        text("legal"),
       ),
     );
     this.element.replaceChildren(

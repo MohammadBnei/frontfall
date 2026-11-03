@@ -1,4 +1,4 @@
-import type { MessageKey } from "../i18n/index.ts";
+import { getLanguage, type MessageKey } from "../i18n/index.ts";
 import { RELEASE } from "../release.ts";
 import { h } from "./dom.ts";
 
@@ -19,8 +19,13 @@ export function bugUrl(details = ""): string {
   return `${REPOSITORY}/issues/new?${query.toString()}`;
 }
 
-/** The two links, to GitHub, in a new tab. */
-export function feedbackLinks(details = ""): HTMLElement {
+/** The legal notice in the language shown now, read again as the link is reached. */
+function legalHref(): string {
+  return getLanguage() === "fr" ? "legal.fr.html" : "legal.html";
+}
+
+/** The two links, to GitHub, in a new tab; with `legal`, a third to the legal notice. */
+export function feedbackLinks(details = "", legal = false): HTMLElement {
   const link = (key: MessageKey, href: string): HTMLAnchorElement =>
     h("a", { href, target: "_blank", rel: "noopener", "data-i18n": key });
   return h(
@@ -29,5 +34,20 @@ export function feedbackLinks(details = ""): HTMLElement {
     link("feedback.idea", IDEAS_URL),
     " · ",
     link("feedback.bug", bugUrl(details)),
+    ...(legal ? [" · ", legalLink()] : []),
   );
+}
+
+function legalLink(): HTMLAnchorElement {
+  const a = h("a", {
+    href: legalHref(),
+    target: "_blank",
+    rel: "noopener",
+    "data-i18n": "feedback.legal",
+  });
+  const refresh = (): void => {
+    a.setAttribute("href", legalHref());
+  };
+  for (const type of ["pointerenter", "focus", "pointerdown"]) a.addEventListener(type, refresh);
+  return a;
 }

@@ -398,7 +398,7 @@ export class Menu {
       ),
       form,
       online,
-      feedbackLinks(),
+      feedbackLinks("", true),
     );
     this.element.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && panels.some((panel) => panel.open)) togglePanel(undefined);
