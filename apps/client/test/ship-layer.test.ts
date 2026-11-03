@@ -51,7 +51,7 @@ describe("ShipLayer", () => {
     expect(geometry.getAttribute("iKind").getZ(0)).toBe(0);
   });
 
-  it("holds the foam still when the player asks for less motion", () => {
+  it("tells the shader when the player asks for less motion", () => {
     const ships = layer();
     expect(ships.mesh.material.uniforms.reduced?.value).toBe(0);
     ships.setMotion(false);
@@ -70,7 +70,7 @@ describe("ShipLayer", () => {
     expect(layer().mesh.material.defines).toEqual({});
   });
 
-  it("keeps a warship longer than a transport and a transport longer than a trade ship", () => {
+  it("keeps a warship marker longer than a transport and a transport longer than a trade ship", () => {
     expect(HULL_SIZES.warship.tiles).toBeGreaterThan(HULL_SIZES.transport.tiles);
     expect(HULL_SIZES.transport.tiles).toBeGreaterThan(HULL_SIZES.trade.tiles);
     expect(HULL_SIZES.warship.minPixels).toBeGreaterThan(HULL_SIZES.transport.minPixels);

@@ -70,14 +70,16 @@ Rules:
 
 ## Ships
 
-Ships are not plates: each is a hull seen from above, painted procedurally in one instanced draw call (`render/ship-layer.ts`, no image). Light comes from the upper left; a soft pillow shading is derived from the distance to the hull's edge, and a shadow falls on the water.
+Ships are not plates: each is a tactical marker seen from above, drawn procedurally in one instanced draw call (`render/ship-layer.ts`, no image). No lighting, no shading, no noise: a flat shape in the owner's colour that reads like a symbol on a plotting table.
 
-1. **The kind is read from the silhouette.** Warship: slim and very pointed, steel with the owner's colour on a stripe, the rim and the turret caps. Transport: a blunt barge, owner deck, crates aft, troops forward, a ramp at the bow. Trade ship: long and pointed, owner-painted hull, stacks of containers, a white aft bridge.
-2. **Length on screen** is the hull's length in tiles (1.6, 2.5 and 3.5), never below 21, 27 and 34 CSS pixels (12 % more on a phone).
-3. **One detail ramp.** Between 30 and 84 px of length the far silhouette (the owner's colour whole, a wider hull of at least 9.5 px of beam, a clear bow, a pale outline against the dark sea, one mark per kind) turns into the full painting. Everything is interpolated; nothing switches.
-4. **Bow wave and wake** follow the speed of the ship: a V at the bow, two arms and a churned core behind it. The foam is fixed to the sea, so it stays where the ship passed, and it is cut where the water mask says land.
-5. **Profiles.** Auto and Quality draw the shading, the shadow and the two-octave foam noise. Saver draws the same hulls and wake with one octave and no shading or shadow. Reduced motion freezes the drift of the foam.
-6. Colour is still the only owner code; a second code is part of the accessibility work to come.
+1. **The kind is read from the silhouette**, in a single colour and at the smallest size. Warship: a slim dart that tapers from the bow to a notched tail. Transport: a wide double chevron. Trade ship: an elongated diamond, its widest point aft of the middle. No two share an outline, a beam or a tail.
+2. **Owner colour whole.** The marker is filled with the owner's colour, never dimmed, inside a light rim (the colour mixed 70 % towards white, 1.2 px far, 1.6 px close). A dark hairline outside the rim holds the edge on the light sea and around light colours such as amber and yellow; a faint halo of the owner's colour (20 % at most) helps on the dark sea, faint enough that a crowd of ships does not merge into one glow.
+3. **Length on screen** is the marker's length in tiles (1.6, 2.5 and 3.5), never below 21, 27 and 42 CSS pixels (12 % more on a phone).
+4. **One detail ramp.** Between 30 and 84 px of length the far silhouette (a slim marker fattened to a beam of 9 to 10 px, so that its colour reads) takes its true proportions and gains a glyph: a sight on the warship, a line along each chevron, three cargo blocks on the trade ship. The glyph is white, or dark on a light owner colour. Everything is interpolated; nothing switches.
+5. **Wake.** A moving ship leaves a single line of small dots in a pale tint of its colour, fading over one and a half lengths. The dots are fixed to the sea, so they stay where the ship passed, and they are cut where the water mask says land. A ship at rest has no wake and its quad stops at the stern.
+6. **A warship that fires** flashes at the bow and a ring of warm light runs round the dart, fading with the shot.
+7. **Profiles.** Saver draws the same markers and wake without the halo. Reduced motion leaves out the flash and keeps only a softer ring.
+8. Colour is still the only owner code; a second code is part of the accessibility work to come.
 
 ## Piece geometry
 
