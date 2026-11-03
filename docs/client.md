@@ -335,6 +335,17 @@ to `done` in `localStorage`, and "Show the first steps again" in the help
 clears it. The step text sits in a polite live region, and the card takes no
 focus from the map. Without storage the guide simply shows again next game.
 
+## Tips
+
+`ui/hints.ts` (a chunk of its own, loaded when a solo game reaches play) shows a
+short "Good to know" card the first time something happens that a new player
+may not understand: an attack on the player, an embargo on them, an alliance
+request, gold for several cities left unspent, fallout on the map. It takes
+the guide's spot and waits while the guide's card is up; it closes with Got it
+or after twenty seconds of play, and "Stop these tips" ends them for good. The
+ones shown are kept in `localStorage` (`frontfall.hints`, or `off`). Never
+online and never in a replay, like the guide.
+
 ## The tutorial
 
 The menu's "Tutorial · 5 min" starts a practice game of its own (`tutorial()`

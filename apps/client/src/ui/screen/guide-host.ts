@@ -1,7 +1,8 @@
 import type { GameUpdate } from "../../game/solo-game.ts";
 // The guide loads when first shown, out of the first download.
 import type { Guide, Step } from "../guide.ts";
-import { setGuideDone } from "../guide-state.ts";
+import type { due as dueHint, Hints } from "../hints.ts";
+import { hintsSeen, markHint, setGuideDone, turnHintsOff } from "../guide-state.ts";
 import { safeStorage } from "../setup.ts";
 
 /** The guide of a solo game, shown over the HUD while it lasts: the whole tutorial, or the first steps of a first game. */
@@ -16,6 +17,9 @@ export class GuideHost {
   private cityStateAttacked = false;
   private asked = false;
   private attacked = false;
+  /** The tips of the first times, loaded when a game reaches play. */
+  private hints: { card: Hints; due: typeof dueHint } | undefined;
+  private hintsLoading = false;
 
   constructor(
     /** Where the guide goes: the HUD. */
@@ -70,6 +74,36 @@ export class GuideHost {
     });
   }
 
+  /** Shows a tip the first time something happens that a new player may not understand; the guide's card goes first. */
+  hint(update: GameUpdate): void {
+    if (update.phase !== "play") return;
+    const storage = safeStorage();
+    const seen = hintsSeen(storage);
+    if (seen.includes("off")) return;
+    if (!this.hints) {
+      if (this.hintsLoading) return;
+      this.hintsLoading = true;
+      void import("../hints.ts").then(({ Hints, due }) => {
+        const card = new Hints(
+          (id) => {
+            markHint(safeStorage(), id);
+          },
+          () => {
+            turnHintsOff(safeStorage());
+          },
+        );
+        this.parent.append(card.element);
+        this.hints = { card, due };
+      });
+      return;
+    }
+    const { card, due } = this.hints;
+    card.tick(update.tick);
+    if (card.open || this.guide?.shown) return;
+    const id = due(update, seen);
+    if (id) card.show(id, update.tick);
+  }
+
   /** Moves the guide on with the game; `tiles` is the player's land. */
   follow(update: GameUpdate, tiles: number): void {
     const guide = this.guide;
@@ -118,5 +152,6 @@ export class GuideHost {
 
   refresh(): void {
     this.guide?.refresh();
+    this.hints?.card.refresh();
   }
 }

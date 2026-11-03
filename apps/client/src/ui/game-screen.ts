@@ -805,6 +805,7 @@ export class GameScreen {
     this.sound?.observe(update);
     if (this.options.record === undefined) this.alert.observe(update);
     if (human) this.guide.follow(update, human.tiles);
+    if (this.guided) this.guide.hint(update);
     if (!this.focused && human && human.tiles > 0) {
       // Once, when the player's start appears.
       this.focused = true;

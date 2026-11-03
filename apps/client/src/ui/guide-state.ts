@@ -40,3 +40,32 @@ export function markChapter(storage: Storage | undefined, chapter: string): void
     // Without storage the chapter simply shows as new next time.
   }
 }
+
+/** The hints already shown, as a comma-separated list, or `off` once the player turned them away. */
+export const HINTS_KEY = "frontfall.hints";
+
+export function hintsSeen(storage: Storage | undefined): readonly string[] {
+  try {
+    return (storage?.getItem(HINTS_KEY) ?? "").split(",").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+export function markHint(storage: Storage | undefined, hint: string): void {
+  try {
+    const seen = hintsSeen(storage);
+    if (seen.includes(hint) || seen.includes("off")) return;
+    storage?.setItem(HINTS_KEY, [...seen, hint].join(","));
+  } catch {
+    // Without storage a hint can show again next game.
+  }
+}
+
+export function turnHintsOff(storage: Storage | undefined): void {
+  try {
+    storage?.setItem(HINTS_KEY, "off");
+  } catch {
+    // Without storage the tips come back next game.
+  }
+}
