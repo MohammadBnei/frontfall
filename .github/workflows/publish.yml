@@ -62,7 +62,23 @@ jobs:
           provenance: true
           sbom: true
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      - name: Scan the image
+        id: scan
+        # Installing Trivy downloads it; a network hiccup there once failed a release run.
+        # Scan once more before calling the run failed.
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          # The digest names an index (image and attestations): pick the architecture.
+          TRIVY_PLATFORM: linux/${{ matrix.arch }}
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan the image again
+        if: steps.scan.outcome == 'failure'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
           # The digest names an index (image and attestations): pick the architecture.
           TRIVY_PLATFORM: linux/${{ matrix.arch }}
