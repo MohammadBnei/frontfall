@@ -11,8 +11,20 @@ import {
 import WebSocket from "ws";
 import { Histogram, type HistogramData } from "./histogram.ts";
 
-/** Interval the server closes turns at. */
+/** The beat the server counts turns on. */
 export const TURN_MS = 1000 / TICK_RATE;
+
+/**
+ * Turn intervals lie on the beat grid: a normal game runs three quarters of the
+ * beats (apps/server/src/room.ts BASE_PACE), so turns come 100 or 200 ms apart,
+ * 133 ms on average. What counts as lateness is the distance to the nearest
+ * beat, for gaps of up to two beats: a gap of 200 ms is not late, one of 230 is
+ * 30 ms late. Longer gaps are never excused, and are folded onto two beats.
+ */
+export function onBeatGrid(interval: number): number {
+  const beats = Math.min(2, Math.max(1, Math.round(interval / TURN_MS)));
+  return interval - (beats - 1) * TURN_MS;
+}
 
 /** Clients send a state hash every this many ticks, like the real client. */
 const HASH_EVERY = 50;
@@ -392,7 +404,8 @@ export class LoadClient {
         rejoining.caughtUp(rejoining.burstAt);
       }
     } else if (!rejoining) {
-      if (this.lastFrameAt !== undefined) stats.intervals.record(now - this.lastFrameAt);
+      if (this.lastFrameAt !== undefined)
+        stats.intervals.record(onBeatGrid(now - this.lastFrameAt));
       this.lastFrameAt = now;
     }
     if (first !== this.nextTick) stats.outOfOrder++;

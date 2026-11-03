@@ -591,7 +591,9 @@ troop counts) and a state hash every 50 ticks, and checks every turn it
 receives. The report gives, per game:
 
 - **Lateness**: the time between two consecutive turns on one client, minus
-  the 100 ms tick. p50, p95 and max over every client of the game.
+  the 100 ms tick. A normal game runs three beats in four, so turns are 100 or
+  200 ms apart: a gap is measured from the nearest beat (up to two), and a
+  longer one counts in full. p50, p95 and max over every client of the game.
 - **Order latency**: from sending an order to receiving the turn that holds
   it. Half a tick is expected on average, since an order waits for the next
   turn to close.
