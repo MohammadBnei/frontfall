@@ -2,7 +2,7 @@
 
 How Frontfall should look and feel from v0.7 on. The identity (logo, ember and front blue, Inter, the twenty player colours) is unchanged and lives in [`brand.md`](brand.md) and `assets/brand/tokens.json`. This page covers what happens inside the game: terrain, territories, pictograms, interface, motion and sound.
 
-The direction is called **Relief**: a lit table-top map, with hill-shaded land, depth-shaded sea and shaded game pieces standing on it.
+The direction is called **Relief**: a lit table-top map, with hill-shaded land, depth-shaded sea and crisp tactical markers on top of it.
 
 ![World view on a laptop](assets/art-direction/world-laptop-C.png)
 
@@ -65,7 +65,7 @@ Rules:
 3. **Readable at 16 px**, the smallest size on screen. Anything that disappears at 16 px is removed from the glyph, not from the plate.
 4. **Token plate.** A rounded square (corner radius 6 of 24) with a top-to-bottom gradient of the owner colour (28 % lighter at the top, 38 % darker at the bottom), a soft highlight on the upper half and a short drop shadow. The glyph is white with details in a dark shade of the owner colour; accent parts (flag, flame) use one warm yellow.
 5. **Owner colour on the plate** so ownership reads at a glance; colour-blind players rely on the glyph and the label.
-6. **Sizes.** Ships and missiles: 13 to 18 px at World zoom, 32 to 40 px up close, 28 px in menus. Buildings are figurines, not plates (see Piece geometry), with their own sizes.
+6. **Sizes.** Ships and missiles: 13 to 18 px at World zoom, 32 to 40 px up close, 28 px in menus. Buildings are round map markers (see Piece geometry), with their own sizes.
 7. **No text on plates**, no numbers. Counts go in labels next to them.
 
 ## Ships
