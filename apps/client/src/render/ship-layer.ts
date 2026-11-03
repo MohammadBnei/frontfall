@@ -69,7 +69,8 @@ out vec2 vLoc; out vec2 vWorld; flat out float vL; flat out float vKind; flat ou
 void main() {
   float kind = iKind.x;
   vec2 hull = kind < 0.5 ? vec2(1.6, 21.0) : (kind < 1.5 ? vec2(2.5, 27.0) : vec2(3.5, 42.0));
-  float L = max(hull.x, hull.y * phone * tilesPerPixel);
+  // The marker is drawn 15 % longer than the hull, since its pointed ends read shorter than a hull's.
+  float L = max(hull.x, hull.y * phone * tilesPerPixel) * 1.15;
   // A tight quad: the marker and its halo, and behind a moving ship its wake.
   vec2 loc = vec2(mix(iKind.z > 0.02 ? -1.85 : -0.68, 0.68, position.x + 0.5), position.y);
   float c = cos(iAng), s = sin(iAng);
@@ -103,7 +104,7 @@ float chev(vec2 q, float a, float t) { return min(a - q.x - 0.9 * q.y, q.x - a +
 float marker(vec2 q, float W) {
   float d = min(0.5 - q.x, q.x + 0.5);
   if (vKind > 1.5) return min(d, min(side(q, vec2(0.5, 0.0), vec2(-W, -1.0)), side(q, vec2(-0.28, 0.0), vec2(W, 0.22))));
-  if (vKind > 0.5) return min(W - q.y, max(chev(q, 0.5, 0.24), chev(q, 0.15, 0.24)));
+  if (vKind > 0.5) return min(W - q.y, max(chev(q, 0.5, 0.27), chev(q, 0.14, 0.27)));
   return min(d, min(side(q, vec2(0.5, 0.0), vec2(-W, -0.62)), side(q, vec2(-0.5, 0.0), vec2(W, -0.38))));
 }
 
@@ -114,20 +115,20 @@ void main() {
   float aa = tilesPerPixel / vL, det = vDet;
   vec3 own = vCol, white = vec3(0.97, 0.98, 1.0), ink = vec3(0.03, 0.05, 0.09);
   // Far away a slim marker is fattened to a beam of a few pixels, so that the colour reads.
-  float W = vKind > 1.5 ? 0.13 : (vKind > 0.5 ? 0.34 : 0.18);
-  W = mix(max(W, (vKind > 1.5 ? 4.5 : 5.0) * aa), W, det);
+  float W = vKind > 1.5 ? 0.18 : (vKind > 0.5 ? 0.34 : 0.25);
+  W = mix(max(W, (vKind > 1.5 ? 6.5 : 7.0) * aa), W, det);
   vec2 p = vLoc, q = vec2(p.x, abs(p.y));
   PC = vec3(0.0); PA = 0.0;
 
   // Wake: a line of dots fixed to the sea, so that they stay where the ship passed, cut at the shore.
   float s = -0.5 - p.x;
   if (vSpeed > 0.02 && s > 0.06) {
-    float r = max(0.018, 0.85 * aa) * (1.0 - 0.35 * s);
+    float r = max(0.022, 1.1 * aa) * (1.0 - 0.35 * s);
     float dd = length(vec2((fract(dot(vWorld, vDir) / vL * 5.0) - 0.5) * 0.2, p.y)) - r;
-    float wk = (1.0 - smoothstep(-aa * 0.5, aa * 0.5, dd)) * (1.0 - smoothstep(0.25, 1.3, s)) * vSpeed * 0.6;
+    float wk = (1.0 - smoothstep(-aa * 0.5, aa * 0.5, dd)) * (1.0 - smoothstep(0.3, 1.45, s)) * vSpeed * 0.8;
     if (wk > 0.003) {
       wk *= 1.0 - smoothstep(0.35, 0.65, textureLod(land, vWorld / worldSize, 0.0).r);
-      lay(mix(own, white, 0.6), wk);
+      lay(mix(own, white, 0.7), wk);
     }
   }
 
@@ -142,12 +143,12 @@ void main() {
   float inside = clamp(0.5 + d / aa, 0.0, 1.0);
   if (inside > 0.0) {
     // The owner's colour whole, never dimmed, inside a light rim.
-    float rim = mix(1.2, 1.6, det) * aa;
+    float rim = mix(1.5, 2.0, det) * aa;
     vec3 col = mix(mix(own, white, 0.7), own, smoothstep(rim, rim + aa, d));
     // Up close, a glyph per kind: white, or dark on a light colour.
     float gw = max(0.012, 0.9 * aa), g;
     if (vKind > 1.5) g = min(sdBox(p, vec2(0.02, 0.0), vec2(0.30, 0.0)), sdBox(p, vec2(0.05, 0.0), vec2(0.0, W * 0.4))) - gw;
-    else if (vKind > 0.5) g = max(min(abs(chev(q, 0.38, 0.0)), abs(chev(q, 0.03, 0.0))) - gw, q.y - W * 0.6);
+    else if (vKind > 0.5) g = max(min(abs(chev(q, 0.365, 0.0)), abs(chev(q, 0.005, 0.0))) - gw, q.y - W * 0.6);
     else g = max(sdBox(vec2(mod(p.x + 0.20, 0.16) - 0.08, p.y), vec2(0.0), vec2(0.05, W * 0.36)), sdBox(p, vec2(-0.04, 0.0), vec2(0.24, 1.0)));
     vec3 glyph = dot(own, vec3(0.2126, 0.7152, 0.0722)) > 0.55 ? ink : white;
     col = mix(col, glyph, (1.0 - smoothstep(-aa * 0.5, aa * 0.5, g)) * smoothstep(0.0, 0.6, det));
