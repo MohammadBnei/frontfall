@@ -114,6 +114,8 @@ export const DEFAULT_GAME: GameSettings = {
   maxDurationMs: 4 * 60 * 60 * 1000,
   lobbyTimeoutMs: 10 * 60 * 1000,
   maxOrdersPerTurn: 10,
+  // Past a burst of 30 (a drag of builds, a flurry of clicks), 6 a second is about what a hand keeps up for long.
+  orderRate: { perSecond: 6, burst: 30 },
   seatsPerAddress: 3,
   // A busy 4-hour game logs about 2 MiB; the order limits allow ten times more.
   maxLogBytes: 16 * 1024 * 1024,

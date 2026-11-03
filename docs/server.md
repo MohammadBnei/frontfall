@@ -58,6 +58,8 @@ A game is freed as soon as it ends: when its last player leaves before the start
 
 All running games share one timer that closes a turn of each every 100 ms. It runs ten passes a tick, on a fixed schedule, each over a tenth of the games, so that the sends of thousands of players never hold the server for long at once. The `frontfall_turn_duration_seconds` histogram measures how long one pass takes.
 
+Orders are limited over the whole game as well as per turn: a player has a burst of 30 and 6 orders a second after it, which is more than a hand keeps up for long and less than a script sends. What comes past is dropped, never queued, and counted in `frontfall_throttled_orders_total`; the log says `orders_throttled` for a player at their first dropped order and again at the fiftieth, with the game and the player number, never an address. A burst of dropped orders alone is a person clicking fast; a count that keeps climbing is a script. The limit does not change a game: the dropped orders never reach a turn, so a record replays the same.
+
 A player who rejoins gets the turns they missed one frame of 2000 turns at a time, the next once the last has gone out to the network. A connection that leaves more than 4 MiB unread, such as a tab asleep on a stalled network, is dropped and counted in `frontfall_slow_clients_total`: the page rejoins from its last turn.
 
 Games offer the maps listed in `maps/index.json` of the built client, read once at start. Without that file, only the default map, World, can be picked.
@@ -66,20 +68,21 @@ Games offer the maps listed in `maps/index.json` of the built client, read once 
 
 One bad client must not spoil a game or the server. Each limit closes the offending connection with a code listed in [protocol.md](protocol.md#close-codes) and is counted in `frontfall_rejected_messages_total`.
 
-| Limit                       | Value                                                         | On breach                              |
-| --------------------------- | ------------------------------------------------------------- | -------------------------------------- |
-| Connections in all          | 5000                                                          | Upgrade refused with `503`             |
-| Connections per address     | 16, for players behind one router or mobile carrier           | Upgrade refused with `429`             |
-| New connections per address | 30 a minute, bursts of 40                                     | Upgrade refused with `429`             |
-| Frame size                  | 1 KiB                                                         | Closed with `1009`                     |
-| Messages per connection     | 20 per second, bursts of 40                                   | Closed with `4002`                     |
-| Invalid frame               | any frame that fails decoding or checks                       | Closed with `4001`                     |
-| Time to say `hello`         | 10 seconds                                                    | Closed with `4003`                     |
-| Time out of any game        | 5 minutes after `hello` or the last game                      | Closed with `4003`                     |
-| Silence                     | a ping unanswered for 12.5 seconds; pings go every 25 seconds | Connection dropped                     |
-| Unread output               | 4 MiB waiting to be sent to a client that stopped reading     | Connection dropped                     |
-| Orders per player           | 10 per turn                                                   | Further orders of the turn are dropped |
-| Turn log of a game          | 64 MiB                                                        | Game ends with `timeout`               |
+| Limit                       | Value                                                         | On breach                                                                 |
+| --------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Connections in all          | 5000                                                          | Upgrade refused with `503`                                                |
+| Connections per address     | 16, for players behind one router or mobile carrier           | Upgrade refused with `429`                                                |
+| New connections per address | 30 a minute, bursts of 40                                     | Upgrade refused with `429`                                                |
+| Frame size                  | 1 KiB                                                         | Closed with `1009`                                                        |
+| Messages per connection     | 20 per second, bursts of 40                                   | Closed with `4002`                                                        |
+| Invalid frame               | any frame that fails decoding or checks                       | Closed with `4001`                                                        |
+| Time to say `hello`         | 10 seconds                                                    | Closed with `4003`                                                        |
+| Time out of any game        | 5 minutes after `hello` or the last game                      | Closed with `4003`                                                        |
+| Silence                     | a ping unanswered for 12.5 seconds; pings go every 25 seconds | Connection dropped                                                        |
+| Unread output               | 4 MiB waiting to be sent to a client that stopped reading     | Connection dropped                                                        |
+| Orders per player           | 10 per turn                                                   | Further orders of the turn are dropped                                    |
+| Order rate per player       | 6 a second, with a burst of 30                                | Orders past it are dropped, counted in `frontfall_throttled_orders_total` |
+| Turn log of a game          | 64 MiB                                                        | Game ends with `timeout`                                                  |
 
 The address of a player is the `X-Client-IP` header, which the reverse proxy must set and overwrite. The server believes that header only when the connection itself comes from a private or loopback address, as a proxy on the same host or Docker network does; from any other peer the header is ignored and the TCP peer address is used. A value that is not an IP address is ignored too. An IPv6 player counts by its /64, the block one home or server is given, for every limit per address and for bans: banning `2001:db8:0:1::5` bans `2001:db8:0:1::/64`, which the ban list also takes as written. Player names follow the rules in [protocol.md](protocol.md#hello).
 
@@ -179,6 +182,7 @@ curl -s localhost:8080/metrics
 | `frontfall_turn_duration_seconds`                     | histogram | Time of one pass of the turn timer, a tenth of the games                                                     |
 | `frontfall_refused_connections_total{reason}`         | counter   | Players turned away: `connections` (code `4006`), `players` (`too_many_games` while full), `address` (`429`) |
 | `frontfall_slow_clients_total`                        | counter   | Connections dropped for leaving 4 MiB unread                                                                 |
+| `frontfall_throttled_orders_total`                    | counter   | Orders dropped for coming faster than a person plays (6 a second after a burst of 30)                        |
 | `frontfall_usage_total{dimension,value}`              | counter   | Reports of players' pages ([privacy.md](privacy.md))                                                         |
 | `process_resident_memory_bytes`                       | gauge     | Resident memory of the process                                                                               |
 | `process_cpu_seconds_total`                           | counter   | CPU time used by the process                                                                                 |

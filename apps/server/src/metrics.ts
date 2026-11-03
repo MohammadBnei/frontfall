@@ -123,6 +123,10 @@ export class Metrics {
     "frontfall_slow_clients_total",
     "Connections dropped for leaving too much unread.",
   );
+  readonly throttledOrders = new Counter(
+    "frontfall_throttled_orders_total",
+    "Orders dropped for coming faster than a person plays.",
+  );
   readonly reports = new Counter(
     "frontfall_reports_total",
     "Reports of a player by another, by reason.",
@@ -161,6 +165,7 @@ export class Metrics {
       ...this.rejected.render(),
       ...this.refused.render(),
       ...this.slowClients.render(),
+      ...this.throttledOrders.render(),
       ...this.reports.render(),
       ...this.gameMinutes.render(),
       ...this.turnDuration.render(),

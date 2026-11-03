@@ -129,6 +129,13 @@ export function createGameServer(options: ServerOptions): GameServer {
       if (room.log.length > 0) metrics.gameMinutes.observe(room.log.length / TICK_RATE / 60);
       logger.info("game_finished", { game: room.id, reason, ticks: room.log.length });
     },
+    orderThrottled(room, seat, total) {
+      metrics.throttledOrders.inc();
+      // Once per player: the first order dropped, then when it is clearly not a burst. Never the address.
+      if (total === 1 || total === 50) {
+        logger.warn("orders_throttled", { game: room.id, player: seat.id, dropped: total });
+      }
+    },
     desync(room, tick, hash, expected) {
       metrics.desyncs.inc();
       logger.warn("desync", { game: room.id, tick, hash, expected: expected ?? null });

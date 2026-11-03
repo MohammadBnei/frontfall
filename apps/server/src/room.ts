@@ -19,6 +19,7 @@ import {
   type Turn,
 } from "@frontfall/protocol";
 import { newToken } from "./ids.ts";
+import { TokenBucket } from "./rate-limit.ts";
 import { TurnLog } from "./turn-log.ts";
 
 /**
@@ -87,6 +88,11 @@ export interface RoomSettings {
   lobbyTimeoutMs: number;
   /** Orders one player may add to one turn; more are dropped. */
   maxOrdersPerTurn: number;
+  /**
+   * What a person can keep up with, over the game: orders per second once a
+   * burst is spent, and the burst. Orders past it are dropped.
+   */
+  orderRate: { perSecond: number; burst: number };
   /** Seats players from one address may take in a public game (R-MODE-05); 0 for no limit. */
   seatsPerAddress: number;
   /** A game whose turn log grows past this many bytes is stopped. */
@@ -116,6 +122,10 @@ export interface Seat {
   gone: boolean;
   /** Orders added to the turn being filled. */
   orders: number;
+  /** Orders left in the player's allowance over the game, refilled with time. */
+  readonly allowance: TokenBucket;
+  /** Orders dropped for going past it since the game began. */
+  throttled: number;
   /** Last message from the player, to tell a host who walked away. */
   activeAt: number;
   /** Last `configure` handled for this player, applied or refused, echoed in `lobby`. */
@@ -146,6 +156,8 @@ export interface RoomObserver {
    * `expected` undefined.
    */
   desync?(room: Room, tick: number, hash: number, expected: number | undefined): void;
+  /** An order was dropped for coming faster than a person plays; `total` counts the player's drops so far. */
+  orderThrottled?(room: Room, seat: Seat, total: number): void;
 }
 
 /**
@@ -251,6 +263,8 @@ export class Room {
       awaySince: undefined,
       gone: false,
       orders: 0,
+      allowance: this.newAllowance(now),
+      throttled: 0,
       activeAt: now,
       configured: 0,
       operator,
@@ -480,9 +494,19 @@ export class Room {
     return undefined;
   }
 
-  submit(seat: Seat, order: Order): boolean {
+  private newAllowance(now: number): TokenBucket {
+    const { perSecond, burst } = this.settings.orderRate;
+    return new TokenBucket(perSecond, burst, now);
+  }
+
+  submit(seat: Seat, order: Order, now: number = Date.now()): boolean {
     if (this.stateValue !== "running" || !this.holds(seat) || !seat.peer) return false;
     if (seat.orders >= this.settings.maxOrdersPerTurn) return false;
+    if (!seat.allowance.take(now)) {
+      seat.throttled++;
+      this.observer.orderThrottled?.(this, seat, seat.throttled);
+      return false;
+    }
     seat.orders++;
     this.pending.push({ player: seat.id, order });
     return true;
@@ -660,6 +684,8 @@ export class Room {
         awaySince: gone ? undefined : now,
         gone,
         orders: 0,
+        allowance: room.newAllowance(now),
+        throttled: 0,
         activeAt: now,
         configured: 0,
         operator: false,

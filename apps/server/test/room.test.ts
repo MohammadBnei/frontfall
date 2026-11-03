@@ -25,6 +25,7 @@ const PUBLIC: RoomSettings = {
   maxDurationMs: 3_600_000,
   lobbyTimeoutMs: 600_000,
   maxOrdersPerTurn: 3,
+  orderRate: { perSecond: 5, burst: 8 },
   seatsPerAddress: 3,
   maxLogBytes: 1_000_000,
   operatorBonuses: null,
@@ -1119,5 +1120,56 @@ describe("host handover with dropped connections (R-MODE-04)", () => {
     room.disconnect(away.seat, 1_000);
     room.leave(host.seat, 2_000);
     expect(here.peer.last("lobby").host).toBe(here.seat.id);
+  });
+});
+
+describe("orders faster than a person plays", () => {
+  const SETTINGS: RoomSettings = { ...PRIVATE, maxOrdersPerTurn: 1_000 };
+  const order = { type: "spawn", tile: 1 } as const;
+
+  it("takes a burst, then drops what comes past the rate, and refills with time", () => {
+    const { room, alice } = running(SETTINGS);
+    // Burst of 8: a flurry of clicks, a drag of builds.
+    const burst = Array.from({ length: 12 }, () => room.submit(alice.seat, order, 1_000));
+    expect(burst.filter(Boolean)).toHaveLength(8);
+    expect(alice.seat.throttled).toBe(4);
+    // A second later, 5 orders of allowance are back.
+    const later = Array.from({ length: 8 }, () => room.submit(alice.seat, order, 2_000));
+    expect(later.filter(Boolean)).toHaveLength(5);
+  });
+
+  it("lets a person's pace through all game long and holds a script to the rate", () => {
+    const person = running(SETTINGS);
+    let allowed = 0;
+    // Three orders a second for two minutes.
+    for (let ms = 0; ms < 120_000; ms += 333) {
+      if (person.room.submit(person.alice.seat, order, ms)) allowed++;
+    }
+    expect(person.alice.seat.throttled).toBe(0);
+    expect(allowed).toBeGreaterThan(350);
+
+    const script = running(SETTINGS);
+    let scripted = 0;
+    // Twenty orders a second for the same two minutes: about 5 a second get through.
+    for (let ms = 0; ms < 120_000; ms += 50) {
+      if (script.room.submit(script.alice.seat, order, ms)) scripted++;
+    }
+    expect(scripted).toBeLessThan(5 * 120 + 10);
+    expect(scripted).toBeGreaterThan(5 * 120 - 10);
+    expect(script.alice.seat.throttled).toBeGreaterThan(1_500);
+  });
+
+  it("counts each player on their own and tells the observer of every drop", () => {
+    const dropped: number[] = [];
+    const room = new Room("game0000", SETTINGS, 7, {
+      orderThrottled: (_room, seat, total) => dropped.push(seat.id * 1000 + total),
+    });
+    const alice = seated(room, "Alice");
+    const bob = seated(room, "Bob");
+    room.requestStart(alice.seat, 0);
+    for (let i = 0; i < 10; i++) room.submit(alice.seat, order, 0);
+    expect(room.submit(bob.seat, order, 0)).toBe(true);
+    expect(dropped).toEqual([alice.seat.id * 1000 + 1, alice.seat.id * 1000 + 2]);
+    expect(bob.seat.throttled).toBe(0);
   });
 });
