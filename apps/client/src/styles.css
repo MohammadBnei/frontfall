@@ -1575,50 +1575,36 @@ input::placeholder {
     inset 0 1px 0 rgb(255 255 255 / 12%), inset 0 0 0 1px rgb(201 165 94 / 35%),
     0 1px 0 var(--ff-well);
 
-  /* The painted miniatures (ui/painted-icons.ts): three tones, the owner's paint, a flame. */
+  /* The pictograms (ui/painted-icons.ts): the owner's colour. */
   --own: #56b4e9;
-  --t-l: #f4e8c8;
-  --t-m: #c8a862;
-  --t-d: #7b5f30;
-  --t-k: #18222d;
-  --t-f: #ffb347;
-  --t-w: #8fd0ee;
 }
 
-.pl {
-  fill: var(--t-l);
+.painted {
+  filter: drop-shadow(0 0 2px var(--own));
 }
 
-.pm {
-  fill: var(--t-m);
+.painted .cd {
+  fill: rgb(8 14 22 / 82%);
 }
 
-.pd {
-  fill: var(--t-d);
+.painted .cr {
+  fill: none;
+  stroke: var(--own);
+  stroke-width: 1.8;
 }
 
-.pk {
-  fill: var(--t-k);
+/* The chosen piece: a thicker ring and a fuller halo. */
+.build-button[aria-pressed="true"] .painted {
+  filter: drop-shadow(0 0 3px var(--own));
 }
 
-.po {
-  fill: var(--own);
+.build-button[aria-pressed="true"] .painted .cr {
+  stroke-width: 2.6;
 }
 
-.pf {
-  fill: var(--t-f);
-}
-
-.pw {
-  stroke: var(--t-w);
-}
-
-.psd {
-  stroke: var(--t-d);
-}
-
-.psl {
-  stroke: var(--t-l);
+/* Out of reach: the colour goes, the shape stays. */
+.build-button.unaffordable .painted {
+  filter: grayscale(1);
 }
 
 .panel,
