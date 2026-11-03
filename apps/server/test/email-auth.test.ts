@@ -198,7 +198,7 @@ describe("sign-in by email", () => {
       statuses.push((await post(base, "/auth/email", { email: "nelly@example.org" })).status);
     await settle();
     expect(statuses).toEqual([202, 202, 202]);
-    // Two links, then the address waits ten minutes: the third answer said nothing of it.
+    // Two links, then the address waits an hour: the third answer said nothing of it.
     expect(sent).toHaveLength(2);
   });
 
@@ -239,6 +239,23 @@ describe("sign-in by email", () => {
       }
       expect(statuses.slice(0, 10).every((status) => status === 202)).toBe(true);
       expect(statuses[10]).toBe(429);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends one mailbox at most three links in a day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const base = await start();
+      // Asked every hour and a bit, so the hourly allowance is never the limit, the day's is.
+      // The answer is the same each time: the hold is not told.
+      for (let i = 0; i < 6; i++) {
+        expect((await post(base, "/auth/email", { email: "nelly@example.org" })).status).toBe(202);
+        vi.setSystemTime(Date.now() + 3_700_000);
+      }
+      await settle();
+      expect(sent).toHaveLength(3);
     } finally {
       vi.useRealTimers();
     }

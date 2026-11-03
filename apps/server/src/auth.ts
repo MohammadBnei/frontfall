@@ -71,8 +71,10 @@ const MAX_ACHIEVEMENTS_BYTES = 8192;
 export const LINK_MS = 15 * 60 * 1000;
 /** Links one address may ask for: three, then one every five minutes. */
 const LINK_RATE = { perSecond: 1 / 300, burst: 3 };
-/** Links one email address may receive: two, then one every ten minutes. */
-const LINK_RATE_PER_EMAIL = { perSecond: 1 / 600, burst: 2 };
+/** Links one email address may receive: two, then one an hour. */
+const LINK_RATE_PER_EMAIL = { perSecond: 1 / 3600, burst: 2 };
+/** And at most three in a day, so that nobody's mailbox is flooded from the site's sender. */
+const LINK_RATE_PER_EMAIL_DAY = { perSecond: 3 / 86_400, burst: 3 };
 const DEFAULT_DAILY_LINKS = 150;
 /** Links one address may ask for in a day: well under the daily limit, which one network must not spend alone. */
 const LINK_RATE_PER_DAY = { perSecond: 10 / 86_400, burst: 10 };
@@ -243,6 +245,11 @@ export function createAuth(
   const linkRatePerEmail = new AddressRate(
     LINK_RATE_PER_EMAIL.perSecond,
     LINK_RATE_PER_EMAIL.burst,
+    now(),
+  );
+  const dailyLinksPerEmail = new AddressRate(
+    LINK_RATE_PER_EMAIL_DAY.perSecond,
+    LINK_RATE_PER_EMAIL_DAY.burst,
     now(),
   );
   const dailyLinksPerAddress = new AddressRate(
@@ -607,7 +614,8 @@ export function createAuth(
       const subject = accounts.subject("email", email);
       json(response, 202, { sent: true });
       // Held back without a word: saying so would tell that someone asked for this address.
-      if (!linkRatePerEmail.take(mailbox(email), time)) return;
+      const box = mailbox(email);
+      if (!linkRatePerEmail.take(box, time) || !dailyLinksPerEmail.take(box, time)) return;
       linksToday.sent++;
       for (const [key, link] of pending) {
         if (link.expires <= time || pending.size >= MAX_PENDING_LINKS) pending.delete(key);

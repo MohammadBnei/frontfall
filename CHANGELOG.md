@@ -26,6 +26,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 ### For self-hosters and contributors
 
 - **Sea routes take far less memory.** Each route between two ports is kept once, packed at two bits a tile, instead of as two arrays of tiles: 3 to 8 MB at 20 minutes of a game with some 250 ports, where they took up to 200 MB. Snapshots move to format 5 and pack trade ships' routes the same way, so a long game saved for a reload stays under its 1 MiB. The six golden replays and the pinned hash were rebuilt for the new trade range.
+- **One mailbox, three sign-in links a day.** A mailbox now gets at most 2 sign-in links at once, then one an hour and 3 in a day, so a few addresses can no longer use up the day's budget of links or flood someone's mailbox. Players who ask again sooner simply wait for the link already sent.
 - **Automated play is limited.** A player may send a burst of 30 orders, then 6 a second, more than a hand keeps up for long. The server drops what comes faster and counts it in `frontfall_throttled_orders_total`; games and records are unchanged.
 - **The road to v1.0 is shorter.** v0.9.9 is the last version with new features, then v1.0 comes out of beta on the flat map after a week without incident. The 3D globe moves to v1.1 and community maps, replay links and spectators to v1.x. New contributions are best aimed at the [v0.9.9 milestone](https://github.com/nic0lasm/frontfall/milestone/16); `docs/roadmap.md` has the exit checks.
 
