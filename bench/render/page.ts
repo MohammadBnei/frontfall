@@ -17,6 +17,8 @@ export interface RenderResult {
   readonly updateFrame: Summary;
   /** What a heavy missile's fallout appearing, moving or clearing costs to send to the GPU, without drawing. */
   readonly falloutFrame: Summary;
+  /** Whether the ground after sending only the fallout's rectangle draws the same as after sending all of it. */
+  readonly falloutExact: boolean;
   readonly fullUploadFrameMs: number;
   readonly texelsPerUpdate: number;
   readonly rowsPerUpdate: number;
@@ -196,6 +198,20 @@ function run(): RenderResult {
     );
   }
 
+  // The rectangle sent must draw exactly what a full send of the ground would.
+  const grab = (): Uint8Array => {
+    const out = new Uint8Array(viewportWidth * viewportHeight * 4);
+    gl.readPixels(0, 0, viewportWidth, viewportHeight, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    return out;
+  };
+  layer.setFallout([{ x: Math.floor(width / 2), y: Math.floor(height / 2), radius: 60 }]);
+  draw();
+  const partial = grab();
+  layer.groundTexture.needsUpdate = true;
+  draw();
+  const whole = grab();
+  const falloutExact = partial.every((value, i) => value === whole[i]);
+
   layer.markAllChanged();
   const fullUploadFrameMs = time(draw);
 
@@ -210,6 +226,7 @@ function run(): RenderResult {
     staticSubmit: summarize(submitSamples),
     updateFrame: summarize(updateSamples),
     falloutFrame: summarize(falloutSamples),
+    falloutExact,
     fullUploadFrameMs,
     texelsPerUpdate: Math.round(texels / frames),
     rowsPerUpdate: Math.round(rows / frames),

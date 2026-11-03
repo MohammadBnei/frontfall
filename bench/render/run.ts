@@ -102,6 +102,11 @@ try {
     const error = await page.evaluate(() => window.benchError);
     if (error) throw new Error(error);
     const result = await page.evaluate(() => window.benchResult);
+    if (result && !result.falloutExact) {
+      throw new Error(
+        `the ground sent by rectangle draws differently from the whole ground (${result.map})`,
+      );
+    }
     if (result) results.push(result);
     await page.close();
   }
