@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Added
+
+- **Full screen.** A full-screen button joins the tools at the bottom right of the game on screens 1360 pixels wide or more, and sits in the Accessibility panel of the menu at any size. It shows the current state, follows Esc, and stays hidden where the browser has no full screen, such as iPhone Safari.
+
 ### Changed
 
 - **Natural mountains.** Ranges are now warm rock with snow only on the high crests, lit by a warm sun with cool shade, and their ridges branch like real ones instead of shining like foil. Hills fade into the plain with a ragged edge instead of standing out as pale ovals, and ice caps stay smooth white ice. The map draws as fast as before.

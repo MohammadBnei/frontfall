@@ -1,5 +1,6 @@
 import { applyTranslations } from "../i18n/index.ts";
 import { h } from "./dom.ts";
+import { fullscreenButton } from "./fullscreen.ts";
 import { GRAPHICS_MODES, type GraphicsMode } from "./graphics.ts";
 import { safeStorage } from "./setup.ts";
 
@@ -162,6 +163,7 @@ export function accessibilityPanel(): HTMLDetailsElement {
       toggle("flat-map", "flatMap", "a11y.flatMap"),
       // Only a device that can vibrate has a use for the switch.
       ...("vibrate" in navigator ? [toggle("haptics", "haptics", "a11y.haptics")] : []),
+      ...fullscreenRow(),
       soundControls,
       h("p", { class: "accessibility-note", "data-i18n": "a11y.note" }),
       h("p", { class: "accessibility-note", "data-i18n": "a11y.graphicsNote" }),
@@ -176,4 +178,10 @@ export function accessibilityPanel(): HTMLDetailsElement {
   );
   applyTranslations(panel);
   return panel;
+}
+
+/** The full-screen switch, where the browser offers the Fullscreen API. */
+function fullscreenRow(): HTMLElement[] {
+  const button = fullscreenButton("secondary fullscreen-toggle", { text: true });
+  return button ? [h("div", { class: "field" }, button)] : [];
 }

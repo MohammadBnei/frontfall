@@ -10,6 +10,7 @@ import { formatCount, formatDuration, formatPercent } from "./format.ts";
 import { icon } from "./icons.ts";
 import { pieceIcon } from "./painted-icons.ts";
 import { LeaderList } from "./leader-list.ts";
+import { fullscreenButton } from "./fullscreen.ts";
 import { ThreatList, type ThreatTarget } from "./threats.ts";
 import { PopulationBar } from "./population-bar.ts";
 import { BUILD_MODES, costOf, numberOf, offers } from "./build-modes.ts";
@@ -285,6 +286,7 @@ export class Hud {
     help.addEventListener("click", () => {
       actions.onHelp();
     });
+    const fullscreen = fullscreenButton("icon-button icon-fullscreen");
     const menu = h("button", {
       type: "button",
       class: "icon-button icon-menu",
@@ -492,7 +494,15 @@ export class Hud {
       this.leaderboard,
       this.attackPanel,
       this.tip,
-      h("div", { class: "toolbar" }, this.buildToggle, help, ...(pausable ? [pause] : []), menu),
+      h(
+        "div",
+        { class: "toolbar" },
+        this.buildToggle,
+        help,
+        ...(fullscreen ? [fullscreen] : []),
+        ...(pausable ? [pause] : []),
+        menu,
+      ),
     );
     applyTranslations(this.element);
     this.translateWork();

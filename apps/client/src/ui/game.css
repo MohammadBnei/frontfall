@@ -1599,6 +1599,17 @@ button.feed-entry:focus-visible {
   border-radius: 50%;
 }
 
+/*
+ * The full-screen tool is the one that gives way: a phone keeps its attack
+ * slider, a landscape one its leaderboard, and below 1360 the bar or the
+ * dock runs up to the toolbar's place. The Accessibility panel still has it.
+ */
+@media (width < 1360px), (height < 560px) {
+  .toolbar .icon-fullscreen {
+    display: none;
+  }
+}
+
 .end-stats {
   padding: 10px 14px;
   border-radius: 10px;
