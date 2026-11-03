@@ -40,45 +40,21 @@ export class ThreatList {
   }
 
   render(update: GameUpdate, ticksPerSecond: number): void {
-    const names = new Map(update.players.map((player) => [player.id, player.name]));
-    const name = (id: number): string =>
-      id === 0 ? t("hud.unclaimed") : (names.get(id) ?? t("hud.unclaimed"));
     const seen = new Set<string>();
-    for (const attack of update.incoming ?? []) {
-      const key = `in:${String(attack.id)}`;
-      seen.add(key);
-      const row = this.row(key, "incoming", true);
-      setText(
-        row.focus,
-        t("hud.incoming", { name: name(attack.attacker), troops: formatCount(attack.troops) }),
-      );
+    for (const line of threatLines(update, ticksPerSecond)) {
+      seen.add(line.key);
+      const row = this.row(line.key, line.kind, line.counter !== undefined);
+      setText(row.focus, line.text);
       row.focus.onclick = () => {
-        this.actions.onCentre({ player: attack.attacker });
+        this.actions.onCentre(line.target);
       };
-      if (row.counter) {
+      const counter = line.counter;
+      if (row.counter && counter) {
         row.counter.onclick = () => {
-          this.actions.onCounter(attack.attacker, attack.troops);
+          this.actions.onCounter(counter.attacker, counter.troops);
         };
-        row.counter.title = t("hud.counterHint", { name: name(attack.attacker) });
+        row.counter.title = counter.hint;
       }
-    }
-    for (const boat of update.boats) {
-      const kind = boatKind(boat, update.you);
-      if (kind === undefined) continue;
-      const key = `boat:${String(boat.id)}`;
-      seen.add(key);
-      const row = this.row(key, kind, false);
-      const time = formatDuration(Math.ceil((boat.ticksLeft ?? 0) / ticksPerSecond));
-      const troops = formatCount(boat.troops);
-      setText(
-        row.focus,
-        kind === "boatIn"
-          ? t("hud.boatIn", { name: name(boat.player), troops, time })
-          : t("hud.boatOut", { target: name(boat.target ?? 0), troops, time }),
-      );
-      row.focus.onclick = () => {
-        this.actions.onCentre({ tile: boat.tile });
-      };
     }
     for (const [key, row] of this.rows) {
       if (seen.has(key)) continue;
@@ -106,7 +82,57 @@ export class ThreatList {
 }
 
 /** The player's ship at sea, or an enemy ship heading for the player's land. */
-function boatKind(boat: BoatView, you: number): "boatOut" | "boatIn" | undefined {
+export function boatKind(boat: BoatView, you: number): "boatOut" | "boatIn" | undefined {
   if (boat.player === you) return "boatOut";
   return boat.target === you ? "boatIn" : undefined;
+}
+
+/** One line of the list: what it says, where a click on it goes, and the Counter of an attack. */
+export interface ThreatLine {
+  key: string;
+  kind: "incoming" | "boatOut" | "boatIn";
+  text: string;
+  target: ThreatTarget;
+  counter?: { attacker: number; troops: number; hint: string };
+}
+
+/**
+ * The lines to show for an update: the attacks on the player, then the player's
+ * ships at sea and the enemy ships bound for the player's land, with their cargo
+ * and the time left. Other players' ships are left out.
+ */
+export function threatLines(update: GameUpdate, ticksPerSecond: number): ThreatLine[] {
+  const names = new Map(update.players.map((player) => [player.id, player.name]));
+  const name = (id: number): string =>
+    id === 0 ? t("hud.unclaimed") : (names.get(id) ?? t("hud.unclaimed"));
+  const lines: ThreatLine[] = [];
+  for (const attack of update.incoming ?? []) {
+    lines.push({
+      key: `in:${String(attack.id)}`,
+      kind: "incoming",
+      text: t("hud.incoming", { name: name(attack.attacker), troops: formatCount(attack.troops) }),
+      target: { player: attack.attacker },
+      counter: {
+        attacker: attack.attacker,
+        troops: attack.troops,
+        hint: t("hud.counterHint", { name: name(attack.attacker) }),
+      },
+    });
+  }
+  for (const boat of update.boats) {
+    const kind = boatKind(boat, update.you);
+    if (kind === undefined) continue;
+    const time = formatDuration(Math.ceil((boat.ticksLeft ?? 0) / ticksPerSecond));
+    const troops = formatCount(boat.troops);
+    lines.push({
+      key: `boat:${String(boat.id)}`,
+      kind,
+      text:
+        kind === "boatIn"
+          ? t("hud.boatIn", { name: name(boat.player), troops, time })
+          : t("hud.boatOut", { target: name(boat.target ?? 0), troops, time }),
+      target: { tile: boat.tile },
+    });
+  }
+  return lines;
 }
