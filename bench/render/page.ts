@@ -15,6 +15,8 @@ export interface RenderResult {
   readonly staticFrame: Summary;
   readonly staticSubmit: Summary;
   readonly updateFrame: Summary;
+  /** What a heavy missile's fallout appearing, moving or clearing costs to send to the GPU, without drawing. */
+  readonly falloutFrame: Summary;
   readonly fullUploadFrameMs: number;
   readonly texelsPerUpdate: number;
   readonly rowsPerUpdate: number;
@@ -170,6 +172,30 @@ function run(): RenderResult {
     territory.clearChanges();
   }
 
+  // A strike: fallout discs of 40 tiles come and go, on land or not, at new places.
+  const falloutSamples: number[] = [];
+  for (let i = 0; i < Math.min(frames, 24); i++) {
+    const zones =
+      i % 4 === 3
+        ? []
+        : [
+            {
+              x: 300 + ((i * 397) % (width - 600)),
+              y: 200 + ((i * 211) % (height - 400)),
+              radius: 40,
+            },
+          ];
+    falloutSamples.push(
+      time(() => {
+        layer.setFallout(zones);
+        // The upload alone: in software the territory shader would drown it.
+        layer.flush(renderer);
+        // What three.js would otherwise send on the next render.
+        renderer.initTexture(layer.groundTexture);
+      }),
+    );
+  }
+
   layer.markAllChanged();
   const fullUploadFrameMs = time(draw);
 
@@ -183,6 +209,7 @@ function run(): RenderResult {
     staticFrame: summarize(staticSamples),
     staticSubmit: summarize(submitSamples),
     updateFrame: summarize(updateSamples),
+    falloutFrame: summarize(falloutSamples),
     fullUploadFrameMs,
     texelsPerUpdate: Math.round(texels / frames),
     rowsPerUpdate: Math.round(rows / frames),

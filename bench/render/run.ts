@@ -17,6 +17,8 @@ const { values } = parseArgs({
     // Only serve the page, to open it by hand in any browser or on a phone.
     serve: { type: "boolean", default: false },
     json: { type: "string" },
+    // Only the case of this position in the list (from 0), for a quick look.
+    case: { type: "string" },
   },
 });
 
@@ -36,7 +38,11 @@ const globeCases = [
   { width: 2048, height: 1024, players: 32, units: 0, viewport: [1280, 720], zoom: 8 },
   { width: 2048, height: 1024, players: 32, units: 0, viewport: [780, 1688], zoom: 8 },
 ] as const;
-const cases = values.globe ? globeCases : flatCases;
+const allCases = values.globe ? globeCases : flatCases;
+const cases =
+  values.case === undefined
+    ? allCases
+    : [allCases[Number(values.case)] as (typeof allCases)[number]];
 const frames = values.quick ? 20 : 120;
 
 const root = fileURLToPath(new URL(".", import.meta.url));
@@ -109,12 +115,12 @@ console.log(
 );
 console.log();
 console.log(
-  "| Map | Viewport | Units | Draw calls | Triangles | Static frame p50 / p95 | CPU submit p50 | Frame with updates p50 / p95 | Rows / texels per update | Full upload frame | First frame | GPU memory |",
+  "| Map | Viewport | Units | Draw calls | Triangles | Static frame p50 / p95 | CPU submit p50 | Frame with updates p50 / p95 | Fallout upload p50 / p95 | Rows / texels per update | Full upload frame | First frame | GPU memory |",
 );
 console.log("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
 for (const r of results) {
   console.log(
-    `| ${r.map} | ${r.viewport} | ${String(r.units)} | ${String(r.drawCalls)} | ${String(r.triangles)} | ${ms(r.staticFrame.p50)} / ${ms(r.staticFrame.p95)} ms | ${r.staticSubmit.p50.toFixed(2)} ms | ${ms(r.updateFrame.p50)} / ${ms(r.updateFrame.p95)} ms | ${String(r.rowsPerUpdate)} / ${String(r.texelsPerUpdate)} | ${ms(r.fullUploadFrameMs)} ms | ${ms(r.firstFrameMs)} ms | ${(r.gpuBytes / 2 ** 20).toFixed(1)} MiB |`,
+    `| ${r.map} | ${r.viewport} | ${String(r.units)} | ${String(r.drawCalls)} | ${String(r.triangles)} | ${ms(r.staticFrame.p50)} / ${ms(r.staticFrame.p95)} ms | ${r.staticSubmit.p50.toFixed(2)} ms | ${ms(r.updateFrame.p50)} / ${ms(r.updateFrame.p95)} ms | ${ms(r.falloutFrame.p50)} / ${ms(r.falloutFrame.p95)} ms | ${String(r.rowsPerUpdate)} / ${String(r.texelsPerUpdate)} | ${ms(r.fullUploadFrameMs)} ms | ${ms(r.firstFrameMs)} ms | ${(r.gpuBytes / 2 ** 20).toFixed(1)} MiB |`,
   );
 }
 if (values.json) writeFileSync(values.json, `${JSON.stringify(results, null, 2)}\n`);

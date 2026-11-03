@@ -902,6 +902,8 @@ export class TerritoryLayer {
   /** Tiles drawn under fallout now, and the zones they come from. */
   private scorched: number[] = [];
   private falloutKey = "";
+  /** The rectangle of the ground that changed since it was last sent: first and last column and row. */
+  private groundDirty: { x0: number; y0: number; x1: number; y1: number } | undefined;
   private fullRefresh = false;
 
   constructor(readonly options: TerritoryLayerOptions) {
@@ -1079,8 +1081,21 @@ export class TerritoryLayer {
     const data = this.groundTexture.image.data as Uint8Array;
     this.pristineGround ??= data.slice();
     const pristine = this.pristineGround;
+    let wrapped = false;
+    let x0 = width;
+    let y0 = height;
+    let x1 = -1;
+    let y1 = -1;
+    const touch = (column: number, row: number): void => {
+      if (column < x0) x0 = column;
+      if (column > x1) x1 = column;
+      if (row < y0) y0 = row;
+      if (row > y1) y1 = row;
+    };
     for (const tile of this.scorched) {
       for (let c = 0; c < 3; c++) data[tile * 4 + c] = pristine[tile * 4 + c] as number;
+      const column = tile % width;
+      touch(column, (tile - column) / width);
     }
     this.scorched = [];
     for (const { x, y, radius } of zones) {
@@ -1090,11 +1105,15 @@ export class TerritoryLayer {
         for (let dx = -radius; dx <= radius; dx++) {
           if (dx * dx + dy * dy > radius * radius) continue;
           let column = x + dx;
-          if (this.wrapsX) column = ((column % width) + width) % width;
-          else if (column < 0 || column >= width) continue;
+          if (this.wrapsX) {
+            const inside = ((column % width) + width) % width;
+            if (inside !== column) wrapped = true;
+            column = inside;
+          } else if (column < 0 || column >= width) continue;
           const tile = row * width + column;
           if (terrain[tile] === 0) continue;
           this.scorched.push(tile);
+          touch(column, row);
           for (let c = 0; c < 3; c++) {
             const base = pristine[tile * 4 + c] as number;
             data[tile * 4 + c] = Math.round(base * 0.35 + (FALLOUT[c] as number) * 0.65);
@@ -1102,7 +1121,20 @@ export class TerritoryLayer {
         }
       }
     }
-    this.groundTexture.needsUpdate = true;
+    // Only the rectangle that changed goes to the GPU (flush), unless a disc
+    // wraps around the map's edge: then it is the whole ground.
+    if (wrapped) this.groundTexture.needsUpdate = true;
+    else if (x1 >= 0) {
+      const dirty = this.groundDirty;
+      this.groundDirty = dirty
+        ? {
+            x0: Math.min(dirty.x0, x0),
+            y0: Math.min(dirty.y0, y0),
+            x1: Math.max(dirty.x1, x1),
+            y1: Math.max(dirty.y1, y1),
+          }
+        : { x0, y0, x1, y1 };
+    }
     return true;
   }
 
@@ -1195,7 +1227,46 @@ export class TerritoryLayer {
     for (let i = 0; i < this.dirtyRowCount; i++) this.dirtyChunks[this.dirtyRows[i] as number] = 0;
     this.dirtyRowCount = 0;
     this.fullRefresh = false;
+    if (this.groundDirty) this.sendGround(renderer, this.groundDirty);
+    this.groundDirty = undefined;
     return texels;
+  }
+
+  /**
+   * Sends the rectangle of the ground that fallout changed. A fallout zone is
+   * a disc of a few dozen tiles on a map of millions: sending the whole ground
+   * (32 MiB on the largest map) for each strike or end of fallout is a hitch
+   * of tens of milliseconds, and more on a phone. The mipmaps are rebuilt on
+   * the GPU. Without the renderer, or before the ground is on the GPU, three.js
+   * sends everything on the next render.
+   */
+  private sendGround(
+    renderer: THREE.WebGLRenderer | undefined,
+    { x0, y0, x1, y1 }: { x0: number; y0: number; x1: number; y1: number },
+  ): void {
+    const texture = this.groundTexture;
+    const state = renderer?.properties.get(texture) as
+      { __webglTexture?: WebGLTexture; __version?: number } | undefined;
+    if (!renderer || !state?.__webglTexture || state.__version !== texture.version) {
+      texture.needsUpdate = true;
+      return;
+    }
+    const { width } = this.options;
+    const columns = x1 - x0 + 1;
+    const rows = y1 - y0 + 1;
+    const data = texture.image.data as Uint8Array;
+    const out = new Uint8Array(columns * rows * 4);
+    for (let row = 0; row < rows; row++) {
+      const from = ((y0 + row) * width + x0) * 4;
+      out.set(data.subarray(from, from + columns * 4), row * columns * 4);
+    }
+    const gl = renderer.getContext() as WebGL2RenderingContext;
+    renderer.state.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    renderer.state.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    renderer.state.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    renderer.state.bindTexture(gl.TEXTURE_2D, state.__webglTexture);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, x0, y0, columns, rows, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    if (texture.generateMipmaps) gl.generateMipmap(gl.TEXTURE_2D);
   }
 
   /** Whether both textures are on the GPU as they stand, with no upload of three.js pending. */

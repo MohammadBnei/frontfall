@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TerritoryLayer } from "../src/render/territory-layer.ts";
 
 function layer(width = 256, height = 4, maxOwner = 3): TerritoryLayer {
@@ -193,6 +193,47 @@ describe("TerritoryLayer", () => {
     expect(changed(2 * width + 2)).toBe(false);
     expect(territory.setFallout([])).toBe(true);
     expect(Array.from(data)).toEqual(Array.from(before));
+  });
+
+  it("sends only the rectangle that fallout changed once the ground is on the GPU", () => {
+    const width = 8;
+    const territory = new TerritoryLayer({
+      width,
+      height: 8,
+      owners: new Uint16Array(width * 8),
+      terrain: new Uint8Array(width * 8).fill(1),
+      wrapsX: false,
+      maxOwner: 1,
+    });
+    const texture = territory.groundTexture;
+    const sub = vi.fn();
+    const mipmap = vi.fn();
+    const gl = {
+      texSubImage2D: sub,
+      generateMipmap: mipmap,
+      TEXTURE_2D: 1,
+      RGBA: 2,
+      UNSIGNED_BYTE: 3,
+    };
+    const renderer = {
+      getContext: () => gl,
+      state: { pixelStorei: vi.fn(), bindTexture: vi.fn() },
+      properties: { get: () => ({ __webglTexture: {}, __version: texture.version }) },
+    } as unknown as THREE.WebGLRenderer;
+    const version = texture.version;
+    territory.setFallout([{ x: 3, y: 3, radius: 1 }]);
+    territory.flush(renderer);
+    // The disc of radius 1 covers columns 2 to 4 and rows 2 to 4; nothing else is sent.
+    expect(sub).toHaveBeenCalledTimes(1);
+    const args = sub.mock.calls[0] as unknown[];
+    expect(args.slice(1, 6)).toEqual([0, 2, 2, 3, 3]);
+    expect((args[8] as Uint8Array).length).toBe(3 * 3 * 4);
+    expect(mipmap).toHaveBeenCalledTimes(1);
+    expect(texture.version).toBe(version);
+    // Without the renderer, or before the ground is on the GPU, three.js sends it all.
+    territory.setFallout([]);
+    territory.flush();
+    expect(texture.version).toBe(version + 1);
   });
 
   it("wraps fallout across the edge of a cylinder, and clips it on a flat map", () => {
