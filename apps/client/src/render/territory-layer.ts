@@ -668,11 +668,14 @@ const fragmentShader = /* glsl */ `
       vec3 rock = srgb3(96.0, 88.0, 78.0);
       vec3 rockLight = srgb3(150.0, 139.0, 122.0);
       // Bare rock belongs to the mountains; hills keep their grass and only show stone on their steep sides.
-      float bare = rocky * (0.3 + 0.45 * smoothstep(0.03, 0.18, steep)) + (hm - rocky) * 0.35 * smoothstep(0.1, 0.3, steep);
+      // Ice caps and polar ground come baked white: they keep their ice, never turn to rock.
+      float ice = smoothstep(0.42, 0.62, baseLight);
+      shade = mix(shade, 1.0 + (shade - 1.0) * 0.25, ice);
+      float bare = (rocky * (0.3 + 0.45 * smoothstep(0.03, 0.18, steep)) + (hm - rocky) * 0.35 * smoothstep(0.1, 0.3, steep)) * (1.0 - ice);
       albedo = mix(albedo, mix(rock, rockLight, crest) * (0.9 + 0.2 * nz(at * 0.4)), bare);
       albedo *= 1.0 - 0.16 * rocky * (1.0 - crest);
       float snow = smoothstep(0.88, 1.0, hb + 0.1 * crest) * smoothstep(0.5, 0.9, crest + 0.3 * nz(at * 0.5));
-      albedo = mix(albedo, srgb3(214.0, 220.0, 228.0), hm * snow * 0.8);
+      albedo = mix(albedo, srgb3(214.0, 220.0, 228.0), max(hm * snow * 0.8, ice * 0.5));
       // Warm light on the slopes facing the sun, cool shade in the folds: depth without chrome.
       vec3 tint = mix(vec3(0.9, 0.94, 1.04), vec3(1.05, 1.0, 0.9), smoothstep(0.7, 1.25, shade));
       landColor = albedo * shade * mix(vec3(1.0), tint, 0.35 + 0.65 * hm);
