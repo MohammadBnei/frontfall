@@ -231,11 +231,11 @@ again (`frontfall.buildHint` in local storage).
 
 ## Beta
 
-Until 1.0, the menu and the HUD show a beta badge with the version of the
-client (`apps/client/package.json`), and the menu says that rules, balance and
-visuals will still change. Vite passes the version to the page
-(`src/release.ts`); the badge disappears by itself once the version reaches
-1.0.0.
+Before 1.0, the menu and the HUD showed a beta badge with the version of the
+client, and the menu said that rules, balance and visuals would still change.
+Vite passes the root `package.json` version to the page (`src/release.ts`);
+the badge disappeared by itself when the version reached 1.0.0, and nothing
+replaces it.
 
 ## Controls
 

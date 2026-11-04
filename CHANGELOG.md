@@ -4,12 +4,30 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-05
+
+Frontfall comes out of beta: the complete game on the flat map. The 3D globe follows in v1.1.
+
+### Changed
+
+- **Balance aligned with the reference of the genre.** Small economies no longer get a trade boost, far ports are drawn as in the reference, units no longer desert at once above the cap, a defeated human keeps half the gold, and nations take city-states more cleverly. On 96 games on Lyon, Europe and World, the four profiles land in their targets (normal against Nico 58 %, down from 83 %) and the leader at 10 minutes now wins 31 % of games, down from 61 %: games stay open longer. The values kept apart on purpose are listed in `docs/balance.md`.
+- **Modern ships.** Ships are redrawn as modern vessels seen from above: a destroyer, a container ship and an amphibious assault ship, with superstructures, shadows and wakes, the owner's colour always in view.
+- **A clearer tutorial.** The countdown explains the figures and the 75 % win, the Workers slider joins the core path before the first city, and the gold chapter gains a step on trade.
+
+- **Out of beta.** The beta badge no longer shows in the menu and the HUD, and the About page and the terms of use no longer call the game a beta. Rules, maps and features can still change, as the terms say, but nothing is promised as unfinished.
+- **A road past 1.0.** The 3D globe is v1.1, and community maps, replay links and spectators are v1.x. Fixes for 1.0 go into v1.0.x.
+
 ### Security
 
 - **Several allowed origins.** `FRONTFALL_ORIGINE` accepts a comma-separated list, and the documentation says that without it every site may open a game socket.
 - **Built files kept in memory.** Hashed assets are read from disk once, not at each request.
 - **Sign-in links tied to a browser (optional).** `FRONTFALL_LOGIN_BIND=true` requires a link to be opened in the browser that asked for it. Off by default.
 - **Explicit proxy setting.** `compose.yaml` sets `FRONTFALL_TRUST_PROXY` and the documentation says when to turn it off.
+
+### For self-hosters and contributors
+
+- **Where games are lost, counted anonymously.** Game reports now carry the features used, the land held and the median frame time, and the server crosses the outcome with difficulty, map, length, device and nations. `pnpm usage:report` prints the findings from `/api/stats`, and `pnpm playtest-report` says how many games were finished or abandoned, per mode. Nothing tells players apart; `docs/privacy.md` says what is counted.
+- **A playtest guide.** `docs/playtest.md` (and `docs/playtest.fr.md`) gains three questions to ask players and a way to read the report of the games played to the end.
 
 ## [0.9.9] - 2026-11-04
 

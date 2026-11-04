@@ -4,7 +4,7 @@ Thanks for taking the time to help. This page explains how to propose a change a
 
 ## Your first contribution
 
-Until v1.0, v0.9.9 is the last version with new features: new proposals wait for v1.1 and v1.x, and what is merged now is fixes and polish. Issues in the [v0.9.9 milestone](https://github.com/nic0lasm/frontfall/milestone/16) are the ones that matter most.
+v1.0 is out. Fixes and polish for it are welcome in [v1.0.x](https://github.com/nic0lasm/frontfall/milestones); new features wait for v1.1 (the 3D globe) and v1.x (community maps, replay links, spectators). Propose them in [Discussions](https://github.com/nic0lasm/frontfall/discussions) first.
 
 1. Pick an issue labelled [`good first issue`](https://github.com/nic0lasm/frontfall/labels/good%20first%20issue) or [`help wanted`](https://github.com/nic0lasm/frontfall/labels/help%20wanted).
 2. Comment on it to claim it, so nobody else starts the same work.
