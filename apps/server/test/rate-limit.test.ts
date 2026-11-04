@@ -33,4 +33,16 @@ describe("AddressRate", () => {
     rate.take("c", 5000);
     expect(rate.size).toBe(1);
   });
+
+  it("refuses a new address past its cap, and takes one again once buckets refill", () => {
+    const rate = new AddressRate(1, 2, 0, 3);
+    expect(["a", "b", "c"].map((address) => rate.take(address, 0))).toEqual([true, true, true]);
+    expect(rate.take("d", 0)).toBe(false);
+    expect(rate.size).toBe(3);
+    // An address that is known keeps its own bucket.
+    expect(rate.take("a", 0)).toBe(true);
+    // Two seconds on, the buckets have filled up again and are forgotten for the new one.
+    expect(rate.take("d", 2000)).toBe(true);
+    expect(rate.size).toBe(1);
+  });
 });

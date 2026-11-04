@@ -506,6 +506,7 @@ export function createAuth(
       .writeHead(status, {
         "content-type": "application/json",
         "cache-control": "no-store",
+        "x-content-type-options": "nosniff",
         ...(cookies.length > 0 && { "set-cookie": cookies }),
       })
       .end(JSON.stringify(body));

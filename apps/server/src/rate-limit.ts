@@ -37,6 +37,8 @@ export class TokenBucket {
  * One token bucket per address, for what a client may do before it has a
  * connection to count against, such as opening one. Buckets that have filled
  * up again are forgotten, so the map only holds addresses active lately.
+ * Past `maxEntries` addresses, a new one is refused until some are forgotten,
+ * so a flood from a wide range of addresses cannot grow the map without end.
  */
 export class AddressRate {
   private readonly buckets = new Map<string, TokenBucket>();
@@ -46,6 +48,7 @@ export class AddressRate {
     private readonly perSecond: number,
     private readonly burst: number,
     now: number,
+    private readonly maxEntries = 100_000,
   ) {
     this.prunedAt = now;
   }
@@ -59,6 +62,11 @@ export class AddressRate {
     this.prune(now);
     let bucket = this.buckets.get(address);
     if (!bucket) {
+      if (this.buckets.size >= this.maxEntries) {
+        // Full: forget the buckets that have refilled, at most once a second, then decide.
+        if (now - this.prunedAt >= 1000) this.sweep(now);
+        if (this.buckets.size >= this.maxEntries) return false;
+      }
       bucket = new TokenBucket(this.perSecond, this.burst, now);
       this.buckets.set(address, bucket);
     }
@@ -69,6 +77,10 @@ export class AddressRate {
   private prune(now: number): void {
     const refillMs = (this.burst / this.perSecond) * 1000;
     if (now - this.prunedAt < refillMs) return;
+    this.sweep(now);
+  }
+
+  private sweep(now: number): void {
     this.prunedAt = now;
     for (const [address, bucket] of this.buckets) {
       if (bucket.full(now)) this.buckets.delete(address);

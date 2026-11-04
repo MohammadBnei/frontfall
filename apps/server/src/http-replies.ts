@@ -68,7 +68,11 @@ function acceptsGzip(request: IncomingMessage): boolean {
 
 export function sendJson(response: ServerResponse, body: unknown, caching = "no-store"): void {
   response
-    .writeHead(200, { "content-type": "application/json", "cache-control": caching })
+    .writeHead(200, {
+      "content-type": "application/json",
+      "cache-control": caching,
+      "x-content-type-options": "nosniff",
+    })
     .end(JSON.stringify(body));
 }
 

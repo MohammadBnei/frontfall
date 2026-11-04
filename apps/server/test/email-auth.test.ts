@@ -123,6 +123,15 @@ describe("sign-in by email", () => {
     });
   });
 
+  it("marks its JSON replies so that a browser reads them as sent", async () => {
+    const base = await start();
+    const me = await fetch(`${base}/api/me`);
+    expect(me.headers.get("x-content-type-options")).toBe("nosniff");
+    const refused = await post(base, "/auth/email", { email: "not an address" });
+    expect(refused.status).toBe(400);
+    expect(refused.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
   it("sends a link to the game that signs the player in, once", async () => {
     const base = await start();
     const asked = await post(base, "/auth/email", {
