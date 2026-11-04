@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { landShare, startByTheWater } from "./by-the-water.ts";
 
 test("lists a ship while it sails and drops it once it has landed", async ({ page }) => {
+  test.setTimeout(180_000);
   const start = await startByTheWater(page, "&bots=0&speed=1");
   const before = await landShare(page);
   // A ship still lands quickly: a watcher records every line of the list the moment it is
@@ -26,11 +27,22 @@ test("lists a ship while it sails and drops it once it has landed", async ({ pag
   const seen = (): Promise<string[]> =>
     page.evaluate(() => (window as unknown as { seenShips: string[] }).seenShips);
   // The far bank of the channel: land the player's start does not touch, across the water.
-  for (const x of [455, 435, 415, 380]) {
-    for (let y = start.y - 260; y <= start.y - 60 && (await seen()).length === 0; y += 25) {
-      await page.mouse.click(x, y);
-      await page.waitForTimeout(100);
+  // The map is searched in a grid laid on its own box, nearest points first, so the search
+  // does not depend on the size of the window a browser opens; it stops at the first line.
+  const box = await page.locator("#map").boundingBox();
+  if (!box) throw new Error("the map has no size");
+  const points: { x: number; y: number }[] = [];
+  for (let x = box.x + 20; x < box.x + box.width - 20; x += 30) {
+    for (let y = box.y + 20; y < box.y + box.height - 20; y += 30) {
+      if (Math.hypot(x - start.x, y - start.y) > 110) points.push({ x, y });
     }
+  }
+  points.sort(
+    (a, b) => Math.hypot(a.x - start.x, a.y - start.y) - Math.hypot(b.x - start.x, b.y - start.y),
+  );
+  for (const point of points) {
+    await page.mouse.click(point.x, point.y);
+    await page.waitForTimeout(60);
     if ((await seen()).length > 0) break;
   }
   // Where it is bound, what it carries and the time left.
