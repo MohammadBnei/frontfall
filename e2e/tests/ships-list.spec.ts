@@ -3,11 +3,12 @@ import { landShare, startByTheWater } from "./by-the-water.ts";
 
 test("lists a ship while it sails and drops it once it has landed", async ({ page }) => {
   test.setTimeout(180_000);
-  const start = await startByTheWater(page, "&bots=0&speed=1");
+  const start = await startByTheWater(page, "&speed=2");
   const before = await landShare(page);
   // A ship still lands quickly: a watcher records every line of the list the moment it is
   // written (a mutation observer and a short timer, since browsers batch differently), so the
-  // test never races the landing. The game runs at its normal pace to give it more time.
+  // test never races the landing. The game runs at its normal pace (the address says so, and overrides the helper's ×5)
+  // to give it more time: at ×5 a ship lands in three seconds, which a slow browser can skip over.
   await page.evaluate(() => {
     const seen: string[] = [];
     Object.assign(window, { seenShips: seen });
@@ -46,7 +47,7 @@ test("lists a ship while it sails and drops it once it has landed", async ({ pag
     if ((await seen()).length > 0) break;
   }
   // Where it is bound, what it carries and the time left.
-  expect((await seen())[0]).toMatch(/^Ship to .+: [\d,]+, \d+:\d\d$/);
+  expect((await seen())[0]).toMatch(/^Ship to .+: [\d.,]+[KM]?, \d+:\d\d$/);
   // It lands: the line goes and the player holds more land than before.
   await expect(page.locator(".threat-boatOut")).toHaveCount(0, { timeout: 60_000 });
   await expect.poll(() => landShare(page), { timeout: 30_000 }).toBeGreaterThan(before);

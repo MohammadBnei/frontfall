@@ -31,7 +31,10 @@ export async function startByTheWater(
   page: Page,
   query: string,
 ): Promise<{ x: number; y: number }> {
-  await page.goto(`./?map=strait&bots=1&difficulty=easy&nations=0&speed=5${query}`);
+  // The query overrides these defaults: a name given twice in an address is read once, first.
+  const params = new URLSearchParams("map=strait&bots=1&difficulty=easy&nations=0&speed=5");
+  for (const [name, value] of new URLSearchParams(query)) params.set(name, value);
+  await page.goto(`./?${params.toString()}`);
   await page.locator("#play").click();
   await expect(page.locator("#map")).toBeVisible();
   const box = await page.locator("#map").boundingBox();
