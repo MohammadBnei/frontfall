@@ -62,31 +62,21 @@ jobs:
           provenance: true
           sbom: true
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      # The scan runs from the official Trivy image, pulled from Docker Hub by digest: the
+      # installer of the action downloads a release from GitHub, which failed on the arm64
+      # runner. The registry login of the job is handed over read-only to pull the image.
       - name: Scan the image
-        id: scan
-        # Installing Trivy downloads it; a network hiccup there once failed a release run.
-        # Scan once more before calling the run failed.
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
-          # The digest names an index (image and attestations): pick the architecture.
-          TRIVY_PLATFORM: linux/${{ matrix.arch }}
-        with:
-          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
-      - name: Scan the image again
-        if: steps.scan.outcome == 'failure'
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          # The digest names an index (image and attestations): pick the architecture.
-          TRIVY_PLATFORM: linux/${{ matrix.arch }}
-        with:
-          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: "1"
+          TRIVY_IMAGE: aquasec/trivy:0.70.0@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e
+          DIGEST: ${{ steps.build.outputs.digest }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm \
+            -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" \
+            -e TRIVY_PLATFORM="linux/$ARCH" \
+            "$TRIVY_IMAGE" image \
+            --severity CRITICAL,HIGH --ignore-unfixed --exit-code 1 \
+            "$IMAGE@$DIGEST"
       - name: Keep the digest
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
