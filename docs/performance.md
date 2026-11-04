@@ -444,6 +444,51 @@ Measured on 2026-10-24 on a MacBook Air with an Apple M4, in Google Chrome
   1 draw call at 0.4 to 0.5 ms (p95 0.8 to 1.0 ms) per static frame, and
   11.8 ms (p95 13.3 to 15.2 ms) with a tick, at both zoom levels tried.
 
+### Rendering, a real phone
+
+Measured on 2026-11-03 and 2026-11-04 on an iPhone (Apple GPU, iOS 18.7, 393 × 852 at
+device pixel ratio 3, Safari), with the `?perf` panel on a solo game on World, about two
+minutes of play (the last window of 120 frames).
+
+| Build                                                       | Sharpness | Frame median / p90 / worst (windows of 24) | GPU wait, mean | Update apply, mean |
+| ----------------------------------------------------------- | --------: | ------------------------------------------ | -------------: | -----------------: |
+| 0.9.8                                                       |      1.20 | 18 / 21 / 23 ms                            |        11.8 ms |             1.6 ms |
+| next, relief, tint, grouped pieces, front, ice (2026-11-03) |      0.96 | 18 / 23 / 31 ms                            |         6.4 ms |             1.6 ms |
+| next, all of the above plus ships, buildings, close ground  |      1.20 | 18 / 21 / 22 ms                            |        12.1 ms |             1.6 ms |
+
+- The phone holds about 55 frames a second, inside the 30 fps budget. What the page's
+  own code spends is small: labels 0.1 to 0.2 ms, placing ships 0.0 to 0.1 ms, applying
+  an update 1.6 ms; the rest is the GPU.
+- The sharpness the game settles at depends on the scale controller as much as on the
+  shader (frame times are whole milliseconds on iOS, close to its 18 and 20 ms
+  thresholds), and the part of the game and the zoom at the end of the run change the
+  GPU wait. Compare builds at the same sharpness: per pixel (GPU wait over the squared
+  sharpness) the three runs give 8.2, 6.9 and 8.4 ms.
+- One update of 1.6 s in a report is the page going to the background, not a hitch.
+
+### Server load, after the pace change
+
+Since 0.9.1 a normal game runs three beats in four, so turns are 100 or 200 ms apart.
+`pnpm load` measures lateness from the nearest beat (up to two). Measured on 2026-11-03,
+Xeon at 2.1 GHz, heap 512 MiB, 16 players a game, 2 minutes a step:
+
+| Games | Players | Server CPU | RSS     | Loop delay p99 | Turn pass |
+| ----: | ------: | ---------: | ------- | -------------: | --------: |
+|    50 |     800 |     11.0 % | 134 MiB |         1.1 ms |   0.70 ms |
+|   100 |   1,600 |     19.7 % | 145 MiB |         1.2 ms |   1.38 ms |
+|   200 |   3,200 |     37.3 % | 165 MiB |         2.5 ms |   2.78 ms |
+|   300 |   4,800 |     52.8 % | 188 MiB |         4.5 ms |   4.06 ms |
+
+No turn was lost. The reference game takes 4.0 ms a tick (p95 6.8 ms) on this machine.
+
+### Fallout
+
+A heavy missile's fallout used to send the whole ground texture (32 MiB on a
+4096 × 2048 map) each time a zone appeared or cleared. It now sends the rectangle the
+discs changed, and `pnpm bench:render` checks that the result draws exactly as a full
+send does. On a software rasteriser the cost is dominated by rebuilding the mipmaps, so
+the saving shows only on a real GPU.
+
 ### Rendering, software GL
 
 Headless Chromium on SwiftShader, Google's CPU implementation of the GPU, on
@@ -728,8 +773,9 @@ server. Reasons are now cut to 123 bytes.
 
 ## Next steps
 
-1. Run the render benchmark on phones (a mid-range Android phone, an iPhone)
-   and bring the tick upload frame on the largest map under 16.7 ms.
+1. Run the render benchmark on a mid-range Android phone (an iPhone is measured,
+   see "Rendering, a real phone") and bring the tick upload frame on the largest map
+   under 16.7 ms.
 2. Keep the page's handler of an update under a millisecond as the HUD grows:
    write to the page only what changed, and never read a size or a position
    in it ("Updates from the worker").
