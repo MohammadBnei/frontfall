@@ -15,4 +15,12 @@ describe("isAllowedOrigin", () => {
   it("lets clients without an Origin header through, since only browsers send one", () => {
     expect(isAllowedOrigin(undefined, "https://nclsmgr.com")).toBe(true);
   });
+
+  it("accepts any of several origins separated by commas", () => {
+    const allowed = "https://nclsmgr.com, https://www.nclsmgr.com";
+    expect(isAllowedOrigin("https://www.nclsmgr.com", allowed)).toBe(true);
+    expect(isAllowedOrigin("https://nclsmgr.com", allowed)).toBe(true);
+    expect(isAllowedOrigin("https://evil.example", allowed)).toBe(false);
+    expect(isAllowedOrigin("https://evil.example", " , ")).toBe(true);
+  });
 });

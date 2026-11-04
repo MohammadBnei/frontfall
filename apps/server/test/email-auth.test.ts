@@ -40,7 +40,7 @@ const logger: Logger = {
   warn: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
 };
 
-async function start(dailyLimit?: number): Promise<string> {
+async function start(dailyLimit?: number, bindToBrowser = false): Promise<string> {
   server = createGameServer({
     staticRoot,
     version: "abc123",
@@ -63,6 +63,7 @@ async function start(dailyLimit?: number): Promise<string> {
           },
         },
         ...(dailyLimit !== undefined && { dailyLimit }),
+        ...(bindToBrowser && { bindToBrowser }),
       },
     },
   });
@@ -112,6 +113,76 @@ async function signIn(base: string, email: string, name = "Nelly"): Promise<stri
   expect(response.status).toBe(200);
   return sessionOf(response) ?? "";
 }
+
+/** The `name=value` of the link cookie a reply sets. */
+function linkCookieOf(response: Response): string | undefined {
+  for (const header of response.headers.getSetCookie()) {
+    const match = /^(frontfall_link=[^;]+)/.exec(header);
+    if (match?.[1]) return match[1];
+  }
+  return undefined;
+}
+
+describe("sign-in links tied to the browser", () => {
+  it("sets no cookie, and works anywhere, unless asked", async () => {
+    const base = await start();
+    const asked = await post(base, "/auth/email", { email: "nelly@example.org" });
+    expect(linkCookieOf(asked)).toBeUndefined();
+    await settle();
+    expect((await post(base, "/auth/email/confirm", { token: tokenOf(sent.at(-1)) })).status).toBe(
+      200,
+    );
+  });
+
+  it("signs in the browser that asked for the link", async () => {
+    const base = await start(undefined, true);
+    const asked = await post(base, "/auth/email", { email: "nelly@example.org", name: "Nelly" });
+    const cookie = linkCookieOf(asked);
+    expect(cookie).toBeDefined();
+    expect(asked.headers.getSetCookie().join(";")).toMatch(/HttpOnly/);
+    await settle();
+    const confirmed = await post(
+      base,
+      "/auth/email/confirm",
+      { token: tokenOf(sent.at(-1)) },
+      cookie,
+    );
+    expect(confirmed.status).toBe(200);
+    expect(sessionOf(confirmed)).toBeDefined();
+  });
+
+  it("refuses the link in a browser that did not ask for it, or with another cookie", async () => {
+    const base = await start(undefined, true);
+    await post(base, "/auth/email", { email: "nelly@example.org", name: "Nelly" });
+    await settle();
+    const token = tokenOf(sent.at(-1));
+    const bare = await post(base, "/auth/email/confirm", { token });
+    expect(bare.status).toBe(403);
+    expect(sessionOf(bare)).toBeUndefined();
+    // The link is spent: the right browser cannot use it afterwards either.
+    const other = await post(base, "/auth/email", { email: "other@example.org", name: "Other" });
+    const otherCookie = linkCookieOf(other);
+    const stranger = await post(base, "/auth/email", { email: "third@example.org" });
+    await settle();
+    const wrong = await post(
+      base,
+      "/auth/email/confirm",
+      { token: tokenOf(sent.at(-1)) },
+      linkCookieOf(other) === linkCookieOf(stranger) ? "frontfall_link=forged.mac" : otherCookie,
+    );
+    expect(wrong.status).toBe(403);
+  });
+
+  it("answers the same, cookie included, when the link is held back", async () => {
+    const base = await start(undefined, true);
+    const first = await post(base, "/auth/email", { email: "nelly@example.org" });
+    const kept = linkCookieOf(first);
+    await post(base, "/auth/email", { email: "nelly@example.org" }, kept);
+    const held = await post(base, "/auth/email", { email: "nelly@example.org" }, kept);
+    expect(held.status).toBe(202);
+    expect(linkCookieOf(held)).toBe(kept);
+  });
+});
 
 describe("sign-in by email", () => {
   it("is offered once a mailbox is set up", async () => {

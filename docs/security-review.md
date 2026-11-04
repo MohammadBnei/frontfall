@@ -25,7 +25,7 @@ A read-through of what the game server accepts from outside, the content securit
 
 ### Since the review
 
-Done before v0.9.9: the mailbox budget of sign-in links (the first medium finding), `X-Content-Type-Options: nosniff` on the JSON replies and the sign-in replies, and a cap of 100,000 addresses on `AddressRate`. Left for v1.0.1: the trust given to `X-Client-IP` (it needs a change to the production compose file first), the note on `FRONTFALL_ORIGINE` and on static files, and the cookie that would tie a sign-in link to the browser that asked for it. That cookie also stops a link opened in another browser, which is how many people open a mail from their phone, so it needs a decision on that trade-off before it is built.
+Done before v0.9.9: the mailbox budget of sign-in links (the first medium finding), `X-Content-Type-Options: nosniff` on the JSON replies and the sign-in replies, and a cap of 100,000 addresses on `AddressRate`. Done for v1.0: `FRONTFALL_ORIGINE` takes a comma-separated list and its absence is documented; built assets (`/assets/`, named by content hash) are kept in memory after the first read, up to 32 MiB; the cookie that ties a sign-in link to the browser is built and switched on with `FRONTFALL_LOGIN_BIND=true`. Left off by default because it also refuses a link opened in another browser or app, which is how many people open a mail from their phone; turn it on once that trade-off is accepted. The default of `trustProxy` stays `true`: `compose.yaml` now sets `FRONTFALL_TRUST_PROXY` explicitly, and the default can become `false` once the production compose file sets it too.
 
 ## Content security policy
 

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -70,5 +70,18 @@ describe("loadStaticFile", () => {
     expect((await loadStaticFile(root, "/flag.png"))?.gzip).toBeUndefined();
     const noise = await loadStaticFile(root, "/noise.json");
     expect(noise?.gzip === undefined || noise.gzip.length < noise.body.length).toBe(true);
+  });
+
+  it("keeps hashed assets in memory once read, and only those", async () => {
+    await writeFile(join(root, "assets", "kept-abc123.js"), "export const a = 1;");
+    await writeFile(join(root, "page.html"), "<p>1</p>");
+    const first = await loadStaticFile(root, "/assets/kept-abc123.js");
+    await loadStaticFile(root, "/page.html");
+    await rm(join(root, "assets", "kept-abc123.js"));
+    await rm(join(root, "page.html"));
+    expect((await loadStaticFile(root, "/assets/kept-abc123.js"))?.body.toString()).toBe(
+      first?.body.toString(),
+    );
+    expect(await loadStaticFile(root, "/page.html")).toBeUndefined();
   });
 });

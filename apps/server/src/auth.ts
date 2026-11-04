@@ -53,11 +53,21 @@ export interface AuthOptions {
     mailer: Mailer;
     /** Links sent in a day, all players together: the mailbox's own limit, with room to spare. */
     dailyLimit?: number;
+    /**
+     * Ties a sign-in link to the browser that asked for it: a short HttpOnly
+     * cookie is set when the link is requested and required when it is
+     * confirmed, which closes the login CSRF (an attacker's link opened in the
+     * victim's browser). Off by default: it also refuses a link opened in
+     * another browser or app, as happens when the mail is read on a phone.
+     */
+    bindToBrowser?: boolean;
   };
 }
 
 export const SESSION_COOKIE = "frontfall_session";
 const SIGN_IN_COOKIE = "frontfall_sign_in";
+/** Set when a sign-in link is asked for, when links are tied to the browser. */
+export const LINK_COOKIE = "frontfall_link";
 /** A player stays signed in this long after their last sign-in. */
 export const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 /** Time a player has to sign in at the service before coming back. */
@@ -134,6 +144,8 @@ interface PendingLink {
   expires: number;
   /** The account the address is added to, when a signed-in player asked for the link. */
   linkTo?: string;
+  /** Hash of the browser's link cookie, when links are tied to the browser. */
+  browser?: string;
 }
 
 /** Words of the email, in the language of the page that asked for it. */
@@ -613,7 +625,16 @@ export function createAuth(
         return;
       }
       const subject = accounts.subject("email", email);
-      json(response, 202, { sent: true });
+      // The same answer, cookie included, whether the link is sent or held back.
+      let browser: string | undefined;
+      const cookies: string[] = [];
+      if (mail?.bindToBrowser) {
+        const kept = verify("link", readCookie(request, LINK_COOKIE));
+        const nonce = kept ?? randomBytes(16).toString("base64url");
+        browser = tokenHash(nonce);
+        cookies.push(cookie(LINK_COOKIE, `${nonce}.${sign("link", nonce)}`, LINK_MS));
+      }
+      json(response, 202, { sent: true }, cookies);
       // Held back without a word: saying so would tell that someone asked for this address.
       const box = mailbox(email);
       if (!linkRatePerEmail.take(box, time) || !dailyLinksPerEmail.take(box, time)) return;
@@ -628,6 +649,7 @@ export function createAuth(
         name: typeof body.name === "string" ? body.name : "",
         expires: time + LINK_MS,
         ...(linkTo && { linkTo: linkTo.id }),
+        ...(browser && { browser }),
       });
       const link = new URL(base);
       link.hash = `signin=${token}`;
@@ -655,6 +677,16 @@ export function createAuth(
       if (!link || link.expires <= now()) {
         json(response, 400, { error: "expired", message: "this link is no longer valid" });
         return;
+      }
+      if (link.browser !== undefined) {
+        const nonce = verify("link", readCookie(request, LINK_COOKIE));
+        if (nonce === undefined || tokenHash(nonce) !== link.browser) {
+          json(response, 403, {
+            error: "other_browser",
+            message: "open the link in the browser that asked for it",
+          });
+          return;
+        }
       }
       if (link.linkTo !== undefined) {
         // Finished where the account is signed in, never elsewhere: the

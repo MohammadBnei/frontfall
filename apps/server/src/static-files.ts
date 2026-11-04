@@ -71,6 +71,16 @@ function derive(path: string, modified: number, body: Buffer): Derived {
 }
 
 /**
+ * Built assets carry a content hash in their name and never change, so they
+ * are kept in memory after the first read instead of being read from disk at
+ * each request. Once the cap is reached, further files are still served, just
+ * not kept.
+ */
+const ASSET_CACHE_BYTES = 32 * 1024 * 1024;
+const assetCache = new Map<string, StaticFile>();
+let assetCacheBytes = 0;
+
+/**
  * Resolves a request path to a file inside `root`, or undefined when the file
  * does not exist or the path tries to leave the root. "/" serves index.html.
  */
@@ -90,6 +100,10 @@ export async function loadStaticFile(
   const absolute = join(root, relative);
   if (!absolute.startsWith(root.endsWith(sep) ? root : root + sep)) return undefined;
 
+  const immutable = requestPath.startsWith("/assets/");
+  const kept = immutable ? assetCache.get(absolute) : undefined;
+  if (kept) return kept;
+
   try {
     // One handle for the check and the read: the file cannot change in between.
     const handle = await open(absolute, "r");
@@ -103,12 +117,18 @@ export async function loadStaticFile(
       await handle.close();
     }
     const { etag, gzip } = derive(absolute, info.mtimeMs, body);
-    return {
+    const file: StaticFile = {
       body,
       contentType: CONTENT_TYPES[extname(absolute)] ?? "application/octet-stream",
       etag,
       ...(gzip && { gzip }),
     };
+    const size = body.length + (gzip?.length ?? 0);
+    if (immutable && assetCacheBytes + size <= ASSET_CACHE_BYTES) {
+      assetCache.set(absolute, file);
+      assetCacheBytes += size;
+    }
+    return file;
   } catch {
     return undefined;
   }

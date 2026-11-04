@@ -83,6 +83,7 @@ function mailSettings(): AuthOptions["mail"] {
     const mailer = smtpMailer(readSmtpSettings(file));
     return {
       mailer,
+      ...(process.env.FRONTFALL_LOGIN_BIND === "true" ? { bindToBrowser: true } : {}),
       ...optionalNumber("FRONTFALL_EMAIL_DAILY_LIMIT", (limit) => ({
         dailyLimit: Math.floor(limit),
       })),

@@ -4,6 +4,13 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+### Security
+
+- **Several allowed origins.** `FRONTFALL_ORIGINE` accepts a comma-separated list, and the documentation says that without it every site may open a game socket.
+- **Built files kept in memory.** Hashed assets are read from disk once, not at each request.
+- **Sign-in links tied to a browser (optional).** `FRONTFALL_LOGIN_BIND=true` requires a link to be opened in the browser that asked for it. Off by default.
+- **Explicit proxy setting.** `compose.yaml` sets `FRONTFALL_TRUST_PROXY` and the documentation says when to turn it off.
+
 ## [0.9.9] - 2026-11-04
 
 ### Added
