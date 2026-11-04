@@ -111,6 +111,16 @@ export default defineConfig({
   build: {
     // Three.js alone is about 500 kB minified; it is cached across releases.
     chunkSizeWarningLimit: 700,
+    rolldownOptions: {
+      output: {
+        // zod and the module that sets it to parse without compiling share a chunk of their own,
+        // which runs before the one holding the protocol's schemas: with the setting in the entry's
+        // chunk it came after them, and the browser reported the try to compile on every visit.
+        advancedChunks: {
+          groups: [{ name: "zod", test: /node_modules\/zod\/|protocol\/src\/jitless\.ts/ }],
+        },
+      },
+    },
   },
   server: {
     proxy: {

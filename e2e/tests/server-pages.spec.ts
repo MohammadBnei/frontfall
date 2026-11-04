@@ -22,3 +22,18 @@ test("serves the page under a policy that keeps it out of frames", async ({ requ
   expect(policy).toContain("default-src 'self'");
   expect(policy).toContain("frame-ancestors 'none'");
 });
+
+test("opens the menu without the browser reporting a break of the page's policy", async ({
+  page,
+}) => {
+  const reports: string[] = [];
+  page.on("console", (message) => {
+    const text = message.text();
+    if (message.type() === "error" && /script-src|content security policy/i.test(text)) {
+      reports.push(text);
+    }
+  });
+  await page.goto("./");
+  await expect(page.getByRole("button", { name: /play solo/i })).toBeVisible();
+  expect(reports).toEqual([]);
+});
