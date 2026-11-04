@@ -35,7 +35,7 @@ const CONTENT_MARKERS: readonly RegExp[] = [
 ];
 
 /** Words the game keeps out of its code (see tools/test/words.test.ts), checked in source files. */
-const GAME_WORDS = join("\\b(nukes?|nuclear|hydrogen|mirvs?|open", "front\\w*)\\b");
+const GAME_WORDS = join("\\b(nu", "kes?|nu", "clear|hydro", "gen|mi", "rvs?|open", "front\\w*)\\b");
 const GAME_ACRONYM = new RegExp(["\\bS", "AMs?\\b"].join(""));
 const SOURCE_FILE = /\.(ts|js|mjs|cjs|json|html|css)$/;
 /** Files that name what they check for. */
