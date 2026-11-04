@@ -32,6 +32,29 @@ Things worth trying in any session: change the language, turn on high contrast o
 
 You do not need an account on GitHub to play, but you need one to open a report or post in Discussions. Without one, send your notes to the person who invited you and they will post them.
 
+## The three questions
+
+Whatever the session, answer these three in your message, in a line each:
+
+1. **Did you want to play another game right after?** Yes, maybe or no, and what made you say so.
+2. **What was the first moment you did not know what to do, or where you stopped understanding the screen?** A time and a place in the game is enough.
+3. **If you could change one thing before v1.0, what would it be?**
+
+Everything else is welcome, but these three are what the summary counts.
+
+## Measuring a playtest
+
+The one figure that matters is how many games are played to the end. The game already counts it, with no name and no cookie (see [privacy.md](privacy.md)): a game is **finished** when it ends on the end screen, won or lost, and **abandoned** when the player goes back to the menu, closes the tab or loses the connection. From the repository:
+
+```sh
+pnpm playtest-report 2026-11-04   # games counted from this day (UTC) on
+pnpm playtest-report              # since the server began counting
+```
+
+It reads `https://nclsmgr.com/frontfall/api/stats` (set `FRONTFALL_URL` for another server) and prints, per mode, the games played, finished and abandoned, the share finished, the games left within two minutes and the thumbs. Before the v1.0 playtest, with all versions mixed, 28 of 54 games were finished (52 %): 26 of 44 solo games and 1 of 8 private ones. A good result for v1.0 is more than 60 % of solo games finished and no rise in games left within two minutes.
+
+The counters cannot tell testers from other players, so the report is read for the days of the playtest, next to the notes in the thread.
+
 ## What happens with it
 
 The maintainer reads every report and summarises the five sessions in the playtest thread: what was seen, how many times, and what was decided. Each point that needs a change becomes an issue, filed in the version it blocks: a problem that stops a player from playing or understanding goes into the next version, the rest is ranked after it. A report with steps to reproduce is fixed faster than one without, and a report from a phone or an older browser is worth more than a fifth report from a fast laptop.
