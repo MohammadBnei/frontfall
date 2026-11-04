@@ -4,6 +4,8 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-11-04
+
 ### Added
 
 - **Full screen.** A full-screen button joins the tools at the bottom right of the game on screens 1360 pixels wide or more, and sits in the Accessibility panel of the menu at any size. It shows the current state, follows Esc, and stays hidden where the browser has no full screen, such as iPhone Safari.
