@@ -23,7 +23,7 @@ export interface Balance {
   growthBase: number;
   /** B-GROWTH-DIVISOR, the army's 0.73 power divided by this is added to the growth of a tick */
   growthDivisor: number;
-  /** B-DESERTION, in basis points of the troops above the cap who leave each second (500 = 5 %) */
+  /** B-DESERTION, in basis points of the troops above the cap who leave each second (500 = 5 %); 100,000 or more, all of them within the tick */
   desertionBasisPoints: number;
   /** B-GOLD-RATE, in thousandths of gold per idle troop per second (5 = 0.5 per 100) */
   goldPerThousandTroops: number;
@@ -193,7 +193,7 @@ export interface Balance {
   capitalStrengthPercent: number;
   /** B-CAPITAL-GARRISON, percent of its owner's soldiers the capital's own tile costs on top */
   capitalGarrisonPercent: number;
-  /** B-CAPITAL-SPOILS, percent of a conquered player's troops their conqueror takes; the gold all goes (R-ECO-08) */
+  /** B-CAPITAL-SPOILS, percent of a conquered player's troops their conqueror takes; the gold goes by R-ECO-08 */
   capitalSpoilsPercent: number;
   /** B-CAPITAL-RAZE, percent of their troops a player loses when their capital is razed */
   capitalRazePercent: number;
@@ -236,7 +236,7 @@ export const DEFAULT_BALANCE: Balance = {
   growthDivisor: 40,
   goldPerThousandTroops: 0,
   goldBase: 1000,
-  desertionBasisPoints: 500,
+  desertionBasisPoints: 100_000,
   workMaxPercent: 80,
   workGoldPercent: 150,
   tileWeightTenths: [80, 100, 120],

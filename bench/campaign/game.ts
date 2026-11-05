@@ -42,6 +42,10 @@ export interface CampaignSnapshot {
   readonly leader: number;
   readonly leaderKind: "nation" | "city-state";
   readonly leaderSharePercent: number;
+  /** The second biggest other player's share of the map, to measure the gap at the top. */
+  readonly runnerUpSharePercent: number;
+  /** Gold the player has earned since the start, spending left out: the gold curve. */
+  readonly goldEarned: number;
   readonly deadMinutes: number;
   readonly underAttackMinutes: number;
   /** The player's attack decisions since the last snapshot, by reason. */
@@ -188,18 +192,22 @@ export function playCampaignGame(
   const timeline: CampaignSnapshot[] = [];
   let windowDead = 0;
   let windowAttacked = 0;
+  let goldEarned = 0;
+  let lastGold = 0;
   let lastReasons = new Map<string, number>();
   const snapshot = (minute: number): void => {
     const p = game.player(1);
     let leader = 0;
     let most = -1;
+    let second = 0;
     for (const q of game.players()) {
       if (q.id === 1 || !q.alive) continue;
       const count = game.territory.tileCount(q.id);
       if (count > most) {
+        second = Math.max(0, most);
         most = count;
         leader = q.id;
-      }
+      } else if (count > second) second = count;
     }
     const reasons: Record<string, number> = {};
     const now = me.reasons ?? new Map<string, number>();
@@ -216,6 +224,8 @@ export function playCampaignGame(
       leader,
       leaderKind: game.bots.has(leader) ? "city-state" : "nation",
       leaderSharePercent: round1((Math.max(0, most) * 100) / ownable),
+      runnerUpSharePercent: round1((second * 100) / ownable),
+      goldEarned,
       deadMinutes: windowDead,
       underAttackMinutes: windowAttacked,
       reasons,
@@ -243,6 +253,8 @@ export function playCampaignGame(
     if (game.phase !== "play") continue;
     const p = game.player(1);
     if (!p) continue;
+    if (p.gold > lastGold) goldEarned += p.gold - lastGold;
+    lastGold = p.gold;
     const tiles = game.territory.tileCount(1);
     if (lastTiles >= 0 && tiles !== lastTiles) changedThisMinute = true;
     lastTiles = tiles;
@@ -335,7 +347,7 @@ export function playCampaignGame(
   };
 }
 
-const SNAPSHOT_MINUTES = [5, 10, 20, 30];
+const SNAPSHOT_MINUTES = [2, 5, 10, 15, 20, 30];
 const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** Nico plays quicker and a little braver than the bench's reference; a veteran waits for the odds. */

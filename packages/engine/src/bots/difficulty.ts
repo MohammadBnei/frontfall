@@ -23,6 +23,7 @@ export const BOT_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<BotParame
 
 /** A nation's ways of choosing whom to attack, tried in its difficulty's order (R-BOT-27). */
 export type NationStrategy =
+  | "cityStates"
   | "answer"
   | "assist"
   | "hated"
@@ -60,6 +61,10 @@ export interface NationParameters {
   answer: "at once" | "after reserve" | "strategy";
   /** B-NATION-STRATEGIES, tried in this order once past its trigger */
   strategies: readonly NationStrategy[];
+  /** B-NATION-CITYSTATE-ATTACKS: city-states it attacks at once, the least dense first, drawn between these two */
+  cityStateAttacks: readonly [number, number];
+  /** B-NATION-CITYSTATE-SEND: what it sends at a city-state: all it can, four times its troops, or what keeps the attack at its cheapest */
+  cityStateSend: "all" | "fourfold" | "cheapest";
   /** B-NATION-RETAIN, in % of its strongest neighbour's troops it keeps home; 0 never */
   retainPercent: number;
   /** B-NATION-TOO-WEAK: sends nothing under this % of the target's troops; 0 always sends */
@@ -102,7 +107,9 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     growthPercent: 90,
     graceSeconds: 0,
     answer: "strategy",
-    strategies: ["answer", "assist", "hated", "weakest"],
+    strategies: ["cityStates", "answer", "assist", "hated", "weakest"],
+    cityStateAttacks: [1, 1],
+    cityStateSend: "all",
     retainPercent: 0,
     tooWeakPercent: 0,
     runawayPercent: 0,
@@ -128,7 +135,18 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     growthPercent: 100,
     graceSeconds: 0,
     answer: "after reserve",
-    strategies: ["assist", "hated", "traitor", "crown", "capital", "weakest", "island"],
+    strategies: [
+      "cityStates",
+      "assist",
+      "hated",
+      "traitor",
+      "crown",
+      "capital",
+      "weakest",
+      "island",
+    ],
+    cityStateAttacks: [1, 2],
+    cityStateSend: "fourfold",
     retainPercent: 0,
     tooWeakPercent: 0,
     runawayPercent: 300,
@@ -155,6 +173,7 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
     graceSeconds: 0,
     answer: "at once",
     strategies: [
+      "cityStates",
       "assist",
       "traitor",
       "hated",
@@ -166,6 +185,8 @@ export const NATION_DIFFICULTIES: Readonly<Record<BotDifficulty, Readonly<Nation
       "weakest",
       "island",
     ],
+    cityStateAttacks: [3, 3],
+    cityStateSend: "cheapest",
     retainPercent: 75,
     tooWeakPercent: 20,
     runawayPercent: 200,

@@ -137,7 +137,7 @@ describe("economy", () => {
     expect([bea.alive, bea.troops, bea.gold]).toEqual([false, 0, 0]);
   });
 
-  it("hands all the gold of a player to whoever took their last tile (R-ECO-08)", () => {
+  it("hands half the gold of a human player to whoever took their last tile (R-ECO-08)", () => {
     const { game, ada, bea, run } = newGame();
     game.territory.setOwner(50, 2);
     bea.gold = 40;
@@ -148,7 +148,22 @@ describe("economy", () => {
     });
     run(2);
     expect([bea.alive, bea.gold]).toEqual([false, 0]);
-    // 7 + 40, and what the tick earned.
+    // 7 + 20, and what the tick earned.
+    expect(ada.gold).toBeGreaterThanOrEqual(27);
+    expect(ada.gold).toBeLessThan(47);
+    expect(game.diplomacyEvents).toEqual([{ tick: 1, type: "eliminated", a: 1, b: 2, gold: 20 }]);
+  });
+
+  it("hands all the gold of a computer player to whoever took their last tile (R-ECO-08)", () => {
+    const { game, ada, bea, run } = newGame();
+    game.bots.add(2);
+    game.territory.setOwner(50, 2);
+    bea.gold = 40;
+    ada.gold = 7;
+    game.onTick(() => {
+      if (game.tick === 0) game.territory.setOwner(50, 1);
+    });
+    run(2);
     expect(ada.gold).toBeGreaterThanOrEqual(47);
     expect(game.diplomacyEvents).toEqual([{ tick: 1, type: "eliminated", a: 1, b: 2, gold: 40 }]);
   });

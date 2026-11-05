@@ -177,19 +177,29 @@ export function playerGrowth(game: Game, player: Player, cap: number): number {
 }
 
 /**
+ * R-ECO-08: gold the player who takes the last tile of `player` takes from
+ * them: all of a bot's, a city-state's or a nation's, half of a human's.
+ */
+export function conquestGold(game: Game, player: Player): number {
+  const computer = game.bots.has(player.id) || game.popFactors.has(player.id);
+  return computer ? player.gold : Math.floor(player.gold / 2);
+}
+
+/**
  * R-ECO-05: an eliminated player keeps nothing. R-ECO-08: the player who took
- * their last tile takes all their gold.
+ * their last tile takes their gold, half of it from a human.
  */
 function eliminate(game: Game, player: Player): void {
   const taker = game.player(game.territory.lastTakerOf(player.id));
   if (taker?.alive === true) {
-    taker.gold += player.gold;
+    const gold = conquestGold(game, player);
+    taker.gold += gold;
     logEvent(game, {
       tick: game.tick,
       type: "eliminated",
       a: taker.id,
       b: player.id,
-      gold: player.gold,
+      gold,
     });
   }
   player.alive = false;

@@ -94,6 +94,35 @@ function strip(
 }
 
 describe("nations", () => {
+  it("send four times a city-state's troops at it, at normal (B-NATION-CITYSTATE-SEND)", () => {
+    const { game, grid, ordersOf, run, nation, ada, bea } = strip({}, "normal");
+    game.bots.add(3);
+    game.cityStates.add(3);
+    nation.troops = populationCap(game, nation);
+    ada.troops = 1_000_000;
+    bea.troops = 100;
+    run(intervalOf("normal"));
+    const attacks = ordersOf(1).flatMap((order) =>
+      order.type === "attack" ? [[grid.x(order.target) >= 40, order.troops]] : [],
+    );
+    expect(attacks).toEqual([[true, 400]]);
+  });
+
+  it("send what keeps the attack on a city-state at its cheapest, at hard (B-NATION-CITYSTATE-SEND)", () => {
+    const { game, grid, ordersOf, run, nation, ada, bea } = strip();
+    game.bots.add(3);
+    game.cityStates.add(3);
+    nation.troops = populationCap(game, nation);
+    ada.troops = 10;
+    bea.troops = 100;
+    run(interval);
+    // 100 troops at odds of 0.6 make a stack of 167, sent 1.3 times; the city-state is under 100 tiles.
+    const attacks = ordersOf(1).flatMap((order) =>
+      order.type === "attack" ? [[grid.x(order.target) >= 40, order.troops]] : [],
+    );
+    expect(attacks[0]).toEqual([true, 218]);
+  });
+
   it("keep back B-NATION-RETAIN of their strongest neighbour's troops, at hard (R-BOT-26)", () => {
     const { game, ordersOf, run, nation, ada, bea } = strip();
     nation.troops = 4000;

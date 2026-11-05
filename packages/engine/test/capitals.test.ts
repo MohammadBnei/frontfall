@@ -97,7 +97,7 @@ describe("capital mode", () => {
     expect(captureCost(game, near, bea)).toBe(captureCost(game, far, bea) * 3);
   });
 
-  it("hands all of a player's land and gold and half of their troops to whoever takes their capital (R-CAP-03, R-ECO-08)", () => {
+  it("hands all of a player's land, half their gold and half their troops to whoever takes their capital (R-CAP-03, R-ECO-08)", () => {
     const game = started();
     const ada = player(game, 1);
     const bea = player(game, 2);
@@ -111,12 +111,13 @@ describe("capital mode", () => {
     expect(ada.alive).toBe(false);
     expect(game.territory.tileCount(1)).toBe(0);
     expect(game.territory.tileCount(2)).toBe(total);
-    expect(bea.gold).toBeGreaterThanOrEqual(500);
+    expect(bea.gold).toBeGreaterThanOrEqual(250);
+    expect(bea.gold).toBeLessThan(500);
     expect(bea.troops).toBeGreaterThanOrEqual(900);
     expect(game.capitalFalls).toEqual([{ tick: game.tick - 1, player: 1, by: 2, tile: ADA }]);
     expect(game.diplomacyEvents.slice(-2)).toMatchObject([
       { type: "capital", a: 2, b: 1 },
-      { type: "eliminated", a: 2, b: 1, gold: 500 },
+      { type: "eliminated", a: 2, b: 1, gold: 250 },
     ]);
     expect(game.winner).toBe(2);
   });

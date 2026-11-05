@@ -154,7 +154,7 @@ export function installCapitals(game: Game): void {
     }
     captor.troops += percentOf(player.troops, balance.capitalSpoilsPercent);
     // R-ECO-05 carries out the elimination in this tick's growth, the land being
-    // gone, and hands the captor, who took the last tile, all the gold (R-ECO-08).
+    // gone, and hands the captor, who took the last tile, the gold (R-ECO-08).
     player.troops = 0;
     player.capital = undefined;
     falls.push({ tick: game.tick, player: player.id, by: captor.id, tile });

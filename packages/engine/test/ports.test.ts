@@ -5,7 +5,7 @@ import type { Order, Player } from "../src/game.ts";
 import { orderError } from "../src/orders.ts";
 import { StructureKind, structureCost } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
-import { tradeGold, tradeRange as tradeRangeOf } from "../src/trade.ts";
+import { spawnRate, tradeGold, tradeRange as tradeRangeOf, tradeWeights } from "../src/trade.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
 const balance: Balance = {
@@ -228,5 +228,27 @@ describe("trade", () => {
     expect(range(256, 128, 500)).toBe(500);
     expect(range(1024, 512, 500)).toBe(500);
     expect(range(2048, 1024, 500)).toBe(1000);
+  });
+});
+
+describe("trade odds (R-UNIT-03)", () => {
+  it("boosts a small economy's rolls by 1 + (6 − ports) / (10 × ports), squared", () => {
+    // B-TRADE-ODDS 100: 100 / 1.5², / 1.2², / 1.1², / 1.05², / 1.02², then 100; an empty sea is 1 % short of full pace.
+    expect([1, 2, 3, 4, 5, 6, 12].map((ports) => spawnRate(100, 0, ports, 0))).toEqual([
+      44, 70, 83, 91, 97, 101, 101,
+    ]);
+  });
+
+  it("makes a port that keeps missing likelier, and a crowded sea slower", () => {
+    expect(spawnRate(100, 0, 6, 3)).toBe(25);
+    expect(spawnRate(100, 330, 6, 0)).toBe(200);
+    expect(spawnRate(100, 2000, 6, 0)).toBeGreaterThan(400);
+  });
+
+  it("draws the nearest third of the far ports twice, at least the nearest four, and allies' far ports once more", () => {
+    // Twelve partners, by route length; the nearest four go in twice when 300 tiles or more away.
+    const lengths = [900, 100, 350, 300, 1200, 800, 700, 600, 500, 450, 400, 1000];
+    const allied = lengths.map((length) => length === 100 || length === 1200);
+    expect(tradeWeights(lengths, allied)).toEqual([1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2, 1]);
   });
 });

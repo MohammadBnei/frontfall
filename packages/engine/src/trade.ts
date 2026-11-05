@@ -62,19 +62,45 @@ export function tradeGold(length: number): number {
 
 /**
  * R-UNIT-03: the roll of a port succeeds one time in this many. B-TRADE-ODDS
- * for a player with six ports or more, fewer for a small economy (down to
- * 44 % of it for one port); then divided by the rolls the port has missed and
- * by how saturated the sea is with `ships` trade ships, down to a quarter of
- * the full pace.
+ * for a player with six ports or more; a small economy gets going faster,
+ * its rolls boosted by 1 + (6 − ports) / (10 × ports), squared: 2.25 times
+ * the odds for one port, 1.44 for two, 1.21 for three, 1.1 for four, 1.04
+ * for five. Then divided by the rolls the port has missed and by how
+ * saturated the sea is with `ships` trade ships, down to a quarter of the
+ * full pace.
  */
 export function spawnRate(odds: number, ships: number, ports: number, missed: number): number {
-  const boostTenths = Math.max(10, 16 - ports);
+  const few = Math.max(1, ports);
+  // The boost is (9 × ports + 6) / (10 × ports) below six ports, 1 from six on.
+  const over = few >= 6 ? 1 : 10 * few;
+  const under = few >= 6 ? 1 : 9 * few + 6;
   const saturation = Math.max(
     1 - logistic(ships, Math.LN2 / 50, 330),
     0.25 * (1 - logistic(ships, Math.LN2 / 100, 800)),
   );
-  const rate = (odds * 100) / (boostTenths * boostTenths) / (missed + 1) / saturation;
+  const rate = (odds * over * over) / (under * under) / (missed + 1) / saturation;
   return Math.max(1, Math.floor(rate));
+}
+
+/**
+ * R-UNIT-03: how many times each partner of a port goes into the draw. Every
+ * partner once; drawn twice more often when it is far (B-TRADE-FAR water
+ * tiles or more) and among the nearest third of the partners, at least the
+ * nearest four; and once more when its owner is an ally and it is far.
+ * `lengths` are the routes to the partners, in the same order.
+ */
+export function tradeWeights(lengths: readonly number[], allied: readonly boolean[]): number[] {
+  const order = lengths
+    .map((_, i) => i)
+    .sort((a, b) => (lengths[a] as number) - (lengths[b] as number) || a - b);
+  const near = Math.max(4, lengths.length / 3);
+  const weights = lengths.map(() => 1);
+  order.forEach((i, rank) => {
+    const far = (lengths[i] as number) >= FAR_ROUTE;
+    if (far && rank < near) weights[i] = (weights[i] as number) + 1;
+    if (far && allied[i] === true) weights[i] = (weights[i] as number) + 1;
+  });
+  return weights;
 }
 
 /**
@@ -169,15 +195,15 @@ export function installTrade(game: Game): void {
         continue;
       }
       rejections.delete(port.id);
-      // Far ports and ports of allies are drawn twice as often.
+      // The nearest far ports, and allies' far ports, are drawn more often.
+      const weights = tradeWeights(
+        partners.map((tile) => routes.length(port.tile, tile) as number),
+        partners.map((tile) => isAllied(game, port.player, ports.get(tile)?.player ?? 0)),
+      );
       const weighted: number[] = [];
-      for (const tile of partners) {
-        const length = routes.length(port.tile, tile) as number;
-        const owner = ports.get(tile)?.player ?? 0;
-        weighted.push(tile);
-        if (length >= FAR_ROUTE) weighted.push(tile);
-        if (isAllied(game, port.player, owner)) weighted.push(tile);
-      }
+      partners.forEach((tile, i) => {
+        for (let w = weights[i] as number; w > 0; w--) weighted.push(tile);
+      });
       const draw = derivedRandom(game.seed, game.tick, port.id, DrawUsage.TradeDestination);
       const to = weighted[draw % weighted.length] as number;
       ships.push({

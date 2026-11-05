@@ -1,4 +1,4 @@
-import { cheapestTile } from "../attacks.ts";
+import { captureCost, cheapestTile } from "../attacks.ts";
 import { capitalAim, capitalAlertDistance, capitalThreat, capitalsStand } from "../capitals.ts";
 import { allyError, alliesOf, embargoError, isAllied, isTraitor } from "../diplomacy.ts";
 import { nationDoctrine } from "../doctrines.ts";
@@ -294,6 +294,7 @@ export function installNations(
       return false;
     };
     const strategies: Record<NationStrategy, () => boolean> = {
+      cityStates: () => eatCityStates(nation, neighbours, sendable),
       answer: () => retaliate(nation, attacker, armed),
       assist: () => helpAllies(nation, reserve, armed),
       hated: () => hated(nation, armed),
@@ -391,6 +392,68 @@ export function installNations(
       retryTicks,
       (other) => other === owner,
     );
+  }
+
+  /**
+   * R-BOT-27: attacks on the city-states beside the nation, the least dense
+   * first, B-NATION-CITYSTATE-ATTACKS of them at once, each sized by
+   * B-NATION-CITYSTATE-SEND out of what lies above its reserve: all of it;
+   * four times the city-state's troops, or what is left if that is at least
+   * twice them; or, topping up an attack already under way, 1.3 times what
+   * keeps the attack at its cheapest until the city-state is down to 100
+   * tiles, sent only once it can all go. Whether it attacked.
+   */
+  function eatCityStates(
+    nation: Player,
+    neighbours: readonly number[],
+    sendable: () => number,
+  ): boolean {
+    const states = neighbours.filter((id) => game.cityStates.has(id) && goes(id));
+    if (states.length === 0) return false;
+    const density = (id: number): number => {
+      const state = game.player(id) as Player;
+      return state.troops / Math.max(1, territory.tileCount(id));
+    };
+    states.sort((a, b) => density(a) - density(b) || a - b);
+    const [fewest, most] = nationParams.cityStateAttacks;
+    const count = most > fewest ? game.random.nextInt(fewest, most + 1) : fewest;
+    let left = sendable();
+    let attacked = false;
+    for (const id of states.slice(0, count)) {
+      const state = game.player(id) as Player;
+      let troops: number;
+      if (nationParams.cityStateSend === "all") troops = left;
+      else if (nationParams.cityStateSend === "fourfold") {
+        troops = 4 * state.troops;
+        if (troops > left) troops = left < 2 * state.troops ? 0 : left;
+      } else {
+        let under = 0;
+        for (const attack of game.attacks) {
+          if (attack.player === nation.id && attack.target === id) under += attack.troops;
+        }
+        const needed = Math.ceil((cityStateStack(nation, state) * 13) / 10) - under;
+        troops = needed <= left ? needed : 0;
+        if (under > 0 && needed <= 0) attacked = true;
+      }
+      if (troops < cheapestTile(balance)) continue;
+      if (strike(nation, id, troops)) {
+        left -= troops;
+        attacked = true;
+      }
+    }
+    return attacked;
+  }
+
+  /**
+   * Troops that keep an attack on a city-state at its cheapest price per
+   * tile (R-ATTACK-03: odds at B-ODDS-MIN) until it is down to 100 tiles.
+   */
+  function cityStateStack(nation: Player, state: Player): number {
+    const stack = Math.max(1, Math.ceil((state.troops * 100) / balance.oddsMinPercent));
+    const tiles = Math.max(0, territory.tileCount(state.id) - 100);
+    if (tiles === 0 || territory.borderCount(state.id) === 0) return stack;
+    const tile = territory.borderTile(state.id, 0);
+    return Math.max(stack, tiles * captureCost(game, tile, state, nation.id, stack));
   }
 
   /** R-BOT-27: an answer to the main attacker, a hard nation sending at least what comes at it. Whether it attacked. */
