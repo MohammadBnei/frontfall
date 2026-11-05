@@ -161,7 +161,17 @@ test("the tutorial goes through every step, says goodbye, and leads to a real ga
   await page.locator("#tutorial-intro").getByRole("button", { name: "Start" }).click();
 
   const guide = page.locator("#guide");
-  const steps = ["start", "doctrine", "expand", "troops", "build", "attack", "port", "defend"];
+  const steps = [
+    "start",
+    "doctrine",
+    "expand",
+    "troops",
+    "work",
+    "build",
+    "attack",
+    "port",
+    "defend",
+  ];
   for (const [index, step] of steps.entries()) {
     await expect(guide).toHaveAttribute("data-step", step);
     await expect(guide).toContainText(`Step ${String(index + 1)}/${String(steps.length)}`);
@@ -194,7 +204,7 @@ test("the tutorial's last word starts a real game", async ({ page }) => {
   await page.goto("./?map=skirmish&bots=1&difficulty=easy");
   await page.locator("#tutorial").click();
   await page.locator("#tutorial-intro").getByRole("button", { name: "Start" }).click();
-  for (let step = 0; step < 8; step++) await page.locator("#guide-next").click();
+  for (let step = 0; step < 9; step++) await page.locator("#guide-next").click();
   // The practice game runs at double speed.
   await expect(page.locator("#speed")).toContainText("2");
   await page.locator("#tutorial-outro").getByRole("button", { name: "Play a real game" }).click();

@@ -1,7 +1,11 @@
 import "./guide.css";
+import { DEFAULT_BALANCE } from "@frontfall/engine";
 import { h } from "./dom.ts";
 import { CHAPTER_IDS, type ChapterId } from "./guide.ts";
 import { tutorialText, type TutorialKey } from "./tutorial-text.ts";
+
+/** The share of the land that wins, as the texts quote it. */
+const SHARE = { share: `${String(DEFAULT_BALANCE.winSharePercent)} %` };
 
 /** A dialog over the game, in the layout of the help: `div.overlay > section.help`. The overlays (ui/screen/overlays.ts) keep the rest inert and focus the primary button. */
 function dialog(id: string, title: TutorialKey, ...content: HTMLElement[]): HTMLElement {
@@ -42,7 +46,7 @@ export function introDialog(onStart: () => void, onLeave: () => void): HTMLEleme
   const root = dialog(
     "tutorial-intro",
     "intro.title",
-    h("p", {}, tutorialText("intro.lead")),
+    h("p", {}, tutorialText("intro.lead", SHARE)),
     h(
       "ul",
       { class: "tutorial-points" },
@@ -72,7 +76,7 @@ export function outroDialog(
       "ol",
       { class: "tutorial-rules" },
       ...(["outro.rule1", "outro.rule2", "outro.rule3", "outro.rule4", "outro.rule5"] as const).map(
-        (rule) => h("li", {}, tutorialText(rule)),
+        (rule) => h("li", {}, tutorialText(rule, SHARE)),
       ),
     ),
     h("h3", { class: "tutorial-chapters-title" }, tutorialText("outro.chapters")),

@@ -12,6 +12,7 @@ export const STEPS = [
   "troops",
   "work",
   "citystates",
+  "trade",
   "build",
   "attack",
   "port",
@@ -29,6 +30,8 @@ export const BASES: readonly Step[] = [
   "doctrine",
   "expand",
   "troops",
+  // Before the first building: the workers are what makes its gold come sooner.
+  "work",
   "build",
   "attack",
   "port",
@@ -37,7 +40,7 @@ export const BASES: readonly Step[] = [
 
 /** Short lessons that follow the core, each playable on its own, in the same game. */
 export const CHAPTERS = {
-  economy: ["work", "citystates"],
+  economy: ["citystates", "trade"],
   allies: ["players", "diplomacy"],
   late: ["missiles", "win"],
 } as const satisfies Record<string, readonly Step[]>;
@@ -94,7 +97,7 @@ export interface GuideCosts {
 }
 
 /** Steps the player reads, then moves on with Next: no action of theirs shows they are done. */
-const READ: ReadonlySet<Step> = new Set(["diplomacy", "missiles", "win"]);
+const READ: ReadonlySet<Step> = new Set(["trade", "diplomacy", "missiles", "win"]);
 
 /** Whether the player did what `step` asks, or has gone past it. */
 function done(step: Step, state: GuideState): boolean {
@@ -112,7 +115,7 @@ function done(step: Step, state: GuideState): boolean {
     case "troops":
       return state.ratioMoved || built;
     case "work":
-      return state.workMoved;
+      return state.workMoved || built;
     case "citystates":
       return !state.cityStates || state.cityStateAttacked;
     case "build":
@@ -126,6 +129,7 @@ function done(step: Step, state: GuideState): boolean {
     case "players":
       return state.asked;
     // Read, not done: Next moves on.
+    case "trade":
     case "diplomacy":
     case "missiles":
     case "win":

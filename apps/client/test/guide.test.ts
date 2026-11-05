@@ -35,8 +35,11 @@ describe("advance", () => {
     expect(advance("expand", grown)).toBe("troops");
     // The slider is a thing the player may leave: Next, or a building, moves on.
     expect(advance("troops", grown, BASES)).toBe("troops");
-    expect(advance("troops", { ...grown, ratioMoved: true }, BASES)).toBe("build");
-    const worked = { ...grown, ratioMoved: true };
+    // The workers come before the first building, whose gold they bring sooner.
+    expect(advance("troops", { ...grown, ratioMoved: true }, BASES)).toBe("work");
+    expect(advance("work", { ...grown, ratioMoved: true }, BASES)).toBe("work");
+    expect(advance("work", { ...grown, ratioMoved: true, workMoved: true }, BASES)).toBe("build");
+    const worked = { ...grown, ratioMoved: true, workMoved: true };
     expect(advance("build", worked, BASES)).toBe("build");
     expect(advance("build", { ...worked, cities: 1 }, BASES)).toBe("attack");
     expect(advance("attack", { ...worked, cities: 1, attacked: true }, BASES)).toBe("port");
@@ -58,8 +61,12 @@ describe("advance", () => {
       ports: 1,
       forts: 1,
     } as const;
-    expect(advance("work", built, CHAPTERS.economy)).toBe("work");
-    expect(advance("work", { ...built, workMoved: true }, CHAPTERS.economy)).toBe("citystates");
+    expect(advance("citystates", built, CHAPTERS.economy)).toBe("citystates");
+    expect(advance("citystates", { ...built, cityStateAttacked: true }, CHAPTERS.economy)).toBe(
+      "trade",
+    );
+    // Trade is read: it waits for Next.
+    expect(advance("trade", built, CHAPTERS.economy)).toBe("trade");
     expect(advance("players", built, CHAPTERS.allies)).toBe("players");
     expect(advance("players", { ...built, asked: true }, CHAPTERS.allies)).toBe("diplomacy");
   });
@@ -76,7 +83,7 @@ describe("advance", () => {
       forts: 1,
       asked: true,
     } as const;
-    for (const step of ["diplomacy", "missiles", "win"] as const) {
+    for (const step of ["trade", "diplomacy", "missiles", "win"] as const) {
       expect(advance(step, everything)).toBe(step);
     }
   });
@@ -102,6 +109,7 @@ describe("advance", () => {
       tilesAtPlay: 20,
       tiles: 40,
       ratioMoved: true,
+      workMoved: true,
     } as const;
     expect(advance("expand", grown, BASES)).toBe("build");
   });

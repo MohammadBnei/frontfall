@@ -27,6 +27,7 @@ const EN = {
   "name.troops": "Your army",
   "name.work": "Gold",
   "name.citystates": "City-states",
+  "name.trade": "Trade",
   "name.build": "A city",
   "name.attack": "Attack",
   "name.port": "A port",
@@ -38,24 +39,26 @@ const EN = {
 
   // Step texts, for a mouse and for a finger where the gesture changes
   start:
-    "Click any land to place your start. Pick a wide stretch of open ground, away from the other colours, not a narrow neck. You can move it until the countdown ends.",
+    "Click a wide stretch of free land to place your start, away from the other colours and from narrow necks. You can move it until the countdown ends.",
   startTouch:
-    "Tap any land to place your start. Pick a wide stretch of open ground, away from the other colours, not a narrow neck. You can move it until the countdown ends.",
+    "Tap a wide stretch of free land to place your start, away from the other colours and from narrow necks. You can move it until the countdown ends.",
   doctrine:
     "Pick a doctrine on the cards: Conqueror strikes fast, Merchant lives off trade, Bastion holds the line. New here? Bastion forgives mistakes. It cannot change once the game starts.",
   expandWait:
-    "Start placed. When the countdown ends, attacks open: look at the free land around you, that is what you will take first.",
+    "Start placed. While the countdown runs, read the figures: Troops shows your army over its cap, Gold what you have and earn a second, Territory your share of the map. Hold {share} and you win. k means thousand, M million.",
   expand:
-    "Free land never fights back. Click land next to yours to take it: the more land you hold, the higher your troop cap.",
+    "Free land never fights back. Click the free land just past your border: troops set out and take it. The more land you hold, the higher your troop cap.",
   expandTouch:
-    "Free land never fights back. Tap land next to yours to take it: the more land you hold, the higher your troop cap.",
+    "Free land never fights back. Tap the free land just past your border: troops set out and take it. The more land you hold, the higher your troop cap.",
   troops:
-    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start. In the bar, k means thousand and M million; troops sit over their cap. Shortcut: Shift + 1 to 0.",
+    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start. Shortcut: Shift + 1 to 0.",
   troopsTouch:
-    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start. In the bar, k means thousand and M million; troops sit over their cap.",
-  work: "Gold comes in on its own. The Workers slider puts troops at home to work: more gold, but workers neither attack nor defend. Raise it while nobody threatens you, lower it when a neighbour attacks.",
+    "This slider sets the share of your troops that each attack sends. The rest stays home and defends you, so never send everything: a third to a half is a good start.",
+  work: "Buildings cost gold. It comes in on its own, slowly; the Workers slider puts troops at home to work for more of it, but workers neither attack nor defend. Raise it while nobody threatens you, lower it when a neighbour attacks.",
   citystates:
     "Small players called city-states sit around the map. They are weak, ally with nobody and keep gold. Attack one: you take its land, and all its gold with its last tile.",
+  trade:
+    "Each port sends trade ships on its own to other players’ ports, however far, and each ship that arrives pays both sides. The longer the route, the more it pays, and an ally’s port is picked more often. An embargo stops it.",
   build:
     "A city raises your troop cap, so you grow faster. Click City (C), then your land. While the gold comes in, keep expanding.",
   buildTouch:
@@ -84,7 +87,7 @@ const EN = {
   // Before the game
   "intro.title": "Frontfall in five minutes",
   "intro.lead":
-    "You lead a young nation. Grow on free land, build, trade, ally and fight until your colour covers the map.",
+    "You lead a young nation. Grow on free land, build, trade, ally and fight: hold {share} of the land and you win.",
   "intro.growLead": "Grow.",
   "intro.grow":
     " Free land never fights back. Your troops multiply on their own, up to a cap that land and cities raise.",
@@ -107,7 +110,7 @@ const EN = {
   "outro.rule2": "Keep troops at home: send a third to a half.",
   "outro.rule3": "Cities for growth, forts where you are attacked, ports for gold.",
   "outro.rule4": "Ally your neighbours, and watch the leaderboard for the leader.",
-  "outro.rule5": "Save for missiles late in the game.",
+  "outro.rule5": "Aim for {share} of the land, and save gold for missiles late in the game.",
   "outro.chapters": "Go further, when you like:",
   "chapter.economy": "Gold and city-states",
   "chapter.allies": "Allies and diplomacy",
@@ -132,6 +135,7 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   "name.troops": "Votre armée",
   "name.work": "L’or",
   "name.citystates": "Cités-États",
+  "name.trade": "Le commerce",
   "name.build": "Une ville",
   "name.attack": "Attaquer",
   "name.port": "Un port",
@@ -142,24 +146,26 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   "name.win": "Gagner",
 
   start:
-    "Cliquez sur une terre pour poser votre départ. Choisissez une grande étendue libre, loin des autres couleurs, pas un goulet étroit. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
+    "Cliquez sur une grande étendue de terre libre pour poser votre départ, loin des autres couleurs et des goulets étroits. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
   startTouch:
-    "Touchez une terre pour poser votre départ. Choisissez une grande étendue libre, loin des autres couleurs, pas un goulet étroit. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
+    "Touchez une grande étendue de terre libre pour poser votre départ, loin des autres couleurs et des goulets étroits. Vous pouvez le déplacer jusqu’à la fin du compte à rebours.",
   doctrine:
     "Choisissez une doctrine sur les cartes : le Conquérant frappe vite, le Marchand vit du commerce, le Bastion tient la ligne. Premier jeu ? Le Bastion pardonne les erreurs. Elle ne change plus une fois la partie lancée.",
   expandWait:
-    "Départ posé. À la fin du compte à rebours, les attaques s’ouvrent : repérez la terre libre autour de vous, c’est ce que vous prendrez d’abord.",
+    "Départ posé. Pendant le compte à rebours, lisez les chiffres : Troupes montre votre armée sur son plafond, Or ce que vous avez et gagnez par seconde, Territoire votre part de la carte. Tenez-en {share} et vous gagnez. k veut dire mille, M million.",
   expand:
-    "La terre libre ne se défend pas. Cliquez sur une terre voisine de la vôtre pour la prendre : plus vous avez de terres, plus votre plafond de troupes monte.",
+    "La terre libre ne se défend pas. Cliquez sur la terre libre juste après votre frontière : des troupes partent la prendre. Plus vous avez de terres, plus votre plafond de troupes monte.",
   expandTouch:
-    "La terre libre ne se défend pas. Touchez une terre voisine de la vôtre pour la prendre : plus vous avez de terres, plus votre plafond de troupes monte.",
+    "La terre libre ne se défend pas. Touchez la terre libre juste après votre frontière : des troupes partent la prendre. Plus vous avez de terres, plus votre plafond de troupes monte.",
   troops:
-    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début. Dans la barre, k veut dire mille et M million ; les troupes sont sur leur plafond. Raccourci : Maj + 1 à 0.",
+    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début. Raccourci : Maj + 1 à 0.",
   troopsTouch:
-    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début. Dans la barre, k veut dire mille et M million ; les troupes sont sur leur plafond.",
-  work: "L’or arrive tout seul. La glissière Ouvriers met des troupes au travail : plus d’or, mais les ouvriers n’attaquent ni ne défendent. Montez-la tant que personne ne vous menace, baissez-la quand un voisin attaque.",
+    "Cette glissière fixe la part de vos troupes envoyée à chaque attaque. Le reste garde la maison et vous défend : n’envoyez jamais tout, entre un tiers et la moitié c’est un bon début.",
+  work: "Les bâtiments se paient en or. Il arrive tout seul, lentement ; la glissière Ouvriers met des troupes de la maison au travail pour en gagner plus, mais les ouvriers n’attaquent ni ne défendent. Montez-la tant que personne ne vous menace, baissez-la quand un voisin attaque.",
   citystates:
     "De petits joueurs appelés cités-États sont posés autour de la carte. Faibles, alliés à personne, ils gardent de l’or. Attaquez-en une : vous prenez ses terres, et tout son or avec sa dernière case.",
+  trade:
+    "Chaque port envoie seul des navires de commerce vers les ports des autres joueurs, même lointains, et chaque navire arrivé paie les deux camps. Plus la route est longue, plus il rapporte, et le port d’un allié est choisi plus souvent. Un embargo l’arrête.",
   build:
     "Une ville augmente votre plafond de troupes : vous grandissez plus vite. Cliquez sur Ville (C), puis sur votre terre. Pendant que l’or arrive, continuez à vous étendre.",
   buildTouch:
@@ -187,7 +193,7 @@ const FR: Readonly<Record<TutorialKey, string>> = {
 
   "intro.title": "Frontfall en cinq minutes",
   "intro.lead":
-    "Vous dirigez une jeune nation. Grandissez sur la terre libre, bâtissez, commercez, alliez-vous et combattez jusqu’à ce que votre couleur couvre la carte.",
+    "Vous dirigez une jeune nation. Grandissez sur la terre libre, bâtissez, commercez, alliez-vous et combattez : tenez {share} des terres et vous gagnez.",
   "intro.growLead": "Grandir.",
   "intro.grow":
     " La terre libre ne se défend pas. Vos troupes se multiplient seules, jusqu’à un plafond que les terres et les villes relèvent.",
@@ -209,7 +215,7 @@ const FR: Readonly<Record<TutorialKey, string>> = {
   "outro.rule2": "Gardez des troupes à la maison : envoyez un tiers à la moitié.",
   "outro.rule3": "Des villes pour grandir, des forts où l’on vous attaque, des ports pour l’or.",
   "outro.rule4": "Alliez-vous à vos voisins, et surveillez le classement pour repérer le leader.",
-  "outro.rule5": "Gardez de quoi payer des missiles en fin de partie.",
+  "outro.rule5": "Visez {share} des terres, et gardez de l’or pour les missiles en fin de partie.",
   "outro.chapters": "Pour aller plus loin, quand vous voulez :",
   "chapter.economy": "L’or et les cités-États",
   "chapter.allies": "Alliés et diplomatie",

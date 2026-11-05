@@ -73,7 +73,7 @@ export class Hints {
   readonly element: HTMLElement;
   private current: HintId | undefined;
   private shownAt = 0;
-  private readonly title = h("h2", { class: "guide-title" });
+  private readonly title = h("h2", { class: "guide-title", id: "hint-title" });
   private readonly text = h("p", { class: "guide-text" });
   private readonly ok = h("button", { type: "button", class: "secondary" });
   private readonly off = h("button", { type: "button", class: "guide-hide" });
@@ -91,7 +91,7 @@ export class Hints {
     });
     this.element = h(
       "section",
-      { class: "panel guide hint", hidden: true, "aria-label": "hint" },
+      { class: "panel guide hint", hidden: true, "aria-labelledby": "hint-title" },
       this.title,
       h("div", { "aria-live": "polite" }, this.text),
       h("div", { class: "guide-actions" }, this.off, this.ok),
