@@ -177,4 +177,4 @@ Today: a store is a class that loads a JSON file from the data directory at star
 
 ### A map
 
-Maps are generated from public-domain data by `pnpm maps` ([maps.md](maps.md)) in the format of [map-format.md](map-format.md). Add the source and its settings to the generator in `tools/src/mapgen`, run it, and check that the published-maps test passes. List new data sources in [CREDITS.md](../CREDITS.md). A map with a new feature that changes play must say which balance digest gate it needs.
+Maps are generated from public-domain data by `bun run maps` ([maps.md](maps.md)) in the format of [map-format.md](map-format.md). Add the source and its settings to the generator in `tools/src/mapgen`, run it, and check that the published-maps test passes. List new data sources in [CREDITS.md](../CREDITS.md). A map with a new feature that changes play must say which balance digest gate it needs.
