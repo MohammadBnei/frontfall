@@ -1,6 +1,7 @@
 import { isAllied, logEvent } from "./diplomacy.ts";
 import type { Game, Player } from "./game.ts";
 import { isqrt, mulDiv } from "./integer-math.ts";
+import { ANY_PHASE, defineOrder, refusalOf, tileError } from "./order-rules.ts";
 import { DrawUsage, derivedRandom } from "./random.ts";
 import { shieldedBy } from "./landmarks.ts";
 import { spawnSettings } from "./spawn.ts";
@@ -136,15 +137,65 @@ export function missileError(
   target: number,
   size: number,
 ): string | undefined {
+  return refusalOf(missilePlan(game, player, target, size));
+}
+
+/** A missile to launch: its size, its target, and the silo it leaves from (`launchSilo`). */
+interface MissilePlan {
+  readonly size: MissileSize;
+  readonly target: number;
+  readonly silo: Structure;
+}
+
+function missilePlan(
+  game: Game,
+  player: Player,
+  target: number,
+  size: number,
+): MissileError | MissilePlan {
   if (game.phase !== "play") return MissileError.Early;
   if (!isMissileSize(size)) return MissileError.Size;
   const owner = game.territory.ownerOf(target);
   if (owner !== player.id && isAllied(game, player.id, owner)) return MissileError.Ally;
   if (blastHitsAlly(game, player.id, target, blastRadius(game, size))) return MissileError.Near;
-  if (!launchSilo(game, player.id, target)) return MissileError.Silo;
+  const silo = launchSilo(game, player.id, target);
+  if (!silo) return MissileError.Silo;
   if (player.gold < missileCost(game, size)) return MissileError.Gold;
-  return undefined;
+  return { size, target, silo };
 }
+
+/**
+ * R-BUILD-05, R-UNIT-05: `missile` pays for a missile and launches it from
+ * the player's loaded silo closest to the target, which reloads.
+ */
+export const MISSILE_ORDER = defineOrder("missile", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    Number.isSafeInteger(order.size)
+      ? (tileError(game, order.target) ?? missilePlan(game, player, order.target, order.size))
+      : MissileError.Size,
+  execute(game, player, { size, target, silo }) {
+    const { balance } = game;
+    player.gold -= missileCost(game, size);
+    silo.reloadAt = game.tick + balance.siloReloadTicks;
+    const distance = isqrt(game.terrain.topology.squaredDistance(silo.tile, target));
+    game.missiles.push({
+      id: game.nextMissileId++,
+      player: player.id,
+      size,
+      from: silo.tile,
+      to: target,
+      launchedAt: game.tick,
+      arrivesAt: game.tick + Math.max(1, Math.ceil(distance / balance.missileSpeed)),
+      tried: [],
+    });
+    const owner = game.territory.ownerOf(target);
+    if (owner !== NEUTRAL && owner !== player.id) {
+      logEvent(game, { tick: game.tick, type: "missile", a: player.id, b: owner });
+    }
+    return true;
+  },
+});
 
 /**
  * Every tile of the disc of `radius` around `center`, in row order. The
@@ -225,29 +276,7 @@ export function installMissiles(game: Game): void {
   const topology = terrain.topology;
   const missiles = game.missiles;
 
-  game.onOrder((_, player, order) => {
-    if (order.type !== "missile" || !isMissileSize(order.size)) return false;
-    const silo = launchSilo(game, player.id, order.target);
-    if (!silo) return false;
-    player.gold -= missileCost(game, order.size);
-    silo.reloadAt = game.tick + balance.siloReloadTicks;
-    const distance = isqrt(topology.squaredDistance(silo.tile, order.target));
-    missiles.push({
-      id: game.nextMissileId++,
-      player: player.id,
-      size: order.size,
-      from: silo.tile,
-      to: order.target,
-      launchedAt: game.tick,
-      arrivesAt: game.tick + Math.max(1, Math.ceil(distance / balance.missileSpeed)),
-      tried: [],
-    });
-    const target = territory.ownerOf(order.target);
-    if (target !== NEUTRAL && target !== player.id) {
-      logEvent(game, { tick: game.tick, type: "missile", a: player.id, b: target });
-    }
-    return true;
-  });
+  game.onOrder(MISSILE_ORDER);
 
   game.onTick(() => {
     const tick = game.tick;

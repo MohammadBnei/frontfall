@@ -38,7 +38,7 @@ export {
   installCapitals,
 } from "./capitals.ts";
 export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
-export { STANDARD_RULES, createGame, type Rule } from "./create-game.ts";
+export { STANDARD_RULES, assertOrderRules, createGame, type Rule } from "./create-game.ts";
 export {
   DiplomacyError,
   allianceOf,
@@ -141,7 +141,6 @@ export {
   Game,
   type CapitalFall,
   type GameSetup,
-  type OrderHandler,
   type OrderObserver,
   type PersistedPart,
   type Phase,
@@ -151,7 +150,15 @@ export {
 } from "./game.ts";
 export { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 export { clamp, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
-export { orderError } from "./orders.ts";
+export { ORDER_RULES, orderError } from "./orders.ts";
+export {
+  ANY_PHASE,
+  PLAY_PHASE,
+  defineOrder,
+  planOrder,
+  type OrderRule,
+  type Refusal,
+} from "./order-rules.ts";
 export { DrawUsage, Random, derivedRandom, type RandomState } from "./random.ts";
 export { installSpawn, spawnSettings } from "./spawn.ts";
 export {

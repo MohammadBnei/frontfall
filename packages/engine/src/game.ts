@@ -7,6 +7,7 @@ import {
   OperatorBonus,
   type GameRules,
   type Order,
+  type OrderType,
   type Turn,
 } from "@frontfall/contracts";
 import type { Attack } from "./attacks.ts";
@@ -20,7 +21,7 @@ import type {
   RequestCooldown,
 } from "./diplomacy.ts";
 import type { Fallout, Missile, MissileEvent } from "./missiles.ts";
-import { orderError } from "./orders.ts";
+import { eraseRule, planOrder, type OrderRule } from "./order-rules.ts";
 import { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 import { Random } from "./random.ts";
 import type { SnapshotReader, SnapshotWriter } from "./snapshot-bytes.ts";
@@ -120,16 +121,10 @@ export interface CapitalFall {
   readonly tile: number;
 }
 
-/**
- * Carries out one order that passed validation. Returns false when the order
- * is not for this handler, or cannot be carried out after all.
- */
-export type OrderHandler = (game: Game, player: Player, order: Order) => boolean;
-
 /** Runs once per tick, after the orders of that tick, in registration order. */
 export type TickSystem = (game: Game) => void;
 
-/** Told of an order once a handler has carried it out. */
+/** Told of an order once its rule has carried it out. */
 export type OrderObserver = (game: Game, player: Player, order: Order) => void;
 
 /**
@@ -238,7 +233,7 @@ export class Game {
   decidedAt: number | undefined;
   private readonly playersById = new Map<number, Player>();
   private readonly sortedPlayers: readonly Player[];
-  private readonly handlers: OrderHandler[] = [];
+  private readonly orderRules = new Map<OrderType, OrderRule>();
   private readonly systems: TickSystem[] = [];
   private readonly observers: OrderObserver[] = [];
   private readonly persisted: { readonly name: string; readonly part: PersistedPart }[] = [];
@@ -606,13 +601,21 @@ export class Game {
     return player === this.operator.player && (this.operator.bonuses & bonus) !== 0;
   }
 
-  /** Valid orders are offered to handlers in turn until one carries them out. */
-  onOrder(handler: OrderHandler): void {
-    this.handlers.push(handler);
+  /** Registers the rule of one kind of order (`defineOrder`): one rule per type. */
+  onOrder<T extends OrderType, P extends object>(rule: OrderRule<T, P>): void {
+    if (this.orderRules.has(rule.type)) {
+      throw new RangeError(`orders of type ${rule.type} already have a rule`);
+    }
+    this.orderRules.set(rule.type, eraseRule(rule));
+  }
+
+  /** Whether a rule for orders of `type` is registered. */
+  hasOrderRule(type: OrderType): boolean {
+    return this.orderRules.has(type);
   }
 
   /**
-   * Observers hear of every order carried out, after its handler: computer
+   * Observers hear of every order carried out, after its rule: computer
    * players remember what was done to them (R-BOT-20). An observer must not
    * apply orders itself.
    */
@@ -627,13 +630,16 @@ export class Game {
   /**
    * Carries out one order now, if it is valid: the path of every order of a
    * turn, and of orders that computer players decide during a tick (R-BOT-03).
-   * Orders of eliminated or unknown players are ignored. Returns whether the
-   * order was carried out.
+   * Orders of eliminated or unknown players, and orders of a type without a
+   * rule, are ignored. Returns whether the order was carried out.
    */
   apply(playerId: number, order: Order): boolean {
     const player = this.playersById.get(playerId);
-    if (!player?.alive || orderError(this, player, order) !== undefined) return false;
-    if (!this.handlers.some((handle) => handle(this, player, order))) return false;
+    if (!player?.alive) return false;
+    const rule = this.orderRules.get(order.type);
+    if (!rule) return false;
+    const plan = planOrder(this, player, order, rule);
+    if (typeof plan === "string" || !rule.execute(this, player, plan)) return false;
     for (const observe of this.observers) observe(this, player, order);
     return true;
   }

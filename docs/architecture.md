@@ -106,7 +106,7 @@ flowchart LR
 | One rule per file, `installX`     | The engine rules, installed by `createGame`                                                       | Today                                 |
 | Observers (`onApplied`)           | Nations hear of orders                                                                            | Today                                 |
 | One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Today                                 |
-| Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Target                                |
+| Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Today                                 |
 | Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Target                                |
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Target                                |
@@ -128,12 +128,12 @@ Today:
 
 1. Add the member to the `Order` union in `packages/contracts/src/orders.ts`, with a doc comment.
 2. Append the kind to `ORDER_SPEC` there, with the kind of each field. Append only: the position is the code on the wire. The protocol builds its schema and its frames from it.
-3. Add its checks to `orderError` in `packages/engine/src/orders.ts`.
-4. Register a handler in the rule's `installX` function with `game.onOrder`.
+3. Write its rule with `defineOrder(type, { phases, validate, execute })` next to the rule's `installX` function, register it there with `game.onOrder`, and list it in `ORDER_RULES` in `packages/engine/src/orders.ts`. `validate` returns the refusal or a plan that `execute` carries out.
+4. Check that `createGame` still starts: it refuses a type with no rule.
 5. Raise `PROTOCOL_VERSION` in `packages/protocol/src/messages.ts`, and add a frame to the pinned frames in `packages/protocol/test/binary.test.ts`.
 6. Describe it in [engine.md](engine.md) and [protocol.md](protocol.md).
 
-**Target** ([0007](adr/0007-order-dispatch.md)): steps 3 and 4 become one `defineOrder` call with `phases`, `validate` and `execute`.
+**Target** ([0007](adr/0007-order-dispatch.md)): the checks that only `execute` makes today move into `validate`, and the phase checks of every kind into `phases`.
 
 ### A rule and its state
 

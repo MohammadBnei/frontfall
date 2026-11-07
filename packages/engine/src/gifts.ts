@@ -1,6 +1,7 @@
-import { DiplomacyError, inTruce, isAllied, logEvent } from "./diplomacy.ts";
+import { DiplomacyError, inTruce, isAllied, logEvent, playerError } from "./diplomacy.ts";
 import { populationCap, soldiers } from "./economy.ts";
 import type { Game, Player } from "./game.ts";
+import { ANY_PHASE, defineOrder } from "./order-rules.ts";
 import { atWar } from "./warships.ts";
 
 /** Why a gift is refused once its target is known to be an integer. */
@@ -51,9 +52,13 @@ export function giftError(
  * to another at once. The troops the receiver's population cap has no room
  * for stay with the sender. Every player is told.
  */
-export function installGifts(game: Game): void {
-  game.onOrder((_, player, order) => {
-    if (order.type !== "gift") return false;
+export const GIFT_ORDER = defineOrder("gift", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    playerError(order.target) ??
+    giftError(game, player, order.target, order.troops, order.gold) ??
+    order,
+  execute(game, player, order) {
     const to = game.player(order.target);
     if (!to) return false;
     const troops = giftedTroops(game, to, order.troops);
@@ -63,5 +68,9 @@ export function installGifts(game: Game): void {
     to.gold += order.gold;
     logEvent(game, { tick: game.tick, type: "gift", a: player.id, b: to.id });
     return true;
-  });
+  },
+});
+
+export function installGifts(game: Game): void {
+  game.onOrder(GIFT_ORDER);
 }

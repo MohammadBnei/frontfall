@@ -1,5 +1,6 @@
 import type { Game, Player } from "./game.ts";
 import { isqrt, mulDiv } from "./integer-math.ts";
+import { defineOrder, tileError } from "./order-rules.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /** Side of the map the spawn values of balance.md are set for: about the square root of 2^19 tiles. */
@@ -44,17 +45,29 @@ function scaledSettings(game: Game): SpawnSettings {
 const PLACEMENT_ATTEMPTS = 1000;
 
 /**
+ * R-SPAWN-01: a player picks a start tile during the spawn phase, or moves
+ * it. Whether the tile is far enough from the other starts (R-SPAWN-02) is
+ * judged only when the order is carried out: a start too close is ignored.
+ */
+export const SPAWN_ORDER = defineOrder("spawn", {
+  phases: ["spawn"],
+  wrongPhase: "the spawn phase is over",
+  validate: (game, _player, order) => tileError(game, order.tile) ?? order,
+  execute(game, player, order) {
+    if (!isValidStart(game, player, order.tile)) return false;
+    place(game, player, order.tile);
+    return true;
+  },
+});
+
+/**
  * The spawn phase (R-SPAWN-01 to R-SPAWN-05). Players pick a start tile, and
  * may pick again until the phase ends; whoever has not picked by then is
  * placed at random. A nation starts on its map tile instead (R-BOT-07). Each
  * player's start is kept in `player.start`.
  */
 export function installSpawn(game: Game): void {
-  game.onOrder((_, player, order) => {
-    if (order.type !== "spawn" || !isValidStart(game, player, order.tile)) return false;
-    place(game, player, order.tile);
-    return true;
-  });
+  game.onOrder(SPAWN_ORDER);
 
   game.onTick(() => {
     // The system runs before the tick counter moves: this is the last tick of the phase.

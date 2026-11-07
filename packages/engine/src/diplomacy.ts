@@ -2,6 +2,7 @@ import { Disable } from "@frontfall/contracts";
 import type { Game, Player } from "./game.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 import { percentOf } from "./integer-math.ts";
+import { ANY_PHASE, defineOrder } from "./order-rules.ts";
 
 /** Two players at peace until `until` (R-DIPLO-02, R-DIPLO-03). `a` is always the lower id. */
 export interface Alliance {
@@ -114,6 +115,11 @@ export const DiplomacyError = {
 } as const;
 
 export type DiplomacyError = (typeof DiplomacyError)[keyof typeof DiplomacyError];
+
+/** Why a player id taken from an order is not one, or undefined; the game then says whether that player plays. */
+export function playerError(id: number): DiplomacyError | undefined {
+  return Number.isSafeInteger(id) ? undefined : DiplomacyError.Player;
+}
 
 /** Players on the same team: allies for the whole game (R-MODE-02). */
 export function sameTeam(game: Game, a: number, b: number): boolean {
@@ -274,18 +280,15 @@ export function embargoError(
 }
 
 /**
- * Diplomacy (R-DIPLO-01 to R-DIPLO-05). `ally` asks for an alliance, accepts
- * the other side's request, or votes to renew a running alliance; `betray`
- * ends one at once and marks the player who broke it. Requests, alliances and
- * cooldowns run out on ticks, so every client drops them at the same moment.
- * Queries ignore what has run out, so the rules that run later in the tick
- * agree with the orders of the tick; the lists drop it at the end of that tick.
+ * R-DIPLO-01, R-DIPLO-03: `ally` asks for an alliance, accepts the other
+ * side's request, or votes to renew a running alliance.
  */
-export function installDiplomacy(game: Game): void {
-  const { balance } = game;
-
-  game.onOrder((_, player, order) => {
-    if (order.type !== "ally") return false;
+export const ALLY_ORDER = defineOrder("ally", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    playerError(order.target) ?? allyError(game, player, order.target) ?? order,
+  execute(game, player, order) {
+    const { balance } = game;
     const target = order.target;
     const alliance = allianceOf(game, player.id, target);
     if (alliance) {
@@ -308,18 +311,23 @@ export function installDiplomacy(game: Game): void {
       return true;
     }
     removeWhere(game.allianceRequests, (r) => r === asked);
-    form(player.id, target);
+    form(game, player.id, target);
     return true;
-  });
+  },
+});
 
-  game.onOrder((_, player, order) => {
-    if (order.type !== "tribute") return false;
+/** R-DIPLO-10: `tribute` pays its price to `target` for a truce. */
+export const TRIBUTE_ORDER = defineOrder("tribute", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    playerError(order.target) ?? tributeError(game, player, order.target) ?? order,
+  execute(game, player, order) {
     const price = tributePrice(game, player.id);
     const to = game.player(order.target);
     if (!to) return false;
     player.gold -= price;
     to.gold += price;
-    form(player.id, order.target, true);
+    form(game, player.id, order.target, true);
     logEvent(game, {
       tick: game.tick,
       type: "tribute",
@@ -328,10 +336,16 @@ export function installDiplomacy(game: Game): void {
       gold: price,
     });
     return true;
-  });
+  },
+});
 
-  game.onOrder((_, player, order) => {
-    if (order.type !== "betray") return false;
+/** R-DIPLO-04: `betray` ends an alliance at once and marks the player who broke it. */
+export const BETRAY_ORDER = defineOrder("betray", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    playerError(order.target) ?? betrayError(game, player, order.target) ?? order,
+  execute(game, player, order) {
+    const { balance } = game;
     const broken = allianceOf(game, player.id, order.target);
     removeWhere(game.alliances, (a) => a === broken);
     player.traitorUntil = game.tick + balance.traitorTicks;
@@ -343,10 +357,15 @@ export function installDiplomacy(game: Game): void {
       until: game.tick + balance.allianceCooldownTicks,
     });
     return true;
-  });
+  },
+});
 
-  game.onOrder((_, player, order) => {
-    if (order.type !== "embargo") return false;
+/** R-DIPLO-05: `embargo` starts (`on` 1) or lifts (`on` 0) an embargo on `target`'s trade. */
+export const EMBARGO_ORDER = defineOrder("embargo", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    playerError(order.target) ?? embargoError(game, player, order.target, order.on) ?? order,
+  execute(game, player, order) {
     const target = order.target;
     const lasting = game.embargoes.find((e) => e.from === player.id && e.to === target);
     if (order.on === 1 && lasting) lasting.until = 0;
@@ -360,7 +379,24 @@ export function installDiplomacy(game: Game): void {
       b: target,
     });
     return true;
-  });
+  },
+});
+
+/**
+ * Diplomacy (R-DIPLO-01 to R-DIPLO-05). `ally` asks for an alliance, accepts
+ * the other side's request, or votes to renew a running alliance; `betray`
+ * ends one at once and marks the player who broke it. Requests, alliances and
+ * cooldowns run out on ticks, so every client drops them at the same moment.
+ * Queries ignore what has run out, so the rules that run later in the tick
+ * agree with the orders of the tick; the lists drop it at the end of that tick.
+ */
+export function installDiplomacy(game: Game): void {
+  const { balance } = game;
+
+  game.onOrder(ALLY_ORDER);
+  game.onOrder(TRIBUTE_ORDER);
+  game.onOrder(BETRAY_ORDER);
+  game.onOrder(EMBARGO_ORDER);
 
   // R-DIPLO-09: whoever attacks or lands on a player finds their ports shut to that player.
   game.onApplied((_, player, order) => {
@@ -405,40 +441,41 @@ export function installDiplomacy(game: Game): void {
     removeWhere(game.alliances, (a) => tick >= a.until || !alive(a.a) || !alive(a.b));
     removeWhere(game.requestCooldowns, (c) => tick >= c.until);
   });
+}
 
-  /** R-DIPLO-02: the new allies (or the two of a truce, R-DIPLO-10)' attacks on each other end, and their troops go home as from a retreat. */
-  function form(first: number, second: number, truce = false): void {
-    const low = Math.min(first, second);
-    const high = Math.max(first, second);
-    removeWhere(
-      game.allianceRequests,
-      (r) => (r.from === high && r.to === low) || (r.from === low && r.to === high),
-    );
-    game.alliances.push({
-      a: low,
-      b: high,
-      until: game.tick + (truce ? balance.tributeTruceTicks : balance.allianceTicks),
-      renewA: false,
-      renewB: false,
-      truce,
-    });
-    game.alliances.sort((x, y) => x.a - y.a || x.b - y.b);
-    removeWhere(
-      game.embargoes,
-      (e) =>
-        e.until !== 0 && ((e.from === low && e.to === high) || (e.from === high && e.to === low)),
-    );
-    if (!truce) logEvent(game, { tick: game.tick, type: "allied", a: low, b: high });
-    for (const attack of game.attacks) {
-      const against =
-        (attack.player === low && attack.target === high) ||
-        (attack.player === high && attack.target === low);
-      if (!against || attack.troops <= 0) continue;
-      const owner = game.player(attack.player);
-      if (owner)
-        owner.troops += attack.troops - percentOf(attack.troops, balance.retreatPenaltyPercent);
-      attack.troops = 0;
-    }
+/** R-DIPLO-02: the new allies (or the two of a truce, R-DIPLO-10)' attacks on each other end, and their troops go home as from a retreat. */
+function form(game: Game, first: number, second: number, truce = false): void {
+  const { balance } = game;
+  const low = Math.min(first, second);
+  const high = Math.max(first, second);
+  removeWhere(
+    game.allianceRequests,
+    (r) => (r.from === high && r.to === low) || (r.from === low && r.to === high),
+  );
+  game.alliances.push({
+    a: low,
+    b: high,
+    until: game.tick + (truce ? balance.tributeTruceTicks : balance.allianceTicks),
+    renewA: false,
+    renewB: false,
+    truce,
+  });
+  game.alliances.sort((x, y) => x.a - y.a || x.b - y.b);
+  removeWhere(
+    game.embargoes,
+    (e) =>
+      e.until !== 0 && ((e.from === low && e.to === high) || (e.from === high && e.to === low)),
+  );
+  if (!truce) logEvent(game, { tick: game.tick, type: "allied", a: low, b: high });
+  for (const attack of game.attacks) {
+    const against =
+      (attack.player === low && attack.target === high) ||
+      (attack.player === high && attack.target === low);
+    if (!against || attack.troops <= 0) continue;
+    const owner = game.player(attack.player);
+    if (owner)
+      owner.troops += attack.troops - percentOf(attack.troops, balance.retreatPenaltyPercent);
+    attack.troops = 0;
   }
 }
 

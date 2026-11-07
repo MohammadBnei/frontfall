@@ -6,6 +6,7 @@ import { OPERATOR_FACTOR } from "./modes.ts";
 import { logEvent } from "./diplomacy.ts";
 import { detPow, mulDiv, percentOf } from "./integer-math.ts";
 import { LandmarkEffect, withLandmarks } from "./landmarks.ts";
+import { ANY_PHASE, defineOrder } from "./order-rules.ts";
 import { workingCities } from "./structures.ts";
 
 /**
@@ -64,6 +65,16 @@ export function workError(game: Game, share: number): string | undefined {
   return undefined;
 }
 
+/** R-ECO-07: a player sets the share of their troops at home who work, in either phase. */
+export const WORK_ORDER = defineOrder("work", {
+  phases: ANY_PHASE,
+  validate: (game, _player, order) => workError(game, order.share) ?? order,
+  execute(_game, player, order) {
+    player.workShare = order.share;
+    return true;
+  },
+});
+
 /**
  * Growth of troops and gold every tick of play (R-ECO-01 to R-ECO-05), and
  * elimination of players left without land.
@@ -73,12 +84,7 @@ export function installEconomy(game: Game): void {
   // units of 1 / goldDivisor, so small players are not rounded down to nothing.
   const goldDivisor = 1000 * game.balance.ticksPerSecond;
 
-  // R-ECO-07: a player sets the share of their troops at home who work.
-  game.onOrder((_, player, order) => {
-    if (order.type !== "work") return false;
-    player.workShare = order.share;
-    return true;
-  });
+  game.onOrder(WORK_ORDER);
 
   game.onTick(() => {
     if (game.phase !== "play") return;

@@ -223,7 +223,6 @@ const EXEMPT: readonly Exemption[] = [
 /** Arrays of `Game` that are not entity lists of the state, and why. */
 const NOT_STATE: Record<string, string> = {
   sortedPlayers: "the players, checked field by field as `player`",
-  handlers: "the order handlers of the rules installed",
   systems: "the tick systems of the rules installed",
   observers: "the order observers of the rules installed",
   persisted: "the rule parts, which save themselves and are pinned by the state dump",

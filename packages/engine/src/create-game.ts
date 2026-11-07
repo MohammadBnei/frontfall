@@ -1,3 +1,4 @@
+import { ORDER_TYPES } from "@frontfall/contracts";
 import { installAttacks } from "./attacks.ts";
 import { installBoats } from "./boats.ts";
 import { installCapitals } from "./capitals.ts";
@@ -52,10 +53,22 @@ export const STANDARD_RULES: readonly Rule[] = Object.freeze([
   { name: "victory", install: installVictory },
 ]);
 
-/** A game with every rule of `STANDARD_RULES` installed, in its order. */
+/**
+ * A game with every rule of `STANDARD_RULES` installed, in its order. Every
+ * kind of order of the spec has its rule, or the game is not created.
+ */
 export function createGame(setup: GameSetup): Game {
   const game = new Game(setup);
   game.terrain.prepare();
   for (const rule of STANDARD_RULES) rule.install(game);
+  assertOrderRules(game);
   return game;
+}
+
+/** Throws unless every order type of `ORDER_SPEC` has a rule in `game`: such orders would be dropped. */
+export function assertOrderRules(game: Game): void {
+  const missing = ORDER_TYPES.filter((type) => !game.hasOrderRule(type));
+  if (missing.length > 0) {
+    throw new RangeError(`no rule for the orders of type ${missing.join(", ")}`);
+  }
 }

@@ -1,6 +1,7 @@
-import { captureCost, defenderLoss } from "./attacks.ts";
+import { ATTACK_EARLY, captureCost, defenderLoss, targetError } from "./attacks.ts";
 import { isAllied } from "./diplomacy.ts";
 import type { Game } from "./game.ts";
+import { PLAY_PHASE, defineOrder } from "./order-rules.ts";
 import { TileKind } from "./terrain.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
@@ -50,6 +51,38 @@ export function reachableCoasts(
 }
 
 /**
+ * R-UNIT-02: `embark` ships troops to a coastal tile the player does not
+ * own. Whether a coast of theirs lies within B-BOAT-RANGE by sea is judged
+ * when the order is carried out, and the order ignored without one.
+ */
+export const EMBARK_ORDER = defineOrder("embark", {
+  phases: PLAY_PHASE,
+  wrongPhase: ATTACK_EARLY,
+  validate(game, player, order) {
+    const error = targetError(game, player, order.target, order.troops);
+    if (error) return error;
+    if (!game.terrain.isCoast(order.target)) return "ships can only land on a coast";
+    const atSea = game.boats.filter((boat) => boat.player === player.id).length;
+    if (atSea >= game.balance.boatMax) return "too many ships at sea";
+    return order;
+  },
+  execute(game, player, order) {
+    const route = seaRoute(game, player.id, order.target);
+    if (!route) return false;
+    player.troops -= order.troops;
+    game.boats.push({
+      id: game.nextBoatId++,
+      player: player.id,
+      target: order.target,
+      troops: order.troops,
+      path: route.path,
+      step: 0,
+    });
+    return true;
+  },
+});
+
+/**
  * Transport ships (R-UNIT-02, R-ATTACK-09). An embark order sends troops from
  * the player's coast closest to the target; the ship sails B-BOAT-SPEED water
  * tiles per tick and, on arrival, takes the landing tile and attacks from it.
@@ -60,21 +93,7 @@ export function installBoats(game: Game): void {
   const boats = game.boats;
   const around = new Int32Array(4);
 
-  game.onOrder((_, player, order) => {
-    if (order.type !== "embark") return false;
-    const route = seaRoute(game, player.id, order.target);
-    if (!route) return false;
-    player.troops -= order.troops;
-    boats.push({
-      id: game.nextBoatId++,
-      player: player.id,
-      target: order.target,
-      troops: order.troops,
-      path: route.path,
-      step: 0,
-    });
-    return true;
-  });
+  game.onOrder(EMBARK_ORDER);
 
   game.onTick(() => {
     let kept = 0;

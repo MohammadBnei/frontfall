@@ -1,6 +1,7 @@
 import { QUICK_MESSAGES } from "@frontfall/contracts";
-import { DiplomacyError, logEvent } from "./diplomacy.ts";
+import { DiplomacyError, logEvent, playerError } from "./diplomacy.ts";
 import type { Game, Player } from "./game.ts";
+import { ANY_PHASE, defineOrder } from "./order-rules.ts";
 
 export { QUICK_MESSAGES };
 
@@ -43,9 +44,11 @@ export function quickError(
  * but the sender's wait of QUICK_MESSAGE_TICKS before the next one: it goes
  * into the event log for the two players' interfaces to show.
  */
-export function installQuickMessages(game: Game): void {
-  game.onOrder((_, player, order) => {
-    if (order.type !== "quick") return false;
+export const QUICK_ORDER = defineOrder("quick", {
+  phases: ANY_PHASE,
+  validate: (game, player, order) =>
+    playerError(order.target) ?? quickError(game, player, order.target, order.phrase) ?? order,
+  execute(game, player, order) {
     const cooldowns = game.quickCooldowns;
     const until = game.tick + QUICK_MESSAGE_TICKS;
     const kept = cooldowns.filter((c) => c.player !== player.id && game.tick < c.until);
@@ -60,5 +63,9 @@ export function installQuickMessages(game: Game): void {
       phrase: order.phrase,
     });
     return true;
-  });
+  },
+});
+
+export function installQuickMessages(game: Game): void {
+  game.onOrder(QUICK_ORDER);
 }

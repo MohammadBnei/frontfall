@@ -3,6 +3,7 @@ import { Disable, OperatorBonus } from "@frontfall/contracts";
 import type { Game, Player } from "./game.ts";
 import { OPERATOR_FACTOR } from "./modes.ts";
 import { divFloor, mulDiv } from "./integer-math.ts";
+import { PLAY_PHASE, defineOrder, tileError } from "./order-rules.ts";
 import { spawnSettings } from "./spawn.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
@@ -335,6 +336,51 @@ function readyForts(game: Game): FortCache {
   return fortCache;
 }
 
+/** R-BUILD-01: `build` pays for a structure on one of the player's tiles; it works B-BUILD-TIME later. */
+export const BUILD_ORDER = defineOrder("build", {
+  phases: PLAY_PHASE,
+  wrongPhase: BuildError.Early,
+  validate(game, player, order) {
+    const kind = order.structure;
+    if (!isStructureKind(kind)) return "unknown structure";
+    return (
+      tileError(game, order.tile) ??
+      placementError(game, player, kind, order.tile) ?? {
+        kind,
+        tile: order.tile,
+      }
+    );
+  },
+  execute(game, player, { kind, tile }) {
+    player.gold -= structureCost(game, player.id, kind);
+    game.structures.push({
+      id: game.nextStructureId++,
+      player: player.id,
+      kind,
+      tile,
+      readyAt: game.tick + buildTime(game, kind),
+      reloadAt: 0,
+    });
+    return true;
+  },
+});
+
+/** R-BUILD-06: `demolish` removes one of the player's structures, with no refund. */
+export const DEMOLISH_ORDER = defineOrder("demolish", {
+  phases: PLAY_PHASE,
+  wrongPhase: BuildError.Early,
+  validate(game, player, order) {
+    const error = tileError(game, order.tile);
+    if (error) return error;
+    const index = game.structures.findIndex((s) => s.tile === order.tile && s.player === player.id);
+    return index < 0 ? "no structure of yours on the tile" : { index };
+  },
+  execute(game, _player, { index }) {
+    game.structures.splice(index, 1);
+    return true;
+  },
+});
+
 /**
  * Structures (R-BUILD-01, R-BUILD-03, R-BUILD-06, R-BUILD-07). A build order
  * takes the gold at once and the structure works B-BUILD-TIME later; a
@@ -345,27 +391,8 @@ function readyForts(game: Game): FortCache {
 export function installStructures(game: Game): void {
   const structures = game.structures;
 
-  game.onOrder((_, player, order) => {
-    if (order.type !== "build" || !isStructureKind(order.structure)) return false;
-    player.gold -= structureCost(game, player.id, order.structure);
-    structures.push({
-      id: game.nextStructureId++,
-      player: player.id,
-      kind: order.structure,
-      tile: order.tile,
-      readyAt: game.tick + buildTime(game, order.structure),
-      reloadAt: 0,
-    });
-    return true;
-  });
-
-  game.onOrder((_, player, order) => {
-    if (order.type !== "demolish") return false;
-    const index = structures.findIndex((s) => s.tile === order.tile && s.player === player.id);
-    if (index < 0) return false;
-    structures.splice(index, 1);
-    return true;
-  });
+  game.onOrder(BUILD_ORDER);
+  game.onOrder(DEMOLISH_ORDER);
 
   game.onTick(() => {
     let kept = 0;

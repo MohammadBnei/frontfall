@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_BALANCE } from "../src/balance.ts";
-import { Game, type GameSetup, type Order } from "../src/game.ts";
+import { Game, type GameSetup, type Order, type Player } from "../src/game.ts";
+import { ANY_PHASE, defineOrder, tileError } from "../src/order-rules.ts";
+import { SPAWN_ORDER } from "../src/spawn.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 
@@ -19,6 +21,15 @@ function setup(overrides: Partial<GameSetup> = {}): GameSetup {
 }
 
 const spawn = (tile: number): Order => ({ type: "spawn", tile });
+
+/** A spawn rule that only checks the tile and records what it is asked to carry out. */
+function spawnRecorder(execute: (player: Player, order: Order) => boolean) {
+  return defineOrder("spawn", {
+    phases: ANY_PHASE,
+    validate: (game, _player, order) => tileError(game, order.tile) ?? order,
+    execute: (_game, player, order) => execute(player, order),
+  });
+}
 
 describe("Terrain", () => {
   it("tells ownable land from water and impassable terrain (R-MAP-01, R-MAP-02)", () => {
@@ -86,10 +97,12 @@ describe("Game", () => {
   it("applies orders in turn order, then runs systems in registration order (R-FAIR-03)", () => {
     const game = new Game(setup());
     const log: string[] = [];
-    game.onOrder((_, player, order) => {
-      log.push(`order ${String(player.id)} ${order.type}`);
-      return player.id === 2;
-    });
+    game.onOrder(
+      spawnRecorder((player, order) => {
+        log.push(`order ${String(player.id)} ${order.type}`);
+        return player.id === 2;
+      }),
+    );
     game.onTick(() => log.push("growth"));
     game.onTick((g) => log.push(`attacks at ${String(g.tick)}`));
 
@@ -106,21 +119,15 @@ describe("Game", () => {
     expect(log).toEqual(["order 2 spawn", "order 1 spawn", "growth", "attacks at 0"]);
   });
 
-  it("asks handlers in turn until one accepts, and ignores eliminated players", () => {
+  it("hands each order to the rule of its type, and ignores eliminated players", () => {
     const game = new Game(setup());
     const asked: string[] = [];
-    game.onOrder(() => {
-      asked.push("first");
-      return false;
-    });
-    game.onOrder(() => {
-      asked.push("second");
-      return true;
-    });
-    game.onOrder(() => {
-      asked.push("third");
-      return true;
-    });
+    game.onOrder(
+      spawnRecorder((player) => {
+        asked.push(`spawn ${String(player.id)}`);
+        return true;
+      }),
+    );
     const bea = game.player(2);
     if (bea) bea.alive = false;
 
@@ -130,19 +137,56 @@ describe("Game", () => {
         orders: [
           { player: 1, order: spawn(1) },
           { player: 2, order: spawn(2) },
+          // No rule for this type: ignored.
+          { player: 1, order: { type: "work", share: 10 } },
         ],
       }),
     ).toBe(1);
-    expect(asked).toEqual(["first", "second"]);
+    expect(asked).toEqual(["spawn 1"]);
   });
 
-  it("never hands an invalid order to a handler", () => {
+  it("takes one rule per type of order", () => {
+    const game = new Game(setup());
+    game.onOrder(SPAWN_ORDER);
+    expect(game.hasOrderRule("spawn")).toBe(true);
+    expect(game.hasOrderRule("attack")).toBe(false);
+    expect(() => {
+      game.onOrder(spawnRecorder(() => true));
+    }).toThrow(RangeError);
+  });
+
+  it("refuses an order outside the phases of its rule, before validating it (R-SPAWN-01)", () => {
+    const game = new Game(setup({ balance: { ...DEFAULT_BALANCE, spawnPhaseTicks: 1 } }));
+    const validated: number[] = [];
+    game.onOrder(
+      defineOrder("spawn", {
+        phases: ["spawn"],
+        validate: (_game, _player, order) => {
+          validated.push(order.tile);
+          return order;
+        },
+        execute: () => true,
+      }),
+    );
+    expect(game.apply(1, spawn(3))).toBe(true);
+    game.step({ tick: 0, orders: [] });
+    expect(game.apply(1, spawn(4))).toBe(false);
+    expect(validated).toEqual([3]);
+  });
+
+  it("carries out the plan its rule validated, and only a valid one", () => {
     const game = new Game(setup());
     const seen: Order[] = [];
-    game.onOrder((_, __, order) => {
-      seen.push(order);
-      return true;
-    });
+    game.onOrder(
+      defineOrder("spawn", {
+        phases: SPAWN_ORDER.phases,
+        validate: (game, player, order) => SPAWN_ORDER.validate(game, player, order),
+        execute: (_game, _player, order) => {
+          seen.push(order);
+          return true;
+        },
+      }),
+    );
     const applied = game.step({
       tick: 0,
       orders: [
@@ -177,7 +221,7 @@ describe("Game", () => {
 describe("Game.apply", () => {
   it("carries out a valid order of a living player outside any turn (R-BOT-03)", () => {
     const game = new Game(setup());
-    game.onOrder(() => true);
+    game.onOrder(spawnRecorder(() => true));
     expect(game.apply(1, spawn(3))).toBe(true);
     expect(game.apply(1, spawn(-1))).toBe(false);
     expect(game.apply(9, spawn(3))).toBe(false);

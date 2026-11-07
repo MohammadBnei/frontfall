@@ -2,6 +2,7 @@ import { DOCTRINE_COUNT } from "@frontfall/contracts";
 import type { BotDifficulty } from "./bots/difficulty.ts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
+import { ANY_PHASE, defineOrder } from "./order-rules.ts";
 
 /**
  * The doctrines a player may pick during the spawn phase (R-DOCTRINE): code 0
@@ -82,14 +83,20 @@ export function withDoctrine(
 
 /**
  * R-DOCTRINE-01: a player picks a doctrine during the spawn phase, and may
- * pick again until it ends.
+ * pick again until it ends. `doctrineError` checks the phase, after whether
+ * the game has doctrines at all.
  */
-export function installDoctrines(game: Game): void {
-  game.onOrder((_, player, order) => {
-    if (order.type !== "doctrine") return false;
+export const DOCTRINE_ORDER = defineOrder("doctrine", {
+  phases: ANY_PHASE,
+  validate: (game, _player, order) => doctrineError(game, order.pick) ?? order,
+  execute(_game, player, order) {
     player.doctrine = order.pick;
     return true;
-  });
+  },
+});
+
+export function installDoctrines(game: Game): void {
+  game.onOrder(DOCTRINE_ORDER);
 }
 
 /** Why a doctrine cannot be picked, or undefined when it can (R-DOCTRINE-01). */

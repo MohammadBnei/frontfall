@@ -4,10 +4,11 @@ import { OperatorBonus } from "@frontfall/contracts";
 import type { Game, Player } from "./game.ts";
 import { OPERATOR_FACTOR } from "./modes.ts";
 import { detPow, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
-import { isAllied, isTraitor, logEvent } from "./diplomacy.ts";
+import { DiplomacyError, isAllied, isTraitor, logEvent } from "./diplomacy.ts";
 import { soldiers } from "./economy.ts";
 import { capitalsStand, guardedByCapital } from "./capitals.ts";
 import { LandmarkEffect, guardedByLandmark, heldLandmarks } from "./landmarks.ts";
+import { PLAY_PHASE, defineOrder, tileError, type Refusal } from "./order-rules.ts";
 import { spawnSettings } from "./spawn.ts";
 import { fortRadius, fortified, isReady, StructureKind } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
@@ -29,6 +30,104 @@ export interface Attack {
    */
   pressure: number;
 }
+
+/** R-SPAWN-05: nobody attacks, nor lands, during the spawn phase. */
+export const ATTACK_EARLY = "attacks start after the spawn phase";
+
+/**
+ * Why `player` cannot send `troops` against the owner of `target`, by land or
+ * by sea, or undefined. The phase is checked before.
+ */
+export function targetError(
+  game: Game,
+  player: Player,
+  target: number,
+  troops: number,
+): Refusal | undefined {
+  const error = tileError(game, target);
+  if (error) return error;
+  if (!Number.isSafeInteger(troops) || troops < 1) return "invalid troop count";
+  // R-ECO-07: workers stay at home.
+  if (troops > soldiers(player)) return "not enough troops";
+  if (game.territory.ownerOf(target) === player.id) return "the target is already owned";
+  // R-DIPLO-02: an ally is attacked only after betraying them.
+  if (isAllied(game, player.id, game.territory.ownerOf(target))) return DiplomacyError.Ally;
+  return undefined;
+}
+
+/** Scratch space of `touches`, which never runs inside another call of itself. */
+const touchAround = new Int32Array(4);
+
+/** Whether any land of `target` touches the player's territory. */
+function touches(game: Game, player: number, target: number): boolean {
+  const { territory } = game;
+  const topology = game.terrain.topology;
+  const owners = territory.owners;
+  const borders = territory.borderCount(player);
+  for (let i = 0; i < borders; i++) {
+    const count = topology.neighborsInto(territory.borderTile(player, i), touchAround);
+    for (let j = 0; j < count; j++) {
+      const tile = touchAround[j] as number;
+      if (owners[tile] === target && game.terrain.isOwnable(tile)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * R-ATTACK-01, R-ATTACK-09: `attack` sends troops against the owner of a
+ * tile, joining the player's attack on them if one is under way. A target
+ * that fell, or one without a border shared with the player (only ships
+ * reach it), is judged when the order is carried out, and the order ignored.
+ */
+export const ATTACK_ORDER = defineOrder("attack", {
+  phases: PLAY_PHASE,
+  wrongPhase: ATTACK_EARLY,
+  validate: (game, player, order) => targetError(game, player, order.target, order.troops) ?? order,
+  execute(game, player, order) {
+    const attacks = game.attacks;
+    const target = game.territory.ownerOf(order.target);
+    if (target !== NEUTRAL && !game.player(target)?.alive) return false;
+    const existing = attacks.find((a) => a.player === player.id && a.target === target);
+    const attack = existing ?? {
+      id: game.nextAttackId,
+      player: player.id,
+      target,
+      aim: order.target,
+      troops: 0,
+      pressure: 0,
+    };
+    // R-ATTACK-09: without a shared border, only ships can reach the target.
+    if (!touches(game, player.id, target)) return false;
+    player.troops -= order.troops;
+    attack.troops += order.troops;
+    attack.aim = order.target;
+    if (!existing) {
+      attacks.push(attack);
+      game.nextAttackId++;
+    }
+    return true;
+  },
+});
+
+/**
+ * R-ATTACK-06: a player calls back one of their own attacks, losing part of
+ * its troops. An attack that is not theirs, or has no troops left, is judged
+ * when the order is carried out, and the order ignored.
+ */
+export const RETREAT_ORDER = defineOrder("retreat", {
+  phases: PLAY_PHASE,
+  wrongPhase: ATTACK_EARLY,
+  validate: (_game, _player, order) =>
+    !Number.isSafeInteger(order.attack) || order.attack < 1 ? "invalid attack id" : order,
+  execute(game, player, order) {
+    const attack = game.attacks.find((a) => a.id === order.attack && a.player === player.id);
+    if (!attack || attack.troops <= 0) return false;
+    player.troops += attack.troops - percentOf(attack.troops, game.balance.retreatPenaltyPercent);
+    attack.troops = 0;
+    return true;
+  },
+});
 
 /**
  * Expansion and attacks (R-ATTACK-01 to R-ATTACK-07). Troops leave the player
@@ -229,56 +328,11 @@ export function installAttacks(game: Game): void {
     }
   }
 
-  /** Whether any land of `target` touches the player's territory. */
-  function touches(player: number, target: number): boolean {
-    const borders = territory.borderCount(player);
-    for (let i = 0; i < borders; i++) {
-      const count = topology.neighborsInto(territory.borderTile(player, i), around);
-      for (let j = 0; j < count; j++) {
-        const tile = around[j] as number;
-        if (owners[tile] === target && game.terrain.isOwnable(tile)) return true;
-      }
-    }
-    return false;
-  }
-
   const tileCost = (tile: number, defender: Player | undefined, attack: Attack): number =>
     captureCost(game, tile, defender, attack.player, attack.troops);
 
-  // R-ATTACK-06: a player calls back one of their own attacks, losing part of its troops.
-  game.onOrder((_, player, order) => {
-    if (order.type !== "retreat") return false;
-    const attack = attacks.find((a) => a.id === order.attack && a.player === player.id);
-    if (!attack || attack.troops <= 0) return false;
-    player.troops += attack.troops - percentOf(attack.troops, balance.retreatPenaltyPercent);
-    attack.troops = 0;
-    return true;
-  });
-
-  game.onOrder((_, player, order) => {
-    if (order.type !== "attack") return false;
-    const target = territory.ownerOf(order.target);
-    if (target !== NEUTRAL && !game.player(target)?.alive) return false;
-    const existing = attacks.find((a) => a.player === player.id && a.target === target);
-    const attack = existing ?? {
-      id: game.nextAttackId,
-      player: player.id,
-      target,
-      aim: order.target,
-      troops: 0,
-      pressure: 0,
-    };
-    // R-ATTACK-09: without a shared border, only ships can reach the target.
-    if (!touches(player.id, target)) return false;
-    player.troops -= order.troops;
-    attack.troops += order.troops;
-    attack.aim = order.target;
-    if (!existing) {
-      attacks.push(attack);
-      game.nextAttackId++;
-    }
-    return true;
-  });
+  game.onOrder(RETREAT_ORDER);
+  game.onOrder(ATTACK_ORDER);
 
   game.onTick(() => {
     if (game.phase !== "play") return;
