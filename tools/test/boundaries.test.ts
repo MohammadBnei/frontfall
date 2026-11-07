@@ -454,4 +454,15 @@ describe("server ports", () => {
       expect.arrayContaining(["import randomBytes", "import randomInt", "Math.random"]),
     );
   });
+
+  it("speaks HTTP and WebSocket through the transport port only", () => {
+    const network = ["node:http", "node:https", "http", "https", "ws"];
+    const users = imports("apps/server")
+      .filter(({ specifier }) => network.includes(specifier))
+      .map(({ file, specifier }) => `${relative(root, file)} imports ${specifier}`);
+    expect(users.sort()).toEqual([
+      "apps/server/src/node-transport.ts imports node:http",
+      "apps/server/src/node-transport.ts imports ws",
+    ]);
+  });
 });

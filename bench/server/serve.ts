@@ -103,7 +103,6 @@ process.on("message", (request: ServerRequest) => {
   process.send?.(stats);
 });
 
-server.http.listen(0, "127.0.0.1", () => {
-  const address = server.http.address();
-  process.send?.({ port: typeof address === "object" && address ? address.port : 0 });
+void server.listen(0, "127.0.0.1").then(({ port }) => {
+  process.send?.({ port });
 });

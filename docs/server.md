@@ -334,3 +334,9 @@ admin GET 'errors?days=30'      # everything kept
 
 With `FRONTFALL_DATA`, `usage/usage.json` holds the counts, saved every 5 minutes; the save before it stays as `usage.json.bak`, and the server falls back on that copy if the file is damaged (the damaged one is kept as `usage.json.broken`) or missing. To start the counts again from nothing, delete both files.
 `usage/months/2026-10.json` holds one month: `{ "version": 1, "month": "2026-10", "days": { "2026-10-25": { dimension: { value: count } } } }`. A monthly file is added to and never cut down: a day keeps the larger of the file's figures and the server's, and a file that cannot be read is set aside as `.broken-<time>`.
+
+## Clock, ids and transport
+
+The server reads the time, sets timers and draws random values only through two ports, `Clock` (`src/clock.ts`) and `Ids` (`src/ids.ts`), and speaks HTTP and WebSocket only through a `Transport` (`src/transport.ts`). `createGameServer` takes all three in its options, with the machine's clock, `node:crypto` and the `node:http` and `ws` transport (`src/node-transport.ts`) as the defaults; `listen(port, host)` starts it and gives the port back, and `close()` stops it. A boundary test (`tools/test/boundaries.test.ts`) fails if another server file reads the clock, sets a timer, draws a random value or imports `node:http` or `ws`.
+
+The tests run the server on a `FakeTransport` and, where time matters, a `FakeClock` (`test/support/`): requests and sockets reach it without a network, and a test moves the time itself. What the wire alone decides stays on real sockets through the Node transport: a request still half sent at shutdown, request targets such as `//host/path`, a broken handshake, a frame over the size limit and a client that stops reading (`test/server.test.ts`), the fuzzed connections (`test/fuzz.test.ts`), the parity checks of `test/transport.test.ts`, and the load test (`bench/test/load.test.ts`).

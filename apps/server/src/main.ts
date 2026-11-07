@@ -145,7 +145,7 @@ function shutdown(): void {
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
-server.http.listen(port, () => {
+void server.listen(port).then(() => {
   logger.info("server_started", {
     port,
     version,

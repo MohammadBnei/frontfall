@@ -1,4 +1,3 @@
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   CloseCode,
   encodeServerMessage,
@@ -6,7 +5,6 @@ import {
   TICK_RATE,
   type Frame,
 } from "@frontfall/protocol";
-import { WebSocketServer, type WebSocket } from "ws";
 import { Accounts, accountsFile } from "./accounts.ts";
 import { systemClock, type Timer } from "./clock.ts";
 import { systemIds } from "./ids.ts";
@@ -34,9 +32,17 @@ import {
   DRAIN_CHECK_MS,
   type ServerOptions,
 } from "./server-options.ts";
-import { messageHandler, toFrame, type Session } from "./client-messages.ts";
+import { messageHandler, type Session } from "./client-messages.ts";
+import { NodeTransport } from "./node-transport.ts";
 import { gamesDirectory, loadGames, saveGame } from "./saved-games.ts";
 import { statusPage, type ServerStatus } from "./status-page.ts";
+import type {
+  Connection,
+  ConnectionEvents,
+  HttpRequest,
+  HttpResponse,
+  UpgradeAnswer,
+} from "./transport.ts";
 import { usageInbox } from "./usage-http.ts";
 import { clientErrorsFile, loadClientErrors, saveClientErrors } from "./client-errors.ts";
 import {
@@ -52,6 +58,8 @@ import {
 export { closeReason } from "./client-messages.ts";
 export { DEFAULT_GAME, type ServerOptions } from "./server-options.ts";
 export { statusPage, type ServerStatus } from "./status-page.ts";
+export type * from "./transport.ts";
+export { NodeTransport } from "./node-transport.ts";
 
 /** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
 const MAX_PAYLOAD_BYTES = 1024;
@@ -73,8 +81,20 @@ const TURN_PASSES = 10;
 const DEFAULT_MAX_PLAYERS = 3000;
 const DEFAULT_MAX_LOG_BYTES = 192 * 2 ** 20;
 
+/** What a connection the server turns away at once still reports: nothing it acts on. */
+const IGNORED: ConnectionEvents = {
+  message: () => undefined,
+  pong: () => undefined,
+  error: () => undefined,
+  close: () => undefined,
+};
+
 export interface GameServer {
-  readonly http: Server;
+  /**
+   * Starts taking HTTP requests and WebSockets on `port` of `host`, every
+   * address when unset; 0 picks a free port, which the answer gives.
+   */
+  listen(port: number, host?: string): Promise<{ port: number }>;
   readonly games: Directory;
   readonly metrics: Metrics;
   /** Counts of what players do, from the reports of their pages; /api/stats exports them. */
@@ -103,6 +123,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   const gameListMs = options.gameListMs ?? 1000;
   const clock = options.clock ?? systemClock;
   const ids = options.ids ?? systemIds;
+  const transport = options.transport ?? new NodeTransport();
   /** End of the last pass of the turn timer, and whether close() has begun. */
   let lastTurnAt = clock.monotonic();
   let stopping = false;
@@ -246,26 +267,26 @@ export function createGameServer(options: ServerOptions): GameServer {
   );
   const auth = startAuth();
   /** When the oldest ping a socket has not answered yet was sent. */
-  const unanswered = new WeakMap<WebSocket, number>();
-  const ping = (socket: WebSocket, now: number): void => {
+  const unanswered = new WeakMap<Connection, number>();
+  const ping = (socket: Connection, now: number): void => {
     if (!unanswered.has(socket)) unanswered.set(socket, now);
     socket.ping();
   };
   /** The last public list sent, and when it was built. */
   let gameList: { at: number; body: CachedJson } | undefined;
-  const clientAddress = (request: IncomingMessage): string =>
+  const clientAddress = (request: HttpRequest): string =>
     addressOf(request, options.trustProxy ?? true);
   const connectionsByAddress = new Map<string, number>();
   const upgrades = new AddressRate(upgradeRate.perSecond, upgradeRate.burst, clock.now());
 
-  const http = createServer((request, response) => {
+  const answer = (request: HttpRequest, response: HttpResponse): void => {
     // `//host/path` or `/\host/path` would parse as another host's path, past a proxy's matchers.
     if (
-      !request.url?.startsWith("/") ||
+      !request.url.startsWith("/") ||
       request.url.startsWith("//") ||
       request.url.includes("\\")
     ) {
-      response.writeHead(400).end();
+      response.send(400);
       return;
     }
     const path = new URL(request.url, "http://localhost").pathname;
@@ -277,14 +298,16 @@ export function createGameServer(options: ServerOptions): GameServer {
         : clock.monotonic() - lastTurnAt > stallAfterMs
           ? "stalled"
           : "ok";
-      response
-        .writeHead(status === "ok" ? 200 : 503, {
+      response.send(
+        status === "ok" ? 200 : 503,
+        {
           "content-type": "text/plain",
           "cache-control": "no-store",
           "x-frontfall-version": options.version,
           ...(options.release ? { "x-frontfall-release": options.release } : {}),
-        })
-        .end(status);
+        },
+        status,
+      );
       return;
     }
     if (path === "/admin/maintenance" && isLoopbackRequest(request)) {
@@ -292,11 +315,11 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (path.startsWith("/admin/")) {
-      if (!isLoopbackRequest(request)) response.writeHead(404).end();
+      if (!isLoopbackRequest(request)) response.send(404);
       else if (path === "/admin/reports") reportsAnswer(request, response);
       else if (path === "/admin/bans") bansAnswer(request, response);
       else if (path === "/admin/errors") errorsAnswer(request, response);
-      else response.writeHead(404).end();
+      else response.send(404);
       return;
     }
     if (auth?.handle(request, response, path, clientAddress(request))) return;
@@ -310,7 +333,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (request.method !== "GET" && request.method !== "HEAD") {
-      response.writeHead(405, { allow: "GET, HEAD" }).end();
+      response.send(405, { allow: "GET, HEAD" });
       return;
     }
     if (path === "/api/games") {
@@ -330,20 +353,20 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (path === "/status") {
-      response
-        .writeHead(200, {
+      response.send(
+        200,
+        {
           "content-type": "text/html; charset=utf-8",
           "cache-control": "no-store",
           ...SECURITY_HEADERS,
-        })
-        .end(
-          request.method === "HEAD"
-            ? undefined
-            : statusPage(
-                status(),
-                usageTable(usage.export(clock.now())) + (options.statusSections?.() ?? ""),
-              ),
-        );
+        },
+        request.method === "HEAD"
+          ? undefined
+          : statusPage(
+              status(),
+              usageTable(usage.export(clock.now())) + (options.statusSections?.() ?? ""),
+            ),
+      );
       return;
     }
     if (path === "/api/stats") {
@@ -352,61 +375,56 @@ export function createGameServer(options: ServerOptions): GameServer {
       return;
     }
     if (path === "/metrics" && isLocalRequest(request)) {
-      response
-        .writeHead(200, {
+      response.send(
+        200,
+        {
           "content-type": "text/plain; version=0.0.4",
           "cache-control": "no-store",
-        })
-        .end(metrics.render(snapshot(), usage.renderMetrics()));
+        },
+        metrics.render(snapshot(), usage.renderMetrics()),
+      );
       return;
     }
     serveStatic(options.staticRoot, path, request, response);
-  });
+  };
 
-  // Headers that trickle in, or a body that never ends, must not hold a socket
-  // for minutes: a proxy usually cuts them sooner, a server reached directly relies on this.
-  http.headersTimeout = 10_000;
-  http.requestTimeout = 30_000;
-
-  const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_PAYLOAD_BYTES });
-
-  http.on("upgrade", (request, socket, head) => {
+  const admit = (request: HttpRequest): UpgradeAnswer => {
     const path =
-      request.url?.startsWith("//") || request.url?.includes("\\")
+      request.url.startsWith("//") || request.url.includes("\\")
         ? ""
-        : new URL(request.url ?? "/", "http://localhost").pathname;
-    if (path !== "/ws" || !isAllowedOrigin(request.headers.origin, options.allowedOrigin)) {
-      socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
-      return;
+        : new URL(request.url, "http://localhost").pathname;
+    if (path !== "/ws" || !isAllowedOrigin(request.header("origin"), options.allowedOrigin)) {
+      return { refuse: 403 };
     }
-    if (sockets.clients.size >= maxConnections) {
+    if (transport.connectionCount >= maxConnections) {
       // Opened and closed at once with a code the page understands: it says the
       // server is full and waits longer, where a refused handshake looks like a network fault.
       metrics.refused.inc({ reason: "connections" });
-      sockets.handleUpgrade(request, socket, head, (ws) => {
-        ws.close(CloseCode.full, "server full");
-      });
-      return;
+      return {
+        accept: (socket) => {
+          socket.close(CloseCode.full, "server full");
+          return IGNORED;
+        },
+      };
     }
     const address = clientAddress(request);
     const connections = connectionsByAddress.get(address) ?? 0;
     if (connections >= maxConnectionsPerAddress || !upgrades.take(address, clock.now())) {
       metrics.refused.inc({ reason: "address" });
-      socket.end("HTTP/1.1 429 Too Many Requests\r\n\r\n");
-      return;
+      return { refuse: 429 };
     }
     connectionsByAddress.set(address, connections + 1);
-    // On the raw socket, not the WebSocket: a refused handshake never makes one,
-    // and its slot would otherwise stay taken until the server restarts.
-    socket.once("close", () => {
-      const remaining = (connectionsByAddress.get(address) ?? 1) - 1;
-      if (remaining > 0) connectionsByAddress.set(address, remaining);
-      else connectionsByAddress.delete(address);
-    });
-    sockets.handleUpgrade(request, socket, head, (ws) => {
-      sockets.emit("connection", ws, request);
-    });
-  });
+    return {
+      accept: (socket) => welcome(socket, request),
+      // When the connection closes, not the WebSocket: a refused handshake never
+      // makes one, and its slot would otherwise stay taken until the server restarts.
+      released: () => {
+        const remaining = (connectionsByAddress.get(address) ?? 1) - 1;
+        if (remaining > 0) connectionsByAddress.set(address, remaining);
+        else connectionsByAddress.delete(address);
+      },
+    };
+  };
 
   const { handle, reject, seatOf } = messageHandler({
     games,
@@ -428,14 +446,14 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   const sessions = new Set<Session>();
 
-  sockets.on("connection", (socket: WebSocket, request: IncomingMessage) => {
+  const welcome = (socket: Connection, request: HttpRequest): ConnectionEvents => {
     /** A catch-up under way: the frames left, and the messages held until its end. */
     let replaying: { frames: Iterator<Frame>; held: Frame[] } | undefined;
     // One frame at a time, the next once the last is handed to the network: a
     // rejoin from the first turn of a long game never piles up in memory.
     const pump = (): void => {
       const current = replaying;
-      if (!current || socket.readyState !== socket.OPEN) return;
+      if (!current || !socket.open) return;
       const next = current.frames.next();
       if (next.done !== true) {
         socket.send(next.value, pump);
@@ -457,7 +475,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       closing: false,
       peer: {
         send(frame) {
-          if (socket.readyState !== socket.OPEN) return;
+          if (!socket.open) return;
           if (replaying) {
             // The catch-up runs on to the newest turn; other messages wait for its end.
             if (typeof frame === "string") replaying.held.push(frame);
@@ -486,47 +504,50 @@ export function createGameServer(options: ServerOptions): GameServer {
         },
       },
     };
-    if (turnAwayBanned(session)) return;
+    if (turnAwayBanned(session)) return IGNORED;
     sessions.add(session);
 
     const helloTimer = clock.setTimeout(() => {
       if (session.name === undefined) reject(session, CloseCode.idle, "no hello", "idle");
     }, helloTimeoutMs);
 
-    socket.on("pong", () => unanswered.delete(socket));
-    // Protocol errors, such as an oversized frame: ws closes the socket itself.
-    socket.on("error", (error: Error & { code?: string }) => {
-      const label = error.code === "WS_ERR_UNSUPPORTED_MESSAGE_LENGTH" ? "oversized" : "invalid";
-      metrics.rejected.inc({ reason: label });
-      logger.warn("connection_rejected", { client: session.client, reason: label });
-    });
+    return {
+      pong: () => {
+        unanswered.delete(socket);
+      },
+      // Protocol errors, such as an oversized frame: the transport closes the socket itself.
+      error: (label) => {
+        metrics.rejected.inc({ reason: label });
+        logger.warn("connection_rejected", { client: session.client, reason: label });
+      },
+      message: (frame) => {
+        if (session.closing) return;
+        metrics.messages.inc();
+        if (!session.messages.take(clock.now())) {
+          reject(session, CloseCode.rateLimited, "too many messages", "rate_limited");
+          return;
+        }
+        const parsed = parseClientMessage(frame);
+        if (!parsed.ok) {
+          reject(session, CloseCode.invalidMessage, parsed.error, "invalid");
+          return;
+        }
+        handle(session, parsed.value);
+      },
+      close: (code) => {
+        helloTimer.clear();
+        sessions.delete(session);
+        const current = seatOf(session);
+        // 1000 and 1001 come from a page that closed the socket itself; a lost
+        // network or a phone gone to sleep closes it without a code (1006).
+        if (current)
+          current.room.disconnect(current.seat, clock.now(), code === 1000 || code === 1001);
+        games.sweep();
+      },
+    };
+  };
 
-    socket.on("message", (data, isBinary) => {
-      if (session.closing) return;
-      metrics.messages.inc();
-      if (!session.messages.take(clock.now())) {
-        reject(session, CloseCode.rateLimited, "too many messages", "rate_limited");
-        return;
-      }
-      const parsed = parseClientMessage(toFrame(data, isBinary));
-      if (!parsed.ok) {
-        reject(session, CloseCode.invalidMessage, parsed.error, "invalid");
-        return;
-      }
-      handle(session, parsed.value);
-    });
-
-    socket.on("close", (code) => {
-      helloTimer.clear();
-      sessions.delete(session);
-      const current = seatOf(session);
-      // 1000 and 1001 come from a page that closed the socket itself; a lost
-      // network or a phone gone to sleep closes it without a code (1006).
-      if (current)
-        current.room.disconnect(current.seat, clock.now(), code === 1000 || code === 1001);
-      games.sweep();
-    });
-  });
+  transport.serve({ maxPayloadBytes: MAX_PAYLOAD_BYTES, request: answer, upgrade: admit });
 
   // Each pass closes the turns of a tenth of the games: every game still gets
   // one turn per tick, and the server answers in between. Passes keep to a
@@ -577,12 +598,10 @@ export function createGameServer(options: ServerOptions): GameServer {
    * player the server restarts in N minutes; 0 calls it off. The answer gives
    * the games running, which the restart would stop.
    */
-  function announce(request: IncomingMessage, response: ServerResponse): void {
-    const minutes = Number(
-      new URL(request.url ?? "/", "http://localhost").searchParams.get("minutes"),
-    );
+  function announce(request: HttpRequest, response: HttpResponse): void {
+    const minutes = Number(new URL(request.url, "http://localhost").searchParams.get("minutes"));
     if (request.method !== "POST" || !Number.isFinite(minutes) || minutes < 0 || minutes > 120) {
-      response.writeHead(400, { "content-type": "text/plain" }).end("POST ?minutes=0 to 120");
+      response.send(400, { "content-type": "text/plain" }, "POST ?minutes=0 to 120");
       return;
     }
     maintenanceAt = minutes > 0 ? clock.now() + minutes * 60_000 : undefined;
@@ -606,12 +625,10 @@ export function createGameServer(options: ServerOptions): GameServer {
   }
 
   /** GET /admin/reports?days=N, from inside the container: the reports of the last N days, 30 at most. */
-  function reportsAnswer(request: IncomingMessage, response: ServerResponse): void {
-    const days = Number(
-      new URL(request.url ?? "/", "http://localhost").searchParams.get("days") ?? 30,
-    );
+  function reportsAnswer(request: HttpRequest, response: HttpResponse): void {
+    const days = Number(new URL(request.url, "http://localhost").searchParams.get("days") ?? 30);
     if (request.method !== "GET" || !Number.isFinite(days) || days <= 0) {
-      response.writeHead(400, { "content-type": "text/plain" }).end("GET ?days=1 to 30");
+      response.send(400, { "content-type": "text/plain" }, "GET ?days=1 to 30");
       return;
     }
     sendJson(response, moderation.read(clock.now(), Math.min(days, 30)));
@@ -621,12 +638,10 @@ export function createGameServer(options: ServerOptions): GameServer {
    * GET /admin/errors?days=N, from inside the container: the errors players'
    * pages reported in the last N days, 30 at most, grouped, the most reported first.
    */
-  function errorsAnswer(request: IncomingMessage, response: ServerResponse): void {
-    const days = Number(
-      new URL(request.url ?? "/", "http://localhost").searchParams.get("days") ?? 7,
-    );
+  function errorsAnswer(request: HttpRequest, response: HttpResponse): void {
+    const days = Number(new URL(request.url, "http://localhost").searchParams.get("days") ?? 7);
     if (request.method !== "GET" || !Number.isInteger(days) || days <= 0) {
-      response.writeHead(400, { "content-type": "text/plain" }).end("GET ?days=1 to 30");
+      response.send(400, { "content-type": "text/plain" }, "GET ?days=1 to 30");
       return;
     }
     sendJson(response, usage.errors.read(clock.now(), Math.min(days, 30)));
@@ -638,22 +653,22 @@ export function createGameServer(options: ServerOptions): GameServer {
    * or for good; POST without a target reads the ban file again. DELETE
    * ?target=T lifts a ban. Connections of addresses now banned are closed.
    */
-  function bansAnswer(request: IncomingMessage, response: ServerResponse): void {
-    const query = new URL(request.url ?? "/", "http://localhost").searchParams;
+  function bansAnswer(request: HttpRequest, response: HttpResponse): void {
+    const query = new URL(request.url, "http://localhost").searchParams;
     const now = clock.now();
     const target = query.get("target");
     const days = query.has("days") ? Number(query.get("days")) : undefined;
     const usage =
       "GET, POST ?target=address-or-reference&days=N&note=text, POST to reload, DELETE ?target=";
     if (target !== null && !validTarget(target)) {
-      response.writeHead(400, { "content-type": "text/plain" }).end(usage);
+      response.send(400, { "content-type": "text/plain" }, usage);
       return;
     }
     if (request.method === "POST" && target === null && days === undefined) {
       try {
         moderation.reload();
       } catch (error) {
-        response.writeHead(422, { "content-type": "text/plain" }).end((error as Error).message);
+        response.send(422, { "content-type": "text/plain" }, (error as Error).message);
         return;
       }
       logger.info("bans_reloaded", { bans: moderation.list(now).length });
@@ -666,12 +681,12 @@ export function createGameServer(options: ServerOptions): GameServer {
       logger.info("player_banned", { days: days ?? null });
     } else if (request.method === "DELETE" && target !== null) {
       if (!moderation.unban(target, now)) {
-        response.writeHead(404, { "content-type": "text/plain" }).end("no such ban");
+        response.send(404, { "content-type": "text/plain" }, "no such ban");
         return;
       }
       logger.info("ban_lifted", {});
     } else if (request.method !== "GET") {
-      response.writeHead(400, { "content-type": "text/plain" }).end(usage);
+      response.send(400, { "content-type": "text/plain" }, usage);
       return;
     }
     let closed = 0;
@@ -747,7 +762,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       if (room.state !== "finished") counts[room.state]++;
       players += room.connectedCount;
     }
-    return { games: counts, players, connections: sockets.clients.size };
+    return { games: counts, players, connections: transport.connectionCount };
   }
 
   /** Closes connections that have stayed out of any game for too long. */
@@ -770,7 +785,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   const heartbeat = clock.setInterval(() => {
     const now = clock.now();
     closeIdle(now);
-    for (const socket of sockets.clients) {
+    for (const socket of transport.connections()) {
       const since = unanswered.get(socket);
       if (since !== undefined && now - since >= pingIntervalMs / 2) socket.terminate();
       else ping(socket, now);
@@ -778,7 +793,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   }, pingIntervalMs);
 
   return {
-    http,
+    listen: (port, host) => transport.listen(port, host),
     games,
     metrics,
     usage,
@@ -805,10 +820,8 @@ export function createGameServer(options: ServerOptions): GameServer {
           ticker.clear();
           keepGames();
           games.stopAll("restart");
-          for (const socket of sockets.clients) socket.close(1012, "server restarting");
-          http.close(() => {
-            resolve();
-          });
+          for (const socket of transport.connections()) socket.close(1012, "server restarting");
+          void transport.close().then(resolve);
         };
         const check = (): void => {
           if (running() > 0 && clock.monotonic() < deadline)

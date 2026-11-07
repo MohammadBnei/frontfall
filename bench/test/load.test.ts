@@ -1,4 +1,3 @@
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { createGameServer } from "@frontfall/server";
 import { describe, expect, it } from "vitest";
@@ -117,8 +116,7 @@ describe("client processes", () => {
 describe("server load", () => {
   it("delivers every turn in order and on time to 2 games of 8 players", async () => {
     const server = createGameServer({ staticRoot: tmpdir(), version: "load" });
-    await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
-    const { port } = server.http.address() as AddressInfo;
+    const { port } = await server.listen(0, "127.0.0.1");
     try {
       const report = await runLoad({
         url: `ws://127.0.0.1:${String(port)}/ws`,

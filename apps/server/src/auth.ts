@@ -1,5 +1,4 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   Accounts,
   isProvider,
@@ -14,6 +13,7 @@ import { systemIds, type Ids } from "./ids.ts";
 import type { Logger } from "./log.ts";
 import { isEmailAddress, mailbox, mailFailure, type Mailer } from "./mail.ts";
 import { AddressRate } from "./rate-limit.ts";
+import type { HttpRequest, HttpResponse } from "./transport.ts";
 
 /** Where a service sends the player to sign in, and where the server asks who they are. */
 export interface ProviderEndpoints {
@@ -212,14 +212,9 @@ const LINK_MAIL = {
 
 export interface Auth {
   /** Answers the sign-in routes and `/api/me`; false for any other path. */
-  handle(
-    request: IncomingMessage,
-    response: ServerResponse,
-    path: string,
-    address: string,
-  ): boolean;
+  handle(request: HttpRequest, response: HttpResponse, path: string, address: string): boolean;
   /** The account signed in on this request, from its session cookie. */
-  accountOf(request: IncomingMessage): Account | undefined;
+  accountOf(request: Pick<HttpRequest, "header">): Account | undefined;
   /** Account holding a name, or one that looks like it: guests may not play under it. */
   owner(name: string): Account | undefined;
   readonly accounts: Accounts;
@@ -308,7 +303,7 @@ export function createAuth(
       ...(secure ? ["Secure"] : []),
     ].join("; ");
 
-  function accountOf(request: IncomingMessage): Account | undefined {
+  function accountOf(request: Pick<HttpRequest, "header">): Account | undefined {
     const payload = verify("session", readCookie(request, SESSION_COOKIE));
     if (payload === undefined) return undefined;
     const [id = "", sessions = "", expires = ""] = payload.split(".");
@@ -363,24 +358,22 @@ export function createAuth(
   }
 
   /** Back to the menu, with a word for the page when the sign-in did not go through. */
-  function home(response: ServerResponse, cookies: string[], failed: boolean): void {
-    response
-      .writeHead(302, {
-        location: failed ? new URL("?signin=failed", base).href : base.href,
-        "set-cookie": cookies,
-        "cache-control": "no-store",
-      })
-      .end();
+  function home(response: HttpResponse, cookies: string[], failed: boolean): void {
+    response.send(302, {
+      location: failed ? new URL("?signin=failed", base).href : base.href,
+      "set-cookie": cookies,
+      "cache-control": "no-store",
+    });
   }
 
   /**
    * Sends the player to the service. `linkTo`, the id of the account signed
    * in, adds the service to that account instead of signing in with it.
    */
-  function start(provider: Provider, response: ServerResponse, linkTo = ""): void {
+  function start(provider: Provider, response: HttpResponse, linkTo = ""): void {
     const client = options.clients[provider];
     if (!client) {
-      response.writeHead(404, { "content-type": "text/plain" }).end("not found");
+      response.send(404, { "content-type": "text/plain" }, "not found");
       return;
     }
     const state = secret(16);
@@ -409,22 +402,20 @@ export function createAuth(
       json(response, 200, { location: target.href }, [signInCookie]);
       return;
     }
-    response
-      .writeHead(302, {
-        location: target.href,
-        "set-cookie": signInCookie,
-        "cache-control": "no-store",
-      })
-      .end();
+    response.send(302, {
+      location: target.href,
+      "set-cookie": signInCookie,
+      "cache-control": "no-store",
+    });
   }
 
   async function finish(
     provider: Provider,
-    request: IncomingMessage,
-    response: ServerResponse,
+    request: HttpRequest,
+    response: HttpResponse,
   ): Promise<void> {
     const clear = cookie(SIGN_IN_COOKIE, "", 0, `${cookiePath}auth/`);
-    const query = new URL(request.url ?? "/", "http://localhost").searchParams;
+    const query = new URL(request.url, "http://localhost").searchParams;
     const payload = verify("sign-in", readCookie(request, SIGN_IN_COOKIE));
     const [started = "", state = "", verifier = "", expires = "", linkTo = ""] =
       payload?.split(".") ?? [];
@@ -509,25 +500,27 @@ export function createAuth(
    * Changes to an account come from the game's own pages only: those of its
    * public address, or of the origin the server is told to accept.
    */
-  function sameSite(request: IncomingMessage): boolean {
-    const origin = request.headers.origin;
+  function sameSite(request: HttpRequest): boolean {
+    const origin = request.header("origin");
     return origin !== undefined && (origin === base.origin || isAllowedOrigin(origin));
   }
 
   function json(
-    response: ServerResponse,
+    response: HttpResponse,
     status: number,
     body: unknown,
     cookies: string[] = [],
   ): void {
-    response
-      .writeHead(status, {
+    response.send(
+      status,
+      {
         "content-type": "application/json",
         "cache-control": "no-store",
         "x-content-type-options": "nosniff",
         ...(cookies.length > 0 && { "set-cookie": cookies }),
-      })
-      .end(JSON.stringify(body));
+      },
+      JSON.stringify(body),
+    );
   }
 
   /**
@@ -535,26 +528,25 @@ export function createAuth(
    * large or not an object is answered here.
    */
   function readJson(
-    request: IncomingMessage,
-    response: ServerResponse,
+    request: HttpRequest,
+    response: HttpResponse,
     maxBytes: number,
     use: (body: Record<string, unknown>) => void,
   ): void {
-    if (!request.headers["content-type"]?.startsWith("application/json")) {
+    if (!request.header("content-type")?.startsWith("application/json")) {
       json(response, 415, { error: "invalid", message: "JSON expected" });
       return;
     }
-    let size = 0;
-    const chunks: Buffer[] = [];
-    request.on("data", (chunk: Buffer) => {
-      size += chunk.length;
-      if (size > maxBytes) request.destroy();
-      else chunks.push(chunk);
-    });
-    request.on("end", () => {
+    void request.body(maxBytes).then((read) => {
+      // Too large, the connection is cut without an answer; a client gone needs none.
+      if (read.kind === "too_large") response.abort();
+      if (read.kind !== "read") return;
+      const { bytes } = read;
       let body: unknown;
       try {
-        body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        body = JSON.parse(
+          Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("utf8"),
+        );
       } catch {
         body = undefined;
       }
@@ -566,7 +558,7 @@ export function createAuth(
     });
   }
 
-  function rename(account: Account, request: IncomingMessage, response: ServerResponse): void {
+  function rename(account: Account, request: HttpRequest, response: HttpResponse): void {
     readJson(request, response, MAX_BODY_BYTES, ({ name }) => {
       if (typeof name !== "string") {
         json(response, 400, { error: "invalid", message: "a name is expected" });
@@ -579,11 +571,7 @@ export function createAuth(
   }
 
   /** Keeps what the page sends of the player's achievements, and answers with all of them. */
-  function syncAchievements(
-    account: Account,
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): void {
+  function syncAchievements(account: Account, request: HttpRequest, response: HttpResponse): void {
     readJson(request, response, MAX_ACHIEVEMENTS_BYTES, (body) => {
       const sent = parseAchievements(body);
       if (!sent) {
@@ -600,8 +588,8 @@ export function createAuth(
    * was sent or held back for that address: it tells nobody who plays here.
    */
   function sendLink(
-    request: IncomingMessage,
-    response: ServerResponse,
+    request: HttpRequest,
+    response: HttpResponse,
     address: string,
     mailer: Mailer,
   ): void {
@@ -675,7 +663,7 @@ export function createAuth(
   }
 
   /** Signs in the player who opened a link: the token works once, before it expires. */
-  function confirmLink(request: IncomingMessage, response: ServerResponse): void {
+  function confirmLink(request: HttpRequest, response: HttpResponse): void {
     readJson(request, response, MAX_BODY_BYTES, ({ token }) => {
       const key = typeof token === "string" && token.length <= 64 ? tokenHash(token) : "";
       const link = pending.get(key);
@@ -712,7 +700,7 @@ export function createAuth(
   }
 
   /** Merges the account the player added a way to, or lets it be, as they answer. */
-  function answerMerge(account: Account, request: IncomingMessage, response: ServerResponse): void {
+  function answerMerge(account: Account, request: HttpRequest, response: HttpResponse): void {
     readJson(request, response, MAX_BODY_BYTES, ({ merge }) => {
       const held = merges.get(account.id);
       merges.delete(account.id);
@@ -741,11 +729,7 @@ export function createAuth(
   }
 
   /** Takes a way to sign in off the account, as long as another one is left. */
-  function removeMethod(
-    account: Account,
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): void {
+  function removeMethod(account: Account, request: HttpRequest, response: HttpResponse): void {
     readJson(request, response, MAX_BODY_BYTES, ({ method }) => {
       if (typeof method !== "string" || (method !== "email" && !isProvider(method))) {
         json(response, 400, { error: "invalid", message: "a way to sign in is expected" });
@@ -766,20 +750,20 @@ export function createAuth(
   }
 
   function handle(
-    request: IncomingMessage,
-    response: ServerResponse,
+    request: HttpRequest,
+    response: HttpResponse,
     path: string,
     address: string,
   ): boolean {
     if (!ME_PATHS.has(path) && !path.startsWith("/auth/")) return false;
     if (!rate.take(address, now())) {
-      response.writeHead(429, { "content-type": "text/plain", "retry-after": "6" }).end();
+      response.send(429, { "content-type": "text/plain", "retry-after": "6" });
       return true;
     }
-    const method = request.method ?? "GET";
+    const { method } = request;
     if (path === "/auth/logout") {
       if (method !== "POST" || !sameSite(request)) {
-        response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
+        response.send(method === "POST" ? 403 : 405, { allow: "POST" });
         return true;
       }
       // Ends the session everywhere, not only in this browser.
@@ -790,9 +774,9 @@ export function createAuth(
     }
     if (path === "/auth/email" || path === "/auth/email/confirm") {
       if (!mail) {
-        response.writeHead(404, { "content-type": "text/plain" }).end("not found");
+        response.send(404, { "content-type": "text/plain" }, "not found");
       } else if (method !== "POST" || !sameSite(request)) {
-        response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
+        response.send(method === "POST" ? 403 : 405, { allow: "POST" });
       } else if (path === "/auth/email") {
         sendLink(request, response, address, mail.mailer);
       } else {
@@ -802,7 +786,7 @@ export function createAuth(
     }
     if (path === "/api/me/achievements" || path === "/api/me/merge" || path === "/api/me/unlink") {
       if (method !== "POST" || !sameSite(request)) {
-        response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
+        response.send(method === "POST" ? 403 : 405, { allow: "POST" });
         return true;
       }
       const account = accountOf(request);
@@ -816,19 +800,19 @@ export function createAuth(
     if (signIn) {
       const provider = signIn[1] ?? "";
       if (!isProvider(provider)) {
-        response.writeHead(404, { "content-type": "text/plain" }).end("not found");
+        response.send(404, { "content-type": "text/plain" }, "not found");
       } else if (signIn[2] === "/link") {
         // A form of the game's page, never a link another site could lead to.
         const account = accountOf(request);
         if (method !== "POST" || !sameSite(request)) {
-          response.writeHead(method === "POST" ? 403 : 405, { allow: "POST" }).end();
+          response.send(method === "POST" ? 403 : 405, { allow: "POST" });
         } else if (!account) {
           json(response, 401, { error: "signed_out", message: "not signed in" });
         } else {
           start(provider, response, account.id);
         }
       } else if (method !== "GET") {
-        response.writeHead(404, { "content-type": "text/plain" }).end("not found");
+        response.send(404, { "content-type": "text/plain" }, "not found");
       } else if (signIn[2]) {
         void finish(provider, request, response);
       } else {
@@ -843,11 +827,9 @@ export function createAuth(
       return true;
     }
     if ((method !== "POST" && method !== "DELETE") || !sameSite(request)) {
-      response
-        .writeHead(method === "POST" || method === "DELETE" ? 403 : 405, {
-          allow: "GET, HEAD, POST, DELETE",
-        })
-        .end();
+      response.send(method === "POST" || method === "DELETE" ? 403 : 405, {
+        allow: "GET, HEAD, POST, DELETE",
+      });
       return true;
     }
     if (!account) {
@@ -871,8 +853,8 @@ export function createAuth(
 }
 
 /** A cookie of the request, by name; the first one if the browser sent it twice. */
-export function readCookie(request: IncomingMessage, name: string): string | undefined {
-  const header = request.headers.cookie;
+export function readCookie(request: Pick<HttpRequest, "header">, name: string): string | undefined {
+  const header = request.header("cookie");
   if (!header) return undefined;
   for (const part of header.split(";")) {
     const eq = part.indexOf("=");

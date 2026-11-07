@@ -10,7 +10,6 @@ import {
   type Frame,
   type GameOptions,
 } from "@frontfall/protocol";
-import type { RawData, WebSocket } from "ws";
 import { isPrivateAddress } from "./address.ts";
 import type { Accounts } from "./accounts.ts";
 import type { Clock } from "./clock.ts";
@@ -21,6 +20,7 @@ import type { Metrics } from "./metrics.ts";
 import type { Moderation } from "./moderation.ts";
 import type { TokenBucket } from "./rate-limit.ts";
 import type { Peer, Room, Seat } from "./room.ts";
+import type { Connection } from "./transport.ts";
 
 /** WebSocket close reasons are capped at 123 bytes of UTF-8; ws throws on longer ones. */
 const MAX_CLOSE_REASON_BYTES = 123;
@@ -38,15 +38,6 @@ export function closeReason(text: string): string {
     reason += char;
   }
   return reason;
-}
-
-export function toFrame(data: RawData, isBinary: boolean): Frame {
-  const bytes = Array.isArray(data)
-    ? Buffer.concat(data)
-    : Buffer.from(data instanceof ArrayBuffer ? new Uint8Array(data) : data);
-  return isBinary
-    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-    : bytes.toString("utf8");
 }
 
 const ERROR_TEXT: Record<ErrorCode, string> = {
@@ -90,7 +81,7 @@ function seatsFor(
 
 /** What one WebSocket connection has done so far. */
 export interface Session {
-  readonly socket: WebSocket;
+  readonly socket: Connection;
   readonly peer: Peer;
   /** Address of the player, for per-address limits. Never logged. */
   readonly address: string;

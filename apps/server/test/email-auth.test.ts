@@ -1,11 +1,11 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { accountsFile } from "../src/accounts.ts";
 import type { Logger } from "../src/log.ts";
 import { mailbox, mailFailure, readSmtpSettings, type MailMessage } from "../src/mail.ts";
+import { FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer } from "../src/server.ts";
 import { FakeClock } from "./support/fake-clock.ts";
 
@@ -15,6 +15,10 @@ const ORIGIN = "https://play.example";
 let staticRoot: string;
 let dataDir: string;
 let server: GameServer | undefined;
+/** The server's transport: requests and sockets reach it without the network. */
+let transport: FakeTransport;
+/** Where the fake transport's requests go; only its host, the loopback, is read. */
+const BASE = "http://127.0.0.1";
 /** Emails the server sent, in order. */
 let sent: MailMessage[];
 let fail: boolean;
@@ -45,7 +49,9 @@ const logger: Logger = {
 };
 
 async function start(dailyLimit?: number, bindToBrowser = false): Promise<string> {
+  transport = new FakeTransport();
   server = createGameServer({
+    transport,
     staticRoot,
     version: "abc123",
     dataDir,
@@ -72,9 +78,8 @@ async function start(dailyLimit?: number, bindToBrowser = false): Promise<string
       },
     },
   });
-  const http = server.http;
-  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
-  return `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
+  await server.listen(0);
+  return BASE;
 }
 
 function post(
@@ -84,7 +89,7 @@ function post(
   cookie?: string,
   headers: Record<string, string> = {},
 ): Promise<Response> {
-  return fetch(`${base}${path}`, {
+  return transport.fetch(`${base}${path}`, {
     method: "POST",
     headers: {
       origin: ORIGIN,
@@ -192,7 +197,7 @@ describe("sign-in links tied to the browser", () => {
 describe("sign-in by email", () => {
   it("is offered once a mailbox is set up", async () => {
     const base = await start();
-    expect(await (await fetch(`${base}/api/me`)).json()).toEqual({
+    expect(await (await transport.fetch(`${base}/api/me`)).json()).toEqual({
       providers: [],
       email: true,
       account: null,
@@ -201,7 +206,7 @@ describe("sign-in by email", () => {
 
   it("marks its JSON replies so that a browser reads them as sent", async () => {
     const base = await start();
-    const me = await fetch(`${base}/api/me`);
+    const me = await transport.fetch(`${base}/api/me`);
     expect(me.headers.get("x-content-type-options")).toBe("nosniff");
     const refused = await post(base, "/auth/email", { email: "not an address" });
     expect(refused.status).toBe(400);
@@ -231,7 +236,7 @@ describe("sign-in by email", () => {
     });
     const session = sessionOf(confirmed) ?? "";
     expect(session).not.toBe("");
-    const me = await fetch(`${base}/api/me`, {
+    const me = await transport.fetch(`${base}/api/me`, {
       headers: { cookie: `frontfall_session=${session}` },
     });
     expect(((await me.json()) as { account: unknown }).account).toEqual({
@@ -359,13 +364,13 @@ describe("sign-in by email", () => {
     expect((await post(base, "/auth/email", { email: `${"a".repeat(250)}@x.org` })).status).toBe(
       400,
     );
-    const foreign = await fetch(`${base}/auth/email`, {
+    const foreign = await transport.fetch(`${base}/auth/email`, {
       method: "POST",
       headers: { origin: "https://evil.example", "content-type": "application/json" },
       body: JSON.stringify({ email: "nelly@example.org" }),
     });
     expect(foreign.status).toBe(403);
-    expect((await fetch(`${base}/auth/email`)).status).toBe(405);
+    expect((await transport.fetch(`${base}/auth/email`)).status).toBe(405);
     await settle();
     expect(sent).toHaveLength(0);
   });
@@ -416,7 +421,7 @@ describe("achievements of an account", () => {
     const base = await start();
     const cookie = `frontfall_session=${await signIn(base, "nelly@example.org")}`;
     await post(base, "/api/me/achievements", progress({ veteran: { at: 1, level: 1 } }, 3), cookie);
-    const deleted = await fetch(`${base}/api/me`, {
+    const deleted = await transport.fetch(`${base}/api/me`, {
       method: "DELETE",
       headers: { origin: ORIGIN, cookie },
     });

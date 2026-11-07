@@ -4,6 +4,7 @@ import type { Clock } from "./clock.ts";
 import type { Ids } from "./ids.ts";
 import type { Logger } from "./log.ts";
 import type { RoomSettings } from "./room.ts";
+import type { Transport } from "./transport.ts";
 
 export type GameSettings = Omit<RoomSettings, "visibility" | "name">;
 
@@ -92,6 +93,8 @@ export interface ServerOptions {
   clock?: Clock;
   /** Game ids, tokens, seeds and secrets; drawn from the system's secure source by default. */
   ids?: Ids;
+  /** HTTP and WebSockets: `node:http` and `ws` by default, a transport without sockets in tests. */
+  transport?: Transport;
 }
 
 /** Cloudflare drops a WebSocket that stays silent for 100 s. */

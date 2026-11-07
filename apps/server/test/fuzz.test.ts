@@ -1,5 +1,4 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -267,8 +266,8 @@ describe("server under fuzzed connections", () => {
       upgradeRate: { perSecond: 10_000, burst: 10_000 },
       drainMs: 0,
     });
-    await new Promise<void>((resolve) => server.http.listen(0, "127.0.0.1", resolve));
-    host = `127.0.0.1:${String((server.http.address() as AddressInfo).port)}`;
+    const { port } = await server.listen(0, "127.0.0.1");
+    host = `127.0.0.1:${String(port)}`;
   });
 
   afterAll(async () => {

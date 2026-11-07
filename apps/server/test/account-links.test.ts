@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Accounts, accountsFile } from "../src/accounts.ts";
 import type { Logger } from "../src/log.ts";
 import type { MailMessage } from "../src/mail.ts";
+import { FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer } from "../src/server.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
@@ -16,6 +17,10 @@ const NOW = 1_800_000_000_000;
 let staticRoot: string;
 let dataDir: string;
 let server: GameServer | undefined;
+/** The server's transport: requests and sockets reach it without the network. */
+let transport: FakeTransport;
+/** Where the fake transport's requests go; only its host, the loopback, is read. */
+const BASE = "http://127.0.0.1";
 let provider: Server | undefined;
 let sent: MailMessage[];
 let lines: string[];
@@ -137,7 +142,9 @@ async function fakeDiscord(): Promise<string> {
 
 async function start(): Promise<string> {
   const service = await fakeDiscord();
+  transport = new FakeTransport();
   server = createGameServer({
+    transport,
     staticRoot,
     version: "abc123",
     dataDir,
@@ -165,13 +172,12 @@ async function start(): Promise<string> {
       },
     },
   });
-  const http = server.http;
-  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
-  return `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
+  await server.listen(0);
+  return BASE;
 }
 
 function post(base: string, path: string, body: unknown, session?: string): Promise<Response> {
-  return fetch(`${base}${path}`, {
+  return transport.fetch(`${base}${path}`, {
     method: "POST",
     redirect: "manual",
     headers: {
@@ -208,22 +214,25 @@ async function emailSignIn(base: string, email: string, name: string): Promise<s
 async function discord(base: string, session?: string, link = false): Promise<Response> {
   const started = link
     ? await post(base, "/auth/discord/link", {}, session)
-    : await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    : await transport.fetch(`${base}/auth/discord`, { redirect: "manual" });
   const location = link
     ? ((await started.json()) as { location: string }).location
     : (started.headers.get("location") ?? "");
   const state = new URL(location).searchParams.get("state") ?? "";
   const cookies = [`frontfall_sign_in=${cookie(started, "frontfall_sign_in") ?? ""}`];
   if (session) cookies.push(`frontfall_session=${session}`);
-  return fetch(`${base}/auth/discord/callback?code=good&state=${encodeURIComponent(state)}`, {
-    redirect: "manual",
-    headers: { cookie: cookies.join("; ") },
-  });
+  return transport.fetch(
+    `${base}/auth/discord/callback?code=good&state=${encodeURIComponent(state)}`,
+    {
+      redirect: "manual",
+      headers: { cookie: cookies.join("; ") },
+    },
+  );
 }
 
 async function me(base: string, session: string): Promise<{ account: unknown }> {
   return (await (
-    await fetch(`${base}/api/me`, { headers: { cookie: `frontfall_session=${session}` } })
+    await transport.fetch(`${base}/api/me`, { headers: { cookie: `frontfall_session=${session}` } })
   ).json()) as { account: unknown };
 }
 
@@ -244,13 +253,15 @@ describe("adding a way to sign in", () => {
   it("starts only from a form of the game's own page", async () => {
     const base = await start();
     const session = await emailSignIn(base, "nelly@example.org", "Nelly");
-    const elsewhere = await fetch(`${base}/auth/discord/link`, {
+    const elsewhere = await transport.fetch(`${base}/auth/discord/link`, {
       method: "POST",
       redirect: "manual",
       headers: { origin: "https://evil.example", cookie: `frontfall_session=${session}` },
     });
     expect(elsewhere.status).toBe(403);
-    expect((await fetch(`${base}/auth/discord/link`, { redirect: "manual" })).status).toBe(405);
+    expect(
+      (await transport.fetch(`${base}/auth/discord/link`, { redirect: "manual" })).status,
+    ).toBe(405);
   });
 
   it("merges an existing account only once the player says yes", async () => {

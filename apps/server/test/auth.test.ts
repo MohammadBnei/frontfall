@@ -11,8 +11,8 @@ import {
   type ServerMessage,
 } from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import WebSocket from "ws";
 import { Accounts, accountsFile, nameKey } from "../src/accounts.ts";
+import { FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
@@ -20,6 +20,10 @@ const SECRET = "a-session-secret-of-at-least-32-characters";
 let staticRoot: string;
 let dataDir: string;
 let server: GameServer | undefined;
+/** The server's transport: requests and sockets reach it without the network. */
+let transport: FakeTransport;
+/** Where the fake transport's requests go; only its host, the loopback, is read. */
+const BASE = "http://127.0.0.1";
 let provider: Server | undefined;
 /** What the fake service answers for the player who signs in. */
 let user: Record<string, unknown>;
@@ -88,7 +92,9 @@ async function start(
     user: `${service}/user`,
     scope: "identify",
   };
+  transport = new FakeTransport();
   server = createGameServer({
+    transport,
     staticRoot,
     version: "abc123",
     dataDir,
@@ -101,9 +107,8 @@ async function start(
     },
     ...options,
   });
-  const http = server.http;
-  await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
-  return `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
+  await server.listen(0);
+  return BASE;
 }
 
 /** The `name=value` part of each Set-Cookie header. */
@@ -122,12 +127,12 @@ async function signIn(
   base: string,
   code = "good",
 ): Promise<{ response: Response; session?: string }> {
-  const started = await fetch(`${base}/auth/discord`, { redirect: "manual" });
+  const started = await transport.fetch(`${base}/auth/discord`, { redirect: "manual" });
   expect(started.status).toBe(302);
   const location = new URL(started.headers.get("location") ?? "");
   const state = location.searchParams.get("state") ?? "";
   const signInCookie = cookies(started).get("frontfall_sign_in") ?? "";
-  const response = await fetch(
+  const response = await transport.fetch(
     `${base}/auth/discord/callback?code=${code}&state=${encodeURIComponent(state)}`,
     { redirect: "manual", headers: { cookie: `frontfall_sign_in=${signInCookie}` } },
   );
@@ -136,24 +141,25 @@ async function signIn(
 }
 
 function me(base: string, session?: string): Promise<Response> {
-  return fetch(`${base}/api/me`, {
+  return transport.fetch(`${base}/api/me`, {
     headers: session ? { cookie: `frontfall_session=${session}` } : {},
   });
 }
 
 describe("sign-in", () => {
   it("answers that only guests play when no service is set up", async () => {
-    server = createGameServer({ staticRoot, version: "abc123", dataDir });
-    const http = server.http;
-    await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
-    const base = `http://127.0.0.1:${String((http.address() as AddressInfo).port)}`;
+    transport = new FakeTransport();
+    server = createGameServer({ transport, staticRoot, version: "abc123", dataDir });
+    const base = BASE;
     expect(await (await me(base)).json()).toEqual({ providers: [], account: null });
-    expect((await fetch(`${base}/auth/discord`, { redirect: "manual" })).status).toBe(404);
+    expect((await transport.fetch(`${base}/auth/discord`, { redirect: "manual" })).status).toBe(
+      404,
+    );
   });
 
   it("sends the player to the service with a state and a PKCE challenge", async () => {
     const base = await start();
-    const response = await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    const response = await transport.fetch(`${base}/auth/discord`, { redirect: "manual" });
     const location = new URL(response.headers.get("location") ?? "");
     expect(location.pathname).toBe("/authorize");
     expect(location.searchParams.get("client_id")).toBe("client-1");
@@ -213,9 +219,9 @@ describe("sign-in", () => {
 
   it("refuses a callback whose state does not match", async () => {
     const base = await start();
-    const started = await fetch(`${base}/auth/discord`, { redirect: "manual" });
+    const started = await transport.fetch(`${base}/auth/discord`, { redirect: "manual" });
     const signInCookie = cookies(started).get("frontfall_sign_in") ?? "";
-    const response = await fetch(`${base}/auth/discord/callback?code=good&state=forged`, {
+    const response = await transport.fetch(`${base}/auth/discord/callback?code=good&state=forged`, {
       redirect: "manual",
       headers: { cookie: `frontfall_sign_in=${signInCookie}` },
     });
@@ -243,7 +249,7 @@ describe("sign-in", () => {
     user = { id: "2", username: "bob", global_name: "Bob" };
     const { session: second = "" } = await signIn(base);
     const rename = (session: string, name: string, origin = "https://play.example") =>
-      fetch(`${base}/api/me`, {
+      transport.fetch(`${base}/api/me`, {
         method: "POST",
         headers: {
           cookie: `frontfall_session=${session}`,
@@ -262,7 +268,7 @@ describe("sign-in", () => {
     const base = await start({ allowedOrigin: undefined });
     const { session = "" } = await signIn(base);
     const ask = (method: string, path: string, origin: string) =>
-      fetch(`${base}${path}`, {
+      transport.fetch(`${base}${path}`, {
         method,
         headers: {
           cookie: `frontfall_session=${session}`,
@@ -285,7 +291,7 @@ describe("sign-in", () => {
   it("deletes the account and signs the player out", async () => {
     const base = await start();
     const { session = "" } = await signIn(base);
-    const response = await fetch(`${base}/api/me`, {
+    const response = await transport.fetch(`${base}/api/me`, {
       method: "DELETE",
       headers: { cookie: `frontfall_session=${session}`, origin: "https://play.example" },
     });
@@ -318,7 +324,7 @@ describe("sign-in", () => {
     const base = await start();
     const { session: one = "" } = await signIn(base);
     const { session: two = "" } = await signIn(base);
-    const response = await fetch(`${base}/auth/logout`, {
+    const response = await transport.fetch(`${base}/auth/logout`, {
       method: "POST",
       headers: { cookie: `frontfall_session=${one}`, origin: "https://play.example" },
     });
@@ -343,19 +349,21 @@ describe("sign-in", () => {
 
   it("keeps the accounts over a restart", async () => {
     const base = await start();
+    const first = transport;
     const { session } = await signIn(base);
     await server?.close();
     await new Promise((resolve) => provider?.close(resolve));
     const again = await start();
-    expect(base).not.toBe(again);
+    // Another server, on a transport of its own: only the data directory is shared.
+    expect(transport).not.toBe(first);
     const body = (await (await me(again, session)).json()) as { account: { name: string } };
     expect(body.account.name).toBe("Nelly");
   });
 });
 
 /** Opens a game socket with these headers and says hello as `name`; resolves with the first answer. */
-async function hello(base: string, name: string, cookie?: string): Promise<unknown> {
-  const socket = new WebSocket(`${base.replace("http", "ws")}/ws`, {
+async function hello(name: string, cookie?: string): Promise<unknown> {
+  const socket = transport.connect("/ws", {
     headers: { origin: "https://play.example", ...(cookie ? { cookie } : {}) },
   });
   await new Promise((resolve, reject) => {
@@ -377,7 +385,7 @@ describe("names of accounts", () => {
   it("are refused to guests", async () => {
     const base = await start();
     await signIn(base);
-    const answer = (await hello(base, "nelly")) as {
+    const answer = (await hello("nelly")) as {
       ok: boolean;
       value: { type: string; code?: string };
     };
@@ -388,7 +396,7 @@ describe("names of accounts", () => {
     const base = await start();
     const { session = "" } = await signIn(base);
     // "admin" is refused to anyone; the server goes by the account's name instead.
-    const answer = (await hello(base, "admin", `frontfall_session=${session}`)) as {
+    const answer = (await hello("admin", `frontfall_session=${session}`)) as {
       value: { type: string };
     };
     expect(answer.value.type).toBe("welcome");
@@ -396,8 +404,8 @@ describe("names of accounts", () => {
 });
 
 /** A socket that said hello, with the server's messages as they come. */
-async function playerSocket(base: string, name: string, cookie?: string) {
-  const socket = new WebSocket(`${base.replace("http", "ws")}/ws`, {
+async function playerSocket(name: string, cookie?: string) {
+  const socket = transport.connect("/ws", {
     headers: { origin: "https://play.example", ...(cookie ? { cookie } : {}) },
   });
   const inbox: ServerMessage[] = [];
@@ -451,7 +459,7 @@ describe("operator's bonuses (R-MODE-09)", () => {
     if (!account) throw new Error("no account");
 
     // Signed in but not listed: the same as a guest.
-    const before = await playerSocket(base, "x", `frontfall_session=${session}`);
+    const before = await playerSocket("x", `frontfall_session=${session}`);
     before.send({ type: "create", visibility: "private" });
     expect((await before.next("lobby")).operator).toBe(false);
     before.send({ type: "configure", options, operatorBonuses: 0b1001 });
@@ -459,7 +467,7 @@ describe("operator's bonuses (R-MODE-09)", () => {
     before.socket.close();
 
     operators.add(account.id);
-    const nico = await playerSocket(base, "x", `frontfall_session=${session}`);
+    const nico = await playerSocket("x", `frontfall_session=${session}`);
     nico.send({ type: "create", visibility: "private" });
     const lobby = await nico.next("lobby");
     expect(lobby).toMatchObject({ operator: true, operatorBonuses: null });
@@ -469,7 +477,7 @@ describe("operator's bonuses (R-MODE-09)", () => {
       bonuses: 0b1001,
     });
 
-    const guest = await playerSocket(base, "Guest");
+    const guest = await playerSocket("Guest");
     guest.send({ type: "join", game: lobby.game });
     expect(await guest.next("lobby")).toMatchObject({
       operator: false,
@@ -489,7 +497,7 @@ describe("operator's bonuses (R-MODE-09)", () => {
       accounts: { id: string }[];
     };
     for (const { id } of accounts) operators.add(id);
-    const nico = await playerSocket(base, "x", `frontfall_session=${session}`);
+    const nico = await playerSocket("x", `frontfall_session=${session}`);
     nico.send({ type: "create", visibility: "public", name: "Open game" });
     expect((await nico.next("lobby")).operator).toBe(false);
     nico.send({ type: "configure", options, operatorBonuses: 0b1001 });
