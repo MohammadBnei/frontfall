@@ -27,7 +27,7 @@ import type { FeedHost } from "./screen/feed-host.ts";
 import { gameKey, typingIn } from "./screen/game-keys.ts";
 import { GuideHost } from "./screen/guide-host.ts";
 import { InputHost } from "./screen/input-host.ts";
-import { MapScene } from "./screen/map-scene.ts";
+import { FLAT_VIEW, MapScene, type SceneView } from "./screen/map-scene.ts";
 import { Orders } from "./screen/orders.ts";
 import { GameOutcome } from "./screen/outcome.ts";
 import { Overlays } from "./screen/overlays.ts";
@@ -54,6 +54,8 @@ export interface GameScreenActions extends DialogActions {
   onSnapshot?(snapshot: GameSnapshot): void;
   /** The game is decided: a reload no longer comes back to it. */
   onDecided?(): void;
+  /** G switched the view between the flat map and the globe. */
+  onView?(kind: ViewKind): void;
 }
 
 /**
@@ -111,8 +113,8 @@ export class GameScreen {
     private readonly actions: GameScreenActions,
     /** Online: the connection the game's orders go to; the game then never pauses. */
     link?: ServerLink,
-    /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
-    view: ViewKind = "flat",
+    /** The view to start with, and whether G may switch to the globe (a prototype, ADR 0005). */
+    view: SceneView = FLAT_VIEW,
     /** What the usage report says about the game; a game without it is not reported. */
     facts?: Omit<GameFacts, "view">,
   ) {
@@ -578,8 +580,9 @@ export class GameScreen {
     else if (action.type === "ratio") panels.hud.setRatio(action.percent);
     else if (action.type === "pause") this.dialogs.togglePause();
     else if (action.type === "speed") panels.speed?.next();
-    else if (action.type === "switchView") input.switchView();
-    else if (action.type === "home") this.goHome();
+    else if (action.type === "switchView") {
+      if (input.switchView()) this.actions.onView?.(this.scene.kind);
+    } else if (action.type === "home") this.goHome();
     else this.dialogs.showHelp();
     event.preventDefault();
   }

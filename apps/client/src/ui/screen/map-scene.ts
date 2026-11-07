@@ -48,8 +48,19 @@ const START_TILE_PIXELS = 6;
 /** Plate of a landmark nobody holds yet (R-LAND-01). */
 const LANDMARK_UNHELD = "#a8875a";
 
-/** What the map is drawn with, known once the game starts. */
+/**
+ * The view a game starts with, and whether G may switch to the globe: only
+ * a page opened with `?view=` turns the globe on (a prototype, ADR 0005).
+ */
+export interface SceneView {
+  readonly globe: boolean;
+  readonly kind: ViewKind;
+}
 
+/** The flat map, with no globe to switch to. */
+export const FLAT_VIEW: SceneView = { globe: false, kind: "flat" };
+
+/** What the map is drawn with, known once the game starts. */
 export interface SceneStart {
   readonly map: MapData;
   readonly you: number;
@@ -119,13 +130,13 @@ export class MapScene {
     /** The layer the canvas goes in. */
     private readonly surface: HTMLElement,
     map: MapInfo,
-    /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
-    view: ViewKind,
+    /** The view to start with, and whether G may switch to the globe. */
+    view: SceneView,
     /** No renderer could be made; the key names the message to show. */
     private readonly onFailure: (key: MessageKey) => void,
   ) {
-    this.globeAllowed = view === "globe" && fitsGlobe(map) && globeLoaded();
-    this.viewKind = this.globeAllowed ? "globe" : "flat";
+    this.globeAllowed = view.globe && fitsGlobe(map) && globeLoaded();
+    this.viewKind = this.globeAllowed ? view.kind : "flat";
     this.mapSize = { width: map.width, height: map.height };
     this.cam = createCamera(map, this.viewKind);
     this.profile = chooseProfile(

@@ -2,7 +2,7 @@
 
 This page maps the repository, shows how the layers depend on each other, follows the data from a click to a screen, and gives recipes for the common changes. The decisions behind it are the [architecture decision records](adr/).
 
-Some parts describe code that exists today. Others describe the target of the proposed records [0006](adr/0006-contracts-package.md) to [0014](adr/0014-enforced-boundaries.md), which later pull requests implement. Each such part is marked **Target**. Until its pull request is merged, follow the **Today** text.
+The parts describe the code as the proposed records [0006](adr/0006-contracts-package.md) to [0014](adr/0014-enforced-boundaries.md) built it. A part the records name and no pull request builds is marked **Deferred**.
 
 ## Repo map
 
@@ -20,7 +20,7 @@ Some parts describe code that exists today. Others describe the target of the pr
 
 Inside the engine, one file per rule (`attacks.ts`, `diplomacy.ts`, `warships.ts`, `missiles.ts`, `trade.ts` and others), `game.ts` for the state and the turn loop, `orders.ts` and `order-rules.ts` for validation, `state/` (layout, codec, records, parts, lists) with `snapshot.ts` and `snapshot-bytes.ts` for saved state and the hash, `balance.ts` for the numbers, and `bots/` for computer players, nations and city-states.
 
-Inside the client, `game/` runs and follows a game (sessions, the worker, replays), `net/` talks to the server, `render/` draws, `input/` turns gestures into orders, `ui/` holds the screens and panels (`ui/screen/` the parts of the game screen), and `audio/`, `achievements/` and `stats/` are the smaller services. `main.ts` starts everything. **Target** ([0013](adr/0013-client-shell-and-signals.md)): an `app/` folder holds the shell, and `main.ts` only starts it.
+Inside the client, `game/` runs and follows a game (sessions, the worker, replays), `net/` talks to the server, `render/` draws, `input/` turns gestures into orders, `ui/` holds the screens and panels (`ui/screen/` the parts of the game screen), and `audio/`, `achievements/` and `stats/` are the smaller services. An `app/` folder holds the shell ([0013](adr/0013-client-shell-and-signals.md)), and `main.ts` only starts it.
 
 ## Layers and dependency rules
 
@@ -97,29 +97,29 @@ flowchart LR
 
 ## Pattern catalog
 
-| Pattern                           | Where it is used                                                                                  | Status                                |
-| --------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| Deterministic lockstep            | The whole game ([0001](adr/0001-deterministic-lockstep.md))                                       | Today                                 |
-| `Topology` interface              | Every geometry call in the engine ([0002](adr/0002-topology.md))                                  | Today                                 |
-| `Renderer` and `Camera`           | Map and globe drawing ([0003](adr/0003-renderer-split.md))                                        | Today                                 |
-| One rule per file, `installX`     | The engine rules, installed by `createGame`                                                       | Today                                 |
-| Observers (`onApplied`)           | Nations hear of orders                                                                            | Today                                 |
-| One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Today                                 |
-| Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Today                                 |
-| Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Today                                 |
-| Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
-| Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today                                 |
-| Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Today                                 |
-| Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Today                                 |
-| Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Today                                 |
-| App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Target                                |
-| Sessions with capabilities        | Solo, Online, Replay ([0013](adr/0013-client-shell-and-signals.md))                               | Today                                 |
-| Signals with `select`             | Client panels ([0013](adr/0013-client-shell-and-signals.md))                                      | Today                                 |
-| Boundary tests on the syntax tree | `tools/test/boundaries.test.ts` ([0014](adr/0014-enforced-boundaries.md))                         | Today for packages, Target for layers |
+| Pattern                           | Where it is used                                                                                  | Status |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- | ------ |
+| Deterministic lockstep            | The whole game ([0001](adr/0001-deterministic-lockstep.md))                                       | Today  |
+| `Topology` interface              | Every geometry call in the engine ([0002](adr/0002-topology.md))                                  | Today  |
+| `Renderer` and `Camera`           | Map and globe drawing ([0003](adr/0003-renderer-split.md))                                        | Today  |
+| One rule per file, `installX`     | The engine rules, installed by `createGame`                                                       | Today  |
+| Observers (`onApplied`)           | Nations hear of orders                                                                            | Today  |
+| One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Today  |
+| Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Today  |
+| Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Today  |
+| Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today  |
+| Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today  |
+| Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Today  |
+| Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Today  |
+| Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Today  |
+| App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Today  |
+| Sessions with capabilities        | Solo, Online, Replay ([0013](adr/0013-client-shell-and-signals.md))                               | Today  |
+| Signals with `select`             | Client panels ([0013](adr/0013-client-shell-and-signals.md))                                      | Today  |
+| Boundary tests on the syntax tree | `tools/test/boundaries.test.ts` ([0014](adr/0014-enforced-boundaries.md))                         | Today  |
 
 ## How to add
 
-Each recipe gives the steps that work today. Where a record changes the steps, a **Target** note follows. Every engine change comes with tests that cite the rule identifiers it implements, and a change that alters play rebuilds the golden replays as described in [CONTRIBUTING.md](../CONTRIBUTING.md).
+Each recipe gives the steps that work today. Every engine change comes with tests that cite the rule identifiers it implements, and a change that alters play rebuilds the golden replays as described in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ### An order
 
@@ -151,9 +151,7 @@ Nations live under `packages/engine/src/bots/nations/` ([0009](adr/0009-rule-tab
 
 ### A screen
 
-Today: write the screen in `apps/client/src/ui/`, build the DOM with the helpers in `ui/dom.ts`, and show it from `main.ts`. Strings go through `i18n` in English and French.
-
-**Target** ([0013](adr/0013-client-shell-and-signals.md)): add a state to the app state machine with its URL, and a module in `app/` that shows it. A panel inside the game reads its data through `select(signal, pick, equals)`.
+Write the screen in `apps/client/src/ui/`, build the DOM with the helpers in `dom.ts`, and add a state for it to the app state machine (`apps/client/src/app/state.ts`) with its address in `app/address.ts`; the app shows it through its `ScreenHost` ([0013](adr/0013-client-shell-and-signals.md)). Strings go through `i18n` in English and French. A panel inside the game reads its data through `select(signal, pick, equals)`.
 
 ### A server message
 

@@ -11,7 +11,7 @@ always import itself.
 
 | Layer                               | May import                                                        |
 | ----------------------------------- | ----------------------------------------------------------------- |
-| `main.ts` (the app)                 | anything                                                          |
+| `app/` and `main.ts` (the app)      | anything                                                          |
 | `ui/` (with `ui/screen/`)           | game, render, input, audio, achievements, stats, root; net, types |
 | `game/`, `net/`, `render/`          | root                                                              |
 | `input/`                            | root; render, types                                               |
@@ -32,6 +32,45 @@ A new folder in `src/` needs a line in the table in the test.
 
 The list of bot levels and the default rules live in `game/defaults.ts`, and
 `youOf(update)` in `game/selectors.ts` finds the player a screen plays.
+
+## The app shell
+
+`main.ts` only starts the page: it loads the accessibility settings and
+starts `App` (`app/app.ts`). The app holds the page's state, shows one
+screen for it and keeps the address bar in step (ADR 0013).
+
+```text
+ boot ──> menu ──> playing (solo, tutorial) ──> ended
+   │       │  ^         ^                         │
+   │       │  └─────────┼──── menu, from anywhere ┘
+   │       ├──> watching (a replay)
+   │       └──> lobby ──> playing (online) ──> ended ──> lobby (rematch)
+   └──> join (an invitation asks for a name) ──> lobby
+```
+
+- `app/state.ts` is the table: each state lists the events it answers,
+  and `next(state, event)` is a pure function with a unit test. The
+  profile, the achievements and the settings are panels of the menu, not
+  states; the tutorial is a solo game of its own.
+- `app/address.ts` writes each state's address, always a query string
+  relative to the page (ADR 0004): the setup for the menu and a solo game,
+  `?game=<id>` for a lobby the server named and an online game. The first
+  screen keeps the address the page was opened with (the sign-in reads its
+  `#signin=` link), and so do the join screen, the tutorial and a replay.
+  It also reads the address once, as the page opens: an invitation, `?online`,
+  the testing options (`?speed=`, `?minutes=`, `?gold=`, `?cityland=`).
+- The view goes in the address while the globe is on: `?view=globe`, or
+  `?view=map` once G switched back to the flat map; a reload comes back to
+  the view it left. Only an address with one of these turns the globe on:
+  nothing about the view is stored, so a page opened without it shows the
+  flat map alone, a game taken back included.
+- `app/screen-host.ts` shows one screen at a time and disposes the one
+  before first, so that a game gives its WebGL context back before the
+  next one asks for one. The page's `body` carries `data-screen` with the
+  state's name.
+- `app/online.ts` follows an online game from the lobby to its end,
+  `app/notices.ts` the notices over the screens, and `app/game-code.ts`
+  fetches the game screen's code ahead of a game.
 
 ## How a solo game runs
 
@@ -454,7 +493,7 @@ online and never in a replay, like the guide.
 ## The tutorial
 
 The menu's "Tutorial · 5 min" starts a practice game of its own (`tutorial()`
-in `main.ts`), apart from the setup saved in the menu. It is meant to be
+in `app/app.ts`), apart from the setup saved in the menu. It is meant to be
 played once, in about five minutes, and to leave a player who knows the whole
 game and wants to play it:
 

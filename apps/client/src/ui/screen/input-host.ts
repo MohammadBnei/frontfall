@@ -78,11 +78,12 @@ export class InputHost {
     this.input.update(ms);
   }
 
-  /** Flat map to globe and back in a running game, the input wired to the new camera. */
-  switchView(): void {
-    if (!this.o.scene.switchKind()) return;
+  /** Flat map to globe and back in a running game, the input wired to the new camera; whether it switched. */
+  switchView(): boolean {
+    if (!this.o.scene.switchKind()) return false;
     this.input.dispose();
     this.input = this.create();
+    return true;
   }
 
   /** Makes a click at `tile`, as a press on the map would. */

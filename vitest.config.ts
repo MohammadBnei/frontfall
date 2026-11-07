@@ -24,6 +24,11 @@ export default defineConfig({
         "apps/client/src/signals.ts",
         "apps/client/src/ui/format.ts",
         "apps/client/src/ui/setup.ts",
+        // The app shell's state machine, its addresses and what it hands the screens (ADR 0013).
+        "apps/client/src/app/state.ts",
+        "apps/client/src/app/address.ts",
+        "apps/client/src/app/online-options.ts",
+        "apps/client/src/app/screen-host.ts",
       ],
       // Barrel files, entry points, and the WebGL and worker glue, which only a browser
       // can run (covered end to end, like the DOM panels of apps/client/src/ui).

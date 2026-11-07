@@ -25,7 +25,7 @@ checked by hand on the machines below until CI can measure them.
 | Download, simulation worker       | ≤ 50 kB sent                             | Production build                                                         | `bun run perf:client`                         | **CI**                   |
 | Download, World map               | ≤ 175 kB sent                            | Production build                                                         | `bun run perf:client`                         | **CI**                   |
 | Download, every map               | ≤ 520 kB sent                            | Production build                                                         | `bun run perf:client`                         | **CI**                   |
-| Download, whole build but maps    | ≤ 855 kB sent                            | Production build, icons and preview image included                       | `bun run perf:client`                         | **CI**                   |
+| Download, whole build but maps    | ≤ 857 kB sent                            | Production build, icons and preview image included                       | `bun run perf:client`                         | **CI**                   |
 | Load, menu and game screen        | Trend only                               | Solo game on World with 63 bots, headless Chromium                       | `bun run perf:client -- --trend`              | Reported in CI           |
 | Frame rate in a game              | Trend only                               | Same game, camera panning, software rendering                            | `bun run perf:client -- --trend`              | Reported in CI           |
 | Frame time, desktop GPU           | ≤ 16.7 ms (60 fps)                       | Same game, or `bench:render` on a laptop                                 | `bun run bench:render -- --gpu`, then by hand | By hand                  |
@@ -62,6 +62,7 @@ the budget by what it added, rounded up to the next half kilobyte, measured with
 - To 852.5 kB: `@preact/signals-core` and the panels that watch their part of the update through `select` (`signals.ts`), 848.4 to 850.4 kB, +2.0 kB.
 - To 853.5 kB: a session per mode, solo, online and replay, with its capabilities (`game/*-session.ts`), 850.4 to 850.9 kB, +0.5 kB.
 - To 855 kB: the game screen split into its `ui/screen` hosts behind one `canAct` policy, 850.9 to 852.0 kB, +1.1 kB.
+- To 857 kB: the app shell, with its state table, addresses, screen host, online flow and notices (`app/`), 852.0 to 853.7 kB, +1.7 kB, of which 1.6 kB on the first visit, about 0.3 kB of it the preload helper that the bundler splits off the entry again, as before this series.
 
 ### Reference machines
 
