@@ -163,12 +163,6 @@ export class DiplomacyPanel {
     this.render(update);
   }
 
-  /** Redraws with the names of `update`, adding none of its events again. */
-  rename(update: GameUpdate): void {
-    this.last = update;
-    this.render(update);
-  }
-
   /** Redraws everything in the current language. */
   refresh(): void {
     this.menuKey = "";

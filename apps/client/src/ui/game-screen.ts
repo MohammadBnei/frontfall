@@ -35,17 +35,17 @@ import type { Sound } from "../audio/sound.ts";
 import type { ReplayBar } from "./replay-bar.ts";
 import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS } from "../game/replay-file.ts";
 import { ClickMarks } from "./click-marks.ts";
-import { GoldFloats } from "./gold-floats.ts";
+import { GoldFloats, tradeGains } from "./gold-floats.ts";
 import { DiplomacyPanel } from "./diplomacy.ts";
 import type { FeedTarget } from "./events-feed.ts";
 import type { LandLost } from "./feed-events.ts";
 import type { FeedHost } from "./screen/feed-host.ts";
 import type { ShipRef } from "./player-tip.ts";
-import { DoctrinePicker } from "./doctrine-picker.ts";
+import { DoctrinePicker, doctrineView } from "./doctrine-picker.ts";
 import { AlertFrame } from "./alert-frame.ts";
 import { Hud } from "./hud.ts";
 import { withHidden } from "./hidden-players.ts";
-import { PlayerLabels } from "./labels.ts";
+import { PlayerLabels, relationMarks } from "./labels.ts";
 import { SpeedControl } from "./speed-control.ts";
 import { colorOf } from "../palette.ts";
 import { StatsRecorder } from "./screen/stats-history.ts";
@@ -57,6 +57,7 @@ import { Orders } from "./screen/orders.ts";
 import { Overlays } from "./screen/overlays.ts";
 import { PreviewHost } from "./screen/preview-host.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
+import { Effects, sameEntries, select, shallowEqual, signal } from "../signals.ts";
 
 /** How often the turns of an online game are checked for being due. */
 const PACER_MS = 10;
@@ -64,6 +65,9 @@ const PACER_MS = 10;
 const SHIP_REACH = 16;
 /** How far from a landmark's mark, in screen pixels, the pointer still points at it. */
 const LANDMARK_REACH = 18;
+
+/** The labels' marks before the first update. */
+const NO_MARKS: ReadonlyMap<number, string> = new Map();
 
 /** The replay bar's code, once loadReplayBar has fetched it. */
 let replayBarClass: typeof ReplayBar | undefined;
@@ -113,6 +117,10 @@ export class GameScreen {
   private readonly overlays: Overlays;
   private readonly cleanups: (() => void)[] = [];
   private latest: GameUpdate | undefined;
+  /** The game as this screen shows it, hidden players renamed: the panels follow it (watchPanels). */
+  private readonly shown = signal<GameUpdate | undefined>(undefined);
+  /** The panels' watchers, stopped with the screen. */
+  private readonly effects = new Effects();
   private ended = false;
   /** Set while watching a recorded game: no orders, and a bar to set the pace. */
   private readonly replayBar: ReplayBar | undefined;
@@ -353,6 +361,7 @@ export class GameScreen {
       });
       this.element.append(this.replayBar.element);
     }
+    this.watchPanels();
 
     this.session = new LocalSession(
       options,
@@ -644,6 +653,7 @@ export class GameScreen {
   };
 
   dispose(): void {
+    this.effects.dispose();
     // Leaving for the menu or a new game without an ending of its own.
     this.tracker?.end(this.out() ? "defeat" : "left", Date.now());
     cancelAnimationFrame(this.frameHandle);
@@ -768,14 +778,55 @@ export class GameScreen {
     this.input = this.createInput();
   }
 
+  /**
+   * Each panel follows its own part of the game as this screen shows it, and
+   * runs only when that part changes: the marks of the labels with the
+   * relations, the doctrine cards with their seconds. The HUD and the player
+   * menu show figures that move with every update, and take each one.
+   */
+  private watchPanels(): void {
+    const { effects, shown } = this;
+    effects.watch(
+      select(shown, (update) => update?.players),
+      (players) => {
+        if (players) this.labels.update(players, shown.peek()?.labels);
+      },
+    );
+    effects.watch(
+      select(shown, (update) => (update ? relationMarks(update) : NO_MARKS), sameEntries),
+      (marks) => {
+        this.labels.setMarks(marks);
+      },
+    );
+    // A trade ship docked: the gold it brought this player rises over the port.
+    effects.watch(select(shown, tradeGains), (gains) => {
+      for (const { tile, gold } of gains) this.goldFloats.add(tile, gold, performance.now());
+    });
+    effects.watch(shown, (update) => {
+      if (update) this.hud.update(update, performance.now());
+    });
+    effects.watch(
+      select(shown, (update) => doctrineView(update, this.ticksPerSecond), shallowEqual),
+      (view) => {
+        this.doctrines.show(view);
+      },
+    );
+    effects.watch(shown, (update) => {
+      if (update) this.diplomacy.update(update);
+    });
+    const bar = this.replayBar;
+    if (bar) {
+      effects.watch(shown, (update) => {
+        if (update?.replay) bar.update(update.tick, update.replay, this.ticksPerSecond);
+      });
+    }
+  }
+
   /** Names and messages again after a player was hidden or shown (R-DIPLO-08). */
   private showNames(): void {
     if (!this.latest) return;
-    const update = { ...withHidden(this.latest, this.hidden), events: [] };
-    this.labels.update(update.players, undefined);
-    this.labels.setRelations(update);
-    this.hud.update(update, performance.now());
-    this.diplomacy.rename(update);
+    // No events: what the update brought was shown once already.
+    this.shown.value = { ...withHidden(this.latest, this.hidden), events: [] };
   }
 
   /** Back to the player's own land, wherever the map was moved to. */
@@ -818,21 +869,11 @@ export class GameScreen {
     update = withHidden(update, this.hidden);
     if (!this.replayBar) this.stats.observe(update);
     this.tracker?.observe(update, this.scene.report().frameMs, performance.now());
-    this.labels.update(update.players, update.labels);
-    // A trade ship docked: the gold it brought this player rises over the port.
-    for (const event of update.events) {
-      if (event.type === "trade" && event.a === update.you && event.tile !== undefined) {
-        this.goldFloats.add(event.tile, event.gold ?? 0, performance.now());
-      }
-    }
-    this.labels.setRelations(update);
-    this.hud.update(update, performance.now());
-    this.doctrines.update(update, this.ticksPerSecond);
-    this.diplomacy.update(update);
+    // The panels watching it run now, before the rest of the update is taken in.
+    this.shown.value = update;
     this.feed?.observe(update, lost ?? new Map(), performance.now());
     // The panels grow and shrink with their content: measured on the next frame.
     this.panelsMoved = true;
-    if (update.replay) this.replayBar?.update(update.tick, update.replay, this.ticksPerSecond);
     // Wiped out, the player may watch on, but a reload no longer brings the game back.
     if (!this.outNoted && this.out()) {
       this.outNoted = true;

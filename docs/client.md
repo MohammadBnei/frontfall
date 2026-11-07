@@ -23,7 +23,7 @@ only.
 
 Root files are the ones directly in `src/`: `build`, `palette`, `usage`,
 `release`, `compat`, `terrain`, `maps`, `webgl-support`, `dom` (the `h`
-element helper), `probe` and `storage`. Browser storage is reached only
+element helper), `probe`, `storage` and `signals`. Browser storage is reached only
 through `storage.ts`, which answers `undefined` where touching it throws.
 The sound settings (`audio/settings.ts`) are the one exception: they read
 `localStorage` inside their own `try`, as importing `storage.ts` there would
@@ -89,6 +89,24 @@ The list of bot levels and the default rules live in `game/defaults.ts`, and
 - `?view=globe` shows a map of the whole planet on a globe, and G switches
   between the globe and the flat map during the game. It is a prototype for
   v0.6, kept out of the menu; see [ADR 0005](adr/0005-globe-spike.md).
+
+## Panels and signals
+
+The game screen keeps the latest update, as this screen shows it (hidden
+players renamed, R-DIPLO-08), in one signal of `@preact/signals-core`. Each
+panel watches its own part of it through `select(signal, pick, equals)`
+(`signals.ts`), and runs only when that part changes: the marks beside the
+names with the relations (`relationMarks`), the doctrine cards with their
+seconds (`doctrineView`), the gold floats with a trade ship docking
+(`tradeGains`). The HUD and the player menu show figures that move every
+tick and take every update; the HUD still draws a few times a second. The
+watchers belong to the screen's `Effects` and stop with it. The worker and
+its messages are unchanged.
+
+Before the library came in, the whole build but the maps sent 848.4 kB with
+gzip and the game screen's chunk 35.8 kB; with it, 850.4 kB and 37.8 kB
+(`bun run perf:client`). That took the build over its budget of 850 kB, which
+the same commit raised to 852.5 kB ([performance.md](performance.md#budgets)).
 
 ## Replays
 

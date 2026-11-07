@@ -83,17 +83,16 @@ In solo mode and in replays, the client plays the server's part itself, in the s
 
 ### From an update to a panel
 
-**Today**, the game screen receives each update and calls the panels that need it.
-
-**Target** ([0013](adr/0013-client-shell-and-signals.md)): the session writes the update into signals, and each panel subscribes through `select(signal, pick, equals)`, so it redraws only when what it shows changes.
+The session hands each update to the game screen, which takes it into the map first (the feed reads what the update took before the map does), then writes it into a signal ([0013](adr/0013-client-shell-and-signals.md)). Each panel subscribes through `select(signal, pick, equals)` (`apps/client/src/signals.ts`), so it redraws only when what it shows changes. The worker protocol is unchanged.
 
 ```mermaid
 flowchart LR
   worker["worker update"] --> session["session"]
-  session --> signals["signals"]
-  signals --> sel1["select: leaderboard"]
-  signals --> sel2["select: build menu"]
-  signals --> sel3["select: other panels"]
+  session --> screen["game screen: map, feed"]
+  screen --> signals["signal: the update as shown"]
+  signals --> sel1["select: label marks"]
+  signals --> sel2["select: doctrine cards"]
+  signals --> sel3["HUD, player menu: every update"]
 ```
 
 ## Pattern catalog
@@ -115,7 +114,7 @@ flowchart LR
 | Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Today                                 |
 | App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Target                                |
 | Sessions with capabilities        | Solo, Online, Replay ([0013](adr/0013-client-shell-and-signals.md))                               | Target                                |
-| Signals with `select`             | Client panels ([0013](adr/0013-client-shell-and-signals.md))                                      | Target                                |
+| Signals with `select`             | Client panels ([0013](adr/0013-client-shell-and-signals.md))                                      | Today                                 |
 | Boundary tests on the syntax tree | `tools/test/boundaries.test.ts` ([0014](adr/0014-enforced-boundaries.md))                         | Today for packages, Target for layers |
 
 ## How to add

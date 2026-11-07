@@ -21,6 +21,7 @@ export default defineConfig({
         "apps/client/src/i18n/**",
         "apps/client/src/release.ts",
         "apps/client/src/terrain.ts",
+        "apps/client/src/signals.ts",
         "apps/client/src/ui/format.ts",
         "apps/client/src/ui/setup.ts",
       ],
