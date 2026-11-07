@@ -112,7 +112,7 @@ flowchart LR
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today                                 |
 | Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Today                                 |
 | Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Today, but stores: Target             |
-| Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Target                                |
+| Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Today                                 |
 | App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Target                                |
 | Sessions with capabilities        | Solo, Online, Replay ([0013](adr/0013-client-shell-and-signals.md))                               | Target                                |
 | Signals with `select`             | Client panels ([0013](adr/0013-client-shell-and-signals.md))                                      | Target                                |

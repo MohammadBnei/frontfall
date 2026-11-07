@@ -6,7 +6,7 @@ import type { Metrics } from "../metrics.ts";
 import type { Directory } from "../directory.ts";
 import type { Moderation } from "../moderation.ts";
 import { TokenBucket } from "../rate-limit.ts";
-import type { Peer } from "../room.ts";
+import { peerOutbox, type Peer } from "../room-outbox.ts";
 import type { ServerOptions } from "../server-options.ts";
 import { DEFAULT_PING_INTERVAL_MS } from "../server-options.ts";
 import type { Connection, ConnectionEvents, HttpRequest, Transport } from "../transport.ts";
@@ -18,13 +18,6 @@ export const IGNORED: ConnectionEvents = {
   error: () => undefined,
   close: () => undefined,
 };
-
-/**
- * A client that leaves this much unread, a sleeping tab or a stalled network,
- * is dropped: it rejoins from its last turn, and its backlog never weighs on the
- * server. A 4-hour game sent whole takes about 1.5 MiB, in frames paced apart.
- */
-const MAX_BUFFERED_BYTES = 4 * 2 ** 20;
 
 export interface SessionsSettings {
   options: ServerOptions;
@@ -70,42 +63,12 @@ export function createSessions(settings: SessionsSettings): Sessions {
   };
 
   /** What a seat is sent through: the catch-up of a rejoin goes frame by frame, the rest waits for it. */
-  const peerOf = (socket: Connection): Peer => {
-    /** A catch-up under way: the frames left, and the messages held until its end. */
-    let replaying: { frames: Iterator<Frame>; held: Frame[] } | undefined;
-    // One frame at a time, the next once the last is handed to the network: a
-    // rejoin from the first turn of a long game never piles up in memory.
-    const pump = (): void => {
-      const current = replaying;
-      if (!current || !socket.open) return;
-      const next = current.frames.next();
-      if (next.done !== true) {
-        socket.send(next.value, pump);
-        return;
-      }
-      replaying = undefined;
-      for (const frame of current.held) socket.send(frame);
-    };
-    return {
-      send(frame) {
-        if (!socket.open) return;
-        if (replaying) {
-          // The catch-up runs on to the newest turn; other messages wait for its end.
-          if (typeof frame === "string") replaying.held.push(frame);
-          return;
-        }
-        if (socket.bufferedAmount > MAX_BUFFERED_BYTES) {
-          metrics.slowClients.inc();
-          socket.terminate();
-          return;
-        }
-        socket.send(frame);
+  const peerOf = (socket: Connection): Peer =>
+    peerOutbox(socket, {
+      slow: () => {
+        metrics.slowClients.inc();
       },
-      replay(frames, last) {
-        replaying = { frames: frames[Symbol.iterator](), held: last === undefined ? [] : [last] };
-        pump();
-      },
-      probe() {
+      probe: () => {
         const sentAt = clock.now();
         ping(socket, sentAt);
         clock
@@ -115,8 +78,7 @@ export function createSessions(settings: SessionsSettings): Sessions {
           }, probeTimeoutMs)
           .unref();
       },
-    };
-  };
+    });
 
   /** Closes the connection of a banned address, with the code that tells its page not to retry. */
   function turnAwayBanned(session: Session): boolean {
