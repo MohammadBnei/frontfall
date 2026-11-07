@@ -1,5 +1,6 @@
 // First: before the schemas are built, so that none is compiled (the page forbids it).
 import "@frontfall/protocol/jitless";
+import { watchPublicGames } from "./net/public-games.ts";
 import { DEFAULT_DIFFICULTY, defaultRules } from "./game/defaults.ts";
 import { safeStorage } from "./storage.ts";
 import type { GameRecord } from "@frontfall/engine";
@@ -192,6 +193,7 @@ function showMenu(): void {
           keepSolo(undefined);
         },
       })),
+    (onGames) => watchPublicGames({ onGames }),
   );
   document.body.prepend(menu.element);
   // Ready for Enter, without scrolling a phone's menu down to the button.
