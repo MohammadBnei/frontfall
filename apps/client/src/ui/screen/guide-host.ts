@@ -1,6 +1,6 @@
 import { youOf } from "../../game/selectors.ts";
 import { safeStorage } from "../../storage.ts";
-import type { GameUpdate } from "../../game/solo-game.ts";
+import type { GameUpdate } from "../../game/game-runner.ts";
 // The guide loads when first shown, out of the first download.
 import type { Guide, Step } from "../guide.ts";
 import type { due as dueHint, Hints } from "../hints.ts";

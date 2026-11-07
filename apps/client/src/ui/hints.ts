@@ -1,7 +1,7 @@
 import { youOf } from "../game/selectors.ts";
 import "./guide.css";
 import { getLanguage, type Language } from "../i18n/index.ts";
-import type { GameUpdate } from "../game/solo-game.ts";
+import type { GameUpdate } from "../game/game-runner.ts";
 import { h, setText } from "../dom.ts";
 
 /**

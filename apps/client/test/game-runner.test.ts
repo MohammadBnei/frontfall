@@ -8,7 +8,7 @@ import {
 } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
 import { GENERATED_MAPS, generateMap } from "../src/maps.ts";
-import { HUMAN_ID, SoloGame, type SoloOptions } from "../src/game/solo-game.ts";
+import { HUMAN_ID, GameRunner, type SoloOptions } from "../src/game/game-runner.ts";
 import { gameUpdate } from "../src/game/game-update.ts";
 import { labelSpace } from "../src/game/label-anchors.ts";
 import { CITY_STATES_PER_NATION, cityStateName } from "../src/game/simulation.ts";
@@ -21,8 +21,8 @@ const options: SoloOptions = {
   playerName: "Ada",
 };
 
-function newGame(game: SoloOptions): SoloGame {
-  return new SoloGame(game, generateMap(game.map));
+function newGame(game: SoloOptions): GameRunner {
+  return new GameRunner(game, generateMap(game.map));
 }
 
 function firstLand(map: string): number {
@@ -44,13 +44,13 @@ describe("maps", () => {
   });
 });
 
-describe("SoloGame", () => {
+describe("GameRunner", () => {
   it("adds the map's nations after the bots, each on its tile, then their city-states (R-BOT-07, R-BOT-29)", () => {
     const base = generateMap(options.map);
     const land = [...base.kinds.keys()].filter((tile) => base.kinds[tile] !== TileKind.Water);
     const home = land[Math.floor(land.length / 2)] as number;
     const map = { ...base, nations: [{ name: "Norland", tile: home }] };
-    const solo = new SoloGame({ ...options, nations: true }, map);
+    const solo = new GameRunner({ ...options, nations: true }, map);
     let update = solo.step([]);
     expect(update.players.map((player) => [player.id, player.name])).toEqual([
       [1, "Ada"],
@@ -67,12 +67,12 @@ describe("SoloGame", () => {
     expect(solo.game.player(5)?.start).toBe(home);
     expect(solo.game.territory.ownerOf(home)).toBe(5);
 
-    const without = new SoloGame(options, map);
+    const without = new GameRunner(options, map);
     expect(without.step([]).players).toHaveLength(4);
   });
 
   it("gives the practice game city-states with no nation, and a longer spawn phase", () => {
-    const practice = new SoloGame(
+    const practice = new GameRunner(
       { ...options, bots: 2, nations: false, cityStates: 4, spawnSeconds: 60 },
       generateMap(options.map),
     );
@@ -168,7 +168,7 @@ describe("SoloGame", () => {
   }, 60_000);
 });
 
-describe("SoloGame attacks", () => {
+describe("GameRunner attacks", () => {
   it("expands into unowned land after a click once the spawn phase is over", () => {
     const solo = newGame({ ...options, bots: 1 });
     const start = firstLand(options.map);
@@ -203,7 +203,7 @@ describe("SoloGame attacks", () => {
   });
 });
 
-describe("SoloGame incoming attacks", () => {
+describe("GameRunner incoming attacks", () => {
   it("lists the attacks other players send at the human's land, and not the human's own", () => {
     const solo = newGame({ ...options, bots: 1 });
     let update = solo.step([{ type: "spawn", tile: firstLand(options.map) }]);
@@ -231,7 +231,7 @@ describe("SoloGame incoming attacks", () => {
   });
 });
 
-describe("SoloGame clicks", () => {
+describe("GameRunner clicks", () => {
   it("buys a warship at the player's port and sends the closest one to patrol (R-UNIT-04)", () => {
     const solo = newGame({ ...options, bots: 1 });
     const { terrain, territory } = solo.game;
@@ -566,7 +566,7 @@ describe("SoloGame clicks", () => {
       for (let x = 2; x < 12; x++) kinds[at(x, y)] = TileKind.Plains;
       for (let x = 26; x < 36; x++) kinds[at(x, y)] = TileKind.Plains;
     }
-    const solo = new SoloGame(
+    const solo = new GameRunner(
       { ...options, bots: 0 },
       {
         id: "islands",
@@ -622,7 +622,7 @@ describe("SoloGame clicks", () => {
         if (!(x >= 8 && x < 12 && y < 9)) kinds[at(x, y)] = TileKind.Plains;
       }
     }
-    const solo = new SoloGame(
+    const solo = new GameRunner(
       { ...options, bots: 1 },
       {
         id: "bay",
@@ -778,7 +778,7 @@ describe("SoloGame clicks", () => {
       for (let x = 2; x < 12; x++) kinds[at(x, y)] = TileKind.Plains;
       for (let x = 26; x < 36; x++) kinds[at(x, y)] = TileKind.Plains;
     }
-    const solo = new SoloGame(
+    const solo = new GameRunner(
       { ...options, bots: 0 },
       {
         id: "islands",
@@ -825,7 +825,7 @@ describe("SoloGame clicks", () => {
   });
 });
 
-describe("SoloGame online", () => {
+describe("GameRunner online", () => {
   const online: SoloOptions = {
     ...options,
     bots: 2,
@@ -926,7 +926,7 @@ describe("SoloGame online", () => {
   });
 });
 
-describe("SoloGame start clicks (R-SPAWN-02)", () => {
+describe("GameRunner start clicks (R-SPAWN-02)", () => {
   it("refuses a start on another player's land, or too close to their start, with its reason", () => {
     const solo = newGame(options);
     const { game } = solo;

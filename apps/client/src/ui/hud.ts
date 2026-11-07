@@ -3,7 +3,7 @@ import { safeStorage } from "../storage.ts";
 import { DEFAULT_BALANCE, NO_OPERATOR, PALACE_CITIES } from "@frontfall/engine";
 import { attackPreview, goldPerSecond, soldiersOf } from "../game/attack-preview.ts";
 import type { GameRules } from "../game/messages.ts";
-import type { ClickMode, GameUpdate, PlayerView } from "../game/solo-game.ts";
+import type { ClickMode, GameUpdate, PlayerView } from "../game/game-runner.ts";
 import { applyTranslations, plural, t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h } from "../dom.ts";

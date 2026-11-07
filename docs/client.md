@@ -38,7 +38,7 @@ The list of bot levels and the default rules live in `game/defaults.ts`, and
 ```text
  page                                    worker (game/sim.worker.ts)
  ----                                    ---------------------------
- Menu ── setup ──> GameScreen            SoloGame
+ Menu ── setup ──> GameScreen            GameRunner
                     │  click(tile, ratio) ──>  orderForClick ─> turn ──> Game
                     │                          bots decide inside the tick
                     │  <── update every tick:  changed tiles, players, attacks
@@ -53,8 +53,9 @@ The list of bot levels and the default rules live in `game/defaults.ts`, and
   shared: the page needs no cross-origin isolation headers.
 - The page sends clicks, not orders. The worker holds the game and decides
   what a click means: a start during the spawn phase, then an expansion or an
-  attack with the attack ratio. The same `GameSession` carries an online
-  game, where the orders go to the server instead (below).
+  attack with the attack ratio. The same `GameSession` interface carries an
+  online game, where the orders go to the server instead (below), and a
+  replay.
 - Bots and nations are installed in the engine (`installBots`,
   `installNations`) and decide during the tick, from the game state and its
   seed, so every client of an online game computes the same moves. Nations
@@ -89,6 +90,33 @@ The list of bot levels and the default rules live in `game/defaults.ts`, and
 - `?view=globe` shows a map of the whole planet on a globe, and G switches
   between the globe and the flat map during the game. It is a prototype for
   v0.6, kept out of the menu; see [ADR 0005](adr/0005-globe-spike.md).
+
+## Sessions
+
+The screen talks to one `GameSession` (`game/session.ts`), whatever the
+mode, and `openSession` (`game/sessions.ts`) picks it: a `ReplaySession` for
+options with a record, an `OnlineSession` with a link to the server, a
+`SoloSession` otherwise. Each starts the worker the same way
+(`game/worker-session.ts`) and declares its `capabilities`, which the screen
+asks instead of checking the mode:
+
+| Capability    | Solo | Online                 | Replay |
+| ------------- | ---- | ---------------------- | ------ |
+| `canPause`    | yes  | no                     | yes    |
+| `canOrder`    | yes  | yes                    | no     |
+| `canSetSpeed` | yes  | no                     | yes    |
+| `recordable`  | yes  | yes                    | no     |
+| `relayed`     | no   | yes                    | no     |
+| `canHide`     | no   | yes                    | no     |
+| `canReport`   | no   | when the server allows | no     |
+| `guided`      | yes  | no                     | no     |
+
+What a mode cannot do its session ignores. The online session owns the
+`TurnPacer` and the `ServerLink`: it sends orders, hashes and snapshots to
+the server, and plays the server's turns through the pacer on a timer of its
+own, so a hidden tab keeps playing. Its clock and the worker are handed in,
+so `test/sessions.test.ts` runs every mode with a fake worker, a fake link
+and a clock moved by hand.
 
 ## Panels and signals
 
@@ -150,7 +178,7 @@ it started or ended for another reason, and why a request was refused.
 ```text
  page                                          worker
  ----                                          ------
- OnlineClient (net/online.ts) ── turns ──> GameScreen.pushTurns ─> SoloGame.playTurns
+ OnlineClient (net/online.ts) ── turns ──> OnlineSession.pushTurns ─> GameRunner.playTurns
       ^                                         │                       │
       └─── orders, hashes ── ServerLink <───────┴── click → order ──────┘
 ```

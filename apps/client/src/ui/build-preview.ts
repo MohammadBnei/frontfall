@@ -1,4 +1,4 @@
-import type { ClickPreview } from "../game/solo-game.ts";
+import type { ClickPreview } from "../game/game-runner.ts";
 import { applyTranslations, t, type MessageKey } from "../i18n/index.ts";
 import type { Camera } from "../render/camera.ts";
 import { REFUSALS } from "./click-marks.ts";

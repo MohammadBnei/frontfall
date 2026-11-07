@@ -39,7 +39,7 @@ export default defineConfig({
         "apps/client/src/render/minimap.ts",
         "apps/client/src/render/pieces.ts",
         "apps/client/src/render/pieces-paint.ts",
-        "apps/client/src/game/local-session.ts",
+        "apps/client/src/game/sim-port.ts",
         "apps/client/src/game/sim.worker.ts",
       ],
       reporter: ["text", "lcov"],

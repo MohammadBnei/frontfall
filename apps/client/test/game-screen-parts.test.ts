@@ -1,6 +1,6 @@
 import { Disable } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
-import type { GameUpdate } from "../src/game/solo-game.ts";
+import type { GameUpdate } from "../src/game/game-runner.ts";
 import { gameKey, typingIn, type KeyState } from "../src/ui/screen/game-keys.ts";
 import { Orders } from "../src/ui/screen/orders.ts";
 import { MISSILE_COLOR, sailing, ShipMotion } from "../src/ui/screen/ship-motion.ts";

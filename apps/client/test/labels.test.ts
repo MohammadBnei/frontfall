@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { LabelAnchor } from "../src/game/label-anchors.ts";
-import type { PlayerView } from "../src/game/solo-game.ts";
+import type { PlayerView } from "../src/game/game-runner.ts";
 import type { Camera } from "../src/render/camera.ts";
 import { PlayerLabels, relationMarks } from "../src/ui/labels.ts";
 

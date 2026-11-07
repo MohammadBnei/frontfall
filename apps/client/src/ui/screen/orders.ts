@@ -1,7 +1,7 @@
 import { youOf } from "../../game/selectors.ts";
 import { soldiersOf } from "../../game/attack-preview.ts";
 import type { GameSession } from "../../game/session.ts";
-import type { ClickMode, GameUpdate } from "../../game/solo-game.ts";
+import type { ClickMode, GameUpdate } from "../../game/game-runner.ts";
 import type { GameTracker } from "../../usage.ts";
 
 /** What decides whether the player can give orders now. */

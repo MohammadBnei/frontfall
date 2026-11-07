@@ -1,6 +1,6 @@
 import "./help.css";
 import { DEFAULT_BALANCE } from "@frontfall/engine";
-import type { BuildView } from "../game/solo-game.ts";
+import type { BuildView } from "../game/game-runner.ts";
 import { applyTranslations, getLanguage, type MessageKey } from "../i18n/index.ts";
 import { h } from "../dom.ts";
 import { formatCount } from "./format.ts";

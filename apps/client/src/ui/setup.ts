@@ -1,7 +1,7 @@
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, defaultRules } from "../game/defaults.ts";
 import { Disable, leftOut } from "@frontfall/engine";
 import { suggestedBots, type MapInfo } from "../maps.ts";
-import { MAX_BOTS, type Difficulty, type SoloOptions } from "../game/solo-game.ts";
+import { MAX_BOTS, type Difficulty, type SoloOptions } from "../game/game-runner.ts";
 
 /** What the player chooses in the menu; the seed is drawn when the game starts. */
 export type GameSetup = Omit<SoloOptions, "seed">;

@@ -9,7 +9,7 @@ import {
   thumbnailScale,
   type MapInfo,
 } from "../maps.ts";
-import { MAX_BOTS } from "../game/solo-game.ts";
+import { MAX_BOTS } from "../game/game-runner.ts";
 import {
   LANGUAGES,
   applyTranslations,

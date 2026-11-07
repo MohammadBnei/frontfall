@@ -17,7 +17,7 @@ import type {
   GameSnapshot,
   GameUpdate,
   SoloOptions,
-} from "./solo-game.ts";
+} from "./game-runner.ts";
 
 /** What became of a click: the order it sent, or why it sent none. */
 export type ClickOutcome = Order["type"] | ClickRefusal;

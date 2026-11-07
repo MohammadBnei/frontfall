@@ -1,6 +1,6 @@
 import type { LabelAnchor } from "../game/label-anchors.ts";
 import type { GameUpdate } from "../game/game-view.ts";
-import type { PlayerView } from "../game/solo-game.ts";
+import type { PlayerView } from "../game/game-runner.ts";
 import type { Camera } from "../render/camera.ts";
 import { h, setText } from "../dom.ts";
 import { formatCount } from "./format.ts";

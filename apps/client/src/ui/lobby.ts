@@ -13,7 +13,7 @@ import {
   type Teams,
 } from "@frontfall/protocol";
 import { MAP_GROUPS, type MapInfo } from "../maps.ts";
-import { MAX_BOTS } from "../game/solo-game.ts";
+import { MAX_BOTS } from "../game/game-runner.ts";
 import { activeRuleNames, rulesFieldset } from "./rules-fieldset.ts";
 import { OPERATOR_BONUSES, operatorBonusLine } from "./operator-bonuses.ts";
 import { LEFT_OUT, TEAM_CHOICES } from "./setup.ts";

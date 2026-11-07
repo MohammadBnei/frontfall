@@ -1,4 +1,4 @@
-import type { GameUpdate } from "../game/solo-game.ts";
+import type { GameUpdate } from "../game/game-runner.ts";
 import { applyTranslations, t, type MessageKey } from "../i18n/index.ts";
 import type { GameTracker } from "../usage.ts";
 import { CATALOGUE, badgeLevel } from "../achievements/catalog.ts";

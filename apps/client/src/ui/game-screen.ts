@@ -10,13 +10,13 @@ import {
 } from "@frontfall/engine";
 import { probe } from "../probe.ts";
 import { accessibility, motionReduced, onMotionChange } from "./accessibility.ts";
-import { TICK_RATE } from "@frontfall/protocol";
-import { BASE_PACE } from "../game/pace.ts";
-import { LocalSession, SOLO_SNAPSHOT_REFUSED, type ServerLink } from "../game/local-session.ts";
-import { TurnPacer } from "../game/turn-pacer.ts";
+import type { ServerLink } from "../game/online-session.ts";
+import type { GameSession, SessionCapabilities, SessionEvents } from "../game/session.ts";
+import { openSession } from "../game/sessions.ts";
+import { SOLO_SNAPSHOT_REFUSED } from "../game/solo-session.ts";
 import type { MapInfo, MapLandmarkData } from "../maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
-import type { ClickMode, GameSnapshot, GameUpdate, SoloOptions } from "../game/solo-game.ts";
+import type { ClickMode, GameSnapshot, GameUpdate, SoloOptions } from "../game/game-runner.ts";
 import { InputController } from "../input/controller.ts";
 import { aimReach } from "../input/aim.ts";
 import {
@@ -59,8 +59,6 @@ import { PreviewHost } from "./screen/preview-host.ts";
 import { usage, type GameFacts, type GameTracker } from "../usage.ts";
 import { Effects, sameEntries, select, shallowEqual, signal } from "../signals.ts";
 
-/** How often the turns of an online game are checked for being due. */
-const PACER_MS = 10;
 /** How far from a ship, in screen pixels, the pointer still points at it. */
 const SHIP_REACH = 16;
 /** How far from a landmark's mark, in screen pixels, the pointer still points at it. */
@@ -112,7 +110,9 @@ export class GameScreen {
   private readonly doctrines: DoctrinePicker;
   /** Solo only (R-MODE-07): online, the host picked the pace in the lobby. */
   private readonly speed: SpeedControl | undefined;
-  private readonly session: LocalSession;
+  private readonly session: GameSession;
+  /** What the game's mode lets the screen do. */
+  private readonly can: SessionCapabilities;
   private readonly orders: Orders;
   private readonly overlays: Overlays;
   private readonly cleanups: (() => void)[] = [];
@@ -161,8 +161,6 @@ export class GameScreen {
   /** Players this page reported (R-MODE-06); the last one leaves if the server turns it down. */
   private readonly reports = new Set<number>();
   private lastReport: number | undefined;
-  /** Online: evens out the arrival of the server's turns before the worker plays them. */
-  private readonly pacer: TurnPacer;
   /** What a click on the map does, picked in the HUD. */
   private mode: ClickMode = "attack";
   /** Shift was down when the last press began on the map. */
@@ -197,15 +195,33 @@ export class GameScreen {
     map: MapInfo,
     private readonly actions: GameScreenActions,
     /** Online: the connection the game's orders go to; the game then never pauses. */
-    private readonly link?: ServerLink,
+    link?: ServerLink,
     /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
     view: ViewKind = "flat",
     /** What the usage report says about the game; a game without it is not reported. */
     facts?: Omit<GameFacts, "view">,
   ) {
+    // A replay needs the code of its bar, checked before the session starts a worker.
+    if (options.record && !replayBarClass) {
+      throw new Error("loadReplayBar() must complete before a replay starts");
+    }
+    const Bar = options.record ? replayBarClass : undefined;
     this.achievements = new GameAchievements(
       `frontfall.credited.${options.map}.${String(options.seed)}`,
     );
+    // Its events come once the worker answers, when everything below is in place.
+    this.session = openSession(
+      options,
+      map,
+      this.sessionEvents(options),
+      link,
+      actions.onSnapshot
+        ? (snapshot) => {
+            if (!this.ended && !this.disposed) actions.onSnapshot?.(snapshot);
+          }
+        : undefined,
+    );
+    this.can = this.session.capabilities;
     // Input listens on a layer of its own under the HUD, so clicks on panels never reach the map.
     this.surface = document.createElement("div");
     this.scene = new MapScene(this.surface, map, view, (key) => {
@@ -213,7 +229,7 @@ export class GameScreen {
     });
     this.tracker =
       // A game with the operator's bonuses is a test (R-MODE-09): it counts for nothing.
-      facts && !options.record && !options.operator
+      facts && this.can.canOrder && !options.operator
         ? usage().track({ ...facts, view: this.scene.kind }, Date.now())
         : undefined;
     this.published = map.manifest !== undefined;
@@ -253,13 +269,13 @@ export class GameScreen {
           this.setMode(mode);
         },
         onPlayer: (player) => {
-          if (!options.record) this.diplomacy.pick(player);
+          if (this.can.canOrder) this.diplomacy.pick(player);
         },
         onWork: (share) => {
           this.orders.work(share);
         },
       },
-      { pausable: link === undefined, touch: () => this.coarsePointer.matches },
+      { pausable: this.can.canPause, touch: () => this.coarsePointer.matches },
     );
     this.diplomacy = new DiplomacyPanel({
       onAlly: (player) => {
@@ -286,7 +302,7 @@ export class GameScreen {
       },
       // Only other people can be hidden: online, and never a nation.
       hidden: (player) =>
-        this.link === undefined || player >= this.firstNation ? undefined : this.hidden.has(player),
+        !this.can.canHide || player >= this.firstNation ? undefined : this.hidden.has(player),
       onHide: (player, hide) => {
         if (hide) this.hidden.add(player);
         else this.hidden.delete(player);
@@ -294,16 +310,16 @@ export class GameScreen {
       },
       // Only people can be reported, through a server that takes reports.
       reported: (player) =>
-        this.link?.report && this.options.players?.some((p) => p.id === player)
+        this.can.canReport && this.options.players?.some((p) => p.id === player)
           ? this.reports.has(player)
           : undefined,
       onReport: (player, reason) => {
-        this.link?.report?.(player, reason);
+        this.session.reportPlayer(player, reason);
         this.reports.add(player);
         this.lastReport = player;
       },
     });
-    if (!link && !options.record) {
+    if (this.can.canSetSpeed && this.can.canOrder) {
       this.speed = new SpeedControl(options.speed ?? 1, (speed) => {
         this.session.setSpeed(speed);
       });
@@ -353,132 +369,15 @@ export class GameScreen {
       },
       true,
     );
-    if (options.record) {
+    if (Bar) {
       this.element.classList.add("watching");
-      if (!replayBarClass) throw new Error("loadReplayBar() must complete before a replay starts");
-      this.replayBar = new replayBarClass(REPLAY_SPEEDS, (speed) => {
+      this.replayBar = new Bar(REPLAY_SPEEDS, (speed) => {
         this.session.setSpeed(speed);
       });
       this.element.append(this.replayBar.element);
     }
     this.watchPanels();
 
-    this.session = new LocalSession(
-      options,
-      map,
-      {
-        onStart: (info) => {
-          this.firstNation = info.rules.firstNation;
-          this.teams = info.rules.teams;
-          this.landmarks = info.map.landmarks;
-          this.disabled = info.rules.disabled;
-          this.capitals = info.rules.special.capitals;
-          this.scene.show({
-            map: info.map,
-            you: info.you,
-            maxPlayer: info.maxPlayer,
-            firstNation: info.rules.firstNation,
-            teams: info.rules.teams,
-            ticksPerSecond: info.rules.ticksPerSecond,
-          });
-          const minimap = this.scene.minimapElement;
-          // First in the HUD, so that every other panel draws over it.
-          if (minimap) this.hud.element.prepend(minimap);
-          this.ticksPerSecond = info.rules.ticksPerSecond;
-          this.winShare = info.rules.winSharePercent;
-          this.stats = new StatsRecorder(info.rules.ticksPerSecond);
-          this.ownableTiles = info.rules.ownableTiles;
-          this.special = { ...info.rules.special };
-          this.operator = info.rules.operator;
-          if (!options.record) {
-            if (info.rules.operator.bonuses === 0) {
-              this.achievements.start(info.rules, link ? undefined : options.difficulty);
-            }
-            // Without it the game goes on in silence.
-            import("../audio/sound.ts").then(
-              (module) => {
-                if (this.disposed) return;
-                this.sound = new module.Sound(() => this.scene.camera, haptic);
-              },
-              () => undefined,
-            );
-            // Failing here only leaves showEnd to try again.
-            import("./end-screen.ts").then(
-              (module) => {
-                this.endScreen = module.endScreen;
-              },
-              () => undefined,
-            );
-          }
-          this.hud.setRules(info.rules);
-          // Fetched while the game starts, so H opens the help at once.
-          void import("./help.ts");
-          this.diplomacy.setRules(info.rules);
-          this.feed?.setRules(info.rules);
-          // A solo game taken back after a reload waits for the player to look again.
-          if (!link && options.snapshot && !options.record) {
-            this.overlays.showPause(this.speed?.choices());
-          }
-          // Fetched while the game starts; without it the game goes on without the feed.
-          import("./screen/feed-host.ts").then(
-            (module) => {
-              if (this.disposed) return;
-              this.diplomacy.setFacts(module.facts);
-              this.feed = new module.FeedHost(
-                this.hud.element,
-                this.element,
-                this.surface,
-                (tile) => this.scene.ownerAt(tile),
-                !options.record,
-                (target) => {
-                  this.centre(target);
-                },
-                info.map.landmarks,
-              );
-              this.feed.setRules(info.rules);
-            },
-            () => undefined,
-          );
-        },
-        onUpdate: (update) => {
-          probe.time("update (apply)", () => {
-            this.apply(update);
-          });
-        },
-        onClick: (tile, outcome, note) => {
-          // A refused build names what was refused: the oldest click in flight is the one answered.
-          const sent = this.clicksInFlight[0];
-          const action =
-            sent !== undefined && sent !== "attack" && sent !== "boat"
-              ? t(`hud.${sent}` as MessageKey)
-              : undefined;
-          this.marks.show(tile, outcome, performance.now(), link !== undefined, action, note);
-          this.afterClick(outcome);
-        },
-        onPeek: (preview) => {
-          this.previews.answer(preview);
-        },
-        onError: (message) => {
-          console.error(message);
-          if (message !== REPLAY_MAP_CHANGED && message !== SOLO_SNAPSHOT_REFUSED) {
-            usage().error("worker", message);
-          }
-          this.actions.onFailure(
-            message === REPLAY_MAP_CHANGED
-              ? "replay.unknownMap"
-              : message === SOLO_SNAPSHOT_REFUSED
-                ? "resume.failed"
-                : "game.failed",
-          );
-        },
-      },
-      link,
-      !link && !options.record && actions.onSnapshot
-        ? (snapshot) => {
-            if (!this.ended && !this.disposed) actions.onSnapshot?.(snapshot);
-          }
-        : undefined,
-    );
     this.previews = new PreviewHost({
       mount: (layer) => {
         this.hud.element.after(layer);
@@ -497,7 +396,7 @@ export class GameScreen {
     });
     this.orders = new Orders(this.session, {
       latest: () => this.latest,
-      held: () => this.overlays.paused || this.replayBar !== undefined,
+      held: () => this.overlays.paused || !this.can.canOrder,
       ratio: () => this.hud.ratio,
       tracker: this.tracker,
     });
@@ -529,30 +428,6 @@ export class GameScreen {
       this.layOut();
     });
     window.addEventListener("resize", this.layOut);
-    // Online, the host's pace: `speed` turns at each beat of the server (R-MODE-07).
-    const speed = options.speed ?? 1;
-    this.pacer = new TurnPacer(
-      (turns) => {
-        this.session.pushTurns(turns);
-        const mine = turns.reduce(
-          (count, turn) =>
-            count + turn.orders.filter((entry) => entry.player === options.you).length,
-          0,
-        );
-        if (mine > 0) this.marks.arrived(mine, performance.now());
-      },
-      1000 / TICK_RATE / (speed * BASE_PACE),
-      speed * BASE_PACE,
-    );
-    if (link) {
-      // A timer rather than frames: a hidden tab draws nothing but must keep playing.
-      const pacing = setInterval(() => {
-        this.pacer.update(performance.now());
-      }, PACER_MS);
-      this.cleanups.push(() => {
-        clearInterval(pacing);
-      });
-    }
     this.cleanups.push(
       () => {
         this.guide.dispose();
@@ -585,6 +460,122 @@ export class GameScreen {
         this.guide.refresh();
       }),
     );
+  }
+
+  /** What the screen does with what the session says: the start, each update, the answers to clicks. */
+  private sessionEvents(options: SoloOptions): SessionEvents {
+    return {
+      onStart: (info) => {
+        this.firstNation = info.rules.firstNation;
+        this.teams = info.rules.teams;
+        this.landmarks = info.map.landmarks;
+        this.disabled = info.rules.disabled;
+        this.capitals = info.rules.special.capitals;
+        this.scene.show({
+          map: info.map,
+          you: info.you,
+          maxPlayer: info.maxPlayer,
+          firstNation: info.rules.firstNation,
+          teams: info.rules.teams,
+          ticksPerSecond: info.rules.ticksPerSecond,
+        });
+        const minimap = this.scene.minimapElement;
+        // First in the HUD, so that every other panel draws over it.
+        if (minimap) this.hud.element.prepend(minimap);
+        this.ticksPerSecond = info.rules.ticksPerSecond;
+        this.winShare = info.rules.winSharePercent;
+        this.stats = new StatsRecorder(info.rules.ticksPerSecond);
+        this.ownableTiles = info.rules.ownableTiles;
+        this.special = { ...info.rules.special };
+        this.operator = info.rules.operator;
+        if (this.can.canOrder) {
+          if (info.rules.operator.bonuses === 0) {
+            this.achievements.start(
+              info.rules,
+              this.can.kind === "solo" ? options.difficulty : undefined,
+            );
+          }
+          // Without it the game goes on in silence.
+          import("../audio/sound.ts").then(
+            (module) => {
+              if (this.disposed) return;
+              this.sound = new module.Sound(() => this.scene.camera, haptic);
+            },
+            () => undefined,
+          );
+          // Failing here only leaves showEnd to try again.
+          import("./end-screen.ts").then(
+            (module) => {
+              this.endScreen = module.endScreen;
+            },
+            () => undefined,
+          );
+        }
+        this.hud.setRules(info.rules);
+        // Fetched while the game starts, so H opens the help at once.
+        void import("./help.ts");
+        this.diplomacy.setRules(info.rules);
+        this.feed?.setRules(info.rules);
+        // A solo game taken back after a reload waits for the player to look again.
+        if (this.can.canPause && options.snapshot) {
+          this.overlays.showPause(this.speed?.choices());
+        }
+        // Fetched while the game starts; without it the game goes on without the feed.
+        import("./screen/feed-host.ts").then(
+          (module) => {
+            if (this.disposed) return;
+            this.diplomacy.setFacts(module.facts);
+            this.feed = new module.FeedHost(
+              this.hud.element,
+              this.element,
+              this.surface,
+              (tile) => this.scene.ownerAt(tile),
+              this.can.canOrder,
+              (target) => {
+                this.centre(target);
+              },
+              info.map.landmarks,
+            );
+            this.feed.setRules(info.rules);
+          },
+          () => undefined,
+        );
+      },
+      onUpdate: (update) => {
+        probe.time("update (apply)", () => {
+          this.apply(update);
+        });
+      },
+      onClick: (tile, outcome, note) => {
+        // A refused build names what was refused: the oldest click in flight is the one answered.
+        const sent = this.clicksInFlight[0];
+        const action =
+          sent !== undefined && sent !== "attack" && sent !== "boat"
+            ? t(`hud.${sent}` as MessageKey)
+            : undefined;
+        this.marks.show(tile, outcome, performance.now(), this.can.relayed, action, note);
+        this.afterClick(outcome);
+      },
+      onPeek: (preview) => {
+        this.previews.answer(preview);
+      },
+      onError: (message) => {
+        console.error(message);
+        if (message !== REPLAY_MAP_CHANGED && message !== SOLO_SNAPSHOT_REFUSED) {
+          usage().error("worker", message);
+        }
+        this.actions.onFailure(
+          message === REPLAY_MAP_CHANGED
+            ? "replay.unknownMap"
+            : message === SOLO_SNAPSHOT_REFUSED
+              ? "resume.failed"
+              : "game.failed",
+        );
+      },
+      onArrived: (orders) => {
+        this.marks.arrived(orders, performance.now());
+      },
+    };
   }
 
   /** Call once the element is in the page, so sizes are known. */
@@ -696,10 +687,10 @@ export class GameScreen {
         } else if (landmark && this.feed) {
           const at = this.scene.camera.tileToScreen(landmark.tile);
           this.feed.pinLandmark(landmark, at.x, at.y);
-        } else if (!this.replayBar) this.diplomacy.pick(this.scene.ownerAt(tile), tile);
+        } else if (this.can.canOrder) this.diplomacy.pick(this.scene.ownerAt(tile), tile);
       },
       onSecondary: () => {
-        if (this.mode === "attack" || this.replayBar) return false;
+        if (this.mode === "attack" || !this.can.canOrder) return false;
         this.setMode("attack");
         return true;
       },
@@ -847,8 +838,7 @@ export class GameScreen {
 
   private apply(update: GameUpdate): void {
     // Read before the map takes the update in: it tells what the update took from the player.
-    const lost: LandLost | undefined =
-      this.options.record === undefined ? this.feed?.lost(update) : undefined;
+    const lost: LandLost | undefined = this.can.canOrder ? this.feed?.lost(update) : undefined;
     if (update.labels) this.anchors = update.labels;
     this.scene.update(update);
     this.previews.update(performance.now());
@@ -856,7 +846,7 @@ export class GameScreen {
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
     this.achievements.observe(update);
     this.sound?.observe(update);
-    if (this.options.record === undefined) this.alert.observe(update);
+    if (this.can.canOrder) this.alert.observe(update);
     if (human) this.guide.follow(update, human.tiles);
     if (this.guided) this.guide.hint(update);
     if (!this.focused && human && human.tiles > 0) {
@@ -867,7 +857,7 @@ export class GameScreen {
     this.latest = update;
     // What this screen shows from here on: hidden players go by their number.
     update = withHidden(update, this.hidden);
-    if (!this.replayBar) this.stats.observe(update);
+    if (this.can.canOrder) this.stats.observe(update);
     this.tracker?.observe(update, this.scene.report().frameMs, performance.now());
     // The panels watching it run now, before the rest of the update is taken in.
     this.shown.value = update;
@@ -879,7 +869,7 @@ export class GameScreen {
       this.outNoted = true;
       this.actions.onDecided?.();
     }
-    if (update.winner !== undefined && !this.ended && !this.replayBar) {
+    if (update.winner !== undefined && !this.ended && this.can.canOrder) {
       this.ended = true;
       this.hud.update(update, performance.now(), true);
       const team = update.winningTeam;
@@ -943,7 +933,7 @@ export class GameScreen {
       overlay: this.overlays.open,
       menu: this.diplomacy.open,
       mode: this.mode,
-      watching: this.replayBar !== undefined,
+      watching: !this.can.canOrder,
       disabled: this.disabled,
       globeAllowed: this.scene.globeAllowed,
       plainTarget: !(
@@ -968,7 +958,7 @@ export class GameScreen {
   private leave(): void {
     const latest = this.latest;
     const human = latest ? youOf(latest) : undefined;
-    const playing = !this.replayBar && !this.ended && human?.alive === true && human.tiles > 0;
+    const playing = this.can.canOrder && !this.ended && human?.alive === true && human.tiles > 0;
     if (playing && !window.confirm(t("hud.leaveConfirm"))) return;
     this.actions.onMenu();
   }
@@ -999,7 +989,7 @@ export class GameScreen {
 
   /** Online: the game so far as a desync report, or none on a generated map. */
   desyncReport(): Promise<DesyncReport | undefined> {
-    return this.session.report();
+    return this.session.desyncReport();
   }
 
   /** The game so far, to watch again; none on a generated map or in a replay. */
@@ -1009,13 +999,12 @@ export class GameScreen {
 
   /** Online: turns relayed by the server, in order. */
   pushTurns(turns: Turn[]): void {
-    this.pacer.push(turns, performance.now());
-    this.pacer.update(performance.now());
+    this.session.pushTurns(turns);
   }
 
   private togglePause(): void {
     if (this.ending) return;
-    if (this.link) {
+    if (!this.can.canPause) {
       // An online game runs for everyone: Esc only closes what is open.
       if (this.overlays.open) this.overlays.close();
       return;
@@ -1075,7 +1064,7 @@ export class GameScreen {
 
   /** The guide is for a solo game, not online and not in a replay. */
   private get guided(): boolean {
-    return this.link === undefined && this.options.record === undefined;
+    return this.can.guided;
   }
 
   private showHelp(): void {
@@ -1086,7 +1075,7 @@ export class GameScreen {
 
   private openHelp(helpPanel: typeof import("./help.ts").helpPanel): void {
     if (this.ending) return;
-    if (!this.link) this.overlays.pause();
+    if (this.can.canPause) this.overlays.pause();
     this.overlays.show(
       helpPanel({
         build: this.latest?.build,
@@ -1107,7 +1096,7 @@ export class GameScreen {
           };
         }),
         touch: this.coarsePointer.matches,
-        online: this.link !== undefined,
+        online: !this.can.canPause,
         onClose: () => {
           this.overlays.close();
         },
@@ -1124,7 +1113,7 @@ export class GameScreen {
 
   private showEnd(update: GameUpdate): void {
     // A solo game waits behind the end screen, so its record ends where the game did.
-    if (!this.link) this.overlays.pause();
+    if (this.can.canPause) this.overlays.pause();
     // The guide and the attacks in progress mean nothing once the game is decided.
     this.element.classList.add("decided");
     // Fetched long before, unless the game ended within moments of its start.
@@ -1159,12 +1148,12 @@ export class GameScreen {
           color: (player) => colorOf(player, this.firstNation, this.teams),
           achievements: this.achievements.earned,
           // Only a published map can be pinned in a record.
-          canRecord: this.published,
+          canRecord: this.published && this.can.recordable,
           teams: this.teams,
           special: this.special,
           operator: this.operator,
           details: `${this.options.map}, ${usage().device().device}`,
-          kind: this.link ? "online" : this.options.record ? "replay" : "solo",
+          kind: this.can.kind,
         },
         this.tracker,
         {

@@ -2,7 +2,7 @@ import { youOf } from "../../game/selectors.ts";
 import { safeStorage } from "../../storage.ts";
 import { TileKind } from "@frontfall/engine";
 import type { MapData, MapInfo } from "../../maps.ts";
-import type { GameUpdate } from "../../game/solo-game.ts";
+import type { GameUpdate } from "../../game/game-runner.ts";
 import type { MessageKey } from "../../i18n/index.ts";
 import { colorOf } from "../../palette.ts";
 import type { CameraView, ViewCamera } from "../../render/camera.ts";

@@ -40,7 +40,7 @@ describe("simulation build", () => {
     expect(files).toContain("packages/protocol/src/index.ts");
     expect(files).toContain("apps/client/public/maps/world.bin");
     expect(files).toContain("apps/client/src/game/simulation.ts");
-    expect(files).not.toContain("apps/client/src/game/solo-game.ts");
+    expect(files).not.toContain("apps/client/src/game/game-runner.ts");
     expect(files.some((file) => file.endsWith(".png") || file.includes("/test/"))).toBe(false);
   });
 
@@ -68,7 +68,7 @@ describe("simulation build", () => {
       simulationBuild(
         tree({
           ...BASE,
-          "apps/client/src/game/solo-game.ts": "export const e = 5;\n",
+          "apps/client/src/game/game-runner.ts": "export const e = 5;\n",
           "apps/client/public/maps/world.png": "picture",
           "packages/engine/README.md": "notes",
         }),

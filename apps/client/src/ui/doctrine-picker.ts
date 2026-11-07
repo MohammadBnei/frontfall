@@ -1,6 +1,6 @@
 import { youOf } from "../game/selectors.ts";
 import { DOCTRINE_EFFECTS, Doctrine, type DoctrineEffects } from "@frontfall/engine";
-import type { GameUpdate } from "../game/solo-game.ts";
+import type { GameUpdate } from "../game/game-runner.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
 import { h, setText } from "../dom.ts";
 

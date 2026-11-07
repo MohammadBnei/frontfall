@@ -40,7 +40,7 @@ import type { MapData } from "../maps.ts";
  * `step` relays the player's orders into the same kind of turn, so both go
  * down one path. Runs in a worker in the browser and directly in tests.
  */
-export class SoloGame {
+export class GameRunner {
   readonly game: Game;
   readonly ownableTiles: number;
   /** The player at this screen. */

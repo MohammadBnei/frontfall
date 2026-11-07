@@ -2,7 +2,7 @@ import { youOf } from "../game/selectors.ts";
 import { DEFAULT_BALANCE, Disable, QUICK_MESSAGES } from "@frontfall/engine";
 import type { ReportReason } from "@frontfall/protocol";
 import type { GameRules } from "../game/messages.ts";
-import type { GameUpdate } from "../game/solo-game.ts";
+import type { GameUpdate } from "../game/game-runner.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
 import { h, swatch } from "../dom.ts";
