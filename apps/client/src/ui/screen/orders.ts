@@ -1,3 +1,4 @@
+import { youOf } from "../../game/selectors.ts";
 import { soldiersOf } from "../../game/attack-preview.ts";
 import type { GameSession } from "../../game/session.ts";
 import type { ClickMode, GameUpdate } from "../../game/solo-game.ts";
@@ -60,7 +61,7 @@ export class Orders {
   gift(target: number, what: "troops" | "gold"): void {
     const update = this.playing();
     if (!update) return;
-    const you = update.players.find((p) => p.id === update.you);
+    const you = youOf(update);
     const held = you ? (what === "troops" ? soldiersOf(you) : you.gold) : 0;
     const amount = Math.floor((held * this.state.ratio()) / 100);
     if (amount < 1) return;
@@ -101,7 +102,7 @@ export class Orders {
   retaliate(tile: number, troops: number): void {
     const update = this.playing();
     if (!update) return;
-    const you = update.players.find((p) => p.id === update.you);
+    const you = youOf(update);
     if (!you) return;
     const send = Math.min(troops, Math.floor((soldiersOf(you) * this.state.ratio()) / 100));
     if (send < 1) return;

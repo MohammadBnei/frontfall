@@ -1,6 +1,6 @@
 import { getLanguage, onLanguageChange, type Language } from "../i18n/index.ts";
-import { h } from "../ui/dom.ts";
-import { soundSettings, updateSound } from "./settings.ts";
+import { h } from "../dom.ts";
+import { soundSettings, updateSound } from "../audio/settings.ts";
 
 /** These texts travel with the audio code, so the first visit does not carry them. */
 const TEXTS: Record<Language, { mute: string; volume: string; music: string }> = {

@@ -3,7 +3,7 @@ import type { ClickNote } from "../game/solo-game.ts";
 import type { MessageKey } from "../i18n/index.ts";
 import { t } from "../i18n/index.ts";
 import type { Camera } from "../render/camera.ts";
-import { h } from "./dom.ts";
+import { h } from "../dom.ts";
 
 /** How long a mark stays on the map, in milliseconds; the CSS animation matches it. */
 const MARK_MS = 700;

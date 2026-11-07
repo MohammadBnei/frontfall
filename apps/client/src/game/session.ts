@@ -1,5 +1,5 @@
 import type { Order } from "@frontfall/engine";
-import type { MapData } from "./maps.ts";
+import type { MapData } from "../maps.ts";
 import type { ClickOutcome, GameRules } from "./messages.ts";
 import type { ClickNote } from "./solo-game.ts";
 import type { ClickMode, ClickPreview, GameUpdate } from "./solo-game.ts";

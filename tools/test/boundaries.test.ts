@@ -511,3 +511,173 @@ describe("server ports", () => {
     ]);
   });
 });
+
+/** A client layer is the folder under apps/client/src, `root` for loose files, `app` for the entry point. */
+type Layer =
+  | "app"
+  | "ui"
+  | "game"
+  | "net"
+  | "render"
+  | "input"
+  | "audio"
+  | "achievements"
+  | "stats"
+  | "i18n"
+  | "root";
+
+/** What a layer may import: any layer in `runtime`, and the layers in `types` through `import type` only. */
+interface LayerRule {
+  readonly runtime: readonly Layer[];
+  readonly types?: readonly Layer[];
+}
+
+const ALL_LAYERS: readonly Layer[] = [
+  "app",
+  "ui",
+  "game",
+  "net",
+  "render",
+  "input",
+  "audio",
+  "achievements",
+  "stats",
+  "i18n",
+  "root",
+];
+
+/** The client layer table (ADR 0013, ADR 0014). A layer may always import itself. */
+const CLIENT_LAYERS: Record<Layer, LayerRule> = {
+  app: { runtime: ALL_LAYERS },
+  ui: {
+    runtime: ["game", "render", "input", "audio", "achievements", "stats", "i18n", "root"],
+    types: ["net"],
+  },
+  game: { runtime: ["i18n", "root"] },
+  net: { runtime: ["i18n", "root"] },
+  render: { runtime: ["i18n", "root"] },
+  input: { runtime: ["i18n", "root"], types: ["render"] },
+  audio: { runtime: ["i18n", "root"], types: ["game"] },
+  achievements: { runtime: ["i18n", "root"], types: ["game"] },
+  stats: { runtime: ["i18n", "root"], types: ["game"] },
+  i18n: { runtime: ["root"] },
+  root: { runtime: ["i18n", "root"] },
+};
+
+const clientSrc = join(root, "apps/client/src");
+
+function layerOf(file: string): Layer {
+  const parts = relative(clientSrc, file).split(sep);
+  if (parts.length === 1) return parts[0] === "main.ts" ? "app" : "root";
+  const folder = parts[0] as Layer;
+  if (!(folder in CLIENT_LAYERS)) {
+    throw new Error(
+      `${relative(root, file)}: no layer for folder ${folder}; add it to CLIENT_LAYERS`,
+    );
+  }
+  return folder;
+}
+
+interface ImportEdge {
+  file: string;
+  line: number;
+  specifier: string;
+  typeOnly: boolean;
+}
+
+/** Import and re-export declarations of one module, read from the syntax tree. */
+function importEdges(file: string, text: string): ImportEdge[] {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+  const edges: ImportEdge[] = [];
+  const add = (node: ts.Node, specifier: ts.Node | undefined, typeOnly: boolean): void => {
+    if (!specifier || !ts.isStringLiteralLike(specifier)) return;
+    const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+    edges.push({ file, line, specifier: specifier.text, typeOnly });
+  };
+  const allTypes = (bindings: ts.NamedImportBindings | ts.NamedExportBindings | undefined) =>
+    bindings !== undefined &&
+    (ts.isNamedImports(bindings) || ts.isNamedExports(bindings)) &&
+    bindings.elements.length > 0 &&
+    bindings.elements.every((element) => element.isTypeOnly);
+  const visit = (node: ts.Node): void => {
+    if (ts.isImportDeclaration(node)) {
+      const clause = node.importClause;
+      const typeOnly =
+        clause !== undefined &&
+        (clause.phaseModifier === ts.SyntaxKind.TypeKeyword ||
+          (clause.name === undefined && allTypes(clause.namedBindings)));
+      add(node, node.moduleSpecifier, typeOnly);
+    } else if (ts.isExportDeclaration(node)) {
+      add(node, node.moduleSpecifier, node.isTypeOnly || allTypes(node.exportClause));
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      const [argument] = node.arguments;
+      if (argument && ts.isStringLiteralLike(argument)) add(node, argument, false);
+      else throw new Error(`${relative(root, file)}: import() needs a literal argument`);
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
+      add(node, node.argument.literal, true);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return edges;
+}
+
+/** Layer rule breaches in a set of edges. A bare module is not a layer. */
+function layerViolations(edges: ImportEdge[], layerFor: (file: string) => Layer): string[] {
+  return edges.flatMap(({ file, line, specifier, typeOnly }) => {
+    if (!specifier.startsWith(".")) return [];
+    const target = resolve(dirname(file), specifier.replace(/\?.*$/, ""));
+    if (relative(clientSrc, target).startsWith("..")) return [];
+    const from = layerFor(file);
+    const to = layerFor(target);
+    if (from === to) return [];
+    const rule = CLIENT_LAYERS[from];
+    if (rule.runtime.includes(to)) return [];
+    if (typeOnly && rule.types?.includes(to)) return [];
+    const where = `${relative(root, file)}:${String(line)}`;
+    return [`${where}: ${from} may not import ${to}${typeOnly ? " (types)" : ""}: ${specifier}`];
+  });
+}
+
+describe("client layers", () => {
+  it("keeps every client import inside the layer table", () => {
+    const edges = sourceFiles(clientSrc).flatMap((file) =>
+      importEdges(file, readFileSync(file, "utf8")),
+    );
+    expect(layerViolations(edges, layerOf)).toEqual([]);
+  });
+
+  it("tells type-only imports and re-exports from runtime ones", () => {
+    const text = [
+      'import type { A } from "./a.ts";',
+      'import { type B } from "./b.ts";',
+      'import { type C, d } from "./c.ts";',
+      'export type { D } from "./d.ts";',
+      'export { E } from "./e.ts";',
+      'const lazy = import("./f.ts");',
+    ].join("\n");
+    const edges = importEdges("x.ts", text);
+    expect(edges.map((edge) => [edge.specifier, edge.typeOnly])).toEqual([
+      ["./a.ts", true],
+      ["./b.ts", true],
+      ["./c.ts", false],
+      ["./d.ts", true],
+      ["./e.ts", false],
+      ["./f.ts", false],
+    ]);
+  });
+
+  it("allows a layer's listed type imports and rejects them as runtime imports", () => {
+    const layerFor = (file: string): Layer => (file.includes("/net/") ? "net" : "ui");
+    const file = join(clientSrc, "ui/a.ts");
+    const edge = { file, line: 1, specifier: "../net/online.ts" };
+    expect(layerViolations([{ ...edge, typeOnly: true }], layerFor)).toEqual([]);
+    expect(layerViolations([{ ...edge, typeOnly: false }], layerFor)).toHaveLength(1);
+    // render lists no layer for types, so even `import type` upward is refused.
+    const fromRender = (file: string): Layer => (file.includes("/render/") ? "render" : "ui");
+    const up = { file: join(clientSrc, "render/a.ts"), line: 3, specifier: "../ui/b.ts" };
+    expect(layerViolations([{ ...up, typeOnly: true }], fromRender)).toEqual([
+      "apps/client/src/render/a.ts:3: render may not import ui (types): ../ui/b.ts",
+    ]);
+  });
+});

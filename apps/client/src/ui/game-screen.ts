@@ -1,3 +1,6 @@
+import { youOf } from "../game/selectors.ts";
+import { haptic } from "./haptics.ts";
+import { safeStorage } from "../storage.ts";
 import {
   NO_OPERATOR,
   type DesyncReport,
@@ -5,13 +8,13 @@ import {
   type OperatorBonuses,
   type Turn,
 } from "@frontfall/engine";
-import { probe } from "./probe.ts";
+import { probe } from "../probe.ts";
 import { accessibility, motionReduced, onMotionChange } from "./accessibility.ts";
 import { TICK_RATE } from "@frontfall/protocol";
 import { BASE_PACE } from "../game/pace.ts";
 import { LocalSession, SOLO_SNAPSHOT_REFUSED, type ServerLink } from "../game/local-session.ts";
 import { TurnPacer } from "../game/turn-pacer.ts";
-import type { MapInfo, MapLandmarkData } from "../game/maps.ts";
+import type { MapInfo, MapLandmarkData } from "../maps.ts";
 import type { ClickOutcome } from "../game/messages.ts";
 import type { ClickMode, GameSnapshot, GameUpdate, SoloOptions } from "../game/solo-game.ts";
 import { InputController } from "../input/controller.ts";
@@ -25,7 +28,6 @@ import {
 } from "../i18n/index.ts";
 import type { ViewKind } from "../render/renderer.ts";
 import { chaptersDone, guideDone, markChapter, setGuideDone } from "./guide-state.ts";
-import { safeStorage } from "./setup.ts";
 // The end screen loads while the game starts, out of the first download.
 import type { endScreen } from "./end-screen.ts";
 // Only replays show the bar: it loads with the replay, out of the first download.
@@ -387,7 +389,7 @@ export class GameScreen {
             import("../audio/sound.ts").then(
               (module) => {
                 if (this.disposed) return;
-                this.sound = new module.Sound(() => this.scene.camera);
+                this.sound = new module.Sound(() => this.scene.camera, haptic);
               },
               () => undefined,
             );
@@ -799,7 +801,7 @@ export class GameScreen {
     if (update.labels) this.anchors = update.labels;
     this.scene.update(update);
     this.previews.update(performance.now());
-    const human = update.players.find((player) => player.id === update.you);
+    const human = youOf(update);
     if (human) this.peakTiles = Math.max(this.peakTiles, human.tiles);
     this.achievements.observe(update);
     this.sound?.observe(update);
@@ -924,7 +926,7 @@ export class GameScreen {
   /** Back to the menu; asks first while the player still has a game to lose. */
   private leave(): void {
     const latest = this.latest;
-    const human = latest?.players.find((player) => player.id === latest.you);
+    const human = latest ? youOf(latest) : undefined;
     const playing = !this.replayBar && !this.ended && human?.alive === true && human.tiles > 0;
     if (playing && !window.confirm(t("hud.leaveConfirm"))) return;
     this.actions.onMenu();
@@ -933,7 +935,7 @@ export class GameScreen {
   /** Whether the player has been wiped out of the game. */
   private out(): boolean {
     const latest = this.latest;
-    const human = latest?.players.find((player) => player.id === latest.you);
+    const human = latest ? youOf(latest) : undefined;
     return human !== undefined && (!human.alive || human.tiles === 0) && this.focused;
   }
 

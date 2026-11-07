@@ -1,6 +1,6 @@
 import type { Order, Turn } from "@frontfall/engine";
 import { transferables, type WorkerReply, type WorkerRequest } from "./messages.ts";
-import { fetchMapData } from "./maps.ts";
+import { fetchMapData } from "../maps.ts";
 import { BeatClock } from "./beat-clock.ts";
 import { REPLAY_MAP_CHANGED, REPLAY_SPEEDS, sameReplayMap } from "./replay-rules.ts";
 import { BASE_PACE } from "./pace.ts";

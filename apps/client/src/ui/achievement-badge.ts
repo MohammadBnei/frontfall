@@ -1,5 +1,5 @@
-import { installSprite, type IconName } from "../ui/icons.ts";
-import { CATALOGUE, type AchievementId } from "./catalog.ts";
+import { installSprite, type IconName } from "./icons.ts";
+import { CATALOGUE, type AchievementId } from "../achievements/catalog.ts";
 
 const NS = "http://www.w3.org/2000/svg";
 

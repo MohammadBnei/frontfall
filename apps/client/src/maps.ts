@@ -1,6 +1,6 @@
 import { TileKind, WorldGrid, loadMap, type LandmarkEffect } from "@frontfall/engine";
 import { MapCatalog, MapManifest } from "@frontfall/protocol";
-import { generateLand } from "../terrain.ts";
+import { generateLand } from "./terrain.ts";
 
 /** Everything the simulation and the renderer need to know about a map. */
 export interface MapData {

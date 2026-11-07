@@ -1,5 +1,5 @@
-import { accessibility, motionReduced } from "../ui/accessibility.ts";
-import type { Cue } from "./cues.ts";
+import { accessibility, motionReduced } from "./accessibility.ts";
+import type { Cue } from "../audio/cues.ts";
 
 /** Vibration patterns in milliseconds, kept short: a touch to feel, not a buzz to endure. */
 const PATTERNS: Partial<Record<Cue, number | number[]>> = {

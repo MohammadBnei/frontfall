@@ -40,13 +40,13 @@ flowchart TD
 
 The server does not import the engine: it relays orders and never simulates ([ADR 0001](adr/0001-deterministic-lockstep.md)).
 
-`tools/test/boundaries.test.ts` states these rules ([0014](adr/0014-enforced-boundaries.md)). It enforces the package rules, the absence of runtime cycles in every package and app, and owner-only writes of the engine's lists today; the client layer table is the target. The server may still import `ws` until it moves to `Bun.serve`.
+`tools/test/boundaries.test.ts` states these rules ([0014](adr/0014-enforced-boundaries.md)). It enforces the package rules, the absence of runtime cycles in every package and app, owner-only writes of the engine's lists, and the client layer table.
 
 - The contracts import nothing.
 - The engine imports `@frontfall/contracts` only.
 - The protocol imports zod and contracts.
 - The server imports the protocol, zod, nodemailer, `node:*` and `bun:*`.
-- The client follows a layer table. `app/` may import anything. `ui/` imports game, render, input, audio, achievements, stats, root files, and `net` for types. `game/` and `net/` import root files. `render/` imports root files. `input/` imports render types. `audio/`, `achievements/` and `stats/` import game types and root files. Root files import root files and `i18n` only.
+- The client follows a layer table. `app/` may import anything. `ui/` imports game, render, input, audio, achievements, stats, root files, and `net` for types. `game/` and `net/` import root files. `render/` imports root files. `input/` imports render types. `audio/`, `achievements/` and `stats/` import game types and root files. Root files import root files and `i18n` only. Every layer may import `i18n`, which imports root files only.
 - No import cycle at runtime inside a package: a cycle through `import type` only is allowed.
 - Only the owning module writes an engine collection ([0010](adr/0010-collection-ownership.md)).
 

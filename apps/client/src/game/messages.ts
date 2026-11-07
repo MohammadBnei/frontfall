@@ -7,7 +7,7 @@ import type {
   Turn,
 } from "@frontfall/engine";
 import type { MapManifest } from "@frontfall/protocol";
-import type { MapInfo } from "./maps.ts";
+import type { MapInfo } from "../maps.ts";
 import type { StartInfo } from "./session.ts";
 import type {
   ClickMode,

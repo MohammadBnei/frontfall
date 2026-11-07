@@ -1,5 +1,7 @@
+import { youOf } from "../../game/selectors.ts";
+import { safeStorage } from "../../storage.ts";
 import { TileKind } from "@frontfall/engine";
-import type { MapData, MapInfo } from "../../game/maps.ts";
+import type { MapData, MapInfo } from "../../maps.ts";
 import type { GameUpdate } from "../../game/solo-game.ts";
 import type { MessageKey } from "../../i18n/index.ts";
 import { colorOf } from "../../palette.ts";
@@ -29,8 +31,7 @@ import {
 } from "../graphics.ts";
 import { usage } from "../../usage.ts";
 import { accessibility, motionReduced } from "../accessibility.ts";
-import { probe } from "../probe.ts";
-import { safeStorage } from "../setup.ts";
+import { probe } from "../../probe.ts";
 import { sailing, ShipMotion } from "./ship-motion.ts";
 
 /** Between two frames drawn for slow motion alone: 30 a second. The frame clock jitters, hence the margin. */
@@ -409,7 +410,7 @@ export class MapScene {
         if (tile !== undefined) this.view?.eliminated?.(tile, colorOf(event.b, firstNation, teams));
       }
     }
-    const mine = update.players.find((p) => p.id === update.you)?.capital;
+    const mine = youOf(update)?.capital;
     this.view?.capitalThreat?.(update.capitals?.threat ? mine : undefined);
     this.lightHovered();
     this.placeStructures(update);

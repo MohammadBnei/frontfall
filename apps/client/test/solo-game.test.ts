@@ -7,7 +7,7 @@ import {
   type Structure,
 } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
-import { GENERATED_MAPS, generateMap } from "../src/game/maps.ts";
+import { GENERATED_MAPS, generateMap } from "../src/maps.ts";
 import { HUMAN_ID, SoloGame, type SoloOptions } from "../src/game/solo-game.ts";
 import { gameUpdate } from "../src/game/game-update.ts";
 import { labelSpace } from "../src/game/label-anchors.ts";

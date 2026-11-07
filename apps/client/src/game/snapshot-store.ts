@@ -1,5 +1,5 @@
 import type { Turn } from "@frontfall/engine";
-import type { GameSnapshot, SoloOptions } from "../game/solo-game.ts";
+import type { GameSnapshot, SoloOptions } from "./solo-game.ts";
 import type { GameFacts } from "../usage.ts";
 
 /**

@@ -3,6 +3,36 @@
 The browser client lives in [`apps/client`](../apps/client). This document
 covers the conventions that are not obvious from the code.
 
+## Layers
+
+`apps/client/src` is divided into layers, and `tools/test/boundaries.test.ts`
+fails when a file imports a layer it may not (ADR 0013, ADR 0014). A layer may
+always import itself.
+
+| Layer                               | May import                                                        |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `main.ts` (the app)                 | anything                                                          |
+| `ui/` (with `ui/screen/`)           | game, render, input, audio, achievements, stats, root; net, types |
+| `game/`, `net/`, `render/`          | root                                                              |
+| `input/`                            | root; render, types                                               |
+| `audio/`, `achievements/`, `stats/` | root; game, types                                                 |
+| root files                          | root files and `i18n`                                             |
+
+Every layer may also import `i18n`, the translations, which imports root files
+only.
+
+Root files are the ones directly in `src/`: `build`, `palette`, `usage`,
+`release`, `compat`, `terrain`, `maps`, `webgl-support`, `dom` (the `h`
+element helper), `probe` and `storage`. Browser storage is reached only
+through `storage.ts`, which answers `undefined` where touching it throws.
+The sound settings (`audio/settings.ts`) are the one exception: they read
+`localStorage` inside their own `try`, as importing `storage.ts` there would
+split it into a chunk of its own that the first visit loads too.
+A new folder in `src/` needs a line in the table in the test.
+
+The list of bot levels and the default rules live in `game/defaults.ts`, and
+`youOf(update)` in `game/selectors.ts` finds the player a screen plays.
+
 ## How a solo game runs
 
 ```text
@@ -45,7 +75,7 @@ covers the conventions that are not obvious from the code.
   constructor, `markChanged` and `setShips`, and `render(view)`, because the
   page, not the renderer, holds the game state.
 - The menu lists the maps of `maps/index.json`, the World first, then small
-  generated test maps (`game/maps.ts`), reduced to their largest landmass. The
+  generated test maps (`maps.ts`), reduced to their largest landmass. The
   page downloads and checks a published map's manifest, so the worker does
   without the schema library; the worker downloads the terrain and checks it
   against the manifest (`loadMap` of the engine) before the game starts, then hands the page a copy
@@ -164,7 +194,7 @@ game this browser kept (#39), like a reload.
 
 A solo game is kept too. The worker sends a snapshot 15 seconds into the
 game, then every 30 seconds, and whenever the page goes to the background;
-the page keeps the last one in IndexedDB (`net/snapshot-store.ts`, key
+the page keeps the last one in IndexedDB (`game/snapshot-store.ts`, key
 `solo`) with the options the game started with. A reload goes straight back
 to it, paused; a page opened again offers it over the menu. The game is
 forgotten once it is decided, left from the menu, or replaced by another one.

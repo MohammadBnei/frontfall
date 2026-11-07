@@ -1,10 +1,11 @@
+import { youOf } from "../game/selectors.ts";
 import { DEFAULT_BALANCE, Disable, QUICK_MESSAGES } from "@frontfall/engine";
 import type { ReportReason } from "@frontfall/protocol";
 import type { GameRules } from "../game/messages.ts";
 import type { GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
 import { colorOf } from "../palette.ts";
-import { h, swatch } from "./dom.ts";
+import { h, swatch } from "../dom.ts";
 import { formatCount, formatPercent } from "./format.ts";
 
 const TRIBUTE_LEAD_PERCENT = DEFAULT_BALANCE.tributeLeadPercent;
@@ -288,7 +289,7 @@ export class DiplomacyPanel {
         className: "ask",
       });
       // Only a clearly stronger player takes tribute (B-TRIBUTE-LEAD), and it costs gold.
-      const payer = update.players.find((p) => p.id === update.you);
+      const payer = youOf(update);
       buttons.push({
         key: "diplo.tribute",
         params: { gold: formatCount(diplomacy.tributePrice) },
@@ -331,7 +332,7 @@ export class DiplomacyPanel {
 
     // Gifts go to allies and teammates (R-DIPLO-06).
     const war = diplomacy.atWar.includes(id);
-    const you = update.players.find((p) => p.id === update.you);
+    const you = youOf(update);
     const share = this.actions.share();
     const percent = { percent: formatPercent(share / 100) };
     // Troops go only where the receiver's cap has room for them.

@@ -1,7 +1,8 @@
+import { youOf } from "../game/selectors.ts";
 import { DOCTRINE_EFFECTS, Doctrine, type DoctrineEffects } from "@frontfall/engine";
 import type { GameUpdate } from "../game/solo-game.ts";
 import { t, type MessageKey } from "../i18n/index.ts";
-import { h, setText } from "./dom.ts";
+import { h, setText } from "../dom.ts";
 
 /** The doctrines offered, in the order of their cards (R-DOCTRINE). */
 const OFFERED = [Doctrine.Conqueror, Doctrine.Merchant, Doctrine.Bastion] as const;
@@ -99,7 +100,7 @@ export class DoctrinePicker {
       if (!open) this.pending = undefined;
     }
     if (!open) return;
-    const you = update.players.find((player) => player.id === update.you);
+    const you = youOf(update);
     const seconds = Math.ceil(update.spawnTicksLeft / ticksPerSecond);
     setText(this.timer, t("doctrine.timer", { seconds }));
     this.mark(this.pending ?? you?.doctrine);

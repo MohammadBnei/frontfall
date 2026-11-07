@@ -1,3 +1,4 @@
+import { DIFFICULTIES, defaultRules } from "../game/defaults.ts";
 import { accessibilityPanel } from "./accessibility.ts";
 import { CATALOGUE } from "../achievements/catalog.ts";
 import { REPLAY_EXTENSION } from "../game/replay-file.ts";
@@ -7,8 +8,8 @@ import {
   suggestedBots,
   thumbnailScale,
   type MapInfo,
-} from "../game/maps.ts";
-import { MAX_BOTS, type Difficulty } from "../game/solo-game.ts";
+} from "../maps.ts";
+import { MAX_BOTS } from "../game/solo-game.ts";
 import {
   LANGUAGES,
   applyTranslations,
@@ -26,14 +27,13 @@ import { MAP_COLORS, hexToRgb } from "../palette.ts";
 import { betaBadge } from "./beta.ts";
 import { achievementsPanel, earnedCount } from "./achievements.ts";
 import { feedbackLinks } from "./feedback.ts";
-import { h, present } from "./dom.ts";
+import { h, present } from "../dom.ts";
 import type { ProfileControl } from "./profile-panel.ts";
-import { defaultRules, rulesFieldset } from "./rules-fieldset.ts";
+import { rulesFieldset } from "./rules-fieldset.ts";
 import { MAX_NAME_LENGTH, TEAM_CHOICES, cleanName, type GameSetup } from "./setup.ts";
 
 /** Sent on the document once the profile is erased, so that what shows it can change. */
 const PROFILE_FORGOTTEN = "frontfall:profile-forgotten";
-const DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
 /** How often the list of public games is fetched again while the menu shows. */
 const GAMES_REFRESH_MS = 3_000;
 

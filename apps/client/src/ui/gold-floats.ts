@@ -1,6 +1,6 @@
 import { t } from "../i18n/index.ts";
 import type { Camera } from "../render/camera.ts";
-import { h } from "./dom.ts";
+import { h } from "../dom.ts";
 import { formatCount } from "./format.ts";
 
 /** How long a figure stays on the map, in milliseconds; the CSS animation matches it. */

@@ -2,7 +2,7 @@ import type { DesyncReport, GameRecord, Order, Turn } from "@frontfall/engine";
 import type { ReportReason } from "@frontfall/protocol";
 import type { WorkerReply, WorkerRequest } from "./messages.ts";
 import type { GameSession, SessionEvents } from "./session.ts";
-import { fetchManifest, type MapInfo } from "./maps.ts";
+import { fetchManifest, type MapInfo } from "../maps.ts";
 import type { ClickMode, GameSnapshot, SoloOptions } from "./solo-game.ts";
 import { usage } from "../usage.ts";
 

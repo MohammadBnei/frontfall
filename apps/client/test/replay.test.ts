@@ -1,6 +1,6 @@
 import { TileKind } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
-import { generateMap, type MapData } from "../src/game/maps.ts";
+import { generateMap, type MapData } from "../src/maps.ts";
 import {
   readReplayFile,
   replayFile,

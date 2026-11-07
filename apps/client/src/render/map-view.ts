@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { MAP_COLORS, STRUCTURE_COLORS } from "../palette.ts";
-import { probe } from "../ui/probe.ts";
+import { probe } from "../probe.ts";
 import type { CameraView } from "./camera.ts";
 import type { EffectsLayer } from "./effects-layer.ts";
 import type { FalloutLayer } from "./fallout-layer.ts";

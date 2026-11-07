@@ -14,7 +14,7 @@ import {
   type Turn,
 } from "@frontfall/engine";
 import { HASH_INTERVAL, PROTOCOL_VERSION } from "@frontfall/protocol";
-import { BUILD } from "../net/build.ts";
+import { BUILD } from "../build.ts";
 import { RELEASE } from "../release.ts";
 import type {
   ClickMode,
@@ -32,7 +32,7 @@ import { HUMAN_ID, TUTORIAL_SHELTER, createSimulation, newSetup } from "./simula
 
 export type * from "./game-view.ts";
 export { HUMAN_ID, MAX_BOTS } from "./simulation.ts";
-import type { MapData } from "./maps.ts";
+import type { MapData } from "../maps.ts";
 
 /**
  * One game as this client runs it: the engine with every rule installed and

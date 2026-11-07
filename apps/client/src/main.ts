@@ -1,8 +1,9 @@
 // First: before the schemas are built, so that none is compiled (the page forbids it).
 import "@frontfall/protocol/jitless";
+import { DEFAULT_DIFFICULTY, defaultRules } from "./game/defaults.ts";
+import { safeStorage } from "./storage.ts";
 import type { GameRecord } from "@frontfall/engine";
 import {
-  DEFAULT_RULES,
   GAME_SPEEDS,
   type GameOptions,
   type GameSpeed,
@@ -17,10 +18,10 @@ import {
   t,
   type MessageKey,
 } from "./i18n/index.ts";
-import { fetchMaps, QUICK_MAP, warmMap, type MapInfo } from "./game/maps.ts";
+import { fetchMaps, QUICK_MAP, warmMap, type MapInfo } from "./maps.ts";
 import { prebakeGround } from "./render/prebaked-ground.ts";
 import { readReplayFile, replayFile, replayFileName } from "./game/replay-file.ts";
-import { BUILD } from "./net/build.ts";
+import { BUILD } from "./build.ts";
 import { awaySeat, forgetSeat, saveSeat, seatHeldFor, seatIn, touchSeat } from "./net/seat.ts";
 import {
   forgetSnapshot,
@@ -31,7 +32,7 @@ import {
   storedSoloGame,
   type SoloSave,
   type StoredSnapshot,
-} from "./net/snapshot-store.ts";
+} from "./game/snapshot-store.ts";
 import {
   OnlineClient,
   socketUrl,
@@ -41,25 +42,18 @@ import {
 } from "./net/online.ts";
 import type { ViewKind } from "./render/renderer.ts";
 import { FEATURE_LABELS, missingFeatures } from "./compat.ts";
-import { hasWebGL2 } from "./render/webgl-support.ts";
+import { hasWebGL2 } from "./webgl-support.ts";
 import { loadAccessibility } from "./ui/accessibility.ts";
 import type { GameScreen } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
-import { h } from "./ui/dom.ts";
+import { h } from "./dom.ts";
 import { JoinScreen } from "./ui/join.ts";
 import { AchievementStore } from "./achievements/store.ts";
 import { Menu } from "./ui/menu.ts";
 import type { LocalProfile } from "./ui/profile.ts";
 import { HUMAN_ID } from "./game/simulation.ts";
 import { preferColor } from "./palette.ts";
-import {
-  forgetSetup,
-  initialSetup,
-  safeStorage,
-  saveSetup,
-  setupQuery,
-  type GameSetup,
-} from "./ui/setup.ts";
+import { forgetSetup, initialSetup, saveSetup, setupQuery, type GameSetup } from "./ui/setup.ts";
 import { usage } from "./usage.ts";
 
 loadAccessibility();
@@ -271,9 +265,9 @@ function tutorial(): void {
   const practice: GameSetup = {
     map: maps.some((candidate) => candidate.id === TUTORIAL_MAP) ? TUTORIAL_MAP : "skirmish",
     bots: 2,
-    difficulty: "easy",
+    difficulty: DEFAULT_DIFFICULTY,
     nations: false,
-    rules: { ...DEFAULT_RULES },
+    rules: defaultRules(),
     playerName: setup.playerName,
     tutorial: true,
   };
@@ -317,7 +311,7 @@ function begin(map: MapInfo, code: GameModule, chosen: GameSetup = setup, saved?
     humans: 1,
     difficulty: setup.difficulty,
     disabled: setup.disabled ?? 0,
-    rules: { ...DEFAULT_RULES, ...setup.rules },
+    rules: { ...defaultRules(), ...setup.rules },
   };
   /** Back to the menu or to another game: the game is not kept any more. */
   const done = (then: () => void) => (): void => {
@@ -946,7 +940,7 @@ function initialOptions(
     ...rematchSpeed(chosen.speed),
     // The special rules chosen in the menu, which only a private game may change (R-MODE-08).
     ...(visibility === "private" && chosen.rules
-      ? { rules: { ...DEFAULT_RULES, ...chosen.rules } }
+      ? { rules: { ...defaultRules(), ...chosen.rules } }
       : {}),
   };
 }

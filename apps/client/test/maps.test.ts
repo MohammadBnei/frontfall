@@ -15,7 +15,7 @@ import {
   fetchMaps,
   warmMap,
   type MapInfo,
-} from "../src/game/maps.ts";
+} from "../src/maps.ts";
 import { SoloGame } from "../src/game/solo-game.ts";
 import { CITY_STATES_PER_NATION } from "../src/game/simulation.ts";
 import { botLimit, onlineMaps } from "../src/ui/lobby.ts";
