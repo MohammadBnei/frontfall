@@ -380,3 +380,78 @@ describe("owner-only writes of the engine's lists (ADR 0010)", () => {
     ]);
   });
 });
+
+/**
+ * Reads of the time and of the random source in a file, found in its syntax
+ * so that comments and strings do not count: `Date.now()`, `new Date()` with
+ * no argument, `performance.now()`, the global timers, `Math.random()` and
+ * the random functions of `node:crypto`.
+ */
+function clockAndRandomness(file: string): string[] {
+  const source = ts.createSourceFile(
+    file,
+    readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const found: string[] = [];
+  const timers = new Set(["setTimeout", "setInterval", "clearTimeout", "clearInterval"]);
+  const randomness = new Set(["randomBytes", "randomInt", "randomUUID", "getRandomValues"]);
+  const visit = (node: ts.Node): void => {
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+      const name = `${node.expression.text}.${node.name.text}`;
+      if (["Date.now", "performance.now", "Math.random"].includes(name)) found.push(name);
+    }
+    // The global timers, called or passed on; `clock.setTimeout` and a member named so are not them.
+    const parent = node.parent as ts.Node | undefined;
+    if (
+      ts.isIdentifier(node) &&
+      timers.has(node.text) &&
+      parent !== undefined &&
+      !(ts.isPropertyAccessExpression(parent) && parent.name === node) &&
+      !(
+        (ts.isPropertyAssignment(parent) ||
+          ts.isMethodSignature(parent) ||
+          ts.isMethodDeclaration(parent)) &&
+        parent.name === node
+      )
+    ) {
+      found.push(node.text);
+    }
+    if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "Date" &&
+      (node.arguments?.length ?? 0) === 0
+    ) {
+      found.push("new Date()");
+    }
+    if (ts.isImportSpecifier(node) && randomness.has((node.propertyName ?? node.name).text)) {
+      found.push(`import ${(node.propertyName ?? node.name).text}`);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found.map((what) => `${relative(root, file)}: ${what}`);
+}
+
+describe("server ports", () => {
+  const serverSources = join(root, "apps/server/src");
+
+  it("reads the time and draws random values through the Clock and Ids ports only", () => {
+    const ports = new Set([join(serverSources, "clock.ts"), join(serverSources, "ids.ts")]);
+    const files = sourceFiles(serverSources).filter((file) => !ports.has(file));
+    expect(files.flatMap(clockAndRandomness)).toEqual([]);
+  });
+
+  it("finds a read of the clock or of the random source", () => {
+    const kinds = (file: string) =>
+      clockAndRandomness(join(serverSources, file)).map((line) => line.split(": ")[1]);
+    expect(kinds("clock.ts")).toEqual(
+      expect.arrayContaining(["Date.now", "performance.now", "setTimeout", "clearInterval"]),
+    );
+    expect(kinds("ids.ts")).toEqual(
+      expect.arrayContaining(["import randomBytes", "import randomInt", "Math.random"]),
+    );
+  });
+});

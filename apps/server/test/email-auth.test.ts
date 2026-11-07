@@ -2,11 +2,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { accountsFile } from "../src/accounts.ts";
 import type { Logger } from "../src/log.ts";
 import { mailbox, mailFailure, readSmtpSettings, type MailMessage } from "../src/mail.ts";
 import { createGameServer, type GameServer } from "../src/server.ts";
+import { FakeClock } from "./support/fake-clock.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
 const ORIGIN = "https://play.example";
@@ -18,8 +19,11 @@ let server: GameServer | undefined;
 let sent: MailMessage[];
 let fail: boolean;
 let lines: string[];
+/** The server's time, moved by the tests that wait hours or days. */
+let clock: FakeClock;
 
 beforeEach(() => {
+  clock = new FakeClock();
   staticRoot = mkdtempSync(join(tmpdir(), "frontfall-static-"));
   dataDir = mkdtempSync(join(tmpdir(), "frontfall-data-"));
   writeFileSync(join(staticRoot, "index.html"), "<!doctype html>");
@@ -47,6 +51,7 @@ async function start(dailyLimit?: number, bindToBrowser = false): Promise<string
     dataDir,
     allowedOrigin: ORIGIN,
     logger,
+    clock,
     auth: {
       publicUrl: `${ORIGIN}/game`,
       sessionSecret: SECRET,
@@ -307,38 +312,28 @@ describe("sign-in by email", () => {
   });
 
   it("keeps one network from spending the day's links alone", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    try {
-      const base = await start();
-      const statuses: number[] = [];
-      for (let i = 0; i < 11; i++) {
-        statuses.push(
-          (await post(base, "/auth/email", { email: `p${String(i)}@example.org` })).status,
-        );
-        vi.setSystemTime(Date.now() + 301_000);
-      }
-      expect(statuses.slice(0, 10).every((status) => status === 202)).toBe(true);
-      expect(statuses[10]).toBe(429);
-    } finally {
-      vi.useRealTimers();
+    const base = await start();
+    const statuses: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      statuses.push(
+        (await post(base, "/auth/email", { email: `p${String(i)}@example.org` })).status,
+      );
+      clock.advance(301_000);
     }
+    expect(statuses.slice(0, 10).every((status) => status === 202)).toBe(true);
+    expect(statuses[10]).toBe(429);
   });
 
   it("sends one mailbox at most three links in a day", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    try {
-      const base = await start();
-      // Asked every hour and a bit, so the hourly allowance is never the limit, the day's is.
-      // The answer is the same each time: the hold is not told.
-      for (let i = 0; i < 6; i++) {
-        expect((await post(base, "/auth/email", { email: "nelly@example.org" })).status).toBe(202);
-        vi.setSystemTime(Date.now() + 3_700_000);
-      }
-      await settle();
-      expect(sent).toHaveLength(3);
-    } finally {
-      vi.useRealTimers();
+    const base = await start();
+    // Asked every hour and a bit, so the hourly allowance is never the limit, the day's is.
+    // The answer is the same each time: the hold is not told.
+    for (let i = 0; i < 6; i++) {
+      expect((await post(base, "/auth/email", { email: "nelly@example.org" })).status).toBe(202);
+      clock.advance(3_700_000);
     }
+    await settle();
+    expect(sent).toHaveLength(3);
   });
 
   it("counts links by the mailbox they reach", async () => {

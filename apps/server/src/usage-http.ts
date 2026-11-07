@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { MAX_USAGE_BYTES, parseUsageReport, scrubMessage } from "@frontfall/protocol";
 import { groupId } from "./client-errors.ts";
+import { systemClock } from "./clock.ts";
 import type { Logger } from "./log.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import type { UsageStats } from "./usage.ts";
@@ -33,7 +34,7 @@ export function usageInbox(
   stats: UsageStats,
   logger: Logger,
   isAllowed: (origin: string | undefined) => boolean,
-  now: () => number = Date.now,
+  now: () => number = () => systemClock.now(),
   maxAddresses = MAX_ADDRESSES,
 ): UsageInbox {
   const buckets = new Map<string, { bucket: TokenBucket; usedAt: number }>();

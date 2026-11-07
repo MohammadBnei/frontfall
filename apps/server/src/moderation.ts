@@ -1,10 +1,12 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { isIP } from "node:net";
 import { join } from "node:path";
 import type { ReportReason } from "@frontfall/protocol";
 import { network } from "./address.ts";
 import { AddressRate } from "./rate-limit.ts";
+import { systemClock, type Clock, type Timer } from "./clock.ts";
+import { systemIds, type Ids } from "./ids.ts";
 
 /** Reports older than this are forgotten (R-MODE-06). */
 export const REPORT_DAYS = 30;
@@ -99,17 +101,21 @@ export class Moderation {
   private reports: Report[] = [];
   private bans: Ban[] = [];
   private readonly rate: AddressRate;
-  private saveTimer: ReturnType<typeof setTimeout> | undefined;
+  private saveTimer: Timer | undefined;
 
   /**
    * @param directory where the key, the reports and the ban list are kept;
    * undefined keeps them in memory, with references that change at each start.
    * The ban list is read by `reload`, which says when the file does not read.
+   * @param clock the time, and the timer of the next write of the reports.
+   * @param ids where a new key is drawn.
    */
   constructor(
     private readonly directory: string | undefined,
     now: number,
     rate = { perSecond: 1 / 120, burst: 5 },
+    private readonly clock: Clock = systemClock,
+    private readonly ids: Ids = systemIds,
   ) {
     this.rate = new AddressRate(rate.perSecond, rate.burst, now);
     this.key = this.loadKey();
@@ -244,7 +250,7 @@ export class Moderation {
    * Reads the ban list again, after the operator edited the file by hand.
    * A file that does not read leaves the list as it was, and throws.
    */
-  reload(now = Date.now()): void {
+  reload(now = this.clock.now()): void {
     if (this.directory === undefined) return;
     const text = readIfAny(this.file("bans.json"));
     // Bans that ran out are dropped, and leave the file at its next write.
@@ -257,14 +263,14 @@ export class Moderation {
   /** Writes the reports not yet written, as the server stops. */
   flush(): void {
     if (this.saveTimer === undefined) return;
-    clearTimeout(this.saveTimer);
+    this.saveTimer.clear();
     this.saveTimer = undefined;
     this.save("reports.json", { reports: this.reports });
   }
 
   private saveReportsSoon(): void {
     if (this.directory === undefined || this.saveTimer !== undefined) return;
-    this.saveTimer = setTimeout(() => {
+    this.saveTimer = this.clock.setTimeout(() => {
       this.saveTimer = undefined;
       try {
         this.save("reports.json", { reports: this.reports });
@@ -290,12 +296,12 @@ export class Moderation {
   }
 
   private loadKey(): Buffer {
-    if (this.directory === undefined) return randomBytes(32);
+    if (this.directory === undefined) return this.ids.bytes(32);
     const file = this.file("key");
     const text = readIfAny(file);
     if (text !== undefined && /^[0-9a-f]{64}\s*$/.test(text))
       return Buffer.from(text.trim(), "hex");
-    const key = randomBytes(32);
+    const key = this.ids.bytes(32);
     writePrivate(file, `${key.toString("hex")}\n`);
     return key;
   }

@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { PROVIDERS } from "./accounts.ts";
+import { systemClock } from "./clock.ts";
 import type { AuthOptions } from "./auth.ts";
 import { readSmtpSettings, smtpMailer } from "./mail.ts";
 import { jsonLogger } from "./log.ts";
@@ -137,7 +138,7 @@ function shutdown(): void {
   if (stopping) process.exit(0);
   stopping = true;
   logger.info("server_stopping", { drainSeconds });
-  setTimeout(() => process.exit(0), drainSeconds * 1000 + EXIT_GRACE_MS).unref();
+  systemClock.setTimeout(() => process.exit(0), drainSeconds * 1000 + EXIT_GRACE_MS).unref();
   void server.close().then(() => process.exit(0));
 }
 

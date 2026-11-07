@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   Accounts,
@@ -9,6 +9,8 @@ import {
   type Provider,
   type SignInMethod,
 } from "./accounts.ts";
+import { systemClock, type Clock } from "./clock.ts";
+import { systemIds, type Ids } from "./ids.ts";
 import type { Logger } from "./log.ts";
 import { isEmailAddress, mailbox, mailFailure, type Mailer } from "./mail.ts";
 import { AddressRate } from "./rate-limit.ts";
@@ -241,8 +243,12 @@ export function createAuth(
   accounts: Accounts,
   logger: Logger,
   isAllowedOrigin: (origin: string | undefined) => boolean,
-  now: () => number = Date.now,
+  clock: Clock = systemClock,
+  ids: Ids = systemIds,
 ): Auth {
+  const now = (): number => clock.now();
+  /** A secret of `size` random bytes, in URL-safe characters. */
+  const secret = (size: number): string => ids.bytes(size).toString("base64url");
   const base = new URL(withTrailingSlash(options.publicUrl));
   const secure = base.protocol === "https:";
   const cookiePath = base.pathname;
@@ -377,8 +383,8 @@ export function createAuth(
       response.writeHead(404, { "content-type": "text/plain" }).end("not found");
       return;
     }
-    const state = randomBytes(16).toString("base64url");
-    const verifier = randomBytes(32).toString("base64url");
+    const state = secret(16);
+    const verifier = secret(32);
     const payload = `${provider}.${state}.${verifier}.${String(now() + SIGN_IN_MS)}.${linkTo}`;
     const target = new URL(endpoints(provider).authorize);
     target.search = new URLSearchParams({
@@ -630,7 +636,7 @@ export function createAuth(
       const cookies: string[] = [];
       if (mail?.bindToBrowser) {
         const kept = verify("link", readCookie(request, LINK_COOKIE));
-        const nonce = kept ?? randomBytes(16).toString("base64url");
+        const nonce = kept ?? secret(16);
         browser = tokenHash(nonce);
         cookies.push(cookie(LINK_COOKIE, `${nonce}.${sign("link", nonce)}`, LINK_MS));
       }
@@ -643,7 +649,7 @@ export function createAuth(
         if (link.expires <= time || pending.size >= MAX_PENDING_LINKS) pending.delete(key);
         else break;
       }
-      const token = randomBytes(32).toString("base64url");
+      const token = secret(32);
       pending.set(tokenHash(token), {
         subject,
         name: typeof body.name === "string" ? body.name : "",

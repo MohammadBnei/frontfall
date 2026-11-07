@@ -13,6 +13,7 @@ import {
 import type { RawData, WebSocket } from "ws";
 import { isPrivateAddress } from "./address.ts";
 import type { Accounts } from "./accounts.ts";
+import type { Clock } from "./clock.ts";
 import type { MapLimits } from "./catalog.ts";
 import type { Directory } from "./directory.ts";
 import type { Logger } from "./log.ts";
@@ -121,6 +122,8 @@ export interface MessageContext {
   readonly metrics: Metrics;
   readonly logger: Logger;
   readonly moderation: Moderation;
+  /** The server's time. */
+  readonly clock: Clock;
   /** Whether the server has begun to close: no new game opens. */
   stopping(): boolean;
   /** The announcement of a restart due after `now`, if one is. */
@@ -167,7 +170,13 @@ export function messageHandler(ctx: MessageContext): {
       (ctx.accounts?.knownIds(session.account) ?? [session.account]).some((id) =>
         ctx.operators.has(id),
       );
-    const seat = room.join(session.name ?? "", session.peer, Date.now(), session.address, operator);
+    const seat = room.join(
+      session.name ?? "",
+      session.peer,
+      ctx.clock.now(),
+      session.address,
+      operator,
+    );
     if (typeof seat === "string") {
       reply(session, seat);
       return;
@@ -214,9 +223,9 @@ export function messageHandler(ctx: MessageContext): {
         return;
       }
       session.name = name.name;
-      session.idleSince = Date.now();
+      session.idleSince = ctx.clock.now();
       session.peer.send(encodeServerMessage({ type: "welcome", version: PROTOCOL_VERSION }));
-      const now = Date.now();
+      const now = ctx.clock.now();
       const maintenance = ctx.maintenance(now);
       if (maintenance) session.peer.send(maintenance);
       return;
@@ -227,7 +236,7 @@ export function messageHandler(ctx: MessageContext): {
     }
 
     const current = seatOf(session);
-    if (current) current.room.touch(current.seat, Date.now());
+    if (current) current.room.touch(current.seat, ctx.clock.now());
     switch (message.type) {
       case "play":
       case "create":
@@ -291,7 +300,7 @@ export function messageHandler(ctx: MessageContext): {
         const refuse = (code: ErrorCode, text?: string): void => {
           reply(session, code, text);
           if (message.seq !== undefined) {
-            current.room.refusedConfigure(current.seat, message.seq, Date.now());
+            current.room.refusedConfigure(current.seat, message.seq, ctx.clock.now());
           }
         };
         const seats = seatsFor(message.options, ctx.maps, ctx.maxBots, current.room.playerCount);
@@ -319,7 +328,7 @@ export function messageHandler(ctx: MessageContext): {
         const error = current.room.configure(
           current.seat,
           { ...message.options, capacity: seats, soloBots, ...(name !== undefined && { name }) },
-          Date.now(),
+          ctx.clock.now(),
           message.seq,
           bonuses,
         );
@@ -328,12 +337,14 @@ export function messageHandler(ctx: MessageContext): {
         return;
       }
       case "start": {
-        const error = current ? current.room.requestStart(current.seat, Date.now()) : "not_in_game";
+        const error = current
+          ? current.room.requestStart(current.seat, ctx.clock.now())
+          : "not_in_game";
         if (error) reply(session, error);
         return;
       }
       case "hold": {
-        const error = current ? current.room.hold(current.seat, Date.now()) : "not_in_game";
+        const error = current ? current.room.hold(current.seat, ctx.clock.now()) : "not_in_game";
         if (error) reply(session, error);
         return;
       }
@@ -341,7 +352,7 @@ export function messageHandler(ctx: MessageContext): {
         return;
       case "kick": {
         const error = current
-          ? current.room.kick(current.seat, message.player, Date.now())
+          ? current.room.kick(current.seat, message.player, ctx.clock.now())
           : "not_in_game";
         if (error) reply(session, error);
         else ctx.games.sweep();
@@ -361,7 +372,7 @@ export function messageHandler(ctx: MessageContext): {
           reply(session, "not_found");
           return;
         }
-        const now = Date.now();
+        const now = ctx.clock.now();
         const taken = ctx.moderation.report(
           { game: current.room.id, reason: message.reason, player: target.id, name: target.name },
           session.address,
@@ -383,10 +394,10 @@ export function messageHandler(ctx: MessageContext): {
       }
       case "leave":
         if (!current) return;
-        current.room.leave(current.seat, Date.now());
+        current.room.leave(current.seat, ctx.clock.now());
         session.room = undefined;
         session.seat = undefined;
-        session.idleSince = Date.now();
+        session.idleSince = ctx.clock.now();
         session.peer.send(encodeServerMessage({ type: "ended", reason: "left" }));
         ctx.games.sweep();
         return;
@@ -394,7 +405,7 @@ export function messageHandler(ctx: MessageContext): {
         current?.room.reportHash(current.seat, message.tick, message.hash);
         return;
       case "order":
-        current?.room.submit(current.seat, message.order);
+        current?.room.submit(current.seat, message.order, ctx.clock.now());
         return;
     }
   }
@@ -402,7 +413,7 @@ export function messageHandler(ctx: MessageContext): {
   function rejoin(session: Session, token: string, from: number): void {
     const found = ctx.games.findSeat(token);
     const error = found
-      ? found.room.rejoin(found.seat, session.peer, from, Date.now())
+      ? found.room.rejoin(found.seat, session.peer, from, ctx.clock.now())
       : "token_invalid";
     if (error || !found) {
       reply(session, error ?? "token_invalid");

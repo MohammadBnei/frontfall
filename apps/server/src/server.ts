@@ -8,6 +8,8 @@ import {
 } from "@frontfall/protocol";
 import { WebSocketServer, type WebSocket } from "ws";
 import { Accounts, accountsFile } from "./accounts.ts";
+import { systemClock, type Timer } from "./clock.ts";
+import { systemIds } from "./ids.ts";
 import { createAuth, type Auth } from "./auth.ts";
 import { loadMapLimits } from "./catalog.ts";
 import { Directory } from "./directory.ts";
@@ -99,16 +101,18 @@ export function createGameServer(options: ServerOptions): GameServer {
   const stallAfterMs = options.stallAfterMs ?? 5000;
   const drainMs = options.drainMs ?? 20_000;
   const gameListMs = options.gameListMs ?? 1000;
+  const clock = options.clock ?? systemClock;
+  const ids = options.ids ?? systemIds;
   /** End of the last pass of the turn timer, and whether close() has begun. */
-  let lastTurnAt = performance.now();
+  let lastTurnAt = clock.monotonic();
   let stopping = false;
   let closing: Promise<void> | undefined;
-  /** When an announced restart is due, as `Date.now()` time. */
+  /** When an announced restart is due, as `clock.now()` time. */
   let maintenanceAt: number | undefined;
   /** When this run of the server began: a reader polling /api/status sees a restart by it changing. */
-  const startedAt = new Date().toISOString();
+  const startedAt = new Date(clock.now()).toISOString();
   const logger = options.logger ?? silentLogger;
-  const pseudonym = addressPseudonym();
+  const pseudonym = addressPseudonym(ids.bytes(32));
   const metrics = new Metrics();
 
   const observer: RoomObserver = {
@@ -161,12 +165,13 @@ export function createGameServer(options: ServerOptions): GameServer {
     publicGame,
     privateGame,
     observer,
+    ids,
   });
   const simulation = options.simulation ?? options.version;
   const savedGames = options.dataDir === undefined ? undefined : gamesDirectory(options.dataDir);
   if (savedGames !== undefined) {
     const { games: saved, refused } = loadGames(savedGames, simulation);
-    const now = Date.now();
+    const now = clock.now();
     for (const game of saved) {
       if (games.restore(game, now))
         logger.info("game_restored", { game: game.id, ticks: game.log.ends.length });
@@ -181,7 +186,7 @@ export function createGameServer(options: ServerOptions): GameServer {
    */
   const keepGames = (): void => {
     if (savedGames === undefined) return;
-    const now = Date.now();
+    const now = clock.now();
     for (const room of games.all()) {
       const saved = room.playerCount > 0 ? room.save(now) : undefined;
       if (!saved) continue;
@@ -211,8 +216,8 @@ export function createGameServer(options: ServerOptions): GameServer {
   const keepUsage = (): void => {
     if (usageAt === undefined) return;
     try {
-      saveUsage(usage, usageAt, Date.now());
-      exportMonths(usage, monthsDirectory(usageAt), Date.now(), (message) => {
+      saveUsage(usage, usageAt, clock.now());
+      exportMonths(usage, monthsDirectory(usageAt), clock.now(), (message) => {
         logger.warn("usage_month_bad", { error: message });
       });
     } catch (error) {
@@ -220,21 +225,24 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
     if (errorsAt === undefined) return;
     try {
-      saveClientErrors(usage.errors, errorsAt, Date.now());
+      saveClientErrors(usage.errors, errorsAt, clock.now());
     } catch (error) {
       logger.warn("client_errors_not_saved", { error: (error as Error).message });
     }
   };
-  const moderation = new Moderation(options.dataDir, Date.now(), options.reportRate);
+  const moderation = new Moderation(options.dataDir, clock.now(), options.reportRate, clock, ids);
   try {
     moderation.reload();
   } catch (error) {
     logger.warn("bans_not_loaded", { error: (error as Error).message });
   }
-  const usageSaver = setInterval(keepUsage, options.usageSaveIntervalMs ?? 5 * 60_000);
+  const usageSaver = clock.setInterval(keepUsage, options.usageSaveIntervalMs ?? 5 * 60_000);
   usageSaver.unref();
-  const reports = usageInbox(usage, logger, (origin) =>
-    isAllowedOrigin(origin, options.allowedOrigin),
+  const reports = usageInbox(
+    usage,
+    logger,
+    (origin) => isAllowedOrigin(origin, options.allowedOrigin),
+    () => clock.now(),
   );
   const auth = startAuth();
   /** When the oldest ping a socket has not answered yet was sent. */
@@ -248,7 +256,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   const clientAddress = (request: IncomingMessage): string =>
     addressOf(request, options.trustProxy ?? true);
   const connectionsByAddress = new Map<string, number>();
-  const upgrades = new AddressRate(upgradeRate.perSecond, upgradeRate.burst, Date.now());
+  const upgrades = new AddressRate(upgradeRate.perSecond, upgradeRate.burst, clock.now());
 
   const http = createServer((request, response) => {
     // `//host/path` or `/\host/path` would parse as another host's path, past a proxy's matchers.
@@ -266,7 +274,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       // timer that has stopped or fallen far behind while requests still get through.
       const status = stopping
         ? "stopping"
-        : performance.now() - lastTurnAt > stallAfterMs
+        : clock.monotonic() - lastTurnAt > stallAfterMs
           ? "stalled"
           : "ok";
       response
@@ -307,7 +315,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
     if (path === "/api/games") {
       // Every menu asks every few seconds: the list is built once a second at most.
-      const now = performance.now();
+      const now = clock.monotonic();
       if (gameList === undefined || now - gameList.at >= gameListMs) {
         gameList = {
           at: now,
@@ -333,14 +341,14 @@ export function createGameServer(options: ServerOptions): GameServer {
             ? undefined
             : statusPage(
                 status(),
-                usageTable(usage.export(Date.now())) + (options.statusSections?.() ?? ""),
+                usageTable(usage.export(clock.now())) + (options.statusSections?.() ?? ""),
               ),
         );
       return;
     }
     if (path === "/api/stats") {
       // Totals by the day: a minute late is fine, and spares the server repeated scrapes.
-      sendJson(response, usage.export(Date.now()), "public, max-age=60");
+      sendJson(response, usage.export(clock.now()), "public, max-age=60");
       return;
     }
     if (path === "/metrics" && isLocalRequest(request)) {
@@ -382,7 +390,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     }
     const address = clientAddress(request);
     const connections = connectionsByAddress.get(address) ?? 0;
-    if (connections >= maxConnectionsPerAddress || !upgrades.take(address, Date.now())) {
+    if (connections >= maxConnectionsPerAddress || !upgrades.take(address, clock.now())) {
       metrics.refused.inc({ reason: "address" });
       socket.end("HTTP/1.1 429 Too Many Requests\r\n\r\n");
       return;
@@ -411,6 +419,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     logger,
     stopping: () => stopping,
     moderation,
+    clock,
     maintenance: (now) =>
       maintenanceAt !== undefined && maintenanceAt > now
         ? maintenanceMessage(maintenanceAt - now)
@@ -440,7 +449,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       address: clientAddress(request),
       client: pseudonym(clientAddress(request)),
       account: auth?.accountOf(request)?.id,
-      messages: new TokenBucket(messageRate.perSecond, messageRate.burst, Date.now()),
+      messages: new TokenBucket(messageRate.perSecond, messageRate.burst, clock.now()),
       name: undefined,
       room: undefined,
       seat: undefined,
@@ -466,19 +475,21 @@ export function createGameServer(options: ServerOptions): GameServer {
           pump();
         },
         probe() {
-          const sentAt = Date.now();
+          const sentAt = clock.now();
           ping(socket, sentAt);
-          setTimeout(() => {
-            const since = unanswered.get(socket);
-            if (since !== undefined && since <= sentAt) socket.terminate();
-          }, probeTimeoutMs).unref();
+          clock
+            .setTimeout(() => {
+              const since = unanswered.get(socket);
+              if (since !== undefined && since <= sentAt) socket.terminate();
+            }, probeTimeoutMs)
+            .unref();
         },
       },
     };
     if (turnAwayBanned(session)) return;
     sessions.add(session);
 
-    const helloTimer = setTimeout(() => {
+    const helloTimer = clock.setTimeout(() => {
       if (session.name === undefined) reject(session, CloseCode.idle, "no hello", "idle");
     }, helloTimeoutMs);
 
@@ -493,7 +504,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     socket.on("message", (data, isBinary) => {
       if (session.closing) return;
       metrics.messages.inc();
-      if (!session.messages.take(Date.now())) {
+      if (!session.messages.take(clock.now())) {
         reject(session, CloseCode.rateLimited, "too many messages", "rate_limited");
         return;
       }
@@ -506,13 +517,13 @@ export function createGameServer(options: ServerOptions): GameServer {
     });
 
     socket.on("close", (code) => {
-      clearTimeout(helloTimer);
+      helloTimer.clear();
       sessions.delete(session);
       const current = seatOf(session);
       // 1000 and 1001 come from a page that closed the socket itself; a lost
       // network or a phone gone to sleep closes it without a code (1006).
       if (current)
-        current.room.disconnect(current.seat, Date.now(), code === 1000 || code === 1001);
+        current.room.disconnect(current.seat, clock.now(), code === 1000 || code === 1001);
       games.sweep();
     });
   });
@@ -522,19 +533,19 @@ export function createGameServer(options: ServerOptions): GameServer {
   // fixed schedule, so that the delays of timers never add up into slower games.
   const passMs = 1000 / TICK_RATE / TURN_PASSES;
   let pass = 0;
-  let passAt = performance.now();
-  let ticker: NodeJS.Timeout;
+  let passAt = clock.monotonic();
+  let ticker: Timer;
   const turnPass = (): void => {
-    const started = performance.now();
-    games.update(Date.now(), { index: pass % TURN_PASSES, of: TURN_PASSES });
+    const started = clock.monotonic();
+    games.update(clock.now(), { index: pass % TURN_PASSES, of: TURN_PASSES });
     pass++;
-    lastTurnAt = performance.now();
+    lastTurnAt = clock.monotonic();
     metrics.turnDuration.observe((lastTurnAt - started) / 1000);
     // Late by more than a tick, as after a stall, the schedule starts afresh.
     passAt = Math.max(passAt + passMs, lastTurnAt - passMs * TURN_PASSES);
-    ticker = setTimeout(turnPass, Math.max(0, passAt - lastTurnAt));
+    ticker = clock.setTimeout(turnPass, Math.max(0, passAt - lastTurnAt));
   };
-  ticker = setTimeout(turnPass, passMs);
+  ticker = clock.setTimeout(turnPass, passMs);
 
   /**
    * Games a restart would cut short: started, with a player connected or
@@ -574,7 +585,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       response.writeHead(400, { "content-type": "text/plain" }).end("POST ?minutes=0 to 120");
       return;
     }
-    maintenanceAt = minutes > 0 ? Date.now() + minutes * 60_000 : undefined;
+    maintenanceAt = minutes > 0 ? clock.now() + minutes * 60_000 : undefined;
     broadcastAll(maintenanceMessage(minutes > 0 ? minutes * 60_000 : null));
     logger.info("maintenance_announced", { minutes });
     sendJson(response, { minutes, running: running() });
@@ -582,7 +593,7 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   /** Closes the connection of a banned address, with the code that tells its page not to retry. */
   function turnAwayBanned(session: Session): boolean {
-    const ban = moderation.banned(session.address, Date.now());
+    const ban = moderation.banned(session.address, clock.now());
     if (!ban) return false;
     session.closing = true;
     metrics.rejected.inc({ reason: "banned" });
@@ -603,7 +614,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       response.writeHead(400, { "content-type": "text/plain" }).end("GET ?days=1 to 30");
       return;
     }
-    sendJson(response, moderation.read(Date.now(), Math.min(days, 30)));
+    sendJson(response, moderation.read(clock.now(), Math.min(days, 30)));
   }
 
   /**
@@ -618,7 +629,7 @@ export function createGameServer(options: ServerOptions): GameServer {
       response.writeHead(400, { "content-type": "text/plain" }).end("GET ?days=1 to 30");
       return;
     }
-    sendJson(response, usage.errors.read(Date.now(), Math.min(days, 30)));
+    sendJson(response, usage.errors.read(clock.now(), Math.min(days, 30)));
   }
 
   /**
@@ -629,7 +640,7 @@ export function createGameServer(options: ServerOptions): GameServer {
    */
   function bansAnswer(request: IncomingMessage, response: ServerResponse): void {
     const query = new URL(request.url ?? "/", "http://localhost").searchParams;
-    const now = Date.now();
+    const now = clock.now();
     const target = query.get("target");
     const days = query.has("days") ? Number(query.get("days")) : undefined;
     const usage =
@@ -679,11 +690,15 @@ export function createGameServer(options: ServerOptions): GameServer {
       logger.warn("accounts_off", { reason: "no data directory" });
       return undefined;
     }
-    const accounts = new Accounts(accountsFile(options.dataDir), (error) => {
-      logger.warn("accounts_not_saved", {
-        reason: (error as NodeJS.ErrnoException).code ?? "write",
-      });
-    });
+    const accounts = new Accounts(
+      accountsFile(options.dataDir),
+      (error) => {
+        logger.warn("accounts_not_saved", {
+          reason: (error as NodeJS.ErrnoException).code ?? "write",
+        });
+      },
+      { clock, ids },
+    );
     const { error, usable } = accounts.load();
     if (error) logger.warn("accounts_not_loaded", { error: error.message });
     // Starting empty would replace a file that is still there at the first sign-in.
@@ -698,11 +713,13 @@ export function createGameServer(options: ServerOptions): GameServer {
       accounts,
       logger,
       (origin) => !!options.allowedOrigin && isAllowedOrigin(origin, options.allowedOrigin),
+      clock,
+      ids,
     );
   }
 
   function status(): ServerStatus {
-    const now = Date.now();
+    const now = clock.now();
     let lobbies = 0;
     let players = 0;
     for (const room of games.all()) {
@@ -750,8 +767,8 @@ export function createGameServer(options: ServerOptions): GameServer {
 
   // A socket that left a ping unanswered for a whole interval is gone, even if
   // TCP has not noticed yet. Timer drift is allowed for with half an interval.
-  const heartbeat = setInterval(() => {
-    const now = Date.now();
+  const heartbeat = clock.setInterval(() => {
+    const now = clock.now();
     closeIdle(now);
     for (const socket of sockets.clients) {
       const since = unanswered.get(socket);
@@ -773,19 +790,19 @@ export function createGameServer(options: ServerOptions): GameServer {
       games.sweep();
       // Games that are kept need no drain: they stop at once and go on after the restart.
       const drainFor = savedGames === undefined ? drainMs : 0;
-      const deadline = performance.now() + drainFor;
+      const deadline = clock.monotonic() + drainFor;
       if (drainFor > 0 && running() > 0) broadcastAll(maintenanceMessage(drainFor));
       closing = new Promise<void>((resolve) => {
         const finish = (): void => {
-          clearInterval(usageSaver);
+          usageSaver.clear();
           keepUsage();
           try {
             moderation.flush();
           } catch (error) {
             logger.warn("reports_not_saved", { error: (error as Error).message });
           }
-          clearInterval(heartbeat);
-          clearTimeout(ticker);
+          heartbeat.clear();
+          ticker.clear();
           keepGames();
           games.stopAll("restart");
           for (const socket of sockets.clients) socket.close(1012, "server restarting");
@@ -794,7 +811,8 @@ export function createGameServer(options: ServerOptions): GameServer {
           });
         };
         const check = (): void => {
-          if (running() > 0 && performance.now() < deadline) setTimeout(check, DRAIN_CHECK_MS);
+          if (running() > 0 && clock.monotonic() < deadline)
+            clock.setTimeout(check, DRAIN_CHECK_MS);
           else finish();
         };
         check();

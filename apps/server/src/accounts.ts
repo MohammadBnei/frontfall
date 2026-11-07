@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac } from "node:crypto";
 import {
   chmodSync,
   constants,
@@ -10,6 +10,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { nameKey as foldName, MAX_NAME_LENGTH, normalizeName } from "@frontfall/protocol";
+import { systemClock, type Clock } from "./clock.ts";
+import { systemIds, type Ids } from "./ids.ts";
 
 /** Services a player may sign in with. */
 export const PROVIDERS = ["discord", "google"] as const;
@@ -127,16 +129,20 @@ export class Accounts {
    * Key the services' ids are hashed with, drawn once when the file is
    * created and kept in it: the accounts depend on no setting of the server.
    */
-  private salt = randomBytes(32).toString("base64url");
+  private salt: string;
 
   /**
    * @param file where the accounts are kept; unset keeps them in memory only, for tests.
    * @param onWriteError told when the file could not be written, as on a full disk.
+   * @param ports where the salt, the account ids and the digits of free names are drawn, and the time.
    */
   constructor(
     private readonly file: string | undefined,
     private readonly onWriteError: (error: Error) => void = () => undefined,
-  ) {}
+    private readonly ports: { clock: Clock; ids: Ids } = { clock: systemClock, ids: systemIds },
+  ) {
+    this.salt = ports.ids.bytes(32).toString("base64url");
+  }
 
   get size(): number {
     return this.byId.size;
@@ -158,7 +164,7 @@ export class Accounts {
       return { error: error as Error, usable: false };
     }
     if (this.restore(text)) return { usable: true };
-    const aside = `${this.file}.broken-${String(Date.now())}`;
+    const aside = `${this.file}.broken-${String(this.ports.clock.now())}`;
     try {
       renameSync(this.file, aside);
     } catch {
@@ -201,7 +207,7 @@ export class Accounts {
       return found;
     }
     const account: Account = {
-      id: randomBytes(12).toString("base64url"),
+      id: this.ports.ids.bytes(12).toString("base64url"),
       provider,
       subject,
       name: this.freeName(suggested),
@@ -358,7 +364,7 @@ export class Accounts {
     for (let attempt = 0; ; attempt++) {
       // Four digits, then more as the short ones run out.
       const digits = String(
-        1000 + Math.floor(Math.random() * 9000 * 10 ** Math.floor(attempt / 50)),
+        1000 + Math.floor(this.ports.ids.fraction() * 9000 * 10 ** Math.floor(attempt / 50)),
       );
       const name = `${Array.from(base)
         .slice(0, MAX_NAME_LENGTH - digits.length)

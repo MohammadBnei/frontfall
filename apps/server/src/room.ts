@@ -18,7 +18,8 @@ import {
   type Teams,
   type Turn,
 } from "@frontfall/protocol";
-import { newToken } from "./ids.ts";
+import { systemClock } from "./clock.ts";
+import { systemIds, type Ids } from "./ids.ts";
 import { TokenBucket } from "./rate-limit.ts";
 import { TurnLog } from "./turn-log.ts";
 
@@ -206,6 +207,8 @@ export class Room {
     private readonly observer: RoomObserver = {},
     /** Address of the player who opened the game, for per-address limits. */
     readonly owner?: string,
+    /** Where the reconnect tokens of the seats are drawn. */
+    private readonly ids: Ids = systemIds,
   ) {
     // Copied: the host changes the map, the bots and the name of their own game.
     this.settings = { ...settings };
@@ -257,7 +260,7 @@ export class Room {
     const seat: Seat = {
       id: this.nextLobbyId++,
       name: this.freeName(name),
-      token: newToken(),
+      token: this.ids.token(),
       address,
       peer,
       awaySince: undefined,
@@ -499,7 +502,7 @@ export class Room {
     return new TokenBucket(perSecond, burst, now);
   }
 
-  submit(seat: Seat, order: Order, now: number = Date.now()): boolean {
+  submit(seat: Seat, order: Order, now: number = systemClock.now()): boolean {
     if (this.stateValue !== "running" || !this.holds(seat) || !seat.peer) return false;
     if (seat.orders >= this.settings.maxOrdersPerTurn) return false;
     if (!seat.allowance.take(now)) {
@@ -670,8 +673,13 @@ export class Room {
    * A saved game, running again from its last turn. Every seat waits for its
    * player as after a dropped connection. Undefined when the log is broken.
    */
-  static restore(saved: SavedRoom, observer: RoomObserver, now: number): Room | undefined {
-    const room = new Room(saved.id, saved.settings, saved.seed, observer, saved.owner);
+  static restore(
+    saved: SavedRoom,
+    observer: RoomObserver,
+    now: number,
+    ids: Ids = systemIds,
+  ): Room | undefined {
+    const room = new Room(saved.id, saved.settings, saved.seed, observer, saved.owner, ids);
     if (!room.log.load(saved.log.bodies, saved.log.ends)) return undefined;
     room.stateValue = "running";
     room.startedAt = now - saved.elapsedMs;

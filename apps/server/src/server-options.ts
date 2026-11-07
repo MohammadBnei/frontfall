@@ -1,5 +1,7 @@
 import { DEFAULT_RULES } from "@frontfall/protocol";
 import type { AuthOptions } from "./auth.ts";
+import type { Clock } from "./clock.ts";
+import type { Ids } from "./ids.ts";
 import type { Logger } from "./log.ts";
 import type { RoomSettings } from "./room.ts";
 
@@ -86,6 +88,10 @@ export interface ServerOptions {
    * Empty by default: no one can.
    */
   operatorAccounts?: ReadonlySet<string>;
+  /** The time and the timers; the machine's by default, a clock moved by hand in tests. */
+  clock?: Clock;
+  /** Game ids, tokens, seeds and secrets; drawn from the system's secure source by default. */
+  ids?: Ids;
 }
 
 /** Cloudflare drops a WebSocket that stays silent for 100 s. */
