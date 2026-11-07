@@ -1,4 +1,10 @@
-import { TileKind, type Alliance, type Attack, type Structure } from "@frontfall/engine";
+import {
+  TileKind,
+  workShareOf,
+  type Alliance,
+  type Attack,
+  type Structure,
+} from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
 import { GENERATED_MAPS, generateMap } from "../src/game/maps.ts";
 import { HUMAN_ID, SoloGame, type SoloOptions } from "../src/game/solo-game.ts";
@@ -154,10 +160,10 @@ describe("SoloGame", () => {
     solo.game.winner = 2;
     const you = update.players.find((player) => player.id === update.you);
     expect(you?.alive).toBe(true);
-    const share = solo.game.player(update.you)?.workShare ?? 0;
+    const share = workShareOf(solo.game, update.you);
     const wanted = share === 10 ? 20 : 10;
     solo.step([{ type: "work", share: wanted }]);
-    expect(solo.game.player(update.you)?.workShare).toBe(wanted);
+    expect(workShareOf(solo.game, update.you)).toBe(wanted);
   }, 60_000);
 });
 
@@ -210,7 +216,6 @@ describe("SoloGame incoming attacks", () => {
       target: HUMAN_ID,
       aim: 0,
       troops: 77,
-      pressure: 0,
     });
     attacks.push({
       id: 9002,
@@ -218,7 +223,6 @@ describe("SoloGame incoming attacks", () => {
       target: 2,
       aim: 0,
       troops: 5,
-      pressure: 0,
     });
     const { width, height } = solo.game.terrain.topology;
     update = gameUpdate(solo.game, HUMAN_ID, labelSpace(width, height));
@@ -667,8 +671,10 @@ describe("SoloGame clicks", () => {
       until: 1_000_000,
       renewA: false,
       renewB: false,
-      truce: false,
     });
+    // Not a truce: the engine's truces part follows the alliances slot for slot.
+    const truces = solo.game.persistedParts().find((entry) => entry.name === "truces")?.part;
+    (truces as unknown as { push(value: number): void }).push(0);
     update = solo.step([{ type: "gift", target: 2, troops: 0, gold: 400_000 }]);
     expect(solo.game.player(2)?.gold).toBeGreaterThanOrEqual(400_000);
     expect(update.events).toContainEqual({ type: "gift", a: HUMAN_ID, b: 2 });

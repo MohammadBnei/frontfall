@@ -1,33 +1,32 @@
 import type { Game } from "../game.ts";
 import { unpackRoute, packRoute } from "../sea-routes.ts";
-import { SnapshotError, type SnapshotReader, type SnapshotWriter } from "../snapshot-bytes.ts";
+import { SnapshotError, type SnapshotReader } from "../snapshot-bytes.ts";
+import type { StateWriter } from "./writer.ts";
 
 /**
- * How one field of an entity goes into a snapshot (docs/engine.md): the
- * bytes it writes, and how it reads them back with the range checks of its
- * kind. A record codec has one field for every key of its entity, so that a
- * field added to the entity cannot be forgotten (ADR 0008).
+ * How one field of an entity goes into a snapshot and the state hash
+ * (docs/engine.md): the values it writes, and how it reads them back with
+ * the range checks of its kind. A record codec has one field for every key
+ * of its entity, so that a field added to the entity cannot be forgotten
+ * (ADR 0008).
  */
 export type Field<V> = SavedField<V> | UnsavedField;
 
-/** A field written in the snapshot, in the order of its record's keys. */
+/** A field written in the snapshot and mixed into the hash, in the order of its record's keys. */
 export interface SavedField<V> {
   readonly saved: true;
-  readonly write: (out: SnapshotWriter, value: V, game: Game) => void;
+  readonly write: (out: StateWriter, value: V, game: Game) => void;
   readonly read: (from: SnapshotReader, game: Game) => V;
-  /** Whether the field is in the snapshot of this game; when it is not, it reads as `absent`. */
-  readonly when?: (game: Game) => boolean;
-  readonly absent?: V;
 }
 
 /**
  * A field the snapshot does not carry, and why: setup that the game is
- * created with again, state a rule part saves, or what only the screen reads.
- * A record read back leaves it out.
+ * created with again, or what only the screen reads. A record read back
+ * leaves it out.
  */
 export interface UnsavedField {
   readonly saved: false;
-  readonly reason: "setup" | "part" | "screen";
+  readonly reason: "setup" | "screen";
 }
 
 /** One field for every key of `T`, in the order the snapshot writes them. */
@@ -105,6 +104,17 @@ export function optionalTile(what: string): SavedField<number | undefined> {
   });
 }
 
+/** A tile or -1 for none, as a part that holds numbers keeps it: written as an optional tile. */
+export function tileOrNone(what: string): SavedField<number> {
+  const checked = optionalTile(what);
+  return field(
+    (out, value) => {
+      out.int(value);
+    },
+    (from, game) => checked.read(from, game) ?? -1,
+  );
+}
+
 /** Tiles of a path, each as its step from the one before. */
 export const path: SavedField<Int32Array> = field(
   (out, value) => {
@@ -156,19 +166,8 @@ export const uints: SavedField<number[]> = field(
   },
 );
 
-/** A field saved only in the games `when` holds for, and `absent` in the others. */
-export function onlyIf<V>(
-  when: (game: Game) => boolean,
-  saved: SavedField<V>,
-  absent: V,
-): SavedField<V> {
-  return { ...saved, when, absent };
-}
-
 /** Fields of the game's setup, which the game is created with again. */
 export const setup: UnsavedField = { saved: false, reason: "setup" };
-/** Fields a rule part saves (`game.persist`), not the entity's record. */
-export const part: UnsavedField = { saved: false, reason: "part" };
 /** Fields only the screen reads. */
 export const screen: UnsavedField = { saved: false, reason: "screen" };
 
@@ -187,19 +186,17 @@ function fieldsOf<T>(codec: Codec<T>): Fields<T> {
 }
 
 /** Writes the saved fields of `record`, in the codec's order. */
-export function writeRecord<T>(out: SnapshotWriter, codec: Codec<T>, record: T, game: Game): void {
+export function writeRecord<T>(out: StateWriter, codec: Codec<T>, record: T, game: Game): void {
   for (const [key, entry] of fieldsOf(codec)) {
-    if (!entry.saved || (entry.when && !entry.when(game))) continue;
-    entry.write(out, record[key], game);
+    if (entry.saved) entry.write(out, record[key], game);
   }
 }
 
-/** Reads a record that `writeRecord` wrote: its saved fields, and the absent value of the fields its game does not save. */
+/** Reads a record that `writeRecord` wrote: its saved fields. */
 export function readRecord<T>(from: SnapshotReader, codec: Codec<T>, game: Game): T {
   const record: Record<string, unknown> = {};
   for (const [key, entry] of fieldsOf(codec)) {
-    if (!entry.saved) continue;
-    record[key] = entry.when && !entry.when(game) ? entry.absent : entry.read(from, game);
+    if (entry.saved) record[key] = entry.read(from, game);
   }
   return record as T;
 }
@@ -207,14 +204,13 @@ export function readRecord<T>(from: SnapshotReader, codec: Codec<T>, game: Game)
 /** Reads the saved fields into an existing record, such as a player the game was created with. */
 export function readInto<T>(from: SnapshotReader, codec: Codec<T>, record: T, game: Game): void {
   for (const [key, entry] of fieldsOf(codec)) {
-    if (!entry.saved || (entry.when && !entry.when(game))) continue;
-    record[key] = entry.read(from, game) as T[typeof key];
+    if (entry.saved) record[key] = entry.read(from, game) as T[typeof key];
   }
 }
 
 /** Writes a list as its length and its records. */
 export function writeList<T>(
-  out: SnapshotWriter,
+  out: StateWriter,
   codec: Codec<T>,
   list: readonly T[],
   game: Game,

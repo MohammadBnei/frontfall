@@ -52,7 +52,7 @@ export function strike(
   return sail(
     game,
     nation,
-    Math.min(sent, divFloor(soldiers(nation), 5)),
+    Math.min(sent, divFloor(soldiers(game, nation), 5)),
     100,
     seaCooldowns,
     retryTicks,
@@ -74,7 +74,7 @@ export function retaliate(
     return false;
   let troops = armed();
   if (params.answer === "at once") {
-    troops = Math.max(troops, Math.min(soldiers(nation), incomingOn(ctx, nation.id)));
+    troops = Math.max(troops, Math.min(soldiers(game, nation), incomingOn(ctx, nation.id)));
   }
   return strike(ctx, nation, attacker, troops, true);
 }

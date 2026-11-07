@@ -3,7 +3,9 @@ import type { Game, Player } from "./game.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 import { recallAttacks } from "./attack-recall.ts";
 import { ANY_PHASE, defineOrder } from "./order-rules.ts";
+import { below, uint } from "./state/codec.ts";
 import { writable } from "./state/lists.ts";
+import { SlotValues, partKey, removeWhere } from "./state/parts.ts";
 
 /** Two players at peace until `until` (R-DIPLO-02, R-DIPLO-03). `a` is always the lower id. */
 export interface Alliance {
@@ -14,8 +16,43 @@ export interface Alliance {
   /** Whether each side asked to renew in the last part of the alliance. */
   renewA: boolean;
   renewB: boolean;
-  /** A truce bought by tribute (R-DIPLO-10): it stops attacks like an alliance, and is none otherwise. */
-  truce: boolean;
+}
+
+/**
+ * R-DIPLO-10: 1 for each alliance that is a truce bought by tribute, which
+ * stops attacks like an alliance and is none otherwise, and 0 for the
+ * others, by the alliance's place in `game.alliances`.
+ */
+const TRUCES = partKey<SlotValues>("truces");
+/**
+ * R-DIPLO-09: the first tick each embargo placed after an attack is gone, 0
+ * for one placed by order, by the embargo's place in `game.embargoes`.
+ */
+const EMBARGO_ENDS = partKey<SlotValues>("embargo ends");
+
+/** Whether the alliance at `slot` of `game.alliances` is a truce (R-DIPLO-10). */
+function truceAt(game: Game, slot: number): boolean {
+  return game.part(TRUCES)?.get(slot) === 1;
+}
+
+/** When the embargo at `slot` of `game.embargoes` ends (R-DIPLO-09); 0 for one placed by order. */
+function embargoEndAt(game: Game, slot: number): number {
+  return game.part(EMBARGO_ENDS)?.get(slot) ?? 0;
+}
+
+/** Whether `alliance`, one of `game.alliances`, is a truce bought by tribute rather than an alliance (R-DIPLO-10). */
+export function isTruce(game: Game, alliance: Readonly<Alliance>): boolean {
+  const slot = game.alliances.indexOf(alliance);
+  return slot >= 0 && truceAt(game, slot);
+}
+
+/**
+ * First tick `embargo`, one of `game.embargoes`, is gone when it was placed
+ * after an attack (R-DIPLO-09); 0 for one placed by order, which lasts.
+ */
+export function embargoUntil(game: Game, embargo: Readonly<Embargo>): number {
+  const slot = game.embargoes.indexOf(embargo);
+  return slot >= 0 ? embargoEndAt(game, slot) : 0;
 }
 
 /**
@@ -53,8 +90,6 @@ export interface Embargo {
   readonly from: number;
   readonly to: number;
   readonly since: number;
-  /** First tick an embargo placed after an attack is gone (R-DIPLO-09); 0 for one placed by order. */
-  until: number;
 }
 
 /**
@@ -150,31 +185,29 @@ export function isAllied(game: Game, a: number, b: number): boolean {
 }
 
 export function allianceOf(game: Game, a: number, b: number): Readonly<Alliance> | undefined {
-  return findAlliance(game, game.alliances, a, b);
+  return game.alliances[allianceSlot(game, a, b)];
 }
 
-/** The alliance or truce of `a` and `b` in `alliances` that has not ended. */
-function findAlliance<T extends Readonly<Alliance>>(
-  game: Game,
-  alliances: readonly T[],
-  a: number,
-  b: number,
-): T | undefined {
-  if (a === b) return undefined;
+/** The place in `game.alliances` of the alliance or truce of `a` and `b` that has not ended, or -1. */
+function allianceSlot(game: Game, a: number, b: number): number {
+  if (a === b) return -1;
   const low = Math.min(a, b);
   const high = Math.max(a, b);
+  const { alliances } = game;
   // A plain loop: border scans ask this about every tile next to a player's land.
-  for (const alliance of alliances) {
+  for (let slot = 0; slot < alliances.length; slot++) {
+    const alliance = alliances[slot] as Readonly<Alliance>;
     if (alliance.a === low && alliance.b === high && allianceState(game, alliance) !== "ended") {
-      return alliance;
+      return slot;
     }
   }
-  return undefined;
+  return -1;
 }
 
 /** Whether two players are held back from each other only by a truce bought by tribute (R-DIPLO-10). */
 export function inTruce(game: Game, a: number, b: number): boolean {
-  return allianceOf(game, a, b)?.truce === true;
+  const slot = allianceSlot(game, a, b);
+  return slot >= 0 && truceAt(game, slot);
 }
 
 /** Price of a tribute from `player` (R-DIPLO-10): grows with their land, so a big empire pays more. */
@@ -210,8 +243,8 @@ export function truceMatesOf(game: Game, player: number): number[] {
 
 function partnersOf(game: Game, player: number, truces: boolean): number[] {
   const allies: number[] = [];
-  for (const alliance of game.alliances) {
-    if (alliance.truce !== truces || allianceState(game, alliance) === "ended") continue;
+  for (const [slot, alliance] of game.alliances.entries()) {
+    if (truceAt(game, slot) !== truces || allianceState(game, alliance) === "ended") continue;
     if (alliance.a === player) allies.push(alliance.b);
     else if (alliance.b === player) allies.push(alliance.a);
   }
@@ -247,8 +280,9 @@ export function allyError(game: Game, player: Player, target: number): string | 
   // R-BOT-29: a city-state is nobody's ally.
   if (game.cityStates.has(player.id) || game.cityStates.has(target))
     return DiplomacyError.CityState;
-  const alliance = allianceOf(game, player.id, target);
-  if (alliance?.truce) return DiplomacyError.Truce;
+  const slot = allianceSlot(game, player.id, target);
+  const alliance = game.alliances[slot];
+  if (alliance && truceAt(game, slot)) return DiplomacyError.Truce;
   if (alliance) {
     const voted = player.id === alliance.a ? alliance.renewA : alliance.renewB;
     return allianceState(game, alliance) === "renewable" && !voted
@@ -284,10 +318,29 @@ export function betrayError(game: Game, player: Player, target: number): string 
  */
 export function embargoed(game: Game, a: number, b: number, byOrderOnly = false): boolean {
   return game.embargoes.some(
-    (e) =>
+    (e, slot) =>
       ((e.from === a && e.to === b) || (e.from === b && e.to === a)) &&
-      (!byOrderOnly || e.until === 0),
+      (!byOrderOnly || embargoEndAt(game, slot) === 0),
   );
+}
+
+/**
+ * First tick of the oldest embargo placed by order between two players,
+ * either way round, or Infinity when there is none: a warship takes trade
+ * ships only under an embargo held long enough. Embargoes placed after an
+ * attack do not count. One pass by slot, as the trade ships in range of
+ * every warship ask it each tick.
+ */
+export function embargoedByOrderSince(game: Game, a: number, b: number): number {
+  const { embargoes } = game;
+  let since = Infinity;
+  for (let slot = 0; slot < embargoes.length; slot++) {
+    const e = embargoes[slot] as Embargo;
+    if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) {
+      if (embargoEndAt(game, slot) === 0) since = Math.min(since, e.since);
+    }
+  }
+  return since;
 }
 
 /** Why `player` cannot start (`on` 1) or lift (`on` 0) an embargo on `target` now, or undefined. */
@@ -306,7 +359,9 @@ export function embargoError(
   if (on === 1 && !game.allows(Disable.Port)) return DiplomacyError.NoTrade;
   // One that only ran from an attack can be kept for good, or lifted early.
   const held = game.embargoes.some((e) => e.from === player.id && e.to === target);
-  const kept = game.embargoes.some((e) => e.from === player.id && e.to === target && e.until === 0);
+  const kept = game.embargoes.some(
+    (e, slot) => e.from === player.id && e.to === target && embargoEndAt(game, slot) === 0,
+  );
   if (on === 1 && kept) return DiplomacyError.Embargoed;
   if (on === 0 && !held) return DiplomacyError.NotEmbargoed;
   return undefined;
@@ -323,7 +378,7 @@ export const ALLY_ORDER = defineOrder("ally", {
   execute(game, player, order) {
     const { balance } = game;
     const target = order.target;
-    const alliance = findAlliance(game, writable(game, "alliances"), player.id, target);
+    const alliance = writable(game, "alliances")[allianceSlot(game, player.id, target)];
     if (alliance) {
       if (player.id === alliance.a) alliance.renewA = true;
       else alliance.renewB = true;
@@ -380,7 +435,7 @@ export const BETRAY_ORDER = defineOrder("betray", {
   execute(game, player, order) {
     const { balance } = game;
     const broken = allianceOf(game, player.id, order.target);
-    removeWhere(writable(game, "alliances"), (a) => a === broken);
+    removeWhere(writable(game, "alliances"), (a) => a === broken, game.part(TRUCES));
     player.traitorUntil = game.tick + balance.traitorTicks;
     logEvent(game, { tick: game.tick, type: "betrayed", a: player.id, b: order.target });
     // No asking the betrayed player straight back.
@@ -400,13 +455,14 @@ export const EMBARGO_ORDER = defineOrder("embargo", {
     playerError(order.target) ?? embargoError(game, player, order.target, order.on) ?? order,
   execute(game, player, order) {
     const target = order.target;
-    const lasting = writable(game, "embargoes").find(
-      (e) => e.from === player.id && e.to === target,
-    );
-    if (order.on === 1 && lasting) lasting.until = 0;
+    const embargoes = writable(game, "embargoes");
+    const ends = game.part(EMBARGO_ENDS);
+    const lasting = embargoes.findIndex((e) => e.from === player.id && e.to === target);
+    if (order.on === 1 && lasting >= 0) ends?.set(lasting, 0);
     else if (order.on === 1) {
-      writable(game, "embargoes").push({ from: player.id, to: target, since: game.tick, until: 0 });
-    } else removeWhere(writable(game, "embargoes"), (e) => e.from === player.id && e.to === target);
+      embargoes.push({ from: player.id, to: target, since: game.tick });
+      ends?.push(0);
+    } else removeWhere(embargoes, (e) => e.from === player.id && e.to === target, ends);
     logEvent(game, {
       tick: game.tick,
       type: order.on === 1 ? "embargo" : "lifted",
@@ -427,6 +483,15 @@ export const EMBARGO_ORDER = defineOrder("embargo", {
  */
 export function installDiplomacy(game: Game): void {
   const { balance } = game;
+  const truces = game.addPart(
+    TRUCES,
+    new SlotValues(
+      game,
+      () => game.alliances,
+      below(() => 2, "truce"),
+    ),
+  );
+  const ends = game.addPart(EMBARGO_ENDS, new SlotValues(game, () => game.embargoes, uint));
 
   game.onOrder(ALLY_ORDER);
   game.onOrder(TRIBUTE_ORDER);
@@ -440,12 +505,8 @@ export function installDiplomacy(game: Game): void {
     const victim = game.territory.ownerOf(order.target);
     if (victim === NEUTRAL || victim === player.id || !game.player(victim)?.alive) return;
     if (embargoed(game, victim, player.id)) return;
-    writable(game, "embargoes").push({
-      from: victim,
-      to: player.id,
-      since: game.tick,
-      until: game.tick + balance.embargoAutoTicks,
-    });
+    writable(game, "embargoes").push({ from: victim, to: player.id, since: game.tick });
+    ends.push(game.tick + balance.embargoAutoTicks);
     logEvent(game, { tick: game.tick, type: "embargo", a: victim, b: player.id });
   });
 
@@ -454,7 +515,11 @@ export function installDiplomacy(game: Game): void {
     const alive = (id: number) => game.player(id)?.alive === true;
     removeWhere(
       writable(game, "embargoes"),
-      (e) => !alive(e.from) || !alive(e.to) || (e.until !== 0 && tick >= e.until),
+      (e, slot) => {
+        const until = ends.get(slot);
+        return !alive(e.from) || !alive(e.to) || (until !== 0 && tick >= until);
+      },
+      ends,
     );
     for (const request of game.allianceRequests) {
       if (tick < request.expiresAt || !alive(request.from) || !alive(request.to)) continue;
@@ -477,6 +542,7 @@ export function installDiplomacy(game: Game): void {
     removeWhere(
       writable(game, "alliances"),
       (a) => allianceState(game, a) === "ended" || !alive(a.a) || !alive(a.b),
+      truces,
     );
     removeWhere(writable(game, "requestCooldowns"), (c) => tick >= c.until);
   });
@@ -491,28 +557,31 @@ function form(game: Game, first: number, second: number, truce = false): void {
     writable(game, "allianceRequests"),
     (r) => (r.from === high && r.to === low) || (r.from === low && r.to === high),
   );
-  writable(game, "alliances").push({
+  // Kept by ascending pair: after every alliance of a lower pair, or of the same pair.
+  const alliances = writable(game, "alliances");
+  let slot = alliances.length;
+  while (slot > 0) {
+    const before = alliances[slot - 1] as Alliance;
+    if (before.a < low || (before.a === low && before.b <= high)) break;
+    slot--;
+  }
+  alliances.splice(slot, 0, {
     a: low,
     b: high,
     until: game.tick + (truce ? balance.tributeTruceTicks : balance.allianceTicks),
     renewA: false,
     renewB: false,
-    truce,
   });
-  writable(game, "alliances").sort((x, y) => x.a - y.a || x.b - y.b);
+  game.part(TRUCES)?.insert(slot, truce ? 1 : 0);
   removeWhere(
     writable(game, "embargoes"),
-    (e) =>
-      e.until !== 0 && ((e.from === low && e.to === high) || (e.from === high && e.to === low)),
+    (e, at) =>
+      embargoEndAt(game, at) !== 0 &&
+      ((e.from === low && e.to === high) || (e.from === high && e.to === low)),
+    game.part(EMBARGO_ENDS),
   );
   if (!truce) logEvent(game, { tick: game.tick, type: "allied", a: low, b: high });
   recallAttacks(game, low, high);
-}
-
-function removeWhere<T>(list: T[], drop: (item: T) => boolean): void {
-  let kept = 0;
-  for (const item of list) if (!drop(item)) list[kept++] = item;
-  list.length = kept;
 }
 
 /**

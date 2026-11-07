@@ -113,6 +113,10 @@ describe("bun run sim --replay", () => {
   });
 
   it("refuses a report of another format version", () => {
-    expect(() => run({ ...report, version: 1 as 2 })).toThrow(/unsupported report version 1/);
+    for (const version of [1, 2]) {
+      expect(() => run({ ...report, version: version as typeof DESYNC_REPORT_VERSION })).toThrow(
+        `unsupported report version ${String(version)}`,
+      );
+    }
   });
 });

@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { pressureOf } from "../src/attacks.ts";
+import { capitalFalls, capitalOf } from "../src/capitals.ts";
+import { embargoUntil, isTruce } from "../src/diplomacy.ts";
+import { doctrineOf } from "../src/doctrines.ts";
+import { workShareOf } from "../src/economy.ts";
 import type { Game } from "../src/game.ts";
 import { sha256Hex } from "../src/map/sha256.ts";
 import { loadSnapshot, saveSnapshot } from "../src/snapshot.ts";
@@ -16,75 +21,75 @@ import { dumpState, stateDigest } from "./fixtures/state-dump.ts";
 const PINS: Record<string, Record<number, Pin>> = {
   busy: {
     0: {
-      hash: 2784584871,
-      snapshot: "82b3c1724f5f0de7cd4de9de9962cba4acf0c377133e5c550ea93a4b58537f00",
+      hash: 3405925131,
+      snapshot: "a039a4457f4a0db6ec2fee7bd857ff78c0d25ea3704395242c273bd7ef3722b1",
       state: "121c0624655f108bdb88924f71190756ce6b349796a1b9fe65522af0f62c0a81",
     },
     5: {
-      hash: 889355206,
-      snapshot: "c4be178a2ef84180d2b2522062be2b74a439e9c047b1075155cb3b0a2061e188",
+      hash: 3046257474,
+      snapshot: "4601f3a9434f6ff465bb6dd22cbefd3e25629e72754a8b965029f472c61b0fb8",
       state: "5d88f243c99f4b8edc19ff2624ab80484e5ed7368c8fbf94d9cadbcfcf27e0b7",
     },
     100: {
-      hash: 1092944604,
-      snapshot: "34514d0606db807eb2e53dd3e769962b729fede2b70d91752276c13d6993a24b",
+      hash: 2869801677,
+      snapshot: "72c982b85ac2fb90a641ccba2b83501256012bcd24775bed4d7aad84ed9c56a6",
       state: "55a162f341d164c3ada9939cf0e48fa20ce2f7e6683a38a48668f8af11299b13",
     },
     300: {
-      hash: 3219974907,
-      snapshot: "69bc3af0fe9d8a5051f543f5e8b7bd70b4cbe185d1da99df2f03f916eac3efd1",
+      hash: 3355310569,
+      snapshot: "39a847e0d2910229cddb0d1cc88c84d5a0c0dffe700977cbc491900a5b1104c5",
       state: "b86d8b73aae205c86d907c6820f78252fbc9d64644843d62f0d01afa258a0c37",
     },
     500: {
-      hash: 2210671392,
-      snapshot: "9fa05d6b017baab7a621495b5b05a7edeaa80bbcf72ba2f928a7f7b77da5101f",
+      hash: 2124772027,
+      snapshot: "cace6edf50c1980198067f406da9930b2012409211e1d00a9f9f8796dbc6fb54",
       state: "c0b04656af020e009d52be49a33ddd1d8c7aba6ed75b1a24c3636c6de81f05d3",
     },
     750: {
-      hash: 2327730313,
-      snapshot: "e6eb63ae144a3d7f090cc9574c32f5c69770f0408cc2ad8af2c7cb4e4e00db42",
+      hash: 1668013461,
+      snapshot: "7966924f800727dc866d89544084141c407ea7dd3ddbbdfbc9931d10727258f8",
       state: "62cdd8bace7449891595be37c6972fc1f794f6f097f956d2de1300e713983b15",
     },
     1000: {
-      hash: 775135642,
-      snapshot: "9cfeada8ef9d4b802ee546744277e5f8e5b29c85b3eeea15316c08ebc0dfe4fa",
+      hash: 2522309376,
+      snapshot: "73a1a563b2c223b07dc96051139bb1149463ac6c44da10de90c3e0aff1455818",
       state: "637f25511687119be08871552995d83e40b3cade4652d645b6dab7c8fc442aca",
     },
   },
   allRules: {
     0: {
-      hash: 2768056797,
-      snapshot: "cb23ba384ae739e2605206b9b354fde4467bec57ae68216ac23e735cc807755a",
+      hash: 1119067,
+      snapshot: "455afea1c35ab5dab61bc0533fc60070a801817076fac57849f95ee74feba34c",
       state: "c5f53d820539e620c2bc45b53c07dd77007b1be094944b7e696d3638b81d08d2",
     },
     5: {
-      hash: 23372722,
-      snapshot: "05a01c236f438cbd698a60bac2853622655b74d81c447dd2653865eb06106115",
+      hash: 1014248096,
+      snapshot: "61d568735c3cdc6360ad159f5fde4587211325112b5640bcb98d9ad5f15ab83c",
       state: "ab5169692534c2203d590842bffa1979cf841fa9b9cb062374ca8591bb3ea4ba",
     },
     100: {
-      hash: 2850171507,
-      snapshot: "c4a0c37abb9230d5ea860b19192196c53f5093d0c392b26d0118525ca7329874",
+      hash: 3835232190,
+      snapshot: "c174e59205707f56986005bbc8562a58143de31e74cd711c47669c2fdc91e43b",
       state: "096fc108a98de909748d18225b9ac68ced56c1ac74e6924150000d27e79771cf",
     },
     300: {
-      hash: 2759140109,
-      snapshot: "c565986901a8a0dab2120fbcadd176506ef54537dc26913c56fe8a5ad464727d",
+      hash: 4091352479,
+      snapshot: "8f72a5d7d226f0ebb871f6bb4ccb1c6f9ea0783a36d97faa0ca2e1ccb88c30d2",
       state: "bc83cb1fe7a6f9785665f973b1d329ac2109a0c6a987f598b2a6c2febf9e138c",
     },
     500: {
-      hash: 489491879,
-      snapshot: "8603347a0b06fe1349a0f4d4b3ae919823320047bae802cd33abd6e45f00c25e",
+      hash: 1194692958,
+      snapshot: "3a1e9e90b0897b2185aec35d5353e4792e5b096f19c760c8223beae838ba05ef",
       state: "be0bc5f48fe2583b444eaae7d787f2443bb0760effccb8f9cf9f7b4fcf23813f",
     },
     750: {
-      hash: 3363074382,
-      snapshot: "d84a505207bd5b4cf2eeea219b1090f825d2503f3b624631c4adfbd9053290ea",
+      hash: 4188223931,
+      snapshot: "436edee8e383220a622fcb01319486d341ad849f0c0bb2eac74d22a2a2d39465",
       state: "bc0a3ed2dbc2ea8ef5c9e17f12c62de404605331e1e74a7995d51f5f15d70f70",
     },
     1000: {
-      hash: 613809883,
-      snapshot: "50d31a28be4c016f62cd946fd2c21074fa471da69dbd649d12ac3d335a284a61",
+      hash: 1135867127,
+      snapshot: "6447eb6081170192e874f0d0aaec728996f1b26d6a242be0a21da7e51264d9ad",
       state: "d160f487b5b4fc238012f975743fe9f1f1246511ee6adf980e15852ad548416a",
     },
   },
@@ -133,19 +138,19 @@ function note(game: Game, seen: Set<string>): void {
   };
   mark(
     "alliance",
-    game.alliances.some((a) => !a.truce),
+    game.alliances.some((a) => !isTruce(game, a)),
   );
   mark(
     "truce",
-    game.alliances.some((a) => a.truce),
+    game.alliances.some((a) => isTruce(game, a)),
   );
   mark(
     "embargo by order",
-    game.embargoes.some((e) => e.until === 0),
+    game.embargoes.some((e) => embargoUntil(game, e) === 0),
   );
   mark(
     "timed embargo",
-    game.embargoes.some((e) => e.until !== 0),
+    game.embargoes.some((e) => embargoUntil(game, e) !== 0),
   );
   mark(
     "expired quick message",
@@ -153,7 +158,7 @@ function note(game: Game, seen: Set<string>): void {
   );
   mark(
     "pressure",
-    game.attacks.some((a) => a.pressure > 0),
+    game.attacks.some((a) => pressureOf(game, a) > 0),
   );
   mark(
     "collapse",
@@ -161,17 +166,17 @@ function note(game: Game, seen: Set<string>): void {
   );
   mark(
     "doctrine",
-    game.players().some((p) => p.doctrine !== 0),
+    game.players().some((p) => doctrineOf(game, p.id) !== 0),
   );
   mark(
     "work share",
-    game.players().some((p) => p.workShare !== 0),
+    game.players().some((p) => workShareOf(game, p.id) !== 0),
   );
   mark(
     "capital",
-    game.players().some((p) => p.capital !== undefined),
+    game.players().some((p) => capitalOf(game, p.id) !== undefined),
   );
-  mark("capital fall", game.capitalFalls.length > 0);
+  mark("capital fall", capitalFalls(game).length > 0);
   mark(
     "landmark",
     game.diplomacyEvents.some((e) => e.type === "landmark"),

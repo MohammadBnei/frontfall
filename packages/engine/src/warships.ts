@@ -1,4 +1,4 @@
-import { embargoed, isAllied, logEvent } from "./diplomacy.ts";
+import { embargoed, embargoedByOrderSince, isAllied, logEvent } from "./diplomacy.ts";
 import { Disable } from "@frontfall/contracts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
@@ -284,7 +284,8 @@ export function installWarships(game: Game): void {
         prize.player !== ship.player &&
         topology.distance(at, ship.tile) <= balance.warshipRange &&
         !isAllied(game, ship.player, prize.player) &&
-        embargoedSince(ship.player, prize.player) <= game.tick - balance.embargoNoticeTicks
+        embargoedByOrderSince(game, ship.player, prize.player) <=
+          game.tick - balance.embargoNoticeTicks
       );
     });
     if (index < 0) return false;
@@ -292,17 +293,6 @@ export function installWarships(game: Game): void {
     owner.gold += tradeGold(prize.path.length);
     logEvent(game, { tick: game.tick, type: "captured", a: ship.player, b: prize.player });
     return true;
-  }
-
-  /** First tick of the oldest embargo between two players, or Infinity. */
-  function embargoedSince(a: number, b: number): number {
-    let since = Infinity;
-    for (const e of game.embargoes) {
-      if (e.until === 0 && ((e.from === a && e.to === b) || (e.from === b && e.to === a))) {
-        since = Math.min(since, e.since);
-      }
-    }
-    return since;
   }
 
   /** Fires at the closest enemy warship in range, else the closest enemy transport. Whether it fired. */

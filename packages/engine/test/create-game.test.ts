@@ -63,6 +63,6 @@ describe("STANDARD_RULES", () => {
     expect(without.persistedParts()).toEqual([]);
     const played = new Game(setup({ rules: { capitals: true } }));
     capitals?.install(played);
-    expect(played.persistedParts().map((part) => part.name)).toEqual(["capitals"]);
+    expect(played.persistedParts().map((part) => part.name)).toEqual(["capitals", "capital falls"]);
   });
 });

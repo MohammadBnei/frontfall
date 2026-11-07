@@ -1,8 +1,8 @@
-import { DOCTRINE_COUNT } from "@frontfall/contracts";
 import type { Attack } from "../attacks.ts";
 import type { Boat } from "../boats.ts";
 import type { Alliance, AllianceRequest, Embargo, RequestCooldown } from "../diplomacy.ts";
-import type { CapitalFall, Player } from "../game.ts";
+import type { CapitalFall } from "../capitals.ts";
+import type { Player } from "../game.ts";
 import { MissileSize, type Fallout, type Missile } from "../missiles.ts";
 import type { QuickCooldown } from "../quick-messages.ts";
 import { StructureKind, type Structure } from "../structures.ts";
@@ -12,9 +12,7 @@ import {
   below,
   flag,
   int,
-  onlyIf,
   optionalTile,
-  part,
   path,
   player,
   route,
@@ -28,7 +26,8 @@ import {
 
 /*
  * One codec per entity of the state (ADR 0008): the snapshot writes, reads
- * and checks each record from it, field by field in the order of its keys.
+ * and checks each record from it, field by field in the order of its keys,
+ * and the state hash mixes the same values in the same order.
  * `satisfies Codec<T>` makes the compiler refuse a codec that misses a field
  * of its entity, or names one it does not have.
  */
@@ -46,18 +45,11 @@ export const PLAYER_RECORD = {
   troops: int,
   gold: int,
   goldRemainder: int,
-  workShare: below((game) => game.balance.workMaxPercent + 1, "work share"),
   alive: flag("alive"),
   start: optionalTile("start"),
   traitorUntil: uint,
   home: setup,
   team: setup,
-  doctrine: onlyIf(
-    (game) => game.rules.doctrines,
-    below(() => DOCTRINE_COUNT, "doctrine"),
-    0,
-  ),
-  capital: part,
 } satisfies Codec<Player>;
 
 export const ATTACK_RECORD = {
@@ -66,8 +58,6 @@ export const ATTACK_RECORD = {
   target: player,
   aim: tile,
   troops: uint,
-  // R-ATTACK-10: a game without collapsing fronts saves as before them.
-  pressure: onlyIf((game) => game.rules.collapsingFronts, uint, 0),
 } satisfies Codec<Attack>;
 
 export const BOAT_RECORD = {
@@ -136,7 +126,6 @@ export const ALLIANCE_RECORD = {
   until: uint,
   renewA: flag("renewal"),
   renewB: flag("renewal"),
-  truce: flag("truce"),
 } satisfies Codec<Alliance>;
 
 export const ALLIANCE_REQUEST_RECORD = {
@@ -155,7 +144,6 @@ export const EMBARGO_RECORD = {
   from: player,
   to: player,
   since: uint,
-  until: uint,
 } satisfies Codec<Embargo>;
 
 export const QUICK_COOLDOWN_RECORD = {
@@ -163,10 +151,10 @@ export const QUICK_COOLDOWN_RECORD = {
   until: uint,
 } satisfies Codec<QuickCooldown>;
 
-/** Saved by the capitals part, which never checked their range: neither does its codec. */
+/** Kept by the capital rules in a part of their own (R-CAP-03, R-CAP-04). */
 export const CAPITAL_FALL_RECORD = {
   tick: uint,
-  player: uint,
-  by: uint,
-  tile: uint,
+  player,
+  by: player,
+  tile,
 } satisfies Codec<CapitalFall>;

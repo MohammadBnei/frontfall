@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import { DOCTRINE_COUNT } from "../src/doctrines.ts";
 import type { Game } from "../src/game.ts";
 import { loadSnapshot, saveSnapshot } from "../src/snapshot.ts";
+import { PlayerValues, RecordList, SlotValues } from "../src/state/parts.ts";
 import { ALL_RULES, BUILD, BUSY, type Fixture } from "./fixtures/busy-game.ts";
 
 /**
  * Every field of the state must reach the state hash and snapshots. For each
- * entity list of `Game`, for each `Player` and for the game's own numbers,
- * the two busy games are played until an entry exists; then each of its
- * fields is set to another valid value, and the hash must change and a
- * snapshot must carry the value, unless `EXEMPT` says why not.
+ * entity list of `Game`, for each `Player`, for the game's own numbers and
+ * for each value of the rule parts, the two busy games are played until an
+ * entry exists; then each of its fields is set to another valid value, and
+ * the hash must change and a snapshot must carry the value, unless `EXEMPT`
+ * says why not.
  */
 
 /** Gives another valid value for a field, or undefined when this entry has none to give. */
@@ -23,6 +25,8 @@ const tile: Change = (v, game) =>
   (v as number) + 1 < game.terrain.topology.size ? (v as number) + 1 : (v as number) - 1;
 const optionalTile: Change = (v, game) => (v === undefined ? 0 : tile(v, game));
 const optionalCount: Change = (v) => (v === undefined ? 1 : (v as number) + 1);
+/** A tile, or -1 for none, as parts keep them. */
+const tileOrNone: Change = (v, game) => ((v as number) < 0 ? 0 : tile(v, game));
 
 /**
  * The same route with one corner cut the other way round: as long, with the
@@ -57,14 +61,11 @@ const CHANGES: Record<string, Record<string, Change>> = {
     troops: count,
     gold: count,
     goldRemainder: count,
-    workShare: (v) => ((v as number) === 0 ? 1 : (v as number) - 1),
     alive: flag,
     start: optionalTile,
     traitorUntil: count,
     home: optionalTile,
     team: player,
-    doctrine: (v) => ((v as number) + 1) % DOCTRINE_COUNT,
-    capital: optionalTile,
   },
   game: {
     seed: count,
@@ -83,7 +84,7 @@ const CHANGES: Record<string, Record<string, Change>> = {
     setup: optionalCount,
     balanceDigest: count,
   },
-  attacks: { id: count, player, target: player, aim: tile, troops: count, pressure: count },
+  attacks: { id: count, player, target: player, aim: tile, troops: count },
   boats: { id: count, player, target: tile, troops: count, path: route, step: count },
   structures: {
     id: count,
@@ -118,12 +119,31 @@ const CHANGES: Record<string, Record<string, Change>> = {
   },
   fallout: { tile, radius: count, until: count },
   fights: { a: player, b: player, until: count },
-  alliances: { a: player, b: player, until: count, renewA: flag, renewB: flag, truce: flag },
+  alliances: { a: player, b: player, until: count, renewA: flag, renewB: flag },
   allianceRequests: { from: player, to: player, expiresAt: count },
   requestCooldowns: { from: player, to: player, until: count },
-  embargoes: { from: player, to: player, since: count, until: count },
+  embargoes: { from: player, to: player, since: count },
   quickCooldowns: { player, until: count },
-  capitalFalls: { tick: count, player, by: player, tile },
+  // The values of the rule parts (ADR 0008), by part name: one entry per player or per list slot.
+  "part work": { value: (v) => ((v as number) === 0 ? 1 : (v as number) - 1) },
+  "part doctrines": { value: (v) => ((v as number) + 1) % DOCTRINE_COUNT },
+  "part capitals": { value: tileOrNone },
+  "part capital falls": { tick: count, player, by: player, tile },
+  "part fronts": { value: count },
+  "part truces": { value: (v) => 1 - (v as number) },
+  "part embargo ends": { value: count },
+};
+
+/**
+ * Parts a rule keeps in a closure, saved and hashed as a whole but not
+ * changed value by value here: the state dump pins their bytes. By the
+ * start of their name.
+ */
+const WHOLE_PARTS: Record<string, string> = {
+  trade: "the open ports in the order they opened",
+  "bots ": "when each bot may search again",
+  "nations ": "when each nation may search again",
+  "nation memory ": "what each nation remembers of the others",
 };
 
 interface Exemption {
@@ -136,36 +156,12 @@ interface Exemption {
   readonly reason: string;
 }
 
-const off = (rule: "capitals" | "collapsingFronts" | "doctrines") => (game: Game) =>
-  !game.rules[rule];
-
 /** Fields the state hash or snapshots leave out, on purpose, and why. */
 const EXEMPT: readonly Exemption[] = [
   { entity: "player", key: "id", from: "snapshot", reason: "setup, checked by the setup digest" },
   { entity: "player", key: "name", from: "both", reason: "setup, read by the setup digest only" },
   { entity: "player", key: "home", from: "snapshot", reason: "setup, from the map's manifest" },
   { entity: "player", key: "team", from: "snapshot", reason: "setup, dealt from the teams" },
-  {
-    entity: "player",
-    key: "team",
-    from: "hash",
-    when: (game) => game.teams === 0,
-    reason: "a free-for-all hashes as before teams existed",
-  },
-  {
-    entity: "player",
-    key: "doctrine",
-    from: "both",
-    when: off("doctrines"),
-    reason: "a game without doctrines hashes and saves as before them",
-  },
-  {
-    entity: "player",
-    key: "capital",
-    from: "both",
-    when: off("capitals"),
-    reason: "without capitals there is no capitals part, and the hash leaves capitals out",
-  },
   { entity: "game", key: "seed", from: "both", reason: "setup, read by the setup digest only" },
   { entity: "game", key: "teams", from: "snapshot", reason: "setup, checked by the setup digest" },
   {
@@ -180,44 +176,9 @@ const EXEMPT: readonly Exemption[] = [
     from: "snapshot",
     reason: "setup, checked by the setup digest",
   },
-  {
-    entity: "game",
-    key: "winningTeam",
-    from: "hash",
-    when: (game) => game.teams === 0,
-    reason: "a free-for-all hashes as before teams existed",
-  },
   { entity: "game", key: "setup", from: "both", reason: "a cache of setupDigest(), not state" },
-  {
-    entity: "attacks",
-    key: "pressure",
-    from: "both",
-    when: off("collapsingFronts"),
-    reason: "a game without collapsing fronts hashes and saves as before them",
-  },
-  {
-    entity: "tradeShips",
-    key: "path",
-    from: "hash",
-    reason: "only its length and two ends are hashed; the route cache picked the rest",
-  },
-  { entity: "warships", key: "path", from: "hash", reason: "only its length is hashed" },
   { entity: "warships", key: "firedAt", from: "both", reason: "for the screen only" },
   { entity: "warships", key: "aim", from: "both", reason: "for the screen only" },
-  {
-    entity: "quickCooldowns",
-    key: "player",
-    from: "hash",
-    when: (game, entry) => (entry.until as number) < game.tick,
-    reason: "a wait that is over is not hashed, though the list keeps it until the next message",
-  },
-  {
-    entity: "quickCooldowns",
-    key: "until",
-    from: "hash",
-    when: (game, entry) => (entry.until as number) < game.tick,
-    reason: "a wait that is over is not hashed, though the list keeps it until the next message",
-  },
 ];
 
 /** Arrays of `Game` that are not entity lists of the state, and why. */
@@ -225,12 +186,51 @@ const NOT_STATE: Record<string, string> = {
   sortedPlayers: "the players, checked field by field as `player`",
   systems: "the tick systems of the rules installed",
   observers: "the order observers of the rules installed",
-  persisted: "the rule parts, which save themselves and are pinned by the state dump",
+  persisted: "the rule parts, checked value by value as `part <name>`, or whole in `WHOLE_PARTS`",
+  parts: "the same rule parts, by the slot of their key",
   diplomacyEvents: "what happened, for the interfaces: no rule reads it back",
   missileEvents: "how missiles ended, for the interfaces: no rule reads it back",
 };
 
 const fields = (item: object) => item as Record<string, unknown>;
+
+/** A value of a part, as an entry whose `value` reads and writes it. */
+function valueEntry(get: () => number, set: (value: number) => void): object {
+  return {
+    get value() {
+      return get();
+    },
+    set value(value: number) {
+      set(value);
+    },
+  };
+}
+
+/** The values of a rule part as entries, or undefined for a part kept whole. */
+function partEntries(game: Game, part: unknown): readonly object[] | undefined {
+  if (part instanceof PlayerValues) {
+    return game.players().map((p) =>
+      valueEntry(
+        () => part.get(p.id),
+        (v) => {
+          part.set(p.id, v);
+        },
+      ),
+    );
+  }
+  if (part instanceof SlotValues) {
+    return Array.from({ length: part.length }, (_, slot) =>
+      valueEntry(
+        () => part.get(slot),
+        (v) => {
+          part.set(slot, v);
+        },
+      ),
+    );
+  }
+  if (part instanceof RecordList) return part.entries as object[];
+  return undefined;
+}
 
 /** The entries of each entity of the game, by entity name. */
 function entities(game: Game): Map<string, readonly object[]> {
@@ -239,6 +239,13 @@ function entities(game: Game): Map<string, readonly object[]> {
   out.set("game", [game]);
   for (const [name, value] of Object.entries(fields(game))) {
     if (Array.isArray(value) && !(name in NOT_STATE)) out.set(name, value as object[]);
+  }
+  for (const { name, part } of game.persistedParts()) {
+    const entries = partEntries(game, part);
+    if (entries) out.set(`part ${name}`, entries);
+    else if (!Object.keys(WHOLE_PARTS).some((start) => name.startsWith(start))) {
+      throw new Error(`part ${name} is neither read value by value nor kept whole`);
+    }
   }
   return out;
 }

@@ -44,6 +44,8 @@ export function installNations(
   /** B-NATION-GRACE; tests of later behaviour set it to 0. */
   graceSeconds = NATION_DIFFICULTIES[difficulty].graceSeconds,
 ): void {
+  // Without nations there is nothing to run or keep: no part, so the game saves and hashes as one without the call.
+  if (ids.length === 0) return;
   // The phases of a decision live in nations/, sharing one context (ADR 0009).
   const ctx = createNationContext(game, ids, difficulty, graceSeconds);
   const { nations, interval } = ctx;

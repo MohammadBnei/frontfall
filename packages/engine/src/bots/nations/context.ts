@@ -1,6 +1,6 @@
 import type { Balance } from "../../balance.ts";
 import { isAllied, isTraitor } from "../../diplomacy.ts";
-import { populationCap } from "../../economy.ts";
+import { populationCap, workShareOf } from "../../economy.ts";
 import type { Game, Player } from "../../game.ts";
 import { percentOf } from "../../integer-math.ts";
 import type { TerritoryMap } from "../../territory/territory-map.ts";
@@ -264,7 +264,8 @@ export function runaway(ctx: NationContext): number {
  * as someone threatens it or it turns on a player.
  */
 export function work(ctx: NationContext, nation: Player, share: number): void {
-  if (nation.workShare !== share) ctx.game.apply(nation.id, { type: "work", share });
+  if (workShareOf(ctx.game, nation.id) !== share)
+    ctx.game.apply(nation.id, { type: "work", share });
 }
 
 /**

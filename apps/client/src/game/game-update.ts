@@ -9,8 +9,11 @@ import {
   tributePrice,
   atWar,
   cityLimit,
+  capitalFalls,
+  capitalOf,
   capitalThreat,
   cityShare,
+  doctrineOf,
   structureCount,
   launchSilo,
   missileCost,
@@ -25,6 +28,7 @@ import {
   takeMissileEvents,
   troopGrowth,
   warshipCost,
+  workShareOf,
   type Game,
 } from "@frontfall/engine";
 import type {
@@ -130,24 +134,26 @@ function diplomacyEvents(game: Game): DiplomacyEvent[] {
  */
 export function gameUpdate(game: Game, you: number, labelSpace: LabelSpace): GameUpdate {
   const territory = game.territory;
-  const players = game.players().map((player) => ({
-    id: player.id,
-    name: player.name,
-    troops: player.troops,
-    cap: populationCap(game, player),
-    gold: player.gold,
-    workShare: player.workShare,
-    tiles: territory.tileCount(player.id),
-    alive: player.alive,
-    ...(player.capital === undefined ? {} : { capital: player.capital }),
-    ...(game.cityStates.has(player.id) ? { cityState: true as const } : {}),
-    // R-DOCTRINE-03: the choices stay private until play starts.
-    ...(game.rules.doctrines &&
-    player.doctrine !== 0 &&
-    (game.phase === "play" || player.id === you)
-      ? { doctrine: player.doctrine }
-      : {}),
-  }));
+  const players = game.players().map((player) => {
+    const capital = capitalOf(game, player.id);
+    const doctrine = doctrineOf(game, player.id);
+    return {
+      id: player.id,
+      name: player.name,
+      troops: player.troops,
+      cap: populationCap(game, player),
+      gold: player.gold,
+      workShare: workShareOf(game, player.id),
+      tiles: territory.tileCount(player.id),
+      alive: player.alive,
+      ...(capital === undefined ? {} : { capital }),
+      ...(game.cityStates.has(player.id) ? { cityState: true as const } : {}),
+      // R-DOCTRINE-03: the choices stay private until play starts.
+      ...(game.rules.doctrines && doctrine !== 0 && (game.phase === "play" || player.id === you)
+        ? { doctrine }
+        : {}),
+    };
+  });
   const update: GameUpdate = {
     ...(game.rules.doctrines ? { doctrines: true as const } : {}),
     you: you,
@@ -273,7 +279,7 @@ export function gameUpdate(game: Game, you: number, labelSpace: LabelSpace): Gam
   }
   if (game.rules.capitals) {
     update.capitals = {
-      falls: game.capitalFalls.map(({ tick, player, by }) => ({ tick, player, by })),
+      falls: capitalFalls(game).map(({ tick, player, by }) => ({ tick, player, by })),
       threat: capitalThreat(game, you),
       standsIn: Math.max(
         0,

@@ -24,6 +24,7 @@ export {
   defenderLoss,
   defensePerTile,
   installAttacks,
+  pressureOf,
   troopsPerTile,
   type Attack,
 } from "./attacks.ts";
@@ -40,11 +41,14 @@ export {
 export {
   capitalAim,
   capitalAlertDistance,
+  capitalFalls,
+  capitalOf,
   capitalRadius,
   capitalThreat,
   capitalsStand,
   guardedByCapital,
   installCapitals,
+  type CapitalFall,
 } from "./capitals.ts";
 export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
 export { STANDARD_RULES, assertOrderRules, createGame, type Rule } from "./create-game.ts";
@@ -61,9 +65,11 @@ export {
   betrayError,
   canRenew,
   embargoError,
+  embargoUntil,
   embargoed,
   installDiplomacy,
   isAllied,
+  isTruce,
   isTraitor,
   requestBetween,
   sameTeam,
@@ -99,6 +105,7 @@ export {
   soldiers,
   troopGrowth,
   workError,
+  workShareOf,
   workers,
 } from "./economy.ts";
 export {
@@ -106,6 +113,7 @@ export {
   DOCTRINE_EFFECTS,
   Doctrine,
   doctrineError,
+  doctrineOf,
   doctrinePercent,
   installDoctrines,
   isDoctrine,
@@ -151,7 +159,6 @@ export {
 } from "./bots/index.ts";
 export {
   Game,
-  type CapitalFall,
   type GameSetup,
   type OrderObserver,
   type PersistedPart,

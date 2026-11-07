@@ -18,7 +18,7 @@ Some parts describe code that exists today. Others describe the target of the pr
 | `e2e`                | Playwright tests of the built game.                                                                          |
 | `docs`               | Rules, balance, design documents and the records in `docs/adr/`.                                             |
 
-Inside the engine, one file per rule (`attacks.ts`, `diplomacy.ts`, `warships.ts`, `missiles.ts`, `trade.ts` and others), `game.ts` for the state and the turn loop, `orders.ts` for validation, `snapshot.ts` and `snapshot-bytes.ts` for saved state, `balance.ts` for the numbers, and `bots/` for computer players, nations and city-states.
+Inside the engine, one file per rule (`attacks.ts`, `diplomacy.ts`, `warships.ts`, `missiles.ts`, `trade.ts` and others), `game.ts` for the state and the turn loop, `orders.ts` and `order-rules.ts` for validation, `state/` (layout, codec, records, parts, lists) with `snapshot.ts` and `snapshot-bytes.ts` for saved state and the hash, `balance.ts` for the numbers, and `bots/` for computer players, nations and city-states.
 
 Inside the client, `game/` runs and follows a game (sessions, the worker, replays), `net/` talks to the server, `render/` draws, `input/` turns gestures into orders, `ui/` holds the screens and panels (`ui/screen/` the parts of the game screen), and `audio/`, `achievements/` and `stats/` are the smaller services. `main.ts` starts everything. **Target** ([0013](adr/0013-client-shell-and-signals.md)): an `app/` folder holds the shell, and `main.ts` only starts it.
 
@@ -107,7 +107,7 @@ flowchart LR
 | Observers (`onApplied`)           | Nations hear of orders                                                                            | Today                                 |
 | One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Today                                 |
 | Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Today                                 |
-| Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Today for codecs, Target for parts    |
+| Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Today                                 |
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today                                 |
 | Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Today                                 |
@@ -137,9 +137,7 @@ Today:
 
 ### A rule and its state
 
-Today: write `packages/engine/src/<rule>.ts` with an `installX(game)` function, add an entry to `STANDARD_RULES` in `create-game.ts` after the rules it reads from, and put the rule's state on `Game` or `Player`. Add the state to `hash()` and to the snapshot writer and reader, and bump `SNAPSHOT_FORMAT` if the layout changes. Name the rule identifiers in the code and the tests.
-
-**Target** ([0008](adr/0008-rule-state-and-hash.md)): keep the state in a part owned by the rule, keyed by entity id, with one record codec. Never add a field to `Game` or to an entity. Other rules change your collections through functions you export ([0010](adr/0010-collection-ownership.md)).
+Write `packages/engine/src/<rule>.ts` with an `installX(game)` function and add an entry to `STANDARD_RULES` in `create-game.ts` after the rules it reads from. Keep the rule's state in a part of its own ([0008](adr/0008-rule-state-and-hash.md)): a `partKey` in the module, and a `PlayerValues`, `SlotValues` or `RecordList` from `packages/engine/src/state/parts.ts` registered with `game.addPart` by the install function, only in games that play with the rule, with a codec field for its values. Export an accessor that reads it. Never add a field to `Game` or to an entity. The snapshot and `game.hash()` then carry the part with nothing more to write; bump `SNAPSHOT_FORMAT`, add its values to `test/state-coverage.test.ts` and to the state dump, and rebuild the golden replays. Other rules change your collections through functions you export ([0010](adr/0010-collection-ownership.md)). Name the rule identifiers in the code and the tests.
 
 ### A balance value
 

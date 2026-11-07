@@ -3,6 +3,8 @@ import type { BotDifficulty } from "./bots/difficulty.ts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
 import { ANY_PHASE, defineOrder } from "./order-rules.ts";
+import { below } from "./state/codec.ts";
+import { PlayerValues, partKey } from "./state/parts.ts";
 
 /**
  * The doctrines a player may pick during the spawn phase (R-DOCTRINE): code 0
@@ -63,11 +65,24 @@ export function isDoctrine(code: number): code is DoctrineCode {
   return Number.isInteger(code) && code >= 0 && code < DOCTRINE_COUNT;
 }
 
+/** The doctrine each player picked, by player id; only in a game with doctrines. */
+const DOCTRINES = partKey<PlayerValues>("doctrines");
+
+/**
+ * The doctrine `player` picked (R-DOCTRINE-01), a `Doctrine` code: the
+ * balanced one without a pick, for an id that is no player, and in a game
+ * without doctrines.
+ */
+export function doctrineOf(game: Game, player: number): DoctrineCode {
+  return (game.part(DOCTRINES)?.get(player) ?? Doctrine.Balanced) as DoctrineCode;
+}
+
 /** What `player`'s doctrine does to one rule, in percent; 100 when the game has no doctrines or the player is not one of its players. */
 export function doctrinePercent(game: Game, player: number, effect: keyof DoctrineEffects): number {
-  if (!game.rules.doctrines) return 100;
-  const code = game.player(player)?.doctrine ?? Doctrine.Balanced;
-  return (DOCTRINE_EFFECTS[code] ?? NONE)[effect];
+  // The rules first, a plain field: the price of every tile an attack takes asks.
+  const doctrines = game.rules.doctrines ? game.part(DOCTRINES) : undefined;
+  if (!doctrines) return 100;
+  return (DOCTRINE_EFFECTS[doctrines.get(player)] ?? NONE)[effect];
 }
 
 /** `value` changed by the percent of `player`'s doctrine for `effect`. */
@@ -89,14 +104,24 @@ export function withDoctrine(
 export const DOCTRINE_ORDER = defineOrder("doctrine", {
   phases: ANY_PHASE,
   validate: (game, _player, order) => doctrineError(game, order.pick) ?? order,
-  execute(_game, player, order) {
-    player.doctrine = order.pick;
+  execute(game, player, order) {
+    game.part(DOCTRINES)?.set(player.id, order.pick);
     return true;
   },
 });
 
+/** The doctrine order in every game, refused without doctrines; the doctrines' part only in a game with them. */
 export function installDoctrines(game: Game): void {
   game.onOrder(DOCTRINE_ORDER);
+  if (game.rules.doctrines) {
+    game.addPart(
+      DOCTRINES,
+      new PlayerValues(
+        game,
+        below(() => DOCTRINE_COUNT, "doctrine"),
+      ),
+    );
+  }
 }
 
 /** Why a doctrine cannot be picked, or undefined when it can (R-DOCTRINE-01). */

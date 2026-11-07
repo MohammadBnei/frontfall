@@ -7,6 +7,8 @@ import { logEvent } from "./diplomacy.ts";
 import { detPow, mulDiv, percentOf } from "./integer-math.ts";
 import { LandmarkEffect, withLandmarks } from "./landmarks.ts";
 import { ANY_PHASE, defineOrder } from "./order-rules.ts";
+import { below } from "./state/codec.ts";
+import { PlayerValues, partKey } from "./state/parts.ts";
 import { workingCities } from "./structures.ts";
 
 /**
@@ -47,14 +49,22 @@ export function populationCap(game: Game, player: Player): number {
   return game.hasBonus(player.id, OperatorBonus.Troops) ? cap * OPERATOR_FACTOR : cap;
 }
 
+/** Each player's work share, by player id (R-ECO-07). */
+const WORK = partKey<PlayerValues>("work");
+
+/** Share of `player`'s troops at home, in %, who work rather than fight (R-ECO-07); 0 until they set one. */
+export function workShareOf(game: Game, player: number): number {
+  return game.part(WORK)?.get(player) ?? 0;
+}
+
 /** R-ECO-07: troops at home who work, earning gold, and neither attack nor defend. */
-export function workers(player: Player): number {
-  return percentOf(player.troops, player.workShare);
+export function workers(game: Game, player: Player): number {
+  return percentOf(player.troops, workShareOf(game, player.id));
 }
 
 /** R-ECO-07: troops at home who fight: the most an attack or a ship can take, and what holds the land. */
-export function soldiers(player: Player): number {
-  return player.troops - workers(player);
+export function soldiers(game: Game, player: Player): number {
+  return player.troops - workers(game, player);
 }
 
 /** Why a work share cannot be set, or undefined when it can (R-ECO-07). */
@@ -69,8 +79,8 @@ export function workError(game: Game, share: number): string | undefined {
 export const WORK_ORDER = defineOrder("work", {
   phases: ANY_PHASE,
   validate: (game, _player, order) => workError(game, order.share) ?? order,
-  execute(_game, player, order) {
-    player.workShare = order.share;
+  execute(game, player, order) {
+    game.part(WORK)?.set(player.id, order.share);
     return true;
   },
 });
@@ -85,6 +95,13 @@ export function installEconomy(game: Game): void {
   const goldDivisor = 1000 * game.balance.ticksPerSecond;
 
   game.onOrder(WORK_ORDER);
+  game.addPart(
+    WORK,
+    new PlayerValues(
+      game,
+      below((g) => g.balance.workMaxPercent + 1, "work share"),
+    ),
+  );
 
   game.onTick(() => {
     if (game.phase !== "play") return;
@@ -124,8 +141,8 @@ export function goldIncome(game: Game, player: Player): number {
   // R-DOCTRINE: and the fixed income.
   const fixed = withDoctrine(game, player.id, "gold", shared);
   const working =
-    cap > 0 ? mulDiv(fixed * workGoldPercent, Math.min(workers(player), cap), 100 * cap) : 0;
-  const idle = soldiers(player) * goldPerThousandTroops;
+    cap > 0 ? mulDiv(fixed * workGoldPercent, Math.min(workers(game, player), cap), 100 * cap) : 0;
+  const idle = soldiers(game, player) * goldPerThousandTroops;
   return withLandmarks(
     game,
     player.id,

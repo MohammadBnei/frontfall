@@ -6,11 +6,13 @@ import { OPERATOR_FACTOR } from "./modes.ts";
 import { detPow, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 import { DiplomacyError, isAllied, isTraitor, logEvent } from "./diplomacy.ts";
 import { soldiers } from "./economy.ts";
-import { capitalsStand, guardedByCapital } from "./capitals.ts";
+import { capitalOf, capitalsStand, guardedByCapital } from "./capitals.ts";
 import { LandmarkEffect, guardedByLandmark, heldLandmarks } from "./landmarks.ts";
 import { PLAY_PHASE, defineOrder, tileError, type Refusal } from "./order-rules.ts";
 import { spawnSettings } from "./spawn.ts";
+import { uint } from "./state/codec.ts";
 import { writable } from "./state/lists.ts";
+import { SlotValues, partKey } from "./state/parts.ts";
 import { fortRadius, fortified, isReady, StructureKind } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
 import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
@@ -25,11 +27,20 @@ export interface Attack {
   /** Tile the player aimed at; the front advances towards it first. */
   aim: number;
   troops: number;
-  /**
-   * Ticks in a row this attack has overwhelmed the front it pushes on
-   * (R-ATTACK-10); always 0 in a game without collapsing fronts.
-   */
-  pressure: number;
+}
+
+/**
+ * R-ATTACK-10: ticks in a row each attack has overwhelmed the front it
+ * pushes on, by the attack's place in `game.attacks`; only in a game with
+ * collapsing fronts. Read for every attack every tick, so kept dense.
+ */
+const PRESSURE = partKey<SlotValues>("fronts");
+
+/** Ticks in a row `attack` has overwhelmed its front (R-ATTACK-10); always 0 in a game without collapsing fronts. */
+export function pressureOf(game: Game, attack: Readonly<Attack>): number {
+  const pressure = game.part(PRESSURE);
+  const slot = pressure ? game.attacks.indexOf(attack) : -1;
+  return pressure && slot >= 0 ? pressure.get(slot) : 0;
 }
 
 /** R-SPAWN-05: nobody attacks, nor lands, during the spawn phase. */
@@ -49,7 +60,7 @@ export function targetError(
   if (error) return error;
   if (!Number.isSafeInteger(troops) || troops < 1) return "invalid troop count";
   // R-ECO-07: workers stay at home.
-  if (troops > soldiers(player)) return "not enough troops";
+  if (troops > soldiers(game, player)) return "not enough troops";
   if (game.territory.ownerOf(target) === player.id) return "the target is already owned";
   // R-DIPLO-02: an ally is attacked only after betraying them.
   if (isAllied(game, player.id, game.territory.ownerOf(target))) return DiplomacyError.Ally;
@@ -96,7 +107,6 @@ export const ATTACK_ORDER = defineOrder("attack", {
       target,
       aim: order.target,
       troops: 0,
-      pressure: 0,
     };
     // R-ATTACK-09: without a shared border, only ships can reach the target.
     if (!touches(game, player.id, target)) return false;
@@ -105,6 +115,7 @@ export const ATTACK_ORDER = defineOrder("attack", {
     attack.aim = order.target;
     if (!existing) {
       attacks.push(attack);
+      game.part(PRESSURE)?.push(0);
       game.nextAttackId++;
     }
     return true;
@@ -166,6 +177,9 @@ export function installAttacks(game: Game): void {
   const frontLengths: number[] = [];
   const overwhelming: boolean[] = [];
   const collapsing = game.rules.collapsingFronts;
+  const pressure = collapsing
+    ? game.addPart(PRESSURE, new SlotValues(game, () => game.attacks, uint))
+    : undefined;
   const collapseFill = new BoundedFloodFill(topology);
   const nearForts: number[] = [];
   const attacksOf = new Map<number, number[]>();
@@ -342,17 +356,25 @@ export function installAttacks(game: Game): void {
     cancelOpposingAttacks(attacks);
     planFronts();
     for (let a = 0; a < attacks.length; a++) {
-      advance(attacks[a] as Attack, fronts[a] as number[], overwhelming[a] === true);
+      advance(a, attacks[a] as Attack, fronts[a] as number[], overwhelming[a] === true);
     }
     // Troops of a finished attack went back to its player in finish(); a fallen player's are lost.
     for (let i = attacks.length - 1; i >= 0; i--) {
       const attack = attacks[i] as Attack;
-      if (attack.troops <= 0 || !game.player(attack.player)?.alive) attacks.splice(i, 1);
+      if (attack.troops <= 0 || !game.player(attack.player)?.alive) {
+        attacks.splice(i, 1);
+        pressure?.remove(i);
+      }
     }
   });
 
-  /** Takes the tiles planned for this tick; an attack that cannot go on is marked done. */
-  function advance(attack: Attack, tiles: readonly number[], overwhelms: boolean): void {
+  /** Takes the tiles planned for this tick for the attack at `slot`; an attack that cannot go on is marked done. */
+  function advance(
+    slot: number,
+    attack: Attack,
+    tiles: readonly number[],
+    overwhelms: boolean,
+  ): void {
     const attacker = game.player(attack.player);
     const defender = attack.target === NEUTRAL ? undefined : game.player(attack.target);
     if (!attacker?.alive || attack.troops <= 0) return;
@@ -374,10 +396,10 @@ export function installAttacks(game: Game): void {
       territory.setOwner(tile, attack.player);
       captured.push(tile);
     }
-    if (collapsing && defender) {
-      attack.pressure = overwhelms && captured.length > 0 ? attack.pressure + 1 : 0;
-      if (attack.pressure >= balance.collapseBuildupTicks) {
-        attack.pressure = 0;
+    if (pressure && defender) {
+      const ticks = overwhelms && captured.length > 0 ? pressure.get(slot) + 1 : 0;
+      pressure.set(slot, ticks >= balance.collapseBuildupTicks ? 0 : ticks);
+      if (ticks >= balance.collapseBuildupTicks) {
         collapse(attack, defender);
       }
     }
@@ -623,7 +645,7 @@ export function captureCost(
   if (!defender) {
     cost = mulDiv(weight, bot ? balance.botNeutralSharePercent : balance.neutralSharePercent, 100);
   } else {
-    const defending = soldiers(defender);
+    const defending = soldiers(game, defender);
     const tiles = territory.tileCount(defender.id);
     const odds = Math.min(
       balance.oddsMaxPercent / 100,
@@ -664,8 +686,8 @@ export function captureCost(
   if (isTraitor(game, defender)) cost = mulDiv(cost, balance.traitorDefensePercent, 100);
   let troops = wholeTroops(tile, cost);
   // R-CAP-02: the capital itself holds a share of its owner's whole army.
-  if (capitalsStand(game) && defender.capital === tile) {
-    troops += percentOf(soldiers(defender), balance.capitalGarrisonPercent);
+  if (capitalsStand(game) && capitalOf(game, defender.id) === tile) {
+    troops += percentOf(soldiers(game, defender), balance.capitalGarrisonPercent);
   }
   return troops;
 }
@@ -682,7 +704,7 @@ export function defenderLoss(game: Game, tile: number, defender: Player): number
 /** A defender's soldiers spread over their land, which the fronts weigh an attack against (R-ECO-07). */
 export function defensePerTile(game: Game, defender: Player): number {
   const tiles = game.territory.tileCount(defender.id);
-  return tiles === 0 ? 0 : divFloor(soldiers(defender), tiles);
+  return tiles === 0 ? 0 : divFloor(soldiers(game, defender), tiles);
 }
 
 /** A defender's troops, workers included, spread over their land: what they lose with each tile taken. */

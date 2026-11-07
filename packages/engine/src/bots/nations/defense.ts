@@ -1,4 +1,4 @@
-import { cheapestTile } from "../../attacks.ts";
+import { cheapestTile, pressureOf } from "../../attacks.ts";
 import { isAllied } from "../../diplomacy.ts";
 import { soldiers } from "../../economy.ts";
 import type { Player } from "../../game.ts";
@@ -49,7 +49,7 @@ export function exposedAtWork(ctx: NationContext, nation: Player): boolean {
   for (const [owner, front] of facing) {
     const neighbour = game.player(owner);
     if (!neighbour?.alive || isAllied(game, nation.id, owner)) continue;
-    const threat = percentOf(soldiers(neighbour), 50);
+    const threat = percentOf(soldiers(game, neighbour), 50);
     if (threat * 10 >= balance.collapseOddsTenths * Math.max(1, perTile * front)) return true;
   }
   return false;
@@ -67,7 +67,7 @@ export function press(ctx: NationContext, nation: Player, armed: () => number): 
     (attack) =>
       attack.player === nation.id &&
       attack.target !== NEUTRAL &&
-      attack.pressure > 0 &&
+      pressureOf(game, attack) > 0 &&
       territory.tileCount(attack.target) > own,
   );
   if (!pushing) return false;

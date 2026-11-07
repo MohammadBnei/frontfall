@@ -223,11 +223,11 @@ describe("package rules (ADR 0014)", () => {
 /** Where the engine's lists are declared, with their owner modules in the comment of each field. */
 const LISTS_FILE = "packages/engine/src/state/lists.ts";
 /**
- * Modules that write every list: the snapshot loader with the record codecs
+ * Modules that write every list: the snapshot loader (the state layout) with the record codecs
  * it reads entities by, and the file that hands out the lists.
  */
 const WRITE_ANY = [
-  "packages/engine/src/snapshot.ts",
+  "packages/engine/src/state/layout.ts",
   "packages/engine/src/state/codec.ts",
   "packages/engine/src/state/records.ts",
   LISTS_FILE,
@@ -337,7 +337,8 @@ describe("owner-only writes of the engine's lists (ADR 0010)", () => {
   const engineFiles = sourceFiles(join(root, "packages/engine/src"));
 
   it("names owner modules that exist for every list", () => {
-    expect(lists.length).toBeGreaterThanOrEqual(16);
+    // The capitals that fell are a rule part (ADR 0008), no longer one of the lists.
+    expect(lists.length).toBeGreaterThanOrEqual(15);
     const known = new Set(engineFiles.map((file) => relative(root, file)));
     for (const list of lists) {
       expect(list.owners.length, list.name).toBeGreaterThan(0);

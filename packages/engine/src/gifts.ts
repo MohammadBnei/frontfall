@@ -39,7 +39,7 @@ export function giftError(
   if (!Number.isSafeInteger(gold) || gold < 0) return GiftError.Amount;
   if (troops === 0 && gold === 0) return GiftError.Empty;
   // R-ECO-07: workers stay at home.
-  if (troops > soldiers(player)) return GiftError.Troops;
+  if (troops > soldiers(game, player)) return GiftError.Troops;
   if (gold > player.gold) return GiftError.Gold;
   if (gold === 0 && giftedTroops(game, to, troops) === 0) return GiftError.Full;
   if (atWar(game, player.id, target)) return GiftError.War;

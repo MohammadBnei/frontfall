@@ -40,8 +40,7 @@ describe("record codecs (ADR 0008)", () => {
       player,
       target: player,
       aim: tile,
-      troops: uint,
-      // @ts-expect-error -- a codec without `pressure` misses a field of Attack.
+      // @ts-expect-error -- a codec without `troops` misses a field of Attack.
     } satisfies Codec<Attack>;
     const extra = {
       id: uint,
@@ -49,12 +48,11 @@ describe("record codecs (ADR 0008)", () => {
       target: player,
       aim: tile,
       troops: uint,
-      pressure: uint,
       // @ts-expect-error -- Attack has no such field.
       speed: uint,
     } satisfies Codec<Attack>;
-    expect(Object.keys(missing)).toHaveLength(5);
-    expect(Object.keys(extra)).toHaveLength(7);
+    expect(Object.keys(missing)).toHaveLength(4);
+    expect(Object.keys(extra)).toHaveLength(6);
   });
 
   it("read back what they write, leaving out what the snapshot does not carry", () => {
@@ -92,28 +90,33 @@ describe("record codecs (ADR 0008)", () => {
     expect(readRecord(bytesOf(MISSILE_RECORD, missile, game), MISSILE_RECORD, game)).toEqual(
       missile,
     );
-    const alliance: Alliance = { a: 1, b: 2, until: 300, renewA: true, renewB: false, truce: true };
+    const alliance: Alliance = { a: 1, b: 2, until: 300, renewA: true, renewB: false };
     expect(readRecord(bytesOf(ALLIANCE_RECORD, alliance, game), ALLIANCE_RECORD, game)).toEqual(
       alliance,
     );
   });
 
-  it("save a rule's field only in a game that plays with the rule", () => {
-    const attack: Attack = { id: 1, player: 1, target: 2, aim: 3, troops: 40, pressure: 6 };
+  it("leave a rule's values to its part, which only a game that plays with the rule has", () => {
+    const attack: Attack = { id: 1, player: 1, target: 2, aim: 3, troops: 40 };
     const plain = BUSY.newGame();
     const all = ALL_RULES.newGame();
-    expect(readRecord(bytesOf(ATTACK_RECORD, attack, plain), ATTACK_RECORD, plain)).toEqual({
-      ...attack,
-      pressure: 0,
-    });
+    expect(readRecord(bytesOf(ATTACK_RECORD, attack, plain), ATTACK_RECORD, plain)).toEqual(attack);
     expect(readRecord(bytesOf(ATTACK_RECORD, attack, all), ATTACK_RECORD, all)).toEqual(attack);
+    const names = (game: typeof plain) => game.persistedParts().map((p) => p.name);
+    const special = ["doctrines", "fronts", "capitals", "capital falls"];
+    expect(names(plain).filter((name) => special.includes(name))).toEqual([]);
+    expect(names(all).filter((name) => special.includes(name))).toEqual([
+      "doctrines",
+      "fronts",
+      "capitals",
+      "capital falls",
+    ]);
     const source = all.player(1);
     const target = ALL_RULES.newGame().player(1);
     if (!source || !target) throw new Error("no player");
-    source.doctrine = 2;
     source.troops = -5;
     readInto(bytesOf(PLAYER_RECORD, source, all), PLAYER_RECORD, target, all);
-    expect([target.doctrine, target.troops, target.name]).toEqual([2, -5, source.name]);
+    expect([target.troops, target.name]).toEqual([-5, source.name]);
   });
 
   it("refuse a kind or a size past the last one there is", () => {

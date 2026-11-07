@@ -25,9 +25,11 @@ import type { QuickCooldown } from "./quick-messages.ts";
 import { eraseRule, planOrder, type OrderRule } from "./order-rules.ts";
 import { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 import { Random } from "./random.ts";
-import type { SnapshotReader, SnapshotWriter } from "./snapshot-bytes.ts";
-import { FNV_OFFSET, FNV_PRIME, mix, mixUnit, mixWord } from "./state/fnv.ts";
+import { FNV_OFFSET, mix, mixUnit } from "./state/fnv.ts";
+import { writeState } from "./state/layout.ts";
 import { newLists } from "./state/lists.ts";
+import type { PartKey, PersistedPart } from "./state/parts.ts";
+import { StateHasher } from "./state/writer.ts";
 import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
 import type { TradeShip } from "./trade.ts";
@@ -49,6 +51,7 @@ export {
   type GameRules,
   type OperatorBonuses,
   type Order,
+  type PersistedPart,
   type Turn,
 };
 
@@ -82,9 +85,7 @@ export interface GameSetup {
   operator?: OperatorBonuses;
 }
 
-/** Marks the special rules in the state hash. */
-const RULES_TAG = 0x72756c65;
-/** Marks the operator's bonuses in the state hash (R-MODE-09). */
+/** Marks the operator's bonuses in the setup digest (R-MODE-09). */
 const OPERATOR_TAG = 0x6f706572;
 
 /**
@@ -92,10 +93,11 @@ const OPERATOR_TAG = 0x6f706572;
  * writes (ADR 0010), it is shared: growth, income, attacks, ships, missiles,
  * gifts, tribute, trade and capitals all add to or take from `troops` and
  * `gold`, each under its own rule. The other fields belong to one rule each
- * and are written by it only, and by the snapshot loader: `alive`,
- * `goldRemainder` and `workShare` by the economy, `start` by the spawn
- * phase, `traitorUntil` by diplomacy, `doctrine` by the doctrines and
- * `capital` by the capitals.
+ * and are written by it only, and by the snapshot loader: `alive` and
+ * `goldRemainder` by the economy, `start` by the spawn phase and
+ * `traitorUntil` by diplomacy. What a single rule keeps about a player, such
+ * as their work share, doctrine or capital, is in that rule's part, read
+ * with its accessor (`workShareOf`, `doctrineOf`, `capitalOf`).
  */
 export interface Player {
   readonly id: number;
@@ -104,8 +106,6 @@ export interface Player {
   gold: number;
   /** Fraction of a gold coin earned but not yet paid, in units of the economy's divisor. */
   goldRemainder: number;
-  /** Share of the troops at home, in %, who work rather than fight (R-ECO-07). */
-  workShare: number;
   alive: boolean;
   /** Start tile, once picked or placed during the spawn phase. */
   start: number | undefined;
@@ -115,40 +115,15 @@ export interface Player {
   readonly home: number | undefined;
   /** Team from 1, or 0 in a free-for-all (R-MODE-02). */
   readonly team: number;
-  /** Doctrine picked in the spawn phase (R-DOCTRINE-01), a Doctrine code; 0, the balanced one, without a pick or without doctrines. */
-  doctrine: number;
-  /** Tile of the player's capital in capital mode (R-CAP-01); undefined before play or without one. */
-  capital: number | undefined;
 }
 
 export type Phase = "spawn" | "play";
-
-/** A capital that fell (R-CAP-03) or was razed (R-CAP-04). */
-export interface CapitalFall {
-  readonly tick: number;
-  /** Player whose capital it was. */
-  readonly player: number;
-  /** Player who took it; 0 when it was razed and moved. */
-  readonly by: number;
-  /** Tile the capital stood on. */
-  readonly tile: number;
-}
 
 /** Runs once per tick, after the orders of that tick, in registration order. */
 export type TickSystem = (game: Game) => void;
 
 /** Told of an order once its rule has carried it out. */
 export type OrderObserver = (game: Game, player: Player, order: Order) => void;
-
-/**
- * State a rule keeps outside the game's own fields, which a snapshot must
- * carry too (docs/engine.md). `load` reads what `save` wrote, into a game
- * just created with the same setup and rules.
- */
-export interface PersistedPart {
-  save(out: SnapshotWriter): void;
-  load(from: SnapshotReader): void;
-}
 
 /**
  * The whole state of one game and the loop that advances it. Given the same
@@ -201,7 +176,8 @@ export class Game {
   readonly fallout: readonly Readonly<Fallout>[];
   /**
    * First tick each tile is free of fallout again; 0 if it never had any.
-   * It follows from `fallout`, which the state hash covers.
+   * Above the tick, it follows from `fallout` and the terrain, which the
+   * state hash covers: snapshots keep it, the hash leaves it out.
    */
   readonly falloutUntil: Uint32Array;
   /** Fights between players, remembered for B-WAR-MEMORY, by ascending pair of ids. */
@@ -234,8 +210,6 @@ export class Game {
   readonly rules: GameRules;
   /** The operator's test bonuses (R-MODE-09); `NO_OPERATOR` in nearly every game. */
   readonly operator: OperatorBonuses;
-  /** Capitals taken or razed, oldest first (R-CAP-03, R-CAP-04). Owned by the capital rules. */
-  readonly capitalFalls: readonly Readonly<CapitalFall>[];
   /**
    * Winner once the game is decided (R-WIN), and the tick it happened. In a
    * team game, the member of the winning team with the most land.
@@ -250,6 +224,8 @@ export class Game {
   private readonly systems: TickSystem[] = [];
   private readonly observers: OrderObserver[] = [];
   private readonly persisted: { readonly name: string; readonly part: PersistedPart }[] = [];
+  /** The parts registered with `addPart`, by the slot of their key. */
+  private readonly parts: (PersistedPart | undefined)[] = [];
   private currentTick = 0;
   private setup: number | undefined;
   /** The balance values, folded once into the state hash: clients that disagree on them part at once. */
@@ -272,7 +248,6 @@ export class Game {
     this.quickCooldowns = lists.quickCooldowns;
     this.diplomacyEvents = lists.diplomacyEvents;
     this.missileEvents = lists.missileEvents;
-    this.capitalFalls = lists.capitalFalls;
     this.terrain = setup.terrain;
     this.random = new Random(setup.seed);
     this.seed = setup.seed >>> 0;
@@ -296,14 +271,11 @@ export class Game {
         troops: 0,
         gold: 0,
         goldRemainder: 0,
-        workShare: 0,
         alive: true,
         start: undefined,
         traitorUntil: 0,
         home,
         team: 0,
-        doctrine: 0,
-        capital: undefined,
       });
       highest = Math.max(highest, id);
     }
@@ -375,186 +347,32 @@ export class Game {
   /**
    * 32-bit FNV-1a hash of the whole game state. Two clients that ran the same
    * turns must report the same hash for the same tick (R-FAIR-01).
+   *
+   * It is regular (ADR 0008): the tick, then the setup every client shares
+   * (the balance digest, teams, what the game leaves out, its special rules,
+   * the operator's bonuses, and each player's id, start set by the map and
+   * team), then the state in the order of a snapshot, through the same
+   * writer: every list behind its length, every path in full, and each rule
+   * part behind its name. A rule the game does not play with registers no
+   * part, so its state is not in the hash at all.
    */
   hash(): number {
-    // Every value goes through `mix` and `mixWord` below, in the order and
-    // with the bytes it always had: the hash of a state must never change.
-    // The running hash stays in a local rather than a variable captured by
-    // closures, which the loop over every tile of the map reads and writes
-    // far faster, and no array is built per entity.
-    let hash = FNV_OFFSET;
-    hash = mix(hash, this.currentTick);
-    hash = mixWord(hash, this.balanceDigest);
-    for (const word of this.random.state()) hash = mix(hash, word);
-    const owners = this.territory.owners;
-    for (let tile = 0; tile < owners.length; tile++) {
-      hash = Math.imul(hash ^ (owners[tile] as number), FNV_PRIME);
-    }
+    const out = new StateHasher();
+    out.uint(this.currentTick);
+    out.word(this.balanceDigest);
+    out.uint(this.teams);
+    out.uint(this.disabled);
+    out.uint(ruleBits(this.rules));
+    out.uint(this.operator.player);
+    out.uint(this.operator.bonuses);
     for (const p of this.sortedPlayers) {
-      hash = mix(hash, p.id);
-      hash = mix(hash, p.troops);
-      hash = mix(hash, p.gold);
-      hash = mix(hash, p.goldRemainder);
-      hash = mix(hash, p.workShare);
-      hash = mix(hash, p.alive ? 1 : 0);
-      hash = mix(hash, p.start ?? -1);
-      hash = mix(hash, p.traitorUntil);
+      out.uint(p.id);
       // The map's nations come from its manifest, which the terrain's hash does not cover.
-      hash = mix(hash, p.home ?? -1);
+      out.int(p.home ?? -1);
+      out.uint(p.team);
     }
-    hash = mix(hash, this.nextAttackId);
-    for (const a of this.attacks) {
-      hash = mix(hash, a.id);
-      hash = mix(hash, a.player);
-      hash = mix(hash, a.target);
-      hash = mix(hash, a.aim);
-      hash = mix(hash, a.troops);
-      // Games without collapsing fronts hash as they did before the rule existed.
-      if (this.rules.collapsingFronts) hash = mix(hash, a.pressure);
-    }
-    hash = mix(hash, this.nextBoatId);
-    for (const b of this.boats) {
-      hash = mix(hash, b.id);
-      hash = mix(hash, b.player);
-      hash = mix(hash, b.target);
-      hash = mix(hash, b.troops);
-      hash = mix(hash, b.step);
-      hash = mix(hash, b.path.length);
-      for (const tile of b.path) hash = mix(hash, tile);
-    }
-    hash = mix(hash, this.nextStructureId);
-    for (const s of this.structures) {
-      hash = mix(hash, s.id);
-      hash = mix(hash, s.player);
-      hash = mix(hash, s.kind);
-      hash = mix(hash, s.tile);
-      hash = mix(hash, s.readyAt);
-      hash = mix(hash, s.reloadAt);
-    }
-    hash = mix(hash, this.alliances.length);
-    for (const a of this.alliances) {
-      hash = mix(hash, a.a);
-      hash = mix(hash, a.b);
-      hash = mix(hash, a.until);
-      hash = mix(hash, a.renewA ? 1 : 0);
-      hash = mix(hash, a.renewB ? 1 : 0);
-      // Alliances and truces hash as alliances did before truces existed.
-      if (a.truce) hash = mix(hash, 1);
-    }
-    hash = mix(hash, this.allianceRequests.length);
-    for (const r of this.allianceRequests) {
-      hash = mix(hash, r.from);
-      hash = mix(hash, r.to);
-      hash = mix(hash, r.expiresAt);
-    }
-    hash = mix(hash, this.requestCooldowns.length);
-    for (const c of this.requestCooldowns) {
-      hash = mix(hash, c.from);
-      hash = mix(hash, c.to);
-      hash = mix(hash, c.until);
-    }
-    hash = mix(hash, this.nextTradeShipId);
-    hash = mix(hash, this.tradeShips.length);
-    for (const t of this.tradeShips) {
-      hash = mix(hash, t.id);
-      hash = mix(hash, t.player);
-      hash = mix(hash, t.port);
-      hash = mix(hash, t.from);
-      hash = mix(hash, t.to);
-      hash = mix(hash, t.step);
-      hash = mix(hash, t.path.length);
-      // The ends of its route, which the route cache outside the state chose.
-      hash = mix(hash, t.path[0] ?? -1);
-      hash = mix(hash, t.path[t.path.length - 1] ?? -1);
-    }
-    hash = mix(hash, this.nextWarshipId);
-    for (const w of this.warships) {
-      hash = mix(hash, w.id);
-      hash = mix(hash, w.player);
-      hash = mix(hash, w.tile);
-      hash = mix(hash, w.health);
-      hash = mix(hash, w.patrol);
-      hash = mix(hash, w.step);
-      hash = mix(hash, w.path.length);
-      hash = mix(hash, w.reloadAt);
-    }
-    hash = mix(hash, this.nextMissileId);
-    hash = mix(hash, this.missiles.length);
-    for (const m of this.missiles) {
-      hash = mix(hash, m.id);
-      hash = mix(hash, m.player);
-      hash = mix(hash, m.size);
-      hash = mix(hash, m.from);
-      hash = mix(hash, m.to);
-      hash = mix(hash, m.launchedAt);
-      hash = mix(hash, m.arrivesAt);
-      hash = mix(hash, m.tried.length);
-      for (const id of m.tried) hash = mix(hash, id);
-    }
-    hash = mix(hash, this.fallout.length);
-    for (const f of this.fallout) {
-      hash = mix(hash, f.tile);
-      hash = mix(hash, f.radius);
-      hash = mix(hash, f.until);
-    }
-    hash = mix(hash, this.fights.length);
-    for (const f of this.fights) {
-      hash = mix(hash, f.a);
-      hash = mix(hash, f.b);
-      hash = mix(hash, f.until);
-    }
-    hash = mix(hash, this.embargoes.length);
-    for (const e of this.embargoes) {
-      hash = mix(hash, e.from);
-      hash = mix(hash, e.to);
-      hash = mix(hash, e.since);
-      // Embargoes by order hash as they did before the automatic ones existed.
-      if (e.until !== 0) hash = mix(hash, e.until);
-    }
-    hash = mix(hash, this.winner ?? 0);
-    // Free-for-all games hash as they did before teams existed.
-    if (this.teams > 0) {
-      hash = mix(hash, this.teams);
-      for (const p of this.sortedPlayers) hash = mix(hash, p.team);
-      hash = mix(hash, this.winningTeam ?? 0);
-    }
-    // So do games that leave nothing out, and games without quick messages.
-    if (this.disabled !== 0) hash = mix(hash, this.disabled);
-    // And games with no special rule.
-    if (ruleBits(this.rules) !== 0) {
-      // Tagged, so that no value of `disabled` before it reads the same.
-      hash = mix(hash, RULES_TAG);
-      hash = mix(hash, ruleBits(this.rules));
-    }
-    // And games without the operator's gold bonus.
-    if (this.operator.bonuses !== 0) {
-      hash = mix(hash, OPERATOR_TAG);
-      hash = mix(hash, this.operator.player);
-      hash = mix(hash, this.operator.bonuses);
-    }
-    for (const c of this.quickCooldowns) {
-      if (this.currentTick < c.until) {
-        hash = mix(hash, c.player);
-        hash = mix(hash, c.until);
-      }
-    }
-    hash = mix(hash, this.decidedAt ?? -1);
-    // Games without capitals hash as they did before the mode existed.
-    if (this.rules.capitals) {
-      for (const p of this.sortedPlayers) hash = mix(hash, p.capital ?? -1);
-      hash = mix(hash, this.capitalFalls.length);
-      for (const f of this.capitalFalls) {
-        hash = mix(hash, f.tick);
-        hash = mix(hash, f.player);
-        hash = mix(hash, f.by);
-        hash = mix(hash, f.tile);
-      }
-    }
-    // And games without doctrines.
-    if (this.rules.doctrines) {
-      for (const p of this.sortedPlayers) hash = mix(hash, p.doctrine);
-    }
-    return hash >>> 0;
+    writeState(this, out);
+    return out.value;
   }
 
   /**
@@ -569,7 +387,23 @@ export class Game {
     this.persisted.push({ name, part });
   }
 
-  /** Parts registered with `persist`, in registration order. */
+  /**
+   * Registers the part a rule owns under its key (`partKey`), for `part` to
+   * find it: once per game, by the rule's install function, and only in a
+   * game that plays with the rule. Saved and hashed like any part.
+   */
+  addPart<P extends PersistedPart>(key: PartKey<P>, part: P): P {
+    this.persist(key.name, part);
+    this.parts[key.slot] = part;
+    return part;
+  }
+
+  /** The part registered under `key`, or undefined when the game does not play with its rule. */
+  part<P extends PersistedPart>(key: PartKey<P>): P | undefined {
+    return this.parts[key.slot] as P | undefined;
+  }
+
+  /** Parts registered with `persist` and `addPart`, in registration order. */
   persistedParts(): readonly { readonly name: string; readonly part: PersistedPart }[] {
     return this.persisted;
   }

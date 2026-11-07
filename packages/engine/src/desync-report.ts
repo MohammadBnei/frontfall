@@ -20,8 +20,12 @@ import type { Game, PlayerSetup } from "./game.ts";
 import type { OperatorBonuses } from "./modes.ts";
 import type { Terrain } from "./terrain.ts";
 
-/** Version of the report format below; a reader refuses any other. */
-export const DESYNC_REPORT_VERSION = 2;
+/**
+ * Version of the report format below; a reader refuses any other. Version 3
+ * came with the regular state hash (ADR 0008): the hashes of a report of
+ * version 2 no longer match a replay, and its build does not say so.
+ */
+export const DESYNC_REPORT_VERSION = 3;
 
 /**
  * Everything needed to play a game again, tick for tick, and the state

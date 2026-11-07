@@ -89,7 +89,7 @@ export function scanBorder(game: Game, bot: Player, accept: OwnerFilter = anyone
       }
       const enemy = game.player(owner);
       if (!enemy?.alive || !accept(owner)) continue;
-      const density = soldiers(enemy);
+      const density = soldiers(game, enemy);
       if (scan.enemy < 0 || density < scan.enemyDensity) {
         scan.enemy = tile;
         scan.enemyDensity = density;
@@ -253,7 +253,7 @@ export function sail(
   let atSea = 0;
   for (const boat of game.boats) if (boat.player === bot.id) atSea++;
   if (atSea >= balance.boatMax) return false;
-  const ownDensity = soldiers(bot);
+  const ownDensity = soldiers(game, bot);
   // A coast just along the player's own shore is better reached by land.
   const elsewhere = (_: number, distance: number) => distance >= SEA_MIN_DISTANCE;
   let target = -1;
@@ -268,7 +268,7 @@ export function sail(
     }
     const enemy = game.player(owner);
     if (!enemy?.alive || isAllied(game, bot.id, owner) || !accept(owner)) continue;
-    const density = soldiers(enemy);
+    const density = soldiers(game, enemy);
     if (density * 100 > ownDensity * boldnessPercent) continue;
     // The ship must at least pay for the beach.
     if (troops <= captureCost(game, coast, enemy)) continue;

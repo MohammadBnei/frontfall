@@ -1,37 +1,49 @@
-import type { Attack } from "../../src/attacks.ts";
-import type { Alliance, Embargo } from "../../src/diplomacy.ts";
-import type { CapitalFall, Game, Player } from "../../src/game.ts";
+import { pressureOf, type Attack } from "../../src/attacks.ts";
+import { capitalFalls, capitalOf, type CapitalFall } from "../../src/capitals.ts";
+import { embargoUntil, isTruce, type Alliance, type Embargo } from "../../src/diplomacy.ts";
+import { doctrineOf } from "../../src/doctrines.ts";
+import { workShareOf } from "../../src/economy.ts";
+import type { Game, Player } from "../../src/game.ts";
 import { sha256Hex } from "../../src/map/sha256.ts";
 import { SnapshotWriter } from "../../src/snapshot-bytes.ts";
 
 /**
  * Where the dump reads the values that belong to a special rule or to one
- * kind of order. Today they are fields of `Player`, `Attack`, `Alliance`,
- * `Embargo` and `Game`. If they move into rule parts, only this table changes:
- * the dump, and so its pinned digests, must stay the same.
+ * kind of order. They were fields of `Player`, `Attack`, `Alliance`,
+ * `Embargo` and `Game`, and are now in rule parts, read with their
+ * accessors: only this table changed, and the dump, and so its pinned
+ * digests, stayed the same.
  */
 export const RULE_VALUES = {
   /** R-ECO-07. */
-  workShare: (_game: Game, player: Player): number => player.workShare,
+  workShare: (game: Game, player: Player): number => workShareOf(game, player.id),
   /** R-DOCTRINE-01; 0 without doctrines. */
-  doctrine: (_game: Game, player: Player): number => player.doctrine,
+  doctrine: (game: Game, player: Player): number => doctrineOf(game, player.id),
   /** R-CAP-01; undefined without capitals. */
-  capital: (_game: Game, player: Player): number | undefined => player.capital,
+  capital: (game: Game, player: Player): number | undefined => capitalOf(game, player.id),
   /** R-CAP-03, R-CAP-04; empty without capitals. */
-  capitalFalls: (game: Game): readonly CapitalFall[] => game.capitalFalls,
+  capitalFalls: (game: Game): readonly Readonly<CapitalFall>[] => capitalFalls(game),
   /** R-ATTACK-10; 0 without collapsing fronts. */
-  pressure: (_game: Game, attack: Attack): number => attack.pressure,
+  pressure: (game: Game, attack: Readonly<Attack>): number => pressureOf(game, attack),
   /** R-DIPLO-10. */
-  truce: (_game: Game, alliance: Alliance): boolean => alliance.truce,
+  truce: (game: Game, alliance: Readonly<Alliance>): boolean => isTruce(game, alliance),
   /** R-DIPLO-09; 0 for an embargo placed by order. */
-  embargoUntil: (_game: Game, embargo: Embargo): number => embargo.until,
+  embargoUntil: (game: Game, embargo: Readonly<Embargo>): number => embargoUntil(game, embargo),
 };
 
 /**
  * Rule parts whose values the dump reads one by one through `RULE_VALUES`,
  * so their bytes are left out. Every other part is dumped as its bytes.
  */
-export const PARTS_READ_AS_VALUES: ReadonlySet<string> = new Set(["capitals"]);
+export const PARTS_READ_AS_VALUES: ReadonlySet<string> = new Set([
+  "capitals",
+  "capital falls",
+  "work",
+  "doctrines",
+  "fronts",
+  "truces",
+  "embargo ends",
+]);
 
 /** The fields of each entity, in the order of the dump; the values of `RULE_VALUES` follow them. */
 const FIELDS = {

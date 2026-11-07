@@ -170,7 +170,7 @@ export function orderForClick(
       : orderForClick(game, you, stale, ratio, mode, reach);
   }
   // R-ECO-07: the ratio is a share of the soldiers; workers stay at home.
-  const troops = Math.floor((soldiers(human) * Math.min(100, Math.max(0, ratio))) / 100);
+  const troops = Math.floor((soldiers(game, human) * Math.min(100, Math.max(0, ratio))) / 100);
   if (troops < 1) return { refused: "troops" };
 
   // By land when the player borders the target's owner on the target's own

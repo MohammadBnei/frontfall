@@ -7,7 +7,7 @@ import type {
   Embargo,
   RequestCooldown,
 } from "../diplomacy.ts";
-import type { CapitalFall, Game } from "../game.ts";
+import type { Game } from "../game.ts";
 import type { Fallout, Missile, MissileEvent } from "../missiles.ts";
 import type { QuickCooldown } from "../quick-messages.ts";
 import type { Structure } from "../structures.ts";
@@ -54,8 +54,6 @@ export interface GameLists {
   diplomacyEvents: DiplomacyEvent[];
   /** missiles.ts */
   missileEvents: MissileEvent[];
-  /** capitals.ts */
-  capitalFalls: CapitalFall[];
 }
 
 const lists = new WeakMap<Game, GameLists>();
@@ -78,7 +76,6 @@ export function newLists(game: Game): GameLists {
     quickCooldowns: [],
     diplomacyEvents: [],
     missileEvents: [],
-    capitalFalls: [],
   };
   lists.set(game, created);
   return created;

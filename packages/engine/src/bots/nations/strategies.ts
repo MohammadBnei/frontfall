@@ -1,5 +1,5 @@
 import { captureCost, cheapestTile } from "../../attacks.ts";
-import { capitalAlertDistance, capitalsStand } from "../../capitals.ts";
+import { capitalAlertDistance, capitalOf, capitalsStand } from "../../capitals.ts";
 import { alliesOf, isAllied, isTraitor } from "../../diplomacy.ts";
 import { populationCap, soldiers } from "../../economy.ts";
 import { giftError } from "../../gifts.ts";
@@ -75,7 +75,7 @@ export const NATION_STRATEGIES: Readonly<Record<NationStrategy, Strategy>> = {
     sail(
       ctx.game,
       nation,
-      divFloor(soldiers(nation), 5),
+      divFloor(soldiers(ctx.game, nation), 5),
       100,
       ctx.seaCooldowns,
       ctx.retryTicks,
@@ -294,7 +294,7 @@ function helpAllies(
     // Only from a strong army: never at the cost of its own defense.
     if (nation.troops < reserve * 2) continue;
     const troops = Math.min(
-      percentOf(soldiers(nation), NATION_GIFT_PERCENT),
+      percentOf(soldiers(game, nation), NATION_GIFT_PERCENT),
       nation.troops - reserve,
     );
     if (troops < cheapestTile(balance)) continue;
@@ -323,7 +323,7 @@ function strikeCapital(ctx: NationContext, nation: Player, armed: () => number):
   const borders = territory.borderCount(nation.id);
   const stride = Math.max(1, Math.ceil(borders / CAPITAL_SAMPLES));
   for (const player of game.players()) {
-    const capital = player.capital;
+    const capital = capitalOf(game, player.id);
     if (player.id === nation.id || !player.alive || capital === undefined) continue;
     if (isAllied(game, nation.id, player.id) || player.troops >= nation.troops) continue;
     let near = false;

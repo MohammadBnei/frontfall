@@ -88,7 +88,6 @@ describe("derived lifecycles", () => {
       until: 10,
       renewA: false,
       renewB: false,
-      truce: false,
     };
     expect(allianceState(game, alliance)).toBe("ended");
     expect(allianceState(game, { ...alliance, until: 10 + renew })).toBe("renewable");

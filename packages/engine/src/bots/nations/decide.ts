@@ -1,5 +1,5 @@
 import { cheapestTile } from "../../attacks.ts";
-import { capitalThreat } from "../../capitals.ts";
+import { capitalOf, capitalThreat } from "../../capitals.ts";
 import { allyError } from "../../diplomacy.ts";
 import { populationCap, soldiers } from "../../economy.ts";
 import type { Player } from "../../game.ts";
@@ -84,7 +84,8 @@ export function decide(ctx: NationContext, nation: Player): void {
   const own = nationRatios(nation.id);
   const reserve = percentOf(cap, own.reserve);
   // R-ECO-07: only soldiers leave; workers count towards the reserve at home.
-  const sendable = (): number => Math.max(0, Math.min(nation.troops - reserve, soldiers(nation)));
+  const sendable = (): number =>
+    Math.max(0, Math.min(nation.troops - reserve, soldiers(game, nation)));
   // R-BOT-15: everyone back under arms before turning on a player.
   const armed = (): number => {
     work(ctx, nation, 0);
@@ -95,8 +96,8 @@ export function decide(ctx: NationContext, nation: Player): void {
   // R-BOT-08: a fort facing the attacker.
   if (attacker !== NEUTRAL) {
     const front = borderWith(ctx, nation, attacker);
-    if (besieger !== NEUTRAL && nation.capital !== undefined)
-      buildFort(ctx, nation, nation.capital);
+    const capital = capitalOf(ctx.game, nation.id);
+    if (besieger !== NEUTRAL && capital !== undefined) buildFort(ctx, nation, capital);
     if (front >= 0) buildFort(ctx, nation, front);
   }
   // R-BOT-27: a hard nation answers an attack at once.
@@ -107,7 +108,7 @@ export function decide(ctx: NationContext, nation: Player): void {
   if (neutral >= 0) {
     const troops = Math.max(
       0,
-      Math.min(nation.troops - percentOf(cap, own.expand), soldiers(nation)),
+      Math.min(nation.troops - percentOf(cap, own.expand), soldiers(game, nation)),
     );
     if (troops >= cheapest) {
       game.apply(nation.id, { type: "attack", target: neutral, troops });
@@ -139,7 +140,7 @@ export function decide(ctx: NationContext, nation: Player): void {
     const sailed = sail(
       game,
       nation,
-      divFloor(soldiers(nation), 5),
+      divFloor(soldiers(game, nation), 5),
       100,
       ctx.seaCooldowns,
       ctx.retryTicks,
