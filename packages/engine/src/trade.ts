@@ -29,7 +29,7 @@ export interface TradeShip {
  * milliseconds' worth: on World, one search reaches most of the sea and
  * would stall a tick for some 50 ms at once. It decides on which tick a
  * route opens, so it is part of the simulation: changing it changes every
- * game with ports, and the golden replays with it (`pnpm golden`).
+ * game with ports, and the golden replays with it (`bun run golden`).
  */
 const SEARCH_TILES_PER_TICK = 25_000;
 

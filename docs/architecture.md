@@ -6,17 +6,17 @@ Some parts describe code that exists today. Others describe the target of the pr
 
 ## Repo map
 
-| Path                 | Contents                                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------------------------- |
-| `packages/engine`    | The simulation. No dependency, no clock, no `Math.random` ([engine.md](engine.md)).                       |
-| `packages/protocol`  | Messages, zod schemas, binary frames, shared constants ([protocol.md](protocol.md)).                      |
-| `packages/contracts` | **Target** ([0006](adr/0006-contracts-package.md)). The order spec and the constants both sides share.    |
-| `apps/server`        | The turn relay: lobbies, rooms, accounts, sign-in, moderation, static files ([server.md](server.md)).     |
-| `apps/client`        | The browser game: Three.js rendering, DOM interface, the engine in a Web Worker ([client.md](client.md)). |
-| `tools`              | Repository checks: boundaries, provenance, clean room, map generation.                                    |
-| `bench`              | Benchmarks, the performance gate, the balance campaign, load and determinism runs.                        |
-| `e2e`                | Playwright tests of the built game.                                                                       |
-| `docs`               | Rules, balance, design documents and the records in `docs/adr/`.                                          |
+| Path                 | Contents                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `packages/engine`    | The simulation. Depends on `@frontfall/contracts` only; no clock, no `Math.random` ([engine.md](engine.md)). |
+| `packages/protocol`  | Messages, zod schemas, binary frames, shared constants ([protocol.md](protocol.md)).                         |
+| `packages/contracts` | The order spec and the constants the engine and the protocol share ([0006](adr/0006-contracts-package.md)).  |
+| `apps/server`        | The turn relay: lobbies, rooms, accounts, sign-in, moderation, static files ([server.md](server.md)).        |
+| `apps/client`        | The browser game: Three.js rendering, DOM interface, the engine in a Web Worker ([client.md](client.md)).    |
+| `tools`              | Repository checks: boundaries, provenance, clean room, map generation.                                       |
+| `bench`              | Benchmarks, the performance gate, the balance campaign, load and determinism runs.                           |
+| `e2e`                | Playwright tests of the built game.                                                                          |
+| `docs`               | Rules, balance, design documents and the records in `docs/adr/`.                                             |
 
 Inside the engine, one file per rule (`attacks.ts`, `diplomacy.ts`, `warships.ts`, `missiles.ts`, `trade.ts` and others), `game.ts` for the state and the turn loop, `orders.ts` for validation, `snapshot.ts` and `snapshot-bytes.ts` for saved state, `balance.ts` for the numbers, and `bots/` for computer players, nations and city-states.
 
@@ -26,7 +26,7 @@ Inside the client, `game/` runs and follows a game (sessions, the worker, replay
 
 ```mermaid
 flowchart TD
-  contracts["contracts (target)"]
+  contracts["contracts"]
   engine["engine"]
   protocol["protocol"]
   server["server"]
@@ -104,7 +104,7 @@ flowchart LR
 | `Renderer` and `Camera`           | Map and globe drawing ([0003](adr/0003-renderer-split.md))                                        | Today                                 |
 | One rule per file, `installX`     | The engine rules, installed by `createGame`                                                       | Today                                 |
 | Observers (`onApplied`)           | Nations hear of orders                                                                            | Today                                 |
-| One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Target                                |
+| One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Today                                 |
 | Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Target                                |
 | Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Target                                |
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Target                                |
@@ -125,14 +125,14 @@ Each recipe gives the steps that work today. Where a record changes the steps, a
 
 Today:
 
-1. Add the member to the `Order` union in `packages/engine/src/game.ts`, with a doc comment.
-2. Append the kind to `ORDER_KINDS` and add its zod object in `packages/protocol/src/orders.ts`. Append only: the position is the code on the wire.
+1. Add the member to the `Order` union in `packages/contracts/src/orders.ts`, with a doc comment.
+2. Append the kind to `ORDER_SPEC` there, with the kind of each field. Append only: the position is the code on the wire. The protocol builds its schema and its frames from it.
 3. Add its checks to `orderError` in `packages/engine/src/orders.ts`.
 4. Register a handler in the rule's `installX` function with `game.onOrder`.
 5. Raise `PROTOCOL_VERSION` in `packages/protocol/src/messages.ts`, and add a frame to the pinned frames in `packages/protocol/test/binary.test.ts`.
 6. Describe it in [engine.md](engine.md) and [protocol.md](protocol.md).
 
-**Target** ([0006](adr/0006-contracts-package.md), [0007](adr/0007-order-dispatch.md)): steps 1 and 2 become one entry in `ORDER_SPEC`, and steps 3 and 4 become one `defineOrder` call with `phases`, `validate` and `execute`.
+**Target** ([0007](adr/0007-order-dispatch.md)): steps 3 and 4 become one `defineOrder` call with `phases`, `validate` and `execute`.
 
 ### A rule and its state
 

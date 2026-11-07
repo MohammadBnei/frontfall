@@ -27,7 +27,7 @@ export const DESYNC_REPORT_VERSION = 2;
 /**
  * Everything needed to play a game again, tick for tick, and the state
  * hashes one client saw along the way. A client writes it when its hash
- * disagrees with the other players' (R-FAIR-01); `pnpm sim --replay` reads it
+ * disagrees with the other players' (R-FAIR-01); `bun run sim --replay` reads it
  * back. Plain JSON: hashes are unsigned 32-bit integers, tiles are indices.
  */
 export interface DesyncReport {

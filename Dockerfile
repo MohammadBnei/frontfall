@@ -7,6 +7,7 @@ RUN npm install --global bun@1.4.4
 COPY package.json bun.lock ./
 COPY apps/client/package.json apps/client/
 COPY apps/server/package.json apps/server/
+COPY packages/contracts/package.json packages/contracts/
 COPY packages/engine/package.json packages/engine/
 COPY packages/protocol/package.json packages/protocol/
 COPY tools/package.json tools/

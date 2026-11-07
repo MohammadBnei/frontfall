@@ -75,14 +75,22 @@
         "@playwright/test": "^1.64.1",
       },
     },
+    "packages/contracts": {
+      "name": "@frontfall/contracts",
+      "version": "0.0.0",
+    },
     "packages/engine": {
       "name": "@frontfall/engine",
       "version": "0.0.0",
+      "dependencies": {
+        "@frontfall/contracts": "workspace:*",
+      },
     },
     "packages/protocol": {
       "name": "@frontfall/protocol",
       "version": "0.0.0",
       "dependencies": {
+        "@frontfall/contracts": "workspace:*",
         "zod": "^4.6.7",
       },
       "devDependencies": {
@@ -201,6 +209,8 @@
     "@frontfall/bench": ["@frontfall/bench@workspace:bench"],
 
     "@frontfall/client": ["@frontfall/client@workspace:apps/client"],
+
+    "@frontfall/contracts": ["@frontfall/contracts@workspace:packages/contracts"],
 
     "@frontfall/e2e": ["@frontfall/e2e@workspace:e2e"],
 

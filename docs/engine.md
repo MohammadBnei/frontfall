@@ -1,6 +1,6 @@
 # Engine API
 
-`@frontfall/engine` is the deterministic simulation every client runs ([ADR 0001](adr/0001-deterministic-lockstep.md)). It has no dependency and no access to the browser, Node, the clock or `Math.random`. This page describes what the client, the server and the tools may use; anything not exported from `packages/engine/src/index.ts` is internal.
+`@frontfall/engine` is the deterministic simulation every client runs ([ADR 0001](adr/0001-deterministic-lockstep.md)). Its one dependency is `@frontfall/contracts` (`packages/contracts`), which it shares with the protocol: the `Order` union and `ORDER_SPEC`, the list of order kinds in wire order with the kind of each field, and the constants both sides need (`TICK_RATE`, the `Disable`, `OperatorBonus` and `RuleBit` bits, `MAX_TEAMS`, `DIFFICULTIES`, `DOCTRINE_COUNT`, `QUICK_MESSAGES`), which the engine exports again. Neither has access to the browser, Node, the clock or `Math.random`. This page describes what the client, the server and the tools may use; anything not exported from `packages/engine/src/index.ts` is internal.
 
 ## Starting a game
 

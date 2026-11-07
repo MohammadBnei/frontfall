@@ -26,14 +26,16 @@ bun run dev
 
 The repository is a Bun workspace:
 
-| Path                | Contents                                    |
-| ------------------- | ------------------------------------------- |
-| `packages/engine`   | Deterministic simulation, no dependencies   |
-| `packages/protocol` | Message schemas shared by client and server |
-| `apps/server`       | Lobbies, turn relay, static file server     |
-| `apps/client`       | Browser client, Three.js rendering          |
-| `tools`             | Repository checks, clean-room scan          |
-| `e2e`               | Playwright tests of the built game          |
+| Path                 | Contents                                                                  |
+| -------------------- | ------------------------------------------------------------------------- |
+| `packages/engine`    | Deterministic simulation, depends on contracts only                       |
+| `packages/contracts` | The order spec and the constants the engine and the protocol share        |
+| `packages/protocol`  | Message schemas shared by client and server                               |
+| `apps/server`        | Lobbies, turn relay, static file server                                   |
+| `apps/client`        | Browser client, Three.js rendering                                        |
+| `tools`              | Repository checks, clean-room scan                                        |
+| `bench`              | Benchmarks, performance gate, balance campaign, load and determinism runs |
+| `e2e`                | Playwright tests of the built game                                        |
 
 Design documents live in `docs/`: the game rules ([rules.md](docs/rules.md)), their numbers ([balance.md](docs/balance.md)) and the architecture decisions ([adr/](docs/adr/)).
 
