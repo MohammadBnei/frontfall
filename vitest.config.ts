@@ -41,6 +41,7 @@ export default defineConfig({
         "apps/server/src/sql/bun-sqlite.ts",
         "apps/server/src/admin-main.ts",
         "apps/client/src/render/map-view.ts",
+        "apps/client/src/render/gl-context.ts",
         "apps/client/src/render/minimap.ts",
         "apps/client/src/render/pieces.ts",
         "apps/client/src/render/pieces-paint.ts",

@@ -32,11 +32,11 @@ export interface InputHostOptions {
 /**
  * What the pointer does on the map: a click as an order in the mode picked
  * in the HUD, a long press as a card or the player menu, the hover as a
- * preview. Keeps the input bound to the scene's camera across a switch of
- * view.
+ * preview. The input is made once for the game and holds the scene's
+ * camera, which stays the same across a switch of view.
  */
 export class InputHost {
-  private input: InputController;
+  private readonly input: InputController;
   private current: ClickMode = "attack";
   /** Shift was down when the last press began on the map. */
   private shiftDown = false;
@@ -78,12 +78,12 @@ export class InputHost {
     this.input.update(ms);
   }
 
-  /** Flat map to globe and back in a running game, the input wired to the new camera; whether it switched. */
+  /**
+   * Flat map to globe and back in a running game; whether it switched. The
+   * input stays as it is: its camera passes to the new view's (MapScene).
+   */
   switchView(): boolean {
-    if (!this.o.scene.switchKind()) return false;
-    this.input.dispose();
-    this.input = this.create();
-    return true;
+    return this.o.scene.switchKind();
   }
 
   /** Makes a click at `tile`, as a press on the map would. */

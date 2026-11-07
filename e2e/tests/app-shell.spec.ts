@@ -142,22 +142,27 @@ test.describe("the globe prototype", () => {
     const pageErrors: Error[] = [];
     page.on("pageerror", (error) => pageErrors.push(error));
     const body = screenOf(page);
+    const map = page.locator("#map");
 
     await page.goto("./?map=world&bots=4&nations=0&speed=2&view=globe");
     await page.locator("#play").click();
     await expect(body).toHaveAttribute("data-screen", "playing");
     await expect(page).toHaveURL(/[?&]view=globe(&|$)/);
+    await expect(map).toHaveAttribute("data-view", "globe", { timeout: 30_000 });
     await expect.poll(() => clockOf(page), { timeout: 60_000 }).toBeGreaterThan(0);
     await page.keyboard.press("g");
+    await expect(map).toHaveAttribute("data-view", "flat");
     await expect(page).toHaveURL(/[?&]view=map(&|$)/);
 
     // The reload takes the game back on the flat map, and G still reaches the globe.
     await expect.poll(() => keptTick(page), { timeout: 60_000 }).toBeGreaterThan(0);
     await page.reload();
     await expect(body).toHaveAttribute("data-screen", "playing", { timeout: 30_000 });
+    await expect(map).toHaveAttribute("data-view", "flat", { timeout: 30_000 });
     await expect(page).toHaveURL(/[?&]view=map(&|$)/);
     await page.locator(".overlay.paused").click();
     await page.keyboard.press("g");
+    await expect(map).toHaveAttribute("data-view", "globe", { timeout: 30_000 });
     await expect(page).toHaveURL(/[?&]view=globe(&|$)/);
 
     // Back on the menu, the view stays in the address for the next game.

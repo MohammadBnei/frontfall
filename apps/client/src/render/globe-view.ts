@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CameraView } from "./camera.ts";
+import type { GlContext } from "./gl-context.ts";
 import { GlobeMarkers } from "./globe-markers.ts";
 import { GLOBE_FOV, globePose, globeRays } from "./globe-projection.ts";
 import { SHIP_SIZES, shipScale } from "./map-view.ts";
@@ -16,8 +17,10 @@ import {
   structuresOfType,
 } from "./marks.ts";
 import type {
+  BakedGround,
   FalloutZone,
   Renderer,
+  RendererCapabilities,
   RendererOptions,
   StructureMark,
   UnitMark,
@@ -44,10 +47,11 @@ interface StructureMarkers {
  * The map on a globe (ADR 0005, a prototype): the territory layer ray-traces
  * the planet on a quad over the screen, ships and structures lie on it, and
  * a perspective camera stands where globe-projection.ts puts it for the view,
- * the same place the globe camera picks tiles from.
+ * the same place the globe camera picks tiles from. It draws no combat
+ * effects yet: its capabilities say so.
  */
 export class GlobeView implements Renderer {
-  readonly canvas: HTMLCanvasElement;
+  readonly capabilities: RendererCapabilities = { kind: "globe", effects: undefined };
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(GLOBE_FOV, 1, 0.001, 100);
@@ -66,13 +70,12 @@ export class GlobeView implements Renderer {
   private cssWidth = 1;
   private cssHeight = 1;
 
-  constructor(readonly options: RendererOptions) {
+  constructor(
+    private readonly context: GlContext,
+    readonly options: RendererOptions,
+  ) {
     if (!options.wrapsX) throw new RangeError("the globe needs a map of the whole planet");
-    this.renderer = new THREE.WebGLRenderer({ antialias: false });
-    this.watch();
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.setClearColor(SPACE);
-    this.canvas = this.renderer.domElement;
+    this.renderer = context.renderer;
     this.territory = new TerritoryLayer({
       width: options.width,
       height: options.height,
@@ -81,6 +84,7 @@ export class GlobeView implements Renderer {
       wrapsX: true,
       relief: options.relief,
       groundSource: options.groundSource,
+      baked: options.ground,
       latitudes: options.latitudes,
       flat: options.flat,
       maxOwner: options.maxOwner,
@@ -194,6 +198,14 @@ export class GlobeView implements Renderer {
     return this.territory.groundTexture.image.data as Uint8Array;
   }
 
+  bakedGround(): BakedGround {
+    return this.territory.bakedGround();
+  }
+
+  warm(): Promise<void> {
+    return this.context.warm(this.scene, this.camera);
+  }
+
   setPixelRatio(ratio: number): void {
     // Three.js sizes the drawing buffer again for the same CSS size.
     this.renderer.setPixelRatio(ratio);
@@ -206,6 +218,7 @@ export class GlobeView implements Renderer {
   }
 
   render(view: CameraView): void {
+    this.context.use(SPACE, this.shaderFailed);
     const { width, height } = this.options;
     const pose = globePose(view, width, height, this.cssWidth, this.cssHeight);
     this.camera.aspect = this.cssWidth / this.cssHeight;
@@ -248,20 +261,12 @@ export class GlobeView implements Renderer {
     return this.broken;
   }
 
-  private watch(): void {
-    this.renderer.debug.onShaderError = (gl, _program, vertex, fragment) => {
-      this.broken ??= `shader: ${gl.getShaderInfoLog(vertex) ?? ""} ${gl.getShaderInfoLog(fragment) ?? ""}`;
-    };
-  }
+  private readonly shaderFailed = (message: string): void => {
+    this.broken ??= message;
+  };
 
   private inspect(): void {
-    if (this.broken) return;
-    const gl = this.renderer.getContext();
-    if (gl.isContextLost()) this.broken = "context lost";
-    else {
-      const code = gl.getError();
-      if (code !== gl.NO_ERROR) this.broken = `gl error ${String(code)}`;
-    }
+    this.broken ??= this.context.error();
   }
 
   private clock(): number {
@@ -281,9 +286,6 @@ export class GlobeView implements Renderer {
       outline.dispose();
       fill.dispose();
     }
-    this.renderer.dispose();
-    // Switching views creates another context; browsers cap how many stay alive.
-    this.renderer.forceContextLoss();
-    this.canvas.remove();
+    // The context stays, for the other view or the next renderer of the game.
   }
 }

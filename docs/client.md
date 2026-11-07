@@ -109,8 +109,8 @@ screen for it and keeps the address bar in step (ADR 0013).
   `Renderer` (`render/renderer.ts`: player colours, changed tiles, ships, a
   frame for a camera view) and `Camera` (`render/camera.ts`: screen to tile
   and back, pan, zoom, focus, with east-west wrapping). `createRenderer`
-  returns the flat `MapView` today; the globe will implement the same
-  contract with its own camera. The issue that set them out named the
+  returns the flat `MapView` or the `GlobeView`, each with its own camera.
+  The issue that set them out named the
   renderer's calls `init`, `applyUpdates` and `frame`: they became the
   constructor, `markChanged` and `setShips`, and `render(view)`, because the
   page, not the renderer, holds the game state.
@@ -349,6 +349,36 @@ The territory layer draws the whole map in one draw call (ADR 0003):
   front marches for as long as it lasts; once it stops, the stripes stand
   still until that last frame clears them, rather than keep the GPU busy for
   another second and a half.
+
+### The globe and the switch
+
+`?view=globe`, or the `?view=map` the address takes once G switched back,
+is still the only way to the globe (ADR 0005); the menu offers none. A game
+has one WebGL context (`createContext`, in `render/gl-context.ts`), which
+every renderer of the game draws on and which outlives them: G does not
+make a new one.
+
+- `MapScene` keeps a renderer per view. On the globe path, once the browser
+  is idle after the start, it makes the view that G shows next over the same
+  owners array and with the ground the first one baked (`bakedGround`), has
+  its shaders built and its textures sent (`warm`), and draws it once just
+  before a frame of the view shown, which covers it (`data-ready` on `#map`
+  says it is done). G then only swaps which renderer draws; while it waits,
+  the other renderer is told of every tile that changes hands, so showing
+  it sends only those.
+- The input holds one camera for the whole game, a `SwitchCamera`
+  (`render/switch-camera.ts`) that passes every call to the camera of the
+  view shown: a switch moves it to the other camera, over the same tile and
+  zoom, and the input stays as it is.
+- A renderer declares what it can do beyond the common contract in
+  `capabilities`: its kind, and its combat effects (`RendererEffects`), which
+  the flat map draws and the globe does not yet. The scene asks there
+  rather than calling hooks a renderer may lack.
+- `e2e/tests/globe.spec.ts` times six switches on the World map in Chromium
+  and fails when their median takes 500 ms or more from the key to the new
+  view drawn (M7-07, #66); the game's clock must still run after them. It
+  is tagged `@timing`: CI runs it alone, in the Performance job, rather than
+  in the sharded end-to-end runs, where other browsers share the machine.
 
 ## Build preview
 

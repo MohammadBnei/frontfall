@@ -4,14 +4,18 @@ import { probe } from "../probe.ts";
 import type { CameraView } from "./camera.ts";
 import type { EffectsLayer } from "./effects-layer.ts";
 import type { FalloutLayer } from "./fallout-layer.ts";
+import type { GlContext } from "./gl-context.ts";
 import { applyView } from "./orthographic.ts";
 import type * as Pieces from "./pieces.ts";
 import type * as Hulls from "./ship-layer.ts";
 import { groupPieces, keyOf } from "./pieces-group.ts";
 import type {
+  BakedGround,
   FalloutZone,
   MissileEnd,
   Renderer,
+  RendererCapabilities,
+  RendererEffects,
   RendererOptions,
   StructureMark,
   UnitMark,
@@ -160,11 +164,12 @@ function addVignette(scene: THREE.Scene): Vignette {
 }
 
 /**
- * The flat map: one WebGL canvas, the territory layer, and an orthographic
- * camera placed from the view of the interface's camera.
+ * The flat map: the territory layer, the pieces and the effects on the
+ * game's context, and an orthographic camera placed from the view of the
+ * interface's camera.
  */
-export class MapView implements Renderer {
-  readonly canvas: HTMLCanvasElement;
+export class MapView implements Renderer, RendererEffects {
+  readonly capabilities: RendererCapabilities = { kind: "flat", effects: this };
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera();
@@ -198,6 +203,8 @@ export class MapView implements Renderer {
   /** Zones of fallout, once their code has arrived, and the ones to show when it does. */
   private fallout: FalloutLayer | undefined;
   private falloutZones: readonly FalloutZone[] = [];
+  /** The effects and the fallout are made, or their code failed to come. */
+  private readonly loaded: Promise<unknown>;
   private moving = true;
   private disposed = false;
   /** Width of the canvas in CSS pixels, to keep structures readable when zoomed out. */
@@ -209,16 +216,13 @@ export class MapView implements Renderer {
    * the chunk the first visit leaves out (lazy.ts).
    */
   constructor(
+    private readonly context: GlContext,
     readonly options: RendererOptions,
     territories: typeof Territories,
     pieces?: typeof Pieces,
     hulls?: typeof Hulls,
   ) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false });
-    this.watch();
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    this.renderer.setClearColor(MAP_COLORS.oceanDeep);
-    this.canvas = this.renderer.domElement;
+    this.renderer = context.renderer;
     this.territory = new territories.TerritoryLayer({
       width: options.width,
       height: options.height,
@@ -227,6 +231,7 @@ export class MapView implements Renderer {
       wrapsX: options.wrapsX,
       relief: options.relief,
       groundSource: options.groundSource,
+      baked: options.ground,
       latitudes: options.latitudes,
       flat: options.flat,
       maxOwner: options.maxOwner,
@@ -347,12 +352,11 @@ export class MapView implements Renderer {
     }
     this.vignette = addVignette(this.scene);
     this.camera.position.z = 10;
-    this.loadEffects();
-    this.loadFallout();
+    this.loaded = Promise.all([this.loadEffects(), this.loadFallout()]);
   }
 
-  private loadEffects(): void {
-    void import("./effects-layer.ts").then(
+  private loadEffects(): Promise<void> {
+    return import("./effects-layer.ts").then(
       ({ EffectsLayer }) => {
         if (this.disposed) return;
         this.effects = new EffectsLayer({
@@ -386,8 +390,8 @@ export class MapView implements Renderer {
     );
   }
 
-  private loadFallout(): void {
-    void import("./fallout-layer.ts").then(
+  private loadFallout(): Promise<void> {
+    const loaded = import("./fallout-layer.ts").then(
       ({ FalloutLayer }) => {
         if (this.disposed) return;
         this.fallout = new FalloutLayer({
@@ -410,7 +414,8 @@ export class MapView implements Renderer {
       // The map is as playable without them, with the land under fallout left plain.
       () => undefined,
     );
-    this.warm();
+    void this.compile();
+    return loaded;
   }
 
   /**
@@ -418,8 +423,16 @@ export class MapView implements Renderer {
    * so that the first frame does not wait on them (a stall of a second or so
    * otherwise). A frame drawn before they are ready simply waits, as it did.
    */
-  private warm(): void {
-    this.renderer.compileAsync(this.scene, this.camera).catch(() => undefined);
+  private compile(): Promise<void> {
+    return this.renderer.compileAsync(this.scene, this.camera).then(
+      () => undefined,
+      () => undefined,
+    );
+  }
+
+  warm(): Promise<void> {
+    // With the effects and the fallout, whose code comes a moment after the map's.
+    return this.loaded.then(() => this.context.warm(this.scene, this.camera));
   }
 
   setPlayerColor(id: number, color: string): void {
@@ -610,6 +623,10 @@ export class MapView implements Renderer {
     return this.territory.groundTexture.image.data as Uint8Array;
   }
 
+  bakedGround(): BakedGround {
+    return this.territory.bakedGround();
+  }
+
   setPixelRatio(ratio: number): void {
     // Three.js sizes the drawing buffer again for the same CSS size.
     this.renderer.setPixelRatio(ratio);
@@ -622,6 +639,7 @@ export class MapView implements Renderer {
   }
 
   render(view: CameraView): void {
+    this.context.use(MAP_COLORS.oceanDeep, this.shaderFailed);
     applyView(this.camera, view, this.options.width, this.options.height);
     this.renderer.getDrawingBufferSize(this.bufferSize);
     this.territory.setViewport(this.bufferSize.x, this.bufferSize.y);
@@ -675,13 +693,6 @@ export class MapView implements Renderer {
     }
   }
 
-  private readonly pixel = new Uint8Array(4);
-
-  sync(): void {
-    const gl = this.renderer.getContext();
-    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
-  }
-
   private frames = 0;
   private broken: string | undefined;
 
@@ -690,20 +701,12 @@ export class MapView implements Renderer {
     return this.broken;
   }
 
-  private watch(): void {
-    this.renderer.debug.onShaderError = (gl, _program, vertex, fragment) => {
-      this.broken ??= `shader: ${gl.getShaderInfoLog(vertex) ?? ""} ${gl.getShaderInfoLog(fragment) ?? ""}`;
-    };
-  }
+  private readonly shaderFailed = (message: string): void => {
+    this.broken ??= message;
+  };
 
   private inspect(): void {
-    if (this.broken) return;
-    const gl = this.renderer.getContext();
-    if (gl.isContextLost()) this.broken = "context lost";
-    else {
-      const code = gl.getError();
-      if (code !== gl.NO_ERROR) this.broken = `gl error ${String(code)}`;
-    }
+    this.broken ??= this.context.error();
   }
 
   /** Seconds since the view was made: small enough for exact 32-bit floats in the shader. */
@@ -728,9 +731,6 @@ export class MapView implements Renderer {
       outline?.dispose();
       fill.dispose();
     }
-    this.renderer.dispose();
-    // Switching views creates another context; browsers cap how many stay alive.
-    this.renderer.forceContextLoss();
-    this.canvas.remove();
+    // The context stays, for the other view or the next renderer of the game.
   }
 }
