@@ -46,6 +46,17 @@ export function pressureOf(game: Game, attack: Readonly<Attack>): number {
 /** R-SPAWN-05: nobody attacks, nor lands, during the spawn phase. */
 export const ATTACK_EARLY = "attacks start after the spawn phase";
 
+/** Refusals of attack and retreat orders besides those of `targetError`, so that interfaces can tell them apart. */
+export const AttackError = {
+  Early: ATTACK_EARLY,
+  /** The owner of the target tile is out of the game. */
+  Fallen: "the target is out of the game",
+  /** R-ATTACK-09: no land of the target touches the player's. */
+  Border: "no border with the target: only ships reach it",
+  /** R-ATTACK-06: no attack of the player's with troops left has the id. */
+  Retreat: "no attack of yours under way with this id",
+} as const;
+
 /**
  * Why `player` cannot send `troops` against the owner of `target`, by land or
  * by sea, or undefined. The phase is checked before.
@@ -90,56 +101,58 @@ function touches(game: Game, player: number, target: number): boolean {
  * R-ATTACK-01, R-ATTACK-09: `attack` sends troops against the owner of a
  * tile, joining the player's attack on them if one is under way. A target
  * that fell, or one without a border shared with the player (only ships
- * reach it), is judged when the order is carried out, and the order ignored.
+ * reach it), is refused.
  */
 export const ATTACK_ORDER = defineOrder("attack", {
   phases: PLAY_PHASE,
   wrongPhase: ATTACK_EARLY,
-  validate: (game, player, order) => targetError(game, player, order.target, order.troops) ?? order,
-  execute(game, player, order) {
-    const attacks = writable(game, "attacks");
+  validate(game, player, order) {
+    const error = targetError(game, player, order.target, order.troops);
+    if (error) return error;
     const target = game.territory.ownerOf(order.target);
-    if (target !== NEUTRAL && !game.player(target)?.alive) return false;
+    if (target !== NEUTRAL && !game.player(target)?.alive) return AttackError.Fallen;
+    // R-ATTACK-09: without a shared border, only ships can reach the target.
+    if (!touches(game, player.id, target)) return AttackError.Border;
+    return { aim: order.target, troops: order.troops, target };
+  },
+  execute(game, player, { aim, troops, target }) {
+    const attacks = writable(game, "attacks");
     const existing = attacks.find((a) => a.player === player.id && a.target === target);
     const attack = existing ?? {
       id: game.nextAttackId,
       player: player.id,
       target,
-      aim: order.target,
+      aim,
       troops: 0,
     };
-    // R-ATTACK-09: without a shared border, only ships can reach the target.
-    if (!touches(game, player.id, target)) return false;
-    player.troops -= order.troops;
-    attack.troops += order.troops;
-    attack.aim = order.target;
+    player.troops -= troops;
+    attack.troops += troops;
+    attack.aim = aim;
     if (!existing) {
       attacks.push(attack);
       game.part(PRESSURE)?.push(0);
       game.nextAttackId++;
     }
-    return true;
   },
 });
 
 /**
  * R-ATTACK-06: a player calls back one of their own attacks, losing part of
- * its troops. An attack that is not theirs, or has no troops left, is judged
- * when the order is carried out, and the order ignored.
+ * its troops. An attack that is not theirs, or has no troops left, is refused.
  */
 export const RETREAT_ORDER = defineOrder("retreat", {
   phases: PLAY_PHASE,
   wrongPhase: ATTACK_EARLY,
-  validate: (_game, _player, order) =>
-    !Number.isSafeInteger(order.attack) || order.attack < 1 ? "invalid attack id" : order,
-  execute(game, player, order) {
+  validate(game, player, order) {
+    if (!Number.isSafeInteger(order.attack) || order.attack < 1) return "invalid attack id";
     const attack = writable(game, "attacks").find(
       (a) => a.id === order.attack && a.player === player.id,
     );
-    if (!attack || attack.troops <= 0) return false;
+    return attack && attack.troops > 0 ? { attack } : AttackError.Retreat;
+  },
+  execute(game, player, { attack }) {
     player.troops += attack.troops - percentOf(attack.troops, game.balance.retreatPenaltyPercent);
     attack.troops = 0;
-    return true;
   },
 });
 

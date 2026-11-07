@@ -70,7 +70,6 @@ export const QUICK_ORDER = defineOrder("quick", {
       b: order.target,
       phrase: order.phrase,
     });
-    return true;
   },
 });
 

@@ -5,12 +5,13 @@ import type { Game, Phase, Player } from "./game.ts";
 export type Refusal = string;
 
 /**
- * How one kind of order runs (ADR 0007). `validate` checks the order against
- * the state and returns either the reason it is refused, or a plan: the
- * order, or what the checks found on the way (a route, a silo, a shore
- * tile), so that `execute` searches nothing twice. `execute` carries the plan
- * out and returns whether it could: a few checks are still made only there,
- * and an order they stop is ignored rather than refused.
+ * How one kind of order runs (ADR 0007). `validate` makes every check of the
+ * order against the state and returns either the reason it is refused, or a
+ * plan: the order, or what the checks found on the way (a route, a silo, a
+ * shore tile, the receiver of a gift), so that `execute` searches nothing
+ * twice. `execute` carries the plan out and cannot refuse it: an order that
+ * passes `validate` is carried out, and `orderError` gives the reason of
+ * every one that is not.
  */
 export interface OrderRule<T extends OrderType = OrderType, P extends object = object> {
   readonly type: T;
@@ -18,7 +19,7 @@ export interface OrderRule<T extends OrderType = OrderType, P extends object = o
   readonly phases: readonly Phase[];
   readonly wrongPhase?: Refusal;
   validate(game: Game, player: Player, order: OrderOf<T>): Refusal | P;
-  execute(game: Game, player: Player, plan: P): boolean;
+  execute(game: Game, player: Player, plan: P): void;
 }
 
 /**

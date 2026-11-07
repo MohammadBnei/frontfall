@@ -22,12 +22,18 @@ function setup(overrides: Partial<GameSetup> = {}): GameSetup {
 
 const spawn = (tile: number): Order => ({ type: "spawn", tile });
 
-/** A spawn rule that only checks the tile and records what it is asked to carry out. */
-function spawnRecorder(execute: (player: Player, order: Order) => boolean) {
+/**
+ * A spawn rule that checks the tile, records each order it is asked to
+ * check, and refuses those `accept` turns down, as a rule's own check would.
+ */
+function spawnRecorder(accept: (player: Player, order: Order) => boolean) {
   return defineOrder("spawn", {
     phases: ANY_PHASE,
-    validate: (game, _player, order) => tileError(game, order.tile) ?? order,
-    execute: (_game, player, order) => execute(player, order),
+    validate: (game, player, order) =>
+      tileError(game, order.tile) ?? (accept(player, order) ? order : "refused by the test"),
+    execute: (_game, player) => {
+      player.troops++;
+    },
   });
 }
 
@@ -117,6 +123,8 @@ describe("Game", () => {
 
     expect(applied).toBe(1);
     expect(log).toEqual(["order 2 spawn", "order 1 spawn", "growth", "attacks at 0"]);
+    // Only the order the rule's check let through was carried out.
+    expect([game.player(2)?.troops, game.player(1)?.troops]).toEqual([1, 0]);
   });
 
   it("hands each order to the rule of its type, and ignores eliminated players", () => {

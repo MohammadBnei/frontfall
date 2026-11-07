@@ -2,6 +2,7 @@ import {
   BuildError,
   MissileError,
   MissileSize,
+  SpawnError,
   StructureKind,
   TileKind,
   WarshipError,
@@ -159,7 +160,14 @@ export function orderForClick(
     // The tile was checked above: anything else is a placement rule.
     return { refused: isBuildError(error) ? BUILD_REFUSALS[error] : "terrain" };
   }
-  if (game.phase === "spawn") return { order: { type: "spawn", tile } };
+  if (game.phase === "spawn") {
+    // R-SPAWN-02: land another player holds, or too close to their start, is refused.
+    const order: Order = { type: "spawn", tile };
+    const error = orderError(game, human, order);
+    if (error === SpawnError.Taken) return { refused: "startTaken" };
+    if (error === SpawnError.Near) return { refused: "startNear" };
+    return { order };
+  }
   if (territory.ownerOf(tile) === you) {
     // The screen runs a little behind the game: the tile shown as someone
     // else's may have just fallen to the player. The click was meant for that

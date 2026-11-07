@@ -44,19 +44,27 @@ function scaledSettings(game: Game): SpawnSettings {
 /** Random draws allowed when placing a player who did not pick, before giving up on spacing. */
 const PLACEMENT_ATTEMPTS = 1000;
 
+/** Refusals of a spawn order besides the tile's own, so that interfaces can tell them apart. */
+export const SpawnError = {
+  Over: "the spawn phase is over",
+  /** R-SPAWN-02: another player holds the tile. */
+  Taken: "the tile belongs to another player",
+  /** R-SPAWN-02: closer than the spawn distance to another player's start. */
+  Near: "too close to another start",
+} as const;
+
 /**
  * R-SPAWN-01: a player picks a start tile during the spawn phase, or moves
- * it. Whether the tile is far enough from the other starts (R-SPAWN-02) is
- * judged only when the order is carried out: a start too close is ignored.
+ * it. A tile another player holds, or one too close to another start
+ * (R-SPAWN-02), is refused.
  */
 export const SPAWN_ORDER = defineOrder("spawn", {
   phases: ["spawn"],
-  wrongPhase: "the spawn phase is over",
-  validate: (game, _player, order) => tileError(game, order.tile) ?? order,
+  wrongPhase: SpawnError.Over,
+  validate: (game, player, order) =>
+    tileError(game, order.tile) ?? startError(game, player, order.tile) ?? order,
   execute(game, player, order) {
-    if (!isValidStart(game, player, order.tile)) return false;
     place(game, player, order.tile);
-    return true;
   },
 });
 
@@ -91,15 +99,24 @@ function isValidStart(
   tile: number,
   minDistance = spawnSettings(game).distance,
 ): boolean {
-  if (!game.terrain.isOwnable(tile)) return false;
+  return game.terrain.isOwnable(tile) && startError(game, player, tile, minDistance) === undefined;
+}
+
+/** Why an ownable tile is no start for `player` (R-SPAWN-02), or undefined. */
+function startError(
+  game: Game,
+  player: Player,
+  tile: number,
+  minDistance = spawnSettings(game).distance,
+): string | undefined {
   const owner = game.territory.ownerOf(tile);
-  if (owner !== NEUTRAL && owner !== player.id) return false;
+  if (owner !== NEUTRAL && owner !== player.id) return SpawnError.Taken;
   const topology = game.terrain.topology;
   for (const other of game.players()) {
     if (other === player || other.start === undefined) continue;
-    if (topology.distance(other.start, tile) < minDistance) return false;
+    if (topology.distance(other.start, tile) < minDistance) return SpawnError.Near;
   }
-  return true;
+  return undefined;
 }
 
 /** R-SPAWN-04: the tiles around the start, and the starting troops. Moving the start releases the old area. */

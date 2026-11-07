@@ -18,6 +18,7 @@ export {
   type Turn,
 } from "@frontfall/contracts";
 export {
+  AttackError,
   captureCost,
   cheapestTile,
   collapseDepth,
@@ -50,7 +51,14 @@ export {
   installCapitals,
   type CapitalFall,
 } from "./capitals.ts";
-export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
+export {
+  BoatError,
+  installBoats,
+  reachableCoasts,
+  seaRoute,
+  type Boat,
+  type SeaRoute,
+} from "./boats.ts";
 export { STANDARD_RULES, assertOrderRules, createGame, type Rule } from "./create-game.ts";
 export {
   DiplomacyError,
@@ -179,7 +187,7 @@ export {
   type Refusal,
 } from "./order-rules.ts";
 export { DrawUsage, Random, derivedRandom, type RandomState } from "./random.ts";
-export { installSpawn, spawnSettings } from "./spawn.ts";
+export { SpawnError, installSpawn, spawnSettings } from "./spawn.ts";
 export {
   BuildError,
   MOSQUE_TRIES,

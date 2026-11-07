@@ -387,7 +387,7 @@ export const ALLY_ORDER = defineOrder("ally", {
         alliance.renewA = false;
         alliance.renewB = false;
       }
-      return true;
+      return;
     }
     const asked = requestBetween(game, target, player.id);
     if (!asked) {
@@ -396,11 +396,10 @@ export const ALLY_ORDER = defineOrder("ally", {
         to: target,
         expiresAt: game.tick + balance.allianceRequestTicks,
       });
-      return true;
+      return;
     }
     removeWhere(writable(game, "allianceRequests"), (r) => r === asked);
     form(game, player.id, target);
-    return true;
   },
 });
 
@@ -408,22 +407,23 @@ export const ALLY_ORDER = defineOrder("ally", {
 export const TRIBUTE_ORDER = defineOrder("tribute", {
   phases: ANY_PHASE,
   validate: (game, player, order) =>
-    playerError(order.target) ?? tributeError(game, player, order.target) ?? order,
-  execute(game, player, order) {
-    const price = tributePrice(game, player.id);
-    const to = game.player(order.target);
-    if (!to) return false;
+    playerError(order.target) ??
+    tributeError(game, player, order.target) ?? {
+      // tributeError found the receiver in the game.
+      to: game.player(order.target) as Player,
+      price: tributePrice(game, player.id),
+    },
+  execute(game, player, { to, price }) {
     player.gold -= price;
     to.gold += price;
-    form(game, player.id, order.target, true);
+    form(game, player.id, to.id, true);
     logEvent(game, {
       tick: game.tick,
       type: "tribute",
       a: player.id,
-      b: order.target,
+      b: to.id,
       gold: price,
     });
-    return true;
   },
 });
 
@@ -444,7 +444,6 @@ export const BETRAY_ORDER = defineOrder("betray", {
       to: order.target,
       until: game.tick + balance.allianceCooldownTicks,
     });
-    return true;
   },
 });
 
@@ -469,7 +468,6 @@ export const EMBARGO_ORDER = defineOrder("embargo", {
       a: player.id,
       b: target,
     });
-    return true;
   },
 });
 

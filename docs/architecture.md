@@ -133,7 +133,7 @@ Today:
 5. Raise `PROTOCOL_VERSION` in `packages/protocol/src/messages.ts`, and add a frame to the pinned frames in `packages/protocol/test/binary.test.ts`.
 6. Describe it in [engine.md](engine.md) and [protocol.md](protocol.md).
 
-**Target** ([0007](adr/0007-order-dispatch.md)): the checks that only `execute` makes today move into `validate`, and the phase checks of every kind into `phases`.
+Every check goes in `validate`: `execute` cannot refuse a plan ([0007](adr/0007-order-dispatch.md)). **Deferred**: eleven of the 17 kinds use `ANY_PHASE` and keep their phase check in `validate`, so that their refusal strings stay the same; moving it into `phases` is left out of this series.
 
 ### A rule and its state
 

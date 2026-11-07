@@ -486,7 +486,8 @@ export class Game {
    * Carries out one order now, if it is valid: the path of every order of a
    * turn, and of orders that computer players decide during a tick (R-BOT-03).
    * Orders of eliminated or unknown players, and orders of a type without a
-   * rule, are ignored. Returns whether the order was carried out.
+   * rule, are ignored. Returns whether the order was carried out, which is
+   * whether `orderError` found nothing against it.
    */
   apply(playerId: number, order: Order): boolean {
     const player = this.playersById.get(playerId);
@@ -494,7 +495,8 @@ export class Game {
     const rule = this.orderRules.get(order.type);
     if (!rule) return false;
     const plan = planOrder(this, player, order, rule);
-    if (typeof plan === "string" || !rule.execute(this, player, plan)) return false;
+    if (typeof plan === "string") return false;
+    rule.execute(this, player, plan);
     for (const observe of this.observers) observe(this, player, order);
     return true;
   }

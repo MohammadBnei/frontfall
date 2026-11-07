@@ -56,18 +56,19 @@ export const GIFT_ORDER = defineOrder("gift", {
   phases: ANY_PHASE,
   validate: (game, player, order) =>
     playerError(order.target) ??
-    giftError(game, player, order.target, order.troops, order.gold) ??
-    order,
-  execute(game, player, order) {
-    const to = game.player(order.target);
-    if (!to) return false;
-    const troops = giftedTroops(game, to, order.troops);
+    giftError(game, player, order.target, order.troops, order.gold) ?? {
+      // giftError found the receiver in the game.
+      to: game.player(order.target) as Player,
+      troops: order.troops,
+      gold: order.gold,
+    },
+  execute(game, player, { to, troops: sent, gold }) {
+    const troops = giftedTroops(game, to, sent);
     player.troops -= troops;
     to.troops += troops;
-    player.gold -= order.gold;
-    to.gold += order.gold;
+    player.gold -= gold;
+    to.gold += gold;
     logEvent(game, { tick: game.tick, type: "gift", a: player.id, b: to.id });
-    return true;
   },
 });
 

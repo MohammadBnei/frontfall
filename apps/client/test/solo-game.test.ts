@@ -1,5 +1,6 @@
 import {
   TileKind,
+  spawnSettings,
   workShareOf,
   type Alliance,
   type Attack,
@@ -922,5 +923,29 @@ describe("SoloGame online", () => {
 
   it("refuses a turn out of step with the game", () => {
     expect(() => newGame(online).playTurns([{ tick: 3, orders: [] }])).toThrow(RangeError);
+  });
+});
+
+describe("SoloGame start clicks (R-SPAWN-02)", () => {
+  it("refuses a start on another player's land, or too close to their start, with its reason", () => {
+    const solo = newGame(options);
+    const { game } = solo;
+    const { topology } = game.terrain;
+    const land = Array.from({ length: topology.size }, (_, tile) => tile).filter((tile) =>
+      game.terrain.isOwnable(tile),
+    );
+    const other = land[0] as number;
+    // Another player picks first; the click is the human's.
+    expect(game.player(HUMAN_ID + 1)).toBeDefined();
+    expect(game.apply(HUMAN_ID + 1, { type: "spawn", tile: other })).toBe(true);
+    const { distance } = spawnSettings(game);
+    const near = land.find(
+      (tile) => game.territory.ownerOf(tile) === 0 && topology.distance(tile, other) < distance,
+    );
+    const far = land.find((tile) => topology.distance(tile, other) >= distance);
+    if (near === undefined || far === undefined) throw new Error("no tile to click");
+    expect(solo.orderForClick(other, 30)).toEqual({ refused: "startTaken" });
+    expect(solo.orderForClick(near, 30)).toEqual({ refused: "startNear" });
+    expect(solo.orderForClick(far, 30)).toEqual({ order: { type: "spawn", tile: far } });
   });
 });

@@ -385,7 +385,6 @@ export const BUILD_ORDER = defineOrder("build", {
       readyAt: game.tick + buildTime(game, kind),
       reloadAt: 0,
     });
-    return true;
   },
 });
 
@@ -401,7 +400,6 @@ export const DEMOLISH_ORDER = defineOrder("demolish", {
   },
   execute(game, _player, { index }) {
     writable(game, "structures").splice(index, 1);
-    return true;
   },
 });
 

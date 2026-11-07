@@ -81,7 +81,6 @@ export const WORK_ORDER = defineOrder("work", {
   validate: (game, _player, order) => workError(game, order.share) ?? order,
   execute(game, player, order) {
     game.part(WORK)?.set(player.id, order.share);
-    return true;
   },
 });
 

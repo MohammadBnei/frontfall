@@ -51,10 +51,18 @@ export function reachableCoasts(
   return searchFor(game).coasts(player, limit, accept);
 }
 
+/** Refusals of an embark order besides those of `targetError`. */
+export const BoatError = {
+  Coast: "ships can only land on a coast",
+  Max: "too many ships at sea",
+  /** No coast of the player's lies within B-BOAT-RANGE of the target by sea. */
+  Route: "no coast of yours within reach of the target by sea",
+} as const;
+
 /**
  * R-UNIT-02: `embark` ships troops to a coastal tile the player does not
- * own. Whether a coast of theirs lies within B-BOAT-RANGE by sea is judged
- * when the order is carried out, and the order ignored without one.
+ * own, from a coast of theirs within B-BOAT-RANGE by sea; without one, the
+ * order is refused. The route found is the plan, so it is searched once.
  */
 export const EMBARK_ORDER = defineOrder("embark", {
   phases: PLAY_PHASE,
@@ -62,24 +70,23 @@ export const EMBARK_ORDER = defineOrder("embark", {
   validate(game, player, order) {
     const error = targetError(game, player, order.target, order.troops);
     if (error) return error;
-    if (!game.terrain.isCoast(order.target)) return "ships can only land on a coast";
+    if (!game.terrain.isCoast(order.target)) return BoatError.Coast;
     const atSea = game.boats.filter((boat) => boat.player === player.id).length;
-    if (atSea >= game.balance.boatMax) return "too many ships at sea";
-    return order;
-  },
-  execute(game, player, order) {
+    if (atSea >= game.balance.boatMax) return BoatError.Max;
     const route = seaRoute(game, player.id, order.target);
-    if (!route) return false;
-    player.troops -= order.troops;
+    if (!route) return BoatError.Route;
+    return { target: order.target, troops: order.troops, path: route.path };
+  },
+  execute(game, player, { target, troops, path }) {
+    player.troops -= troops;
     writable(game, "boats").push({
       id: game.nextBoatId++,
       player: player.id,
-      target: order.target,
-      troops: order.troops,
-      path: route.path,
+      target,
+      troops,
+      path,
       step: 0,
     });
-    return true;
   },
 });
 

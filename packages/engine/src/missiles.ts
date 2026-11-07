@@ -211,7 +211,6 @@ export const MISSILE_ORDER = defineOrder("missile", {
     if (owner !== NEUTRAL && owner !== player.id) {
       logEvent(game, { tick: game.tick, type: "missile", a: player.id, b: owner });
     }
-    return true;
   },
 });
 

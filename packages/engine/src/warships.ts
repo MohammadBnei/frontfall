@@ -172,7 +172,6 @@ export const WARSHIP_ORDER = defineOrder("warship", {
       step: 0,
       reloadAt: game.tick,
     });
-    return true;
   },
 });
 
@@ -187,7 +186,6 @@ export const PATROL_ORDER = defineOrder("patrol", {
     warship.patrol = tile;
     warship.path = path;
     warship.step = 0;
-    return true;
   },
 });
 

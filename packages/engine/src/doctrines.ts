@@ -106,7 +106,6 @@ export const DOCTRINE_ORDER = defineOrder("doctrine", {
   validate: (game, _player, order) => doctrineError(game, order.pick) ?? order,
   execute(game, player, order) {
     game.part(DOCTRINES)?.set(player.id, order.pick);
-    return true;
   },
 });
 
