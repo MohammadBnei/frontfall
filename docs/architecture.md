@@ -163,7 +163,7 @@ Today: write the screen in `apps/client/src/ui/`, build the DOM with the helpers
 3. Handle it in `apps/client/src/net/`.
 4. Raise `PROTOCOL_VERSION` if old clients cannot understand it, and update [protocol.md](protocol.md); a test in `tools/test/protocol-doc.test.ts` checks that the document and the code agree.
 
-**Target** ([0012](adr/0012-server-ports-and-stores.md)): the handler is an entry in the typed handler map, and a test drives it through the `FakeTransport` with a fake clock.
+The handler is an entry in the typed `Handlers` map ([0012](adr/0012-server-ports-and-stores.md)), and its test drives it through the `FakeTransport` with the `FakeClock`.
 
 ### A store
 
