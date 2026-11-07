@@ -4,6 +4,14 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-08
+
+A maintenance release: no change in play.
+
+### For self-hosters and contributors
+
+- **A steadier end-to-end test.** The long-press diplomacy menu test waits for the game state instead of a colour, so it no longer fails at random on a slow runner.
+
 ## [1.0.0] - 2026-11-05
 
 Frontfall comes out of beta: the complete game on the flat map. The 3D globe follows in v1.1.
