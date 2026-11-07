@@ -118,18 +118,47 @@ own, so a hidden tab keeps playing. Its clock and the worker are handed in,
 so `test/sessions.test.ts` runs every mode with a fake worker, a fake link
 and a clock moved by hand.
 
+## The game screen
+
+`ui/game-screen.ts` only wires the parts of a game together; each part is a
+module of `ui/screen/`:
+
+| Module            | What it does                                                                     |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `map-scene.ts`    | The renderer, its camera and the minimap                                         |
+| `input-host.ts`   | The pointer on the map: clicks as orders in the mode picked, long presses, hover |
+| `pointing.ts`     | The ship, the landmark or the fallout under the pointer                          |
+| `orders.ts`       | The orders the player gives, each when `canAct` allows                           |
+| `policy.ts`       | `canAct`: whether the player can act now, and in which phase                     |
+| `panel-host.ts`   | The HUD, the player menu, the doctrine cards, the pace, the labels               |
+| `dialog-host.ts`  | The pause, the tutorial's dialogs, the help, the end screen, leaving             |
+| `overlays.ts`     | The one dialog at a time and the pause that goes with it                         |
+| `outcome.ts`      | Peak land, statistics, achievements, the usage report, the end of the game       |
+| `feed-host.ts`    | The event feed and the player card, loaded when the game starts                  |
+| `guide-host.ts`   | The first steps and the tips                                                     |
+| `preview-host.ts` | What a build click would do, before it is made                                   |
+| `game-keys.ts`    | The shortcut of each key                                                         |
+| `ship-motion.ts`  | Headings, wakes and the last moments of the ships                                |
+
+`canAct` answers in one place what each order used to check on its own: no
+order before the first update, while a dialog holds the game, or while a
+record is watched, and diplomacy only in play. A decided game is not
+refused there: a solo game waits behind its end screen, which pauses it,
+and every game plays on once the player keeps watching (R-WIN-03).
+
 ## Panels and signals
 
-The game screen keeps the latest update, as this screen shows it (hidden
-players renamed, R-DIPLO-08), in one signal of `@preact/signals-core`. Each
+The panels (`ui/screen/panel-host.ts`) keep the latest update, as this
+screen shows it (hidden players renamed, R-DIPLO-08), in one signal of
+`@preact/signals-core`. Each
 panel watches its own part of it through `select(signal, pick, equals)`
 (`signals.ts`), and runs only when that part changes: the marks beside the
 names with the relations (`relationMarks`), the doctrine cards with their
 seconds (`doctrineView`), the gold floats with a trade ship docking
 (`tradeGains`). The HUD and the player menu show figures that move every
 tick and take every update; the HUD still draws a few times a second. The
-watchers belong to the screen's `Effects` and stop with it. The worker and
-its messages are unchanged.
+watchers belong to the panels' `Effects` and stop with the screen. The
+worker and its messages are unchanged.
 
 Before the library came in, the whole build but the maps sent 848.4 kB with
 gzip and the game screen's chunk 35.8 kB; with it, 850.4 kB and 37.8 kB
