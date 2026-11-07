@@ -42,6 +42,7 @@ async function start(options: Partial<ServerOptions> = {}): Promise<string> {
     logger: {
       info: () => undefined,
       warn: (event, fields) => logged.push({ event, fields }),
+      error: () => undefined,
     },
     ...options,
   });

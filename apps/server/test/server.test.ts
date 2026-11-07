@@ -910,6 +910,7 @@ describe("WebSocket", () => {
       logger: {
         info: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
         warn: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
+        error: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
       },
     });
     const alice = await player(host, "Alice");

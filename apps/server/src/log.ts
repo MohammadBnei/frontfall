@@ -7,6 +7,8 @@ export type LogFields = Record<string, string | number | boolean | null | undefi
 export interface Logger {
   info(event: string, fields?: LogFields): void;
   warn(event: string, fields?: LogFields): void;
+  /** Something went wrong that the server cannot go on from. */
+  error(event: string, fields?: LogFields): void;
 }
 
 /** One JSON object per line on stdout, ready for `docker logs` and any log shipper. */
@@ -24,10 +26,17 @@ export function jsonLogger(
     warn: (event, fields) => {
       log("warn", event, fields);
     },
+    error: (event, fields) => {
+      log("error", event, fields);
+    },
   };
 }
 
-export const silentLogger: Logger = { info: () => undefined, warn: () => undefined };
+export const silentLogger: Logger = {
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
+};
 
 /**
  * Pseudonym of a client address for the logs: the same address gives the same

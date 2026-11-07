@@ -33,6 +33,8 @@ What it sets, and why:
 | `stop_grace_period`                         | On a stop, running games get 20 seconds to end, and players are told why                                                                                                                                |
 | `restart` and `mem_limit`                   | Back after a crash or a reboot; the image keeps its heap at 512 MB, well inside 1 GB                                                                                                                    |
 
+A setting that is set but wrong stops the server from starting. The container exits with status 1, and `docker compose logs` shows one `config_invalid` line that lists every wrong variable: a number that is not one, `FRONTFALL_TRUST_PROXY` or `FRONTFALL_LOGIN_BIND` other than `true` or `false`, an address that is not an `http` or `https` URL, an origin in `FRONTFALL_ORIGINE` written with a path or a trailing slash (`https://games.example.org`, not `https://games.example.org/`), a session secret under 32 characters, or an id without its secret. A variable left empty, as `${FRONTFALL_ORIGINE:-}` does in the sample file, counts as unset.
+
 The usage counts also keep a copy of the previous save and one file per month in `usage/months/` of the volume, which you can keep or collect ([server](server.md#usage-counts)).
 
 Every setting the server reads is listed in [server.md](server.md#configuration).

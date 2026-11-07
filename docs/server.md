@@ -31,6 +31,15 @@
 | `FRONTFALL_LOGIN_BIND`                                         | `false`                                 | `true` ties each sign-in link to the browser that asked for it (a 15-minute HttpOnly cookie, required at confirmation), which closes the login CSRF. It also refuses a link opened in another browser or app, as when the mail is read on a phone: the page then says to open it where it was asked for                                                            |
 | `FRONTFALL_OPERATOR_ACCOUNTS`                                  | unset                                   | Ids of the operator's accounts, separated by commas or spaces: each may give themselves bonuses in their private games, to test ([Operator bonuses](#operator-bonuses)). Unset, no one can                                                                                                                                                                         |
 
+### How the settings are read
+
+`src/config.ts` describes every variable above with a zod schema, and `src/main.ts` reads the environment through it before anything starts.
+
+- A variable that is unset or empty (as `${FRONTFALL_ORIGINE:-}` leaves it in a compose file) takes its default.
+- A variable that is set but wrong stops the start with status 1. The server logs one `config_invalid` error that lists every wrong variable, not the first, and never repeats the value of a secret: `{"level":"error","event":"config_invalid","count":2,"problems":"PORT: must be a whole number from 0 to 65535, not \"http\"; FRONTFALL_TRUST_PROXY: must be true or false, not \"yes\""}`. Wrong means: a count (`PORT`, the `*_MAX_*` and `*_PER_ADDRESS` limits, `FRONTFALL_EMAIL_DAILY_LIMIT`) that is not a whole number of 0 or more; a duration or size (`*_SECONDS`, `FRONTFALL_CONNECTIONS_PER_MINUTE`, `FRONTFALL_MAX_LOG_MIB`) that is not a number of 0 or more; a flag (`FRONTFALL_TRUST_PROXY`, `FRONTFALL_LOGIN_BIND`) that is not `true` or `false`; an address (`FRONTFALL_PUBLIC_URL`) that is not an `http` or `https` URL; an origin in `FRONTFALL_ORIGINE` with a path or a trailing slash, which no browser would ever send; a `FRONTFALL_SESSION_SECRET` under 32 characters; and a service with only one of its id and its secret.
+- A feature with nothing set up is off, as it always was. Sign-in with a service or by email that is set up but cannot run, because `FRONTFALL_PUBLIC_URL` or `FRONTFALL_SESSION_SECRET` is missing, is turned off with one `accounts_off` warning. A mailbox file that cannot be read turns sign-in by email off with one `email_sign_in_off` warning: the file is not an environment variable, so the server still starts.
+- An error that nothing caught, or a promise rejected with no one waiting, is logged as `uncaught_exception` or `unhandled_rejection` (with the message and the stack) and the process exits with status 1, so that the container restarts.
+
 ## Games
 
 | Setting                        | Value                              | Notes                                                                                                                                     |
@@ -156,6 +165,11 @@ The server writes one JSON object per line on standard output, read with `docker
 | `ban_lifted`          | info  |                                                                                           |
 | `bans_reloaded`       | info  | `bans`: entries now in force                                                              |
 | `bans_not_loaded`     | warn  | `error`: the ban file does not read; the server starts with no ban                        |
+| `accounts_off`        | warn  | `reason`: sign-in is set up but cannot run                                                |
+| `email_sign_in_off`   | warn  | `reason`: the SMTP file cannot be used                                                    |
+| `config_invalid`      | error | `count`, `problems`: a setting is wrong; the process exits with status 1                  |
+| `uncaught_exception`  | error | `error`, `stack`: the process exits with status 1                                         |
+| `unhandled_rejection` | error | `error`, `stack`: the process exits with status 1                                         |
 
 Client addresses never appear in clear. `client` is a keyed hash of the address: stable while the process runs, so repeated abuse from one address can be spotted, and impossible to link to the address or across restarts, because the key is drawn at random on start. Player names are not logged.
 
@@ -334,6 +348,22 @@ admin GET 'errors?days=30'      # everything kept
 
 With `FRONTFALL_DATA`, `usage/usage.json` holds the counts, saved every 5 minutes; the save before it stays as `usage.json.bak`, and the server falls back on that copy if the file is damaged (the damaged one is kept as `usage.json.broken`) or missing. To start the counts again from nothing, delete both files.
 `usage/months/2026-10.json` holds one month: `{ "version": 1, "month": "2026-10", "days": { "2026-10-25": { dimension: { value: count } } } }`. A monthly file is added to and never cut down: a day keeps the larger of the file's figures and the server's, and a file that cannot be read is set aside as `.broken-<time>`.
+
+## Code layout
+
+`createGameServer` (`src/server.ts`) only builds the parts and wires them; each concern has its own module in `apps/server/src`.
+
+| Module                             | Concern                                                                                                                                                                                                                                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `config.ts`, `main.ts`, `crash.ts` | The environment read through a zod schema, the options built from it, the start and the process-level handlers                                                                                                                                                                           |
+| `http/routes.ts`                   | An ordered route table. The order is part of the behavior: `/healthz` and `/api/usage` answer any method, the admin routes only a request from inside the container, and everything after the `methods` step is read-only. `test/routes.test.ts` pins the status of each path and method |
+| `http/admin.ts`                    | The routes under `/admin/`                                                                                                                                                                                                                                                               |
+| `ws/admission.ts`                  | Whether a request to open a WebSocket is let in: path, origin, room on the server, room for the address                                                                                                                                                                                  |
+| `ws/sessions.ts`                   | The open connections: hello timeout, rate limit, parsing, pings, idle connections, what a seat is sent through                                                                                                                                                                           |
+| `client-messages.ts`               | A typed handler map, one small function per message type, after the `hello` and seat-refresh steps                                                                                                                                                                                       |
+| `turn-timer.ts`                    | The shared timer that closes the turns of the running games                                                                                                                                                                                                                              |
+| `persistence.ts`                   | What is loaded at the start and saved on a schedule and at the end: games, usage counts, client errors, bans, accounts                                                                                                                                                                   |
+| `lifecycle.ts`                     | Closing, the restart announcement, `/api/status` and the drain                                                                                                                                                                                                                           |
 
 ## Clock, ids and transport
 

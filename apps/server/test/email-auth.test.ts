@@ -46,6 +46,7 @@ afterEach(async () => {
 const logger: Logger = {
   info: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
   warn: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
+  error: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
 };
 
 async function start(dailyLimit?: number, bindToBrowser = false): Promise<string> {

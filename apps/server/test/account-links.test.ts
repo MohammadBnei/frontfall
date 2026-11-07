@@ -54,6 +54,7 @@ afterEach(async () => {
 const logger: Logger = {
   info: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
   warn: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
+  error: (event, fields) => lines.push(JSON.stringify({ event, ...fields })),
 };
 
 describe("ways to sign in to one account", () => {
