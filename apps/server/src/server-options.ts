@@ -4,6 +4,7 @@ import type { Clock } from "./clock.ts";
 import type { Ids } from "./ids.ts";
 import type { Logger } from "./log.ts";
 import type { RoomSettings } from "./room.ts";
+import type { OpenSql } from "./sql/driver.ts";
 import type { Transport } from "./transport.ts";
 
 export type GameSettings = Omit<RoomSettings, "visibility" | "name">;
@@ -95,6 +96,8 @@ export interface ServerOptions {
   ids?: Ids;
   /** HTTP and WebSockets: `Bun.serve` by default, a transport without sockets in tests. */
   transport?: Transport;
+  /** How data.db is opened: `node:sqlite` by default, which Bun has too; main.ts gives `bun:sqlite`. */
+  openSql?: OpenSql;
 }
 
 /** Cloudflare drops a WebSocket that stays silent for 100 s. */

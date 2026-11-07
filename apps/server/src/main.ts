@@ -2,8 +2,11 @@ import { fileURLToPath } from "node:url";
 import { systemClock } from "./clock.ts";
 import { ConfigError, loadConfig, serverOptions, type ServerConfig } from "./config.ts";
 import { exitOnCrash } from "./crash.ts";
+import { NewerSchemaError } from "./database.ts";
+import { ImportError } from "./import-json.ts";
 import { jsonLogger } from "./log.ts";
-import { createGameServer } from "./server.ts";
+import { createGameServer, type GameServer } from "./server.ts";
+import { openBunSqlite } from "./sql/bun-sqlite.ts";
 
 /** Past the drain, sockets get this long to close before the process exits anyway. */
 const EXIT_GRACE_MS = 5_000;
@@ -32,15 +35,35 @@ function readConfig(): ServerConfig {
   }
 }
 
+/**
+ * The server, with data.db opened through bun:sqlite. A JSON store of an
+ * earlier release that does not import stops the start, naming the file,
+ * and so does a data.db from a newer release.
+ */
+function startServer(config: ServerConfig): GameServer {
+  try {
+    return createGameServer({
+      ...serverOptions(config, {
+        staticRoot: fileURLToPath(new URL("../../client/dist", import.meta.url)),
+        release,
+        simulation,
+        logger,
+      }),
+      openSql: openBunSqlite,
+    });
+  } catch (error) {
+    if (error instanceof NewerSchemaError) {
+      logger.error("database_too_new", { schema: error.schema, known: error.known });
+      process.exit(1);
+    }
+    if (!(error instanceof ImportError)) throw error;
+    logger.error("import_failed", { store: error.store, file: error.file, error: error.message });
+    process.exit(1);
+  }
+}
+
 const config = readConfig();
-const server = createGameServer(
-  serverOptions(config, {
-    staticRoot: fileURLToPath(new URL("../../client/dist", import.meta.url)),
-    release,
-    simulation,
-    logger,
-  }),
-);
+const server = startServer(config);
 
 let stopping = false;
 

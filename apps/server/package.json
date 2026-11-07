@@ -13,7 +13,8 @@
     "start": "bun dist/server.mjs",
     "build": "tsc -p tsconfig.json && bun build.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test:bun": "bun test ./test-bun"
+    "test:bun": "bun test ./test-bun",
+    "admin": "bun src/admin-main.ts"
   },
   "dependencies": {
     "@frontfall/protocol": "workspace:*",

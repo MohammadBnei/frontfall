@@ -121,7 +121,7 @@ export function createGameServer(options: ServerOptions): GameServer {
     (origin) => isAllowedOrigin(origin, options.allowedOrigin),
     () => clock.now(),
   );
-  const auth = startAuth(options, clock, ids, logger);
+  const auth = startAuth(options, persistence.db, clock, ids, logger);
   const lifecycle = createLifecycle({
     clock,
     games,
@@ -194,18 +194,22 @@ export function createGameServer(options: ServerOptions): GameServer {
     metrics,
     usage,
     close: () =>
-      lifecycle.close({
-        broadcast: sessions.broadcast,
-        saveCounts: persistence.saveCounts,
-        stopTimers: () => {
-          heartbeat.clear();
-          timer.stop();
-        },
-        keepGames: persistence.keepGames,
-        disconnect: () => {
-          for (const socket of transport.connections()) socket.close(1012, "server restarting");
-          return transport.close();
-        },
-      }),
+      lifecycle
+        .close({
+          broadcast: sessions.broadcast,
+          saveCounts: persistence.saveCounts,
+          stopTimers: () => {
+            heartbeat.clear();
+            timer.stop();
+          },
+          keepGames: persistence.keepGames,
+          disconnect: () => {
+            for (const socket of transport.connections()) socket.close(1012, "server restarting");
+            return transport.close();
+          },
+        })
+        .finally(() => {
+          persistence.close();
+        }),
   };
 }

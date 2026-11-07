@@ -1,13 +1,13 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { accountsFile } from "../src/accounts.ts";
 import type { Logger } from "../src/log.ts";
 import { mailbox, mailFailure, readSmtpSettings, type MailMessage } from "../src/mail.ts";
 import { FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer } from "../src/server.ts";
 import { FakeClock } from "./support/fake-clock.ts";
+import { accountsText, storedAccounts } from "./support/database.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
 const ORIGIN = "https://play.example";
@@ -254,17 +254,14 @@ describe("sign-in by email", () => {
     const base = await start();
     await signIn(base, "nelly@example.org");
     await signIn(base, "NELLY@example.org", "Someone");
-    const file = JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as {
-      accounts: { name: string }[];
-    };
-    expect(file.accounts.map(({ name }) => name)).toEqual(["Nelly"]);
+    expect(storedAccounts(dataDir).map(({ name }) => name)).toEqual(["Nelly"]);
   });
 
-  it("keeps neither the address nor the token in the accounts file or the logs", async () => {
+  it("keeps neither the address nor the token in data.db or the logs", async () => {
     const base = await start();
     await signIn(base, "nelly@example.org");
     const token = tokenOf(sent[0]);
-    const text = readFileSync(accountsFile(dataDir), "utf8");
+    const text = accountsText(dataDir);
     expect(text).not.toMatch(/nelly@|example\.org/);
     expect(text).not.toContain(token);
     fail = true;
@@ -427,7 +424,7 @@ describe("achievements of an account", () => {
       headers: { origin: ORIGIN, cookie },
     });
     expect(deleted.status).toBe(200);
-    expect(readFileSync(accountsFile(dataDir), "utf8")).not.toContain("veteran");
+    expect(accountsText(dataDir)).not.toContain("veteran");
   });
 });
 

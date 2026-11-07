@@ -155,16 +155,19 @@ jobs:
       - run: bun run test:e2e tests/server-pages.spec.ts tests/solo-game.spec.ts tests/walking-skeleton.spec.ts
         env:
           E2E_BASE_URL: http://127.0.0.1:8080/
-      # Stopped, the server writes its usage counts to the volume, and reads them back on start.
+      # Stopped, the server writes its usage counts to data.db in the volume, and reads them back
+      # on start; frontfall-admin backup then writes a copy that holds them, as the operator's would.
       - name: Keep the data across a restart
         env:
           FRONTFALL_IMAGE: frontfall:ci
         run: |
           docker compose stop
-          docker compose cp frontfall:/var/lib/frontfall/usage/usage.json "$RUNNER_TEMP/usage.json"
-          test -s "$RUNNER_TEMP/usage.json"
           docker compose up --detach --wait
-          if docker compose logs | grep -E 'usage_not_loaded|usage_not_saved|usage_in_memory'; then exit 1; fi
+          if docker compose logs | grep -E 'usage_not_loaded|usage_not_saved|usage_in_memory|import_failed'; then exit 1; fi
+          # The copy comes out through the output: docker compose cp cannot read /tmp, a tmpfs mount.
+          docker compose exec -T frontfall sh -c 'frontfall-admin backup /tmp/backup.db >&2 && cat /tmp/backup.db; status=$?; rm -f /tmp/backup.db; exit $status' > "$RUNNER_TEMP/backup.db"
+          bun -e "const { Database } = require('bun:sqlite'); const db = new Database(process.argv[1], { readonly: true }); process.exit(db.query(\"SELECT body FROM documents WHERE name = 'usage'\").get() ? 0 : 1)" "$RUNNER_TEMP/backup.db"
+          docker compose exec -T frontfall frontfall-admin bans list
       - if: failure()
         run: docker compose logs
       - if: failure()

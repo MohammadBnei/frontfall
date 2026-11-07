@@ -4,3 +4,5 @@ pnpm-lock.yaml
 bun.lock
 # Written by bun run golden
 packages/engine/test/replays/
+# Files as the server of earlier releases wrote them, damaged ones included
+apps/server/test/fixtures/

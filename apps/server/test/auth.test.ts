@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -11,9 +11,11 @@ import {
   type ServerMessage,
 } from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Accounts, accountsFile, nameKey } from "../src/accounts.ts";
+import { Accounts, nameKey } from "../src/accounts.ts";
 import { FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
+import type { SqlDriver } from "../src/sql/driver.ts";
+import { accountsText, dataOf, storedAccounts } from "./support/database.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
 
@@ -190,10 +192,10 @@ describe("sign-in", () => {
     });
   });
 
-  it("keeps no id of the service and no email in the accounts file", async () => {
+  it("keeps no id of the service and no email in data.db", async () => {
     const base = await start();
     await signIn(base);
-    const text = readFileSync(accountsFile(dataDir), "utf8");
+    const text = accountsText(dataDir);
     expect(text).not.toContain("80351110224678912");
     expect(text).not.toContain("nelly");
     expect(text).toContain("Nelly");
@@ -298,7 +300,7 @@ describe("sign-in", () => {
     expect(response.status).toBe(200);
     expect(cookies(response).get("frontfall_session")).toBe("");
     expect(((await (await me(base, session)).json()) as { account: unknown }).account).toBeNull();
-    expect(readFileSync(accountsFile(dataDir), "utf8")).not.toContain("Nelly");
+    expect(accountsText(dataDir)).not.toContain("Nelly");
   });
 
   it("keeps the accounts when the session secret changes, and only signs players out", async () => {
@@ -316,8 +318,7 @@ describe("sign-in", () => {
     const body = (await (await me(again, renewed)).json()) as { account: { name: string } };
     // The same account, not a new one under "Nelly1234".
     expect(body.account.name).toBe("Nelly");
-    const file = JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as { accounts: unknown[] };
-    expect(file.accounts).toHaveLength(1);
+    expect(storedAccounts(dataDir)).toHaveLength(1);
   });
 
   it("signs the player out on every device", async () => {
@@ -333,8 +334,11 @@ describe("sign-in", () => {
       expect(((await (await me(base, session)).json()) as { account: unknown }).account).toBeNull();
   });
 
-  it("turns sign-in off rather than overwrite an accounts file it cannot read", async () => {
-    mkdirSync(accountsFile(dataDir), { recursive: true });
+  it("turns sign-in off rather than overwrite accounts it cannot read", async () => {
+    const db = dataOf(dataDir);
+    db.run("INSERT INTO meta (key, value) VALUES ('accounts.salt', ?)", ["x".repeat(43)]);
+    db.run("INSERT INTO accounts (id, body) VALUES ('a', '{ not json')");
+    db.close();
     const base = await start();
     expect(await (await me(base)).json()).toEqual({ providers: [], account: null });
   });
@@ -453,9 +457,7 @@ describe("operator's bonuses (R-MODE-09)", () => {
     const operators = new Set<string>();
     const base = await start({ operatorAccounts: operators });
     const { session = "" } = await signIn(base);
-    const [account] = (
-      JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as { accounts: { id: string }[] }
-    ).accounts;
+    const [account] = storedAccounts(dataDir);
     if (!account) throw new Error("no account");
 
     // Signed in but not listed: the same as a guest.
@@ -493,10 +495,7 @@ describe("operator's bonuses (R-MODE-09)", () => {
     const operators = new Set<string>();
     const base = await start({ operatorAccounts: operators });
     const { session = "" } = await signIn(base);
-    const { accounts } = JSON.parse(readFileSync(accountsFile(dataDir), "utf8")) as {
-      accounts: { id: string }[];
-    };
-    for (const { id } of accounts) operators.add(id);
+    for (const { id } of storedAccounts(dataDir)) operators.add(id);
     const nico = await playerSocket("x", `frontfall_session=${session}`);
     nico.send({ type: "create", visibility: "public", name: "Open game" });
     expect((await nico.next("lobby")).operator).toBe(false);
@@ -511,31 +510,72 @@ describe("Accounts", () => {
     expect(nameKey("Élodie-B.")).toBe(nameKey("elodie b"));
   });
 
-  it("sets an unreadable file aside rather than overwriting it", () => {
-    const file = accountsFile(dataDir);
-    const accounts = new Accounts(file);
-    accounts.signIn("google", "1", "Ana", Date.now());
-    writeFileSync(file, "{ not json");
-    const again = new Accounts(file);
-    const loaded = again.load();
-    expect(loaded.usable).toBe(true);
-    expect(loaded.error?.message).toMatch(/kept as .*accounts\.json\.broken-\d+/);
-    expect(again.size).toBe(0);
+  it("refuses to start from accounts it cannot read, rather than write over them", () => {
+    const db = dataOf(dataDir);
+    try {
+      const accounts = new Accounts(db);
+      expect(accounts.load()).toEqual({ usable: true });
+      accounts.signIn("google", "1", "Ana", Date.now());
+      expect(new Accounts(db).load()).toEqual({ usable: true });
+      db.run("UPDATE accounts SET body = '{ not json'");
+      const again = new Accounts(db);
+      const loaded = again.load();
+      expect(loaded.usable).toBe(false);
+      expect(loaded.error?.message).toBe("an account row does not read");
+      db.run("DELETE FROM meta WHERE key = 'accounts.salt'");
+      expect(new Accounts(db).load()).toMatchObject({ usable: false });
+    } finally {
+      db.close();
+    }
   });
 
-  it("keeps working in memory when its file cannot be written", () => {
-    // A directory where the file should be: every write fails.
-    const file = join(dataDir, "blocked");
-    mkdirSync(join(file, "accounts.json"), { recursive: true });
+  it("keeps working in memory when data.db cannot be written", () => {
+    // A closed database: every write fails.
+    const db = dataOf(dataDir);
+    db.close();
     const errors: Error[] = [];
-    const accounts = new Accounts(join(file, "accounts.json"), (error) => errors.push(error));
+    const accounts = new Accounts(db, (error) => errors.push(error));
     const ana = accounts.signIn("google", "1", "Ana", Date.now());
     expect(accounts.rename(ana.id, "Anna")).toMatchObject({ ok: true });
     expect(accounts.get(ana.id)?.name).toBe("Anna");
     expect(errors.length).toBeGreaterThan(0);
-    // A deletion the file never got is refused, so the account cannot come back at the next start.
+    // A deletion data.db never got is refused, so the account cannot come back at the next start.
     expect(accounts.remove(ana.id)).toBe(false);
     expect(accounts.get(ana.id)?.name).toBe("Anna");
+  });
+
+  it("writes an account whose write failed with the next change, so it is not lost at a restart", () => {
+    const real = dataOf(dataDir);
+    let failing = false;
+    const db: SqlDriver = {
+      exec: (sql) => {
+        real.exec(sql);
+      },
+      run: (sql, params) => {
+        if (failing) throw new Error("database or disk is full");
+        real.run(sql, params);
+      },
+      all: (sql, params) => real.all(sql, params),
+      get: (sql, params) => real.get(sql, params),
+      close: () => {
+        real.close();
+      },
+    };
+    try {
+      const accounts = new Accounts(db);
+      expect(accounts.load()).toEqual({ usable: true });
+      failing = true;
+      const ana = accounts.signIn("google", "1", "Ana", Date.now());
+      expect(real.all("SELECT id FROM accounts")).toEqual([]);
+      failing = false;
+      accounts.signIn("google", "2", "Bob", Date.now());
+      const again = new Accounts(real);
+      expect(again.load()).toEqual({ usable: true });
+      expect(again.get(ana.id)?.name).toBe("Ana");
+      expect(again.size).toBe(2);
+    } finally {
+      db.close();
+    }
   });
 
   it("gives a name to a player whose name at the service has nothing usable", () => {

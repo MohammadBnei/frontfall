@@ -111,7 +111,7 @@ flowchart LR
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today                                 |
 | Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Today                                 |
-| Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Today, but stores: Target             |
+| Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Today                                 |
 | Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Today                                 |
 | App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Target                                |
 | Sessions with capabilities        | Solo, Online, Replay ([0013](adr/0013-client-shell-and-signals.md))                               | Target                                |
@@ -167,9 +167,7 @@ The handler is an entry in the typed `Handlers` map ([0012](adr/0012-server-port
 
 ### A store
 
-Today: a store is a class that loads a JSON file from the data directory at start and writes it atomically (`apps/server/src/moderation.ts` is a good model). Keep file mode 0600 for personal data and document what it holds in [privacy.md](privacy.md).
-
-**Target** ([0012](adr/0012-server-ports-and-stores.md)): a store is a class over the `SqlDriver` port, with a table, a one-time import if it replaces a file, and a command in `frontfall-admin` if an operator needs to change it by hand. Its test runs on `node:sqlite` under Vitest.
+A store is a class over the `SqlDriver` port (`apps/server/src/sql/driver.ts`), with its table in the schema of `apps/server/src/database.ts`, a one-time import in `import-json.ts` if it replaces a file, and a command in `frontfall-admin` (`admin-command.ts`) if an operator needs to change it by hand; `moderation.ts` is a good model. Its test runs on `node:sqlite` under Vitest; production runs `bun:sqlite`. Personal data goes in `data.db`, readable by the server's user only, and [privacy.md](privacy.md) says what it holds.
 
 ### A map
 

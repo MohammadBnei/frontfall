@@ -27,6 +27,9 @@ export default defineConfig({
         "apps/server/src/main.ts",
         // Bun.serve, which Vitest on Node cannot start: `bun run test:bun` covers it.
         "apps/server/src/bun-transport.ts",
+        // bun:sqlite and the admin command's entry point, run by Bun: `bun run test:bun` covers them.
+        "apps/server/src/sql/bun-sqlite.ts",
+        "apps/server/src/admin-main.ts",
         "apps/client/src/render/map-view.ts",
         "apps/client/src/render/minimap.ts",
         "apps/client/src/render/pieces.ts",

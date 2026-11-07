@@ -1,13 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -20,7 +11,9 @@ import {
   type ServerMessage,
 } from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { writeBans } from "../src/moderation.ts";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
+import { dataOf } from "./support/database.ts";
 import { FakeSocket, FakeTransport } from "./support/fake-transport.ts";
 
 let staticRoot: string;
@@ -1200,6 +1193,16 @@ describe("WebSocket", () => {
       rmSync(dataDir, { recursive: true, force: true });
     });
 
+    /** What data.db keeps of a saved game, as text; undefined once taken back. */
+    function savedBody(game: string): string | undefined {
+      const db = dataOf(dataDir);
+      try {
+        return db.get<{ body: string }>("SELECT body FROM games WHERE id = ?", [game])?.body;
+      } finally {
+        db.close();
+      }
+    }
+
     /** A running game with turns, stopped by the end of the drain; the token and the last tick. */
     async function savedGame(simulation: string) {
       const host = await start({ drainMs: 0, dataDir, simulation });
@@ -1238,12 +1241,12 @@ describe("WebSocket", () => {
 
     it("keeps the games still running for the next run, which gives the seats back", async () => {
       const { game, token, tick } = await savedGame("5e5e5e5e5e5e");
-      const file = join(dataDir, "games", `${game}.json`);
-      expect(statSync(file).mode & 0o777).toBe(0o600);
-      expect(readFileSync(file, "utf8")).not.toContain("127.0.0.1");
+      expect(statSync(join(dataDir, "data.db")).mode & 0o777).toBe(0o600);
+      expect(savedBody(game)).toContain('"seed"');
+      expect(savedBody(game)).not.toContain("127.0.0.1");
 
       const host = await start({ dataDir, simulation: "5e5e5e5e5e5e" });
-      expect(existsSync(file)).toBe(false);
+      expect(savedBody(game)).toBeUndefined();
       const back = await player(host, "Alice");
       back.send({ type: "rejoin", token, from: 0 });
       expect(await back.next("started")).toMatchObject({
@@ -1282,35 +1285,38 @@ describe("WebSocket", () => {
       await server?.close();
       server = undefined;
       expect(performance.now() - began).toBeLessThan(5_000);
-      expect(existsSync(join(dataDir, "games", `${game}.json`))).toBe(true);
+      expect(savedBody(game)).toBeDefined();
     });
 
     it("drops the games of another simulation build", async () => {
       const { game, token } = await savedGame("5e5e5e5e5e5e");
       const host = await start({ dataDir, simulation: "a1a1a1a1a1a1" });
-      expect(existsSync(join(dataDir, "games", `${game}.json`))).toBe(false);
+      expect(savedBody(game)).toBeUndefined();
       const back = await player(host, "Alice");
       back.send({ type: "rejoin", token, from: 0 });
       expect((await back.next("error")).code).toBe("token_invalid");
     });
 
-    it("starts despite a broken file, which it removes", async () => {
+    it("starts despite a broken file of an earlier release, which it imports and refuses", async () => {
       mkdirSync(join(dataDir, "games"));
       writeFileSync(join(dataDir, "games", "broken.json"), "{");
       writeFileSync(join(dataDir, "games", "cut.json.tmp"), "{");
       await start({ dataDir });
-      expect(readdirSync(join(dataDir, "games"))).toEqual([]);
+      expect(readdirSync(join(dataDir, "games")).sort()).toEqual([
+        "broken.json.imported",
+        "cut.json.tmp.imported",
+      ]);
+      expect(savedBody("broken")).toBeUndefined();
     });
   });
 
-  it("reads a ban list edited by hand when asked to, keeping the old one if it does not read", async () => {
+  it("reads the ban list the admin command changed when asked to, keeping the old one if it does not read", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "frontfall-data-"));
+    const db = dataOf(dataDir);
     try {
       const host = await start({ dataDir });
       const url = `http://${host}/admin/bans`;
-      mkdirSync(join(dataDir, "moderation"), { recursive: true });
-      const file = join(dataDir, "moderation", "bans.json");
-      writeFileSync(file, JSON.stringify({ bans: [{ target: "203.0.113.9" }] }));
+      writeBans(db, [{ target: "203.0.113.9", until: null }]);
       expect(await (await request(url, { method: "POST" })).json()).toEqual({
         bans: [{ target: "203.0.113.9", until: null }],
         closed: 0,
@@ -1318,10 +1324,11 @@ describe("WebSocket", () => {
       expect(await closed(open(host, { "x-client-ip": "203.0.113.9" }).socket)).toBe(
         CloseCode.banned,
       );
-      writeFileSync(file, "{ not json");
+      db.run("INSERT INTO bans (target, until, note) VALUES ('nobody', NULL, NULL)");
       expect((await request(url, { method: "POST" })).status).toBe(422);
       expect(((await (await request(url)).json()) as { bans: unknown[] }).bans).toHaveLength(1);
     } finally {
+      db.close();
       rmSync(dataDir, { recursive: true, force: true });
     }
   });

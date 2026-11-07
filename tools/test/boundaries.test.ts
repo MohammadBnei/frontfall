@@ -479,6 +479,16 @@ describe("server ports", () => {
     ]);
   });
 
+  it("reaches SQLite through the SqlDriver port only", () => {
+    const sqlite = imports("apps/server")
+      .filter(({ specifier }) => specifier === "bun:sqlite" || specifier === "node:sqlite")
+      .map(({ file, specifier }) => `${relative(root, file)} imports ${specifier}`);
+    expect(sqlite.sort()).toEqual([
+      "apps/server/src/sql/bun-sqlite.ts imports bun:sqlite",
+      "apps/server/src/sql/node-sqlite.ts imports node:sqlite",
+    ]);
+  });
+
   it("depends on the protocol, zod, nodemailer and the runtime only", () => {
     const allowed = ["@frontfall/protocol", "zod", "nodemailer", "bun"];
     const outside = imports("apps/server")

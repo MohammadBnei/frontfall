@@ -34,7 +34,11 @@ ENV NODE_ENV=production \
 # Bun has no heap cap: the container's memory limit bounds the server (mem_limit in
 # compose.yaml, sized from the load test in docs/capacity.md).
 COPY --from=build --chown=bun:bun /app/apps/server/dist/server.mjs ./server.mjs
+COPY --from=build --chown=bun:bun /app/apps/server/dist/frontfall-admin.mjs ./frontfall-admin.mjs
 COPY --from=build --chown=bun:bun /app/apps/client/dist ./public
+# The operator's command for data.db: `docker exec <container> frontfall-admin bans list`.
+RUN printf '#!/bin/sh\nexec bun /app/frontfall-admin.mjs "$@"\n' > /usr/local/bin/frontfall-admin \
+  && chmod 755 /usr/local/bin/frontfall-admin
 # The only place the server may write besides /tmp, mounted as a volume in production; a new
 # named volume takes this owner. The server also starts without it. The user bun is uid 1000,
 # as the node user was, so a volume keeps its owner across the change.

@@ -1,14 +1,16 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Accounts, accountsFile } from "../src/accounts.ts";
+import { Accounts, BEFORE_MERGES } from "../src/accounts.ts";
+import { readDocument } from "../src/database.ts";
 import type { Logger } from "../src/log.ts";
 import type { MailMessage } from "../src/mail.ts";
 import { FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer } from "../src/server.ts";
+import { dataOf } from "./support/database.ts";
 
 const SECRET = "a-session-secret-of-at-least-32-characters";
 const ORIGIN = "https://play.example";
@@ -75,8 +77,8 @@ describe("ways to sign in to one account", () => {
   });
 
   it("merges another account only once asked, keeping the most of both", () => {
-    const file = accountsFile(dataDir);
-    const accounts = new Accounts(file);
+    const db = dataOf(dataDir);
+    const accounts = new Accounts(db);
     const nelly = accounts.signIn("discord", "1", "Nelly", NOW);
     const other = accounts.signIn("google", "g1", "Nelly Two", NOW - 86_400_000);
     accounts.mergeAchievements(nelly.id, achievements(1, NOW, 3));
@@ -86,7 +88,7 @@ describe("ways to sign in to one account", () => {
     const held = accounts.link(nelly.id, "google", subject);
     expect(held).toMatchObject({ ok: false, error: "other", other: { name: "Nelly Two" } });
     expect(accounts.size).toBe(2);
-    expect(existsSync(`${file}.before-merges`)).toBe(false);
+    expect(readDocument(db, BEFORE_MERGES)).toBeUndefined();
 
     const merged = accounts.link(nelly.id, "google", subject, true);
     expect(merged).toMatchObject({ ok: true, merged: { id: other.id } });
@@ -97,13 +99,16 @@ describe("ways to sign in to one account", () => {
     expect(nelly.achievements).toEqual(achievements(2, NOW - 5, 7));
     expect(nelly.createdAt).toBe(other.createdAt);
     expect(accounts.knownIds(nelly.id)).toEqual([nelly.id, other.id]);
-    // The file as it was before, kept aside once.
-    const copy = JSON.parse(readFileSync(`${file}.before-merges`, "utf8")) as {
-      accounts: unknown[];
+    // The accounts as they were before, kept aside once, in the form of the file of the earlier releases.
+    const copy = JSON.parse(readDocument(db, BEFORE_MERGES) ?? "{}") as {
+      accounts: { name: string; achievements?: unknown }[];
     };
-    expect(copy.accounts).toHaveLength(2);
+    expect(copy.accounts.map(({ name }) => name).sort()).toEqual(["Nelly", "Nelly Two"]);
+    expect(copy.accounts.find(({ name }) => name === "Nelly")?.achievements).toEqual(
+      achievements(1, NOW, 3),
+    );
 
-    const again = new Accounts(file);
+    const again = new Accounts(dataOf(dataDir));
     expect(again.load()).toEqual({ usable: true });
     expect(again.signIn("google", "g1", "x", NOW).id).toBe(nelly.id);
     expect(again.knownIds(nelly.id)).toEqual([nelly.id, other.id]);
@@ -290,7 +295,9 @@ describe("adding a way to sign in", () => {
     expect(await me(base, discordSession)).toMatchObject({ account: null });
     const again = cookie(await discord(base), "frontfall_session") ?? "";
     expect(await me(base, again)).toMatchObject({ account: { name: "Nelly Mail" } });
-    expect(existsSync(`${accountsFile(dataDir)}.before-merges`)).toBe(true);
+    const db = dataOf(dataDir);
+    expect(readDocument(db, BEFORE_MERGES)).toBeDefined();
+    db.close();
   });
 
   it("merges only the account named to the player", async () => {

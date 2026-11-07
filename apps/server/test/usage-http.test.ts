@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { GameReport } from "@frontfall/protocol";
@@ -8,6 +8,8 @@ import { usageInbox } from "../src/usage-http.ts";
 import { UsageStats } from "../src/usage.ts";
 import { exchange, FakeTransport } from "./support/fake-transport.ts";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
+import { readDocument } from "../src/database.ts";
+import { dataOf } from "./support/database.ts";
 
 let staticRoot: string;
 let dataDir: string;
@@ -80,6 +82,16 @@ function post(
     headers,
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
+}
+
+/** A document data.db keeps in the data directory, as text. */
+function documentOf(name: string): string | undefined {
+  const db = dataOf(dataDir);
+  try {
+    return readDocument(db, name);
+  } finally {
+    db.close();
+  }
 }
 
 describe("/api/usage", () => {
@@ -235,10 +247,10 @@ describe("/api/usage", () => {
     expect(answer.groups[0]?.message).toBe("Cannot read properties of undefined (reading <text>)");
     expect(answer.groups[0]?.browsers).toEqual({ safari: 1, firefox: 1 });
     expect(answer.groups[0]?.devices).toEqual({ phone: 1, desktop: 1 });
-    // Kept across a restart, readable by the server's user only.
+    // Kept across a restart, in data.db.
     await server?.close();
     server = undefined;
-    expect(readFileSync(join(dataDir, "usage", "errors.json"), "utf8")).toContain("Ab12");
+    expect(documentOf("errors")).toContain("Ab12");
     const again = await start({ dataDir });
     const kept = (await (await transport.fetch(`${again}/admin/errors`)).json()) as {
       groups: unknown[];
@@ -250,7 +262,7 @@ describe("/api/usage", () => {
     await post(await start({ dataDir }), GAME);
     await server?.close();
     server = undefined;
-    expect(readFileSync(join(dataDir, "usage", "usage.json"), "utf8")).toContain('"solo":1');
+    expect(documentOf("usage")).toContain('"solo":1');
     const base = await start({ dataDir });
     const stats = (await (await transport.fetch(`${base}/api/stats`)).json()) as {
       total: Record<string, Record<string, number>>;
