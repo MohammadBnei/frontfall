@@ -80,7 +80,7 @@ function run(changed: DesyncReport) {
   return { code, out };
 }
 
-describe("pnpm sim --replay", () => {
+describe("bun run sim --replay", () => {
   it("plays a report back to the client's own hashes", () => {
     const { code, out } = run(report);
     expect(code).toBe(0);
