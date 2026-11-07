@@ -1,6 +1,8 @@
 import type { Balance } from "./balance.ts";
 import { withDoctrine } from "./doctrines.ts";
-import { OPERATOR_FACTOR, OperatorBonus, type Game, type Player } from "./game.ts";
+import { OperatorBonus } from "@frontfall/contracts";
+import type { Game, Player } from "./game.ts";
+import { OPERATOR_FACTOR } from "./modes.ts";
 import { logEvent } from "./diplomacy.ts";
 import { detPow, mulDiv, percentOf } from "./integer-math.ts";
 import { LandmarkEffect, withLandmarks } from "./landmarks.ts";

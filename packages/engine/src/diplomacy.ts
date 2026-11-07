@@ -1,4 +1,5 @@
-import { Disable, type Game, type Player } from "./game.ts";
+import { Disable } from "@frontfall/contracts";
+import type { Game, Player } from "./game.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 import { percentOf } from "./integer-math.ts";
 

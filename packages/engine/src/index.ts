@@ -1,12 +1,21 @@
 export {
   DIFFICULTIES,
+  DISABLE_ALL,
+  Disable,
+  MAX_TEAMS,
+  NO_RULES,
+  OPERATOR_BONUS_ALL,
   ORDER_SPEC,
   ORDER_TYPES,
+  OperatorBonus,
   RuleBit,
   TICK_RATE,
   type Difficulty,
+  type GameRules,
+  type Order,
   type OrderOf,
   type OrderType,
+  type Turn,
 } from "@frontfall/contracts";
 export {
   captureCost,
@@ -129,22 +138,9 @@ export {
   type Mood,
 } from "./bots/index.ts";
 export {
-  DISABLE_ALL,
-  leftOut,
-  Disable,
   Game,
-  MAX_TEAMS,
-  ruleBits,
-  NO_RULES,
-  NO_OPERATOR,
-  OPERATOR_BONUS_ALL,
-  OPERATOR_FACTOR,
-  OperatorBonus,
-  type OperatorBonuses,
   type CapitalFall,
-  type GameRules,
   type GameSetup,
-  type Order,
   type OrderHandler,
   type OrderObserver,
   type PersistedPart,
@@ -152,8 +148,8 @@ export {
   type Player,
   type PlayerSetup,
   type TickSystem,
-  type Turn,
 } from "./game.ts";
+export { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 export { clamp, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 export { orderError } from "./orders.ts";
 export { DrawUsage, Random, derivedRandom, type RandomState } from "./random.ts";

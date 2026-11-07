@@ -12,13 +12,12 @@ import {
   MAX_TEAMS,
   NO_RULES,
   OPERATOR_BONUS_ALL,
-  type Game,
-  type OperatorBonuses,
   type GameRules,
   type Order,
-  type PlayerSetup,
   type Turn,
-} from "./game.ts";
+} from "@frontfall/contracts";
+import type { Game, PlayerSetup } from "./game.ts";
+import type { OperatorBonuses } from "./modes.ts";
 import type { Terrain } from "./terrain.ts";
 
 /** Version of the report format below; a reader refuses any other. */

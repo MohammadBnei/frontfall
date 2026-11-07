@@ -40,13 +40,14 @@ flowchart TD
 
 The server does not import the engine: it relays orders and never simulates ([ADR 0001](adr/0001-deterministic-lockstep.md)).
 
-Today, `tools/test/boundaries.test.ts` enforces that the engine imports nothing and that the protocol imports zod only. The rules below are the target ([0014](adr/0014-enforced-boundaries.md)):
+`tools/test/boundaries.test.ts` states these rules ([0014](adr/0014-enforced-boundaries.md)). It enforces the package rules and the absence of runtime cycles in every package and app today; the client layer table and owner-only writes are the target. The server may still import `ws` until it moves to `Bun.serve`.
 
+- The contracts import nothing.
 - The engine imports `@frontfall/contracts` only.
 - The protocol imports zod and contracts.
 - The server imports the protocol, zod, nodemailer, `node:*` and `bun:*`.
 - The client follows a layer table. `app/` may import anything. `ui/` imports game, render, input, audio, achievements, stats, root files, and `net` for types. `game/` and `net/` import root files. `render/` imports root files. `input/` imports render types. `audio/`, `achievements/` and `stats/` import game types and root files. Root files import root files and `i18n` only.
-- No import cycle at runtime.
+- No import cycle at runtime inside a package: a cycle through `import type` only is allowed.
 - Only the owning module writes an engine collection ([0010](adr/0010-collection-ownership.md)).
 
 ## Data flow

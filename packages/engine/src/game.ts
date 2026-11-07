@@ -5,7 +5,6 @@ import {
   NO_RULES,
   OPERATOR_BONUS_ALL,
   OperatorBonus,
-  RuleBit,
   type GameRules,
   type Order,
   type Turn,
@@ -22,6 +21,7 @@ import type {
 } from "./diplomacy.ts";
 import type { Fallout, Missile, MissileEvent } from "./missiles.ts";
 import { orderError } from "./orders.ts";
+import { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 import { Random } from "./random.ts";
 import type { SnapshotReader, SnapshotWriter } from "./snapshot-bytes.ts";
 import type { Structure } from "./structures.ts";
@@ -30,15 +30,20 @@ import type { TradeShip } from "./trade.ts";
 import type { Fight, Warship } from "./warships.ts";
 import { MAX_PLAYER_ID, TerritoryMap } from "./territory/territory-map.ts";
 
-// Shared with the protocol through the contracts; exported here as before.
+// Shared with the protocol through the contracts, or kept in ./modes.ts; exported here as before.
 export {
   DISABLE_ALL,
   Disable,
   MAX_TEAMS,
+  NO_OPERATOR,
   NO_RULES,
   OPERATOR_BONUS_ALL,
+  OPERATOR_FACTOR,
   OperatorBonus,
+  leftOut,
+  ruleBits,
   type GameRules,
+  type OperatorBonuses,
   type Order,
   type Turn,
 };
@@ -73,41 +78,10 @@ export interface GameSetup {
   operator?: OperatorBonuses;
 }
 
-/**
- * How much each operator's bonus does (R-MODE-09): twice the gold, troops and
- * defense, half the price. Not a balance value: it never applies to a game
- * anyone but the operator plays to win, and the balance digest stays as it was.
- */
-export const OPERATOR_FACTOR = 2;
-
-export interface OperatorBonuses {
-  /** The player who has the bonuses. */
-  readonly player: number;
-  /** `OperatorBonus` bits; 0 for none. */
-  readonly bonuses: number;
-}
-
-/** No operator's bonus at all. */
-export const NO_OPERATOR: OperatorBonuses = { player: 0, bonuses: 0 };
-
 /** Marks the special rules in the state hash. */
 const RULES_TAG = 0x72756c65;
 /** Marks the operator's bonuses in the state hash (R-MODE-09). */
 const OPERATOR_TAG = 0x6f706572;
-
-/** One bit per special rule that is on, for the state hash and the setup digest; 0 with none. */
-export function ruleBits(rules: GameRules): number {
-  return (
-    (rules.capitals ? RuleBit.Capitals : 0) |
-    (rules.collapsingFronts ? RuleBit.CollapsingFronts : 0) |
-    (rules.doctrines ? RuleBit.Doctrines : 0)
-  );
-}
-
-/** What a game leaves out once its implications are added: warships are launched from ports (R-MODE-03). */
-export function leftOut(disabled: number): number {
-  return disabled & Disable.Port ? disabled | Disable.Warships : disabled;
-}
 
 export interface Player {
   readonly id: number;

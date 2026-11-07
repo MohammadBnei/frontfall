@@ -1,5 +1,6 @@
 import { embargoed, isAllied, logEvent } from "./diplomacy.ts";
-import { Disable, type Game, type Player } from "./game.ts";
+import { Disable } from "@frontfall/contracts";
+import type { Game, Player } from "./game.ts";
 import { mulDiv } from "./integer-math.ts";
 import { DrawUsage, derivedRandom } from "./random.ts";
 import { spawnSettings } from "./spawn.ts";

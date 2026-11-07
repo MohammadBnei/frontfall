@@ -2,7 +2,8 @@ import { captureCost } from "../attacks.ts";
 import { soldiers } from "../economy.ts";
 import { reachableCoasts } from "../boats.ts";
 import { allianceOf, alliesOf, canRenew, isAllied, isTraitor, sameTeam } from "../diplomacy.ts";
-import { Disable, type Game, type Player } from "../game.ts";
+import { Disable } from "@frontfall/contracts";
+import type { Game, Player } from "../game.ts";
 import { isqrt, mulDiv } from "../integer-math.ts";
 import {
   StructureKind,

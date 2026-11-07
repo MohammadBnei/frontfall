@@ -1,5 +1,7 @@
 import { withDoctrine } from "./doctrines.ts";
-import { Disable, OPERATOR_FACTOR, OperatorBonus, type Game, type Player } from "./game.ts";
+import { Disable, OperatorBonus } from "@frontfall/contracts";
+import type { Game, Player } from "./game.ts";
+import { OPERATOR_FACTOR } from "./modes.ts";
 import { divFloor, mulDiv } from "./integer-math.ts";
 import { spawnSettings } from "./spawn.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";

@@ -1,6 +1,8 @@
 import { doctrinePercent, withDoctrine } from "./doctrines.ts";
 import type { Balance } from "./balance.ts";
-import { OPERATOR_FACTOR, OperatorBonus, type Game, type Player } from "./game.ts";
+import { OperatorBonus } from "@frontfall/contracts";
+import type { Game, Player } from "./game.ts";
+import { OPERATOR_FACTOR } from "./modes.ts";
 import { detPow, divFloor, isqrt, mulDiv, percentOf } from "./integer-math.ts";
 import { isAllied, isTraitor, logEvent } from "./diplomacy.ts";
 import { soldiers } from "./economy.ts";
