@@ -91,7 +91,7 @@ flowchart LR
     UI -- "orders" --> Engine
     Engine -- "state to draw" --> UI
   end
-  subgraph Host["Server (Node.js, one container)"]
+  subgraph Host["Server (Bun, one container)"]
     Relay["apps/server<br/>lobbies, turn relay, static files"]
   end
   UI -- "orders (WebSocket)" --> Relay

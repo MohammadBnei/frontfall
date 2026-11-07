@@ -1,6 +1,7 @@
 /**
- * Game server for `bun run load -- --spawn-server`, run in a child process so its
- * CPU time and memory are measured apart from the simulated clients'.
+ * Game server for `bun run load -- --spawn-server` and the load test, run by
+ * Bun in a child process (spawn.ts) so its CPU time and memory are measured
+ * apart from the simulated clients'.
  */
 import { tmpdir } from "node:os";
 import { createGameServer } from "@frontfall/server";
@@ -104,5 +105,6 @@ process.on("message", (request: ServerRequest) => {
 });
 
 void server.listen(0, "127.0.0.1").then(({ port }) => {
-  process.send?.({ port });
+  const versions: Partial<Record<string, string>> = process.versions;
+  process.send?.({ port, bun: versions.bun ?? "" });
 });

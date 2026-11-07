@@ -1,4 +1,5 @@
 import { clientAddress as addressOf } from "./address.ts";
+import { BunTransport } from "./bun-transport.ts";
 import { systemClock } from "./clock.ts";
 import { loadMapLimits, type MapLimits } from "./catalog.ts";
 import { messageHandler } from "./client-messages.ts";
@@ -8,7 +9,6 @@ import { systemIds, type Ids } from "./ids.ts";
 import { createLifecycle } from "./lifecycle.ts";
 import { addressPseudonym, silentLogger, type Logger } from "./log.ts";
 import { Metrics } from "./metrics.ts";
-import { NodeTransport } from "./node-transport.ts";
 import { isAllowedOrigin } from "./origin.ts";
 import { openPersistence, startAuth } from "./persistence.ts";
 import type { RoomObserver } from "./room.ts";
@@ -25,14 +25,14 @@ export { closeReason } from "./client-messages.ts";
 export { DEFAULT_GAME, type ServerOptions } from "./server-options.ts";
 export { statusPage, type ServerStatus } from "./status-page.ts";
 export type * from "./transport.ts";
-export { NodeTransport } from "./node-transport.ts";
+export { BunTransport } from "./bun-transport.ts";
 
 /** Largest frame a client may send. Orders take a few bytes, hello a few dozen. */
 const MAX_PAYLOAD_BYTES = 1024;
 
 /**
  * Players seated at once by default, and bytes of turn logs: what one core and
- * the 512 MiB heap of the image serve with room to spare (docs/capacity.md).
+ * a 512 MiB container serve with room to spare (docs/capacity.md).
  */
 const DEFAULT_MAX_PLAYERS = 3000;
 const DEFAULT_MAX_LOG_BYTES = 192 * 2 ** 20;
@@ -96,7 +96,7 @@ export function createGameServer(options: ServerOptions): GameServer {
   const clock = options.clock ?? systemClock;
   const ids = options.ids ?? systemIds;
   const logger: Logger = options.logger ?? silentLogger;
-  const transport = options.transport ?? new NodeTransport();
+  const transport = options.transport ?? new BunTransport();
   const simulation = options.simulation ?? options.version;
   const pseudonym = addressPseudonym(ids.bytes(32));
   const metrics = new Metrics();

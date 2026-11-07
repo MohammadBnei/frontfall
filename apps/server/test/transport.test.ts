@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CloseCode, encodeClientMessage, PROTOCOL_VERSION } from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import WebSocket from "ws";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
 import { FakeClock } from "./support/fake-clock.ts";
 import { FakeSocket, FakeTransport } from "./support/fake-transport.ts";
@@ -38,131 +37,10 @@ function serve(options: Partial<ServerOptions> = {}): GameServer {
   return server;
 }
 
-/** The same server on both transports: `fetch` and `connect` reach one or the other. */
-async function both(options: Partial<ServerOptions> = {}) {
-  const fake = new FakeTransport();
-  serve({ ...options, transport: fake });
-  const { port } = await serve(options).listen(0, "127.0.0.1");
-  const host = `127.0.0.1:${String(port)}`;
-  return {
-    fake: {
-      fetch: (path: string, init?: RequestInit) => fake.fetch(`http://${host}${path}`, init),
-      connect: (path: string, headers: Record<string, string> = {}) =>
-        keep(fake.connect(path, { headers })),
-    },
-    node: {
-      fetch: (path: string, init?: RequestInit) => fetch(`http://${host}${path}`, init),
-      connect: (path: string, headers: Record<string, string> = {}) =>
-        keep(new WebSocket(`ws://${host}${path}`, { headers }) as unknown as FakeSocket),
-    },
-  };
-}
-
 function keep(socket: FakeSocket): FakeSocket {
   sockets.push(socket);
   return socket;
 }
-
-/** How a WebSocket ended: refused with the status of the handshake, or closed with a code. */
-function outcome(socket: FakeSocket): Promise<string> {
-  return new Promise((resolve) => {
-    socket.once("error", (error: Error) => {
-      resolve(error.message);
-    });
-    socket.once("open", () => {
-      socket.once("close", (code: number) => {
-        resolve(`closed ${String(code)}`);
-      });
-      socket.send(encodeClientMessage({ type: "hello", version: PROTOCOL_VERSION, name: "Ana" }));
-      socket.once("message", () => {
-        resolve("welcome");
-      });
-    });
-  });
-}
-
-/** What the server decided of an answer; the transport adds headers of its own (date, connection). */
-const HEADERS = [
-  "allow",
-  "cache-control",
-  "content-security-policy",
-  "content-type",
-  "etag",
-  "location",
-  "x-content-type-options",
-  "x-frontfall-version",
-];
-
-async function seen(response: Response) {
-  return {
-    status: response.status,
-    headers: Object.fromEntries(HEADERS.map((name) => [name, response.headers.get(name)])),
-    body: await response.text(),
-  };
-}
-
-describe("the fake transport and the node transport", () => {
-  it.each([
-    ["GET", "/healthz", {}],
-    ["GET", "/", {}],
-    ["HEAD", "/app.js", {}],
-    ["GET", "/missing.js", {}],
-    ["POST", "/", {}],
-    ["GET", "/api/games", {}],
-    ["GET", "/api/me", {}],
-    ["GET", "/metrics", { "x-forwarded-for": "1.2.3.4" }],
-    ["GET", "/admin/reports", { origin: "https://evil.example" }],
-    ["GET", "/admin/bans", {}],
-    ["POST", "/admin/maintenance?minutes=500", {}],
-    ["POST", "/api/usage", { "content-type": "text/csv" }],
-  ])("give the same answer to %s %s", async (method, path, headers) => {
-    const { fake, node } = await both();
-    const [onFake, onNode] = await Promise.all([
-      fake.fetch(path, { method, headers }).then(seen),
-      node.fetch(path, { method, headers }).then(seen),
-    ]);
-    expect(onFake).toEqual(onNode);
-  });
-
-  it.each([
-    ["a report", JSON.stringify({ kind: "error", release: "dev", type: "webgl" })],
-    ["a body that is not one", "{"],
-    ["a body past the limit", "x".repeat(4000)],
-  ])("give the same answer to %s sent to /api/usage", async (_, body) => {
-    const { fake, node } = await both();
-    const init = { method: "POST", headers: { "content-type": "application/json" }, body };
-    const [onFake, onNode] = await Promise.all([
-      fake.fetch("/api/usage", init).then(seen),
-      node.fetch("/api/usage", init).then(seen),
-    ]);
-    expect(onFake).toEqual(onNode);
-  });
-
-  it("give the same answer to a WebSocket refused, turned away or welcome", async () => {
-    const { fake, node } = await both({
-      allowedOrigin: "https://play.example",
-      maxConnectionsPerAddress: 1,
-    });
-    for (const transport of [fake, node]) {
-      const own = { origin: "https://play.example" };
-      const answers = [
-        await outcome(transport.connect("/other", own)),
-        await outcome(transport.connect("/ws", { origin: "https://evil.example" })),
-        await outcome(transport.connect("/ws", own)),
-        await outcome(transport.connect("/ws", own)),
-      ];
-      expect(answers).toEqual([
-        "Unexpected server response: 403",
-        "Unexpected server response: 403",
-        "welcome",
-        "Unexpected server response: 429",
-      ]);
-    }
-    const full = await both({ maxConnections: 0 });
-    expect(await outcome(full.fake.connect("/ws"))).toBe(`closed ${String(CloseCode.full)}`);
-    expect(await outcome(full.node.connect("/ws"))).toBe(`closed ${String(CloseCode.full)}`);
-  });
-});
 
 describe("a server on a fake clock", () => {
   function start(options: Partial<ServerOptions> = {}) {

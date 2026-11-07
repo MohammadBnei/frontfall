@@ -660,8 +660,9 @@ receives. The report gives, per game:
 - Turns lost, reordered or desynced, which make the command exit with a
   non-zero status.
 
-`--spawn-server` runs `createGameServer` in a child process, so its CPU time,
-memory and event loop delay are measured apart from the clients'. Without
+`--spawn-server` runs `createGameServer` in a child process on Bun, as in
+production, so its CPU time, memory and event loop delay are measured apart
+from the clients', which stay on Node. Without
 it, the tool connects to `--url`. Every client sends its own `X-Client-IP`
 so that the per-address connection limit does not apply; behind a reverse
 proxy that overwrites the header, the limit applies to the whole run.
@@ -672,17 +673,17 @@ server did not cause, and above 20 ms at p99 the tool suggests
 `--client-procs <n>`, which spreads the games over `n` forked processes and
 merges their histograms (the client loop delay is then the worst process's).
 
-The server line gives its CPU time as a share of one core, its RSS and V8
-heap used (current and peak), its event loop delay p99 and max, and the turn
-pass: the time `GameServer` spends closing one turn of every game, read from
-`frontfall_turn_duration_seconds` (the mean, and the p99 to the bucket).
-`--heap-mib 512` starts the server with `--max-old-space-size=512`, as in
-production.
+The server line gives its CPU time as a share of one core, its RSS and
+JavaScript heap used (current and peak), its event loop delay p99 and max, and
+the turn pass: the time `GameServer` spends closing one turn of every game,
+read from `frontfall_turn_duration_seconds` (the mean, and the p99 to the
+bucket). Bun has no heap cap: the RSS is what sizes the container's memory
+limit ([capacity.md](capacity.md)).
 
 ### Finding the breaking point
 
 ```sh
-bun run load -- --spawn-server --heap-mib 512 --client-procs 4 --ramp 50,100,200,300 --minutes 5
+bun run load -- --spawn-server --client-procs 4 --ramp 50,100,200,300 --minutes 5
 bun run load -- --spawn-server --games 50 --minutes 3 --rejoin-storm 60
 bun run load -- --spawn-server --games 50 --minutes 3 --rejoin-storm 120 --rejoin-from-zero
 bun run load -- --spawn-server --games 50 --minutes 30 --slow-clients 10

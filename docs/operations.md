@@ -30,7 +30,7 @@ curl -sSi https://nclsmgr.com/frontfall/healthz
 ```sh
 docker ps --filter name=frontfall          # status and health
 docker stats --no-stream frontfall-frontfall-1
-docker exec frontfall-frontfall-1 wget -qO- http://127.0.0.1:8080/metrics
+docker exec frontfall-frontfall-1 bun -e "fetch('http://127.0.0.1:8080/metrics').then((r) => r.text()).then(console.log)"
 ```
 
 ## If Cloudflare is down
@@ -79,7 +79,7 @@ journalctl -t frontfall-frontfall-1 -o cat --since today | jq -c 'select(.level 
 docker restart frontfall-frontfall-1
 ```
 
-Games in progress live in memory. On a restart the server drains first (see [server.md](server.md#shutdown)): it stops opening games, lets running ones go on for `FRONTFALL_DRAIN_SECONDS`, then ends them with reason `restart` and the page tells players why. Prefer a quiet moment: `curl -s https://nclsmgr.com/frontfall/api/games` gives `running`, the games a restart would stop. Deployments from main announce the update to players and wait for it to reach 0, for 10 minutes at most. To warn players before a manual restart: `docker exec frontfall-frontfall-1 node -e "fetch('http://127.0.0.1:8080/admin/maintenance?minutes=5', { method: 'POST' }).then((r) => r.text()).then(console.log)"`.
+Games in progress live in memory. On a restart the server drains first (see [server.md](server.md#shutdown)): it stops opening games, lets running ones go on for `FRONTFALL_DRAIN_SECONDS`, then ends them with reason `restart` and the page tells players why. Prefer a quiet moment: `curl -s https://nclsmgr.com/frontfall/api/games` gives `running`, the games a restart would stop. Deployments from main announce the update to players and wait for it to reach 0, for 10 minutes at most. To warn players before a manual restart: `docker exec frontfall-frontfall-1 bun -e "fetch('http://127.0.0.1:8080/admin/maintenance?minutes=5', { method: 'POST' }).then((r) => r.text()).then(console.log)"`. The image runs Bun and carries no other tool: `wget`, `curl` and `node` are not to be relied on inside it.
 
 ## Roll back
 

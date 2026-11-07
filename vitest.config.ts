@@ -25,6 +25,8 @@ export default defineConfig({
       exclude: [
         "packages/**/index.ts",
         "apps/server/src/main.ts",
+        // Bun.serve, which Vitest on Node cannot start: `bun run test:bun` covers it.
+        "apps/server/src/bun-transport.ts",
         "apps/client/src/render/map-view.ts",
         "apps/client/src/render/minimap.ts",
         "apps/client/src/render/pieces.ts",

@@ -34,6 +34,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:bun": "bun run --filter @frontfall/server test:bun",
     "test:e2e": "bun run --filter @frontfall/e2e test",
     "clean-room": "node tools/src/clean-room-cli.ts",
     "provenance": "node tools/src/provenance-cli.ts",

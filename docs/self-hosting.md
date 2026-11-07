@@ -21,17 +21,17 @@ docker compose ps          # "healthy" after a few seconds
 
 What it sets, and why:
 
-| Line                                        | Why                                                                                                                                                                                                     |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `image`                                     | `latest` follows each release of `main`. To choose when to update, pin a commit tag such as `ghcr.io/nic0lasm/frontfall:0d25e267bbae`, or a release tag such as `0.4.0`                                 |
-| `FRONTFALL_DATA` and the volume             | The usage counts, reports and bans survive restarts in the `frontfall-data` volume, and so do the games in progress, unless the new image changes the [simulation build](protocol.md#simulation-build)  |
-| `FRONTFALL_ORIGINE`                         | The address players open, such as `https://games.example.org`: other sites then cannot open games on your server from their pages. Without it every site can; several addresses are separated by commas |
-| `FRONTFALL_TRUST_PROXY`                     | `true` believes the `X-Client-IP` of a proxy on a private address. Players who reach port 8080 straight, with no proxy, could send that header: put `false` then                                        |
-| `FRONTFALL_SEATS_PER_ADDRESS`, not set      | A public game takes at most 3 players from one address. Players behind one router, as at a LAN party, share it: set 0 to lift the limit, or a higher number                                             |
-| `FRONTFALL_CONNECTIONS_PER_MINUTE`, not set | One address opens at most 30 connections a minute after a first 40. Raise it if many players reach the server through one address                                                                       |
-| `read_only` and `tmpfs`                     | The server writes only to its data volume and `/tmp`                                                                                                                                                    |
-| `stop_grace_period`                         | On a stop, running games get 20 seconds to end, and players are told why                                                                                                                                |
-| `restart` and `mem_limit`                   | Back after a crash or a reboot; the image keeps its heap at 512 MB, well inside 1 GB                                                                                                                    |
+| Line                                        | Why                                                                                                                                                                                                                                            |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image`                                     | `latest` follows each release of `main`. To choose when to update, pin a commit tag such as `ghcr.io/nic0lasm/frontfall:0d25e267bbae`, or a release tag such as `0.4.0`                                                                        |
+| `FRONTFALL_DATA` and the volume             | The usage counts, reports and bans survive restarts in the `frontfall-data` volume, and so do the games in progress, unless the new image changes the [simulation build](protocol.md#simulation-build)                                         |
+| `FRONTFALL_ORIGINE`                         | The address players open, such as `https://games.example.org`: other sites then cannot open games on your server from their pages. Without it every site can; several addresses are separated by commas                                        |
+| `FRONTFALL_TRUST_PROXY`                     | `true` believes the `X-Client-IP` of a proxy on a private address. Players who reach port 8080 straight, with no proxy, could send that header: put `false` then                                                                               |
+| `FRONTFALL_SEATS_PER_ADDRESS`, not set      | A public game takes at most 3 players from one address. Players behind one router, as at a LAN party, share it: set 0 to lift the limit, or a higher number                                                                                    |
+| `FRONTFALL_CONNECTIONS_PER_MINUTE`, not set | One address opens at most 30 connections a minute after a first 40. Raise it if many players reach the server through one address                                                                                                              |
+| `read_only` and `tmpfs`                     | The server writes only to its data volume and `/tmp`                                                                                                                                                                                           |
+| `stop_grace_period`                         | On a stop, running games get 20 seconds to end, and players are told why                                                                                                                                                                       |
+| `restart` and `mem_limit`                   | Back after a crash or a reboot. The server runs on Bun, which has no heap cap: the limit bounds it. 1 GB is three times what it takes at its default limits; give it 512 MB at least ([capacity](capacity.md#measured-on-bun-7-november-2026)) |
 
 A setting that is set but wrong stops the server from starting. The container exits with status 1, and `docker compose logs` shows one `config_invalid` line that lists every wrong variable: a number that is not one, `FRONTFALL_TRUST_PROXY` or `FRONTFALL_LOGIN_BIND` other than `true` or `false`, an address that is not an `http` or `https` URL, an origin in `FRONTFALL_ORIGINE` written with a path or a trailing slash (`https://games.example.org`, not `https://games.example.org/`), a session secret under 32 characters, or an id without its secret. A variable left empty, as `${FRONTFALL_ORIGINE:-}` does in the sample file, counts as unset.
 
@@ -123,12 +123,12 @@ A proxy that closes quiet connections must allow at least 30 seconds: the server
 
 ## Is it working?
 
-| Address       | Answer                                                                                                   |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
-| `/healthz`    | `ok`, with the build in `X-Frontfall-Version`; `503` when the server is stuck or stopping                |
-| `/status`     | A page with the players online, the games running and the version                                        |
-| `/stats.html` | Charts of the games played: per day, by map and by length, from `/api/stats`                             |
-| `/metrics`    | Prometheus metrics, only from the host: `docker compose exec frontfall wget -qO- localhost:8080/metrics` |
+| Address       | Answer                                                                                                                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/healthz`    | `ok`, with the build in `X-Frontfall-Version`; `503` when the server is stuck or stopping                                                                       |
+| `/status`     | A page with the players online, the games running and the version                                                                                               |
+| `/stats.html` | Charts of the games played: per day, by map and by length, from `/api/stats`                                                                                    |
+| `/metrics`    | Prometheus metrics, only from the host: `docker compose exec frontfall bun -e "fetch('http://127.0.0.1:8080/metrics').then((r) => r.text()).then(console.log)"` |
 
 Players can report each other from their menu. Read the reports and ban an abusive player's network, without a restart, as [server.md](server.md#reports-and-bans) shows; reports and bans are kept in the data volume.
 

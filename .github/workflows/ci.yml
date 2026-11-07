@@ -41,6 +41,8 @@ jobs:
       - run: bun run format:check
       - run: bun run lint
       - run: bun run typecheck
+      # The server's Bun.serve adapter and nodemailer on Bun: what Vitest, on Node, cannot run.
+      - run: bun run test:bun
       - run: bun run build
       # A full game on a World-sized map, failing if the tick misses its budget (docs/performance.md).
       - run: bun run sim -- --width 2048 --height 1024 --players 16 --ticks 3000 --interval 10 --budget 30

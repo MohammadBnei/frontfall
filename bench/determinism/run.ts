@@ -45,7 +45,7 @@ await timed("Node, first run", () => playScenario(new Uint8Array(bytes), manifes
 await timed("Node, second run", () => playScenario(new Uint8Array(bytes), manifest, ticks));
 
 // Bun is another engine than V8: the same scenario in its own process (the server's
-// production runtime may move to it), compared with the Node runs below.
+// production runtime), compared with the Node runs below.
 await timed("Bun", () => {
   const out = execFileSync(
     process.env.BUN_PATH ?? "bun",

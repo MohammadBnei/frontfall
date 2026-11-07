@@ -134,14 +134,11 @@ async function measureInBrowser(duration: number) {
     executablePath: process.env.CHROMIUM_PATH ?? chromium.executablePath(),
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   });
-  const server = spawn(
-    process.execPath,
-    [fileURLToPath(new URL("apps/server/dist/server.mjs", repository))],
-    {
-      env: { ...process.env, PORT: String(port), FRONTFALL_STATIC: dist },
-      stdio: ["ignore", "ignore", "inherit"],
-    },
-  );
+  // The server runs on Bun, as in the image.
+  const server = spawn("bun", [fileURLToPath(new URL("apps/server/dist/server.mjs", repository))], {
+    env: { ...process.env, PORT: String(port), FRONTFALL_STATIC: dist },
+    stdio: ["ignore", "ignore", "inherit"],
+  });
   try {
     const base = `http://127.0.0.1:${String(port)}`;
     for (let attempt = 0; ; attempt++) {

@@ -349,7 +349,7 @@ export class FakeTransport implements Transport {
    */
   async fetch(input: string | URL, init: RequestInit & { peer?: string } = {}): Promise<Response> {
     const url = new URL(input, "http://127.0.0.1");
-    const built = new Request(url, init);
+    const built = new Request(url.href, init);
     const headers: Record<string, string> = { host: url.host };
     built.headers.forEach((value, name) => {
       headers[name] = value;

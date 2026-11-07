@@ -93,7 +93,7 @@ export interface ServerOptions {
   clock?: Clock;
   /** Game ids, tokens, seeds and secrets; drawn from the system's secure source by default. */
   ids?: Ids;
-  /** HTTP and WebSockets: `node:http` and `ws` by default, a transport without sockets in tests. */
+  /** HTTP and WebSockets: `Bun.serve` by default, a transport without sockets in tests. */
   transport?: Transport;
 }
 

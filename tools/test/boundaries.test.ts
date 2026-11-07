@@ -161,13 +161,13 @@ const WORKSPACES = ["packages", "apps"].flatMap((group) =>
 );
 
 describe("package rules (ADR 0014)", () => {
-  it("lets the server use the protocol, zod, its mail and socket modules and the runtime only", () => {
+  it("lets the server use the protocol, zod, its mail module and the runtime only", () => {
     expect(
       violations("apps/server", [
         "@frontfall/protocol",
         "zod",
         "nodemailer",
-        "ws",
+        "bun",
         "node:*",
         "bun:*",
       ]),
@@ -456,13 +456,48 @@ describe("server ports", () => {
   });
 
   it("speaks HTTP and WebSocket through the transport port only", () => {
-    const network = ["node:http", "node:https", "http", "https", "ws"];
+    const network = ["node:http", "node:https", "http", "https", "ws", "bun"];
     const users = imports("apps/server")
       .filter(({ specifier }) => network.includes(specifier))
       .map(({ file, specifier }) => `${relative(root, file)} imports ${specifier}`);
-    expect(users.sort()).toEqual([
-      "apps/server/src/node-transport.ts imports node:http",
-      "apps/server/src/node-transport.ts imports ws",
+    // In the syntax, so that a comment naming it does not count.
+    const serves = sourceFiles(serverSources)
+      .filter((file) => {
+        const found: ts.Node[] = [];
+        const visit = (node: ts.Node): void => {
+          if (ts.isPropertyAccessExpression(node) && node.getText() === "Bun.serve")
+            found.push(node);
+          ts.forEachChild(node, visit);
+        };
+        visit(ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true));
+        return found.length > 0;
+      })
+      .map((file) => `${relative(root, file)} calls Bun.serve`);
+    expect([...users, ...serves].sort()).toEqual([
+      "apps/server/src/bun-transport.ts calls Bun.serve",
+      "apps/server/src/bun-transport.ts imports bun",
+    ]);
+  });
+
+  it("depends on the protocol, zod, nodemailer and the runtime only", () => {
+    const allowed = ["@frontfall/protocol", "zod", "nodemailer", "bun"];
+    const outside = imports("apps/server")
+      .filter(({ file, specifier }) =>
+        specifier.startsWith(".")
+          ? escapes(file, specifier, "apps/server")
+          : !allowed.includes(specifier) &&
+            !specifier.startsWith("node:") &&
+            !specifier.startsWith("bun:"),
+      )
+      .map(({ file, specifier }) => `${relative(root, file)} imports ${specifier}`);
+    expect(outside).toEqual([]);
+    const manifest = JSON.parse(readFileSync(join(root, "apps/server/package.json"), "utf8")) as {
+      dependencies: Record<string, string>;
+    };
+    expect(Object.keys(manifest.dependencies).sort()).toEqual([
+      "@frontfall/protocol",
+      "nodemailer",
+      "zod",
     ]);
   });
 });

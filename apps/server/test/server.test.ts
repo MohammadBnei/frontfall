@@ -8,7 +8,6 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
@@ -21,13 +20,12 @@ import {
   type ServerMessage,
 } from "@frontfall/protocol";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import WebSocket from "ws";
 import { createGameServer, type GameServer, type ServerOptions } from "../src/server.ts";
 import { FakeSocket, FakeTransport } from "./support/fake-transport.ts";
 
 let staticRoot: string;
 let server: GameServer | undefined;
-/** The transport of the server, unless it runs on real sockets. */
+/** The transport of the server: no socket, each event on a later turn of the event loop. */
 let fake: FakeTransport | undefined;
 let clients: FakeSocket[] = [];
 
@@ -63,29 +61,25 @@ async function start(options: Partial<ServerOptions> = {}): Promise<string> {
   return "127.0.0.1";
 }
 
-/** Starts a server on real sockets, through `node:http` and `ws`, for what the wire itself decides. */
-async function startOnSocket(options: Partial<ServerOptions> = {}): Promise<string> {
-  fake = undefined;
-  server = serve(options);
-  const { port } = await server.listen(0, "127.0.0.1");
-  return `127.0.0.1:${String(port)}`;
+/** The server's transport; what the wire itself decides is tested on Bun, in test-bun/. */
+function transport(): FakeTransport {
+  if (!fake) throw new Error("no server");
+  return fake;
 }
 
-/** `fetch`, through the fake transport when the server runs on it. */
+/** `fetch` through the fake transport. */
 function request(url: string, init?: RequestInit): Promise<Response> {
-  return fake ? fake.fetch(url, init) : fetch(url, init);
+  return transport().fetch(url, init);
 }
 
-/** A WebSocket to `path`: a fake one, or a `ws` client, which has the same events and calls. */
+/** A WebSocket to `path` through the fake transport, with the events and calls of a `ws` client. */
 function socketTo(
-  host: string,
+  _host: string,
   path: string,
   headers: Record<string, string> = {},
   autoPong = true,
 ): FakeSocket {
-  const socket = fake
-    ? fake.connect(path, { headers, autoPong })
-    : (new WebSocket(`ws://${host}${path}`, { headers, autoPong }) as unknown as FakeSocket);
+  const socket = transport().connect(path, { headers, autoPong });
   clients.push(socket);
   return socket;
 }
@@ -167,30 +161,6 @@ describe("HTTP", () => {
     expect((await request(`http://${host}/healthz`)).status).toBe(200);
   });
 
-  it("fails the health check of a request still in flight at shutdown", async () => {
-    const host = await startOnSocket();
-    const [address, port] = host.split(":");
-    const socket = connect(Number(port), address);
-    await new Promise((resolve) => socket.once("connect", resolve));
-    // Half a request keeps the connection busy, so close() leaves it open.
-    socket.write("GET /healthz HTTP/1.1\r\nHost: x\r\n");
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const closed = server?.close();
-    server = undefined;
-    const reply = new Promise<string>((resolve) => {
-      let text = "";
-      socket.on("data", (chunk: Buffer) => (text += chunk.toString()));
-      socket.on("end", () => {
-        resolve(text);
-      });
-    });
-    socket.end("Connection: close\r\n\r\n");
-    const text = await reply;
-    await closed;
-    expect(text).toMatch(/^HTTP\/1\.1 503/);
-    expect(text.slice(text.indexOf("\r\n\r\n"))).toContain("stopping");
-  });
-
   it("serves the client, caching hashed assets only", async () => {
     writeFileSync(join(staticRoot, "app.js"), "export {};");
     const host = await start();
@@ -217,30 +187,12 @@ describe("HTTP", () => {
   });
 
   it("refuses a request target that names another host", async () => {
-    const host = await startOnSocket();
-    const [address, port] = host.split(":");
-    const socket = connect(Number(port), address);
-    const reply = new Promise<string>((resolve) => {
-      let text = "";
-      socket.on("data", (chunk: Buffer) => (text += chunk.toString()));
-      socket.on("end", () => {
-        resolve(text);
-      });
-    });
-    socket.end("GET //evil.example/metrics HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
-    expect(await reply).toMatch(/^HTTP\/1\.1 400/);
+    await start();
+    const answer = async (url: string) => (await transport().request({ url })).status;
+    expect(await answer("//evil.example/metrics")).toBe(400);
     // A backslash reads as a slash to the URL parser, not to a proxy.
-    expect((await request(`http://${host}/%5Chealthz`)).status).not.toBe(400);
-    const back = connect(Number(port), address);
-    const answer = new Promise<string>((resolve) => {
-      let text = "";
-      back.on("data", (chunk: Buffer) => (text += chunk.toString()));
-      back.on("end", () => {
-        resolve(text);
-      });
-    });
-    back.end("GET /\\evil.example/metrics HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n");
-    expect(await answer).toMatch(/^HTTP\/1\.1 400/);
+    expect(await answer("/\\evil.example/metrics")).toBe(400);
+    expect(await answer("/%5Chealthz")).not.toBe(400);
   });
 
   it("serves metrics to the host only, never through the proxy", async () => {
@@ -857,7 +809,7 @@ describe("WebSocket", () => {
   });
 
   it("closes oversized frames", async () => {
-    const client = await player(await startOnSocket(), "Big");
+    const client = await player(await start(), "Big");
     client.socket.send("x".repeat(2048));
     expect(await closed(client.socket)).toBe(1009);
   });
@@ -955,31 +907,6 @@ describe("WebSocket", () => {
     first.socket.close();
     await closed(first.socket);
     await new Promise((resolve) => setTimeout(resolve, 20));
-    await expect(
-      opened(open(host, { "x-client-ip": "203.0.113.9" }).socket),
-    ).resolves.toBeUndefined();
-  });
-
-  it("gives the address its connection back when the handshake is refused", async () => {
-    const host = await startOnSocket({ maxConnectionsPerAddress: 2 });
-    const [address, port] = host.split(":");
-    for (let i = 0; i < 3; i++) {
-      const socket = connect(Number(port), address);
-      const reply = new Promise<string>((resolve, reject) => {
-        let text = "";
-        socket.on("data", (chunk: Buffer) => (text += chunk.toString()));
-        socket.on("error", reject);
-        socket.on("close", () => {
-          resolve(text);
-        });
-      });
-      socket.write(
-        "GET /ws HTTP/1.1\r\nHost: x\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n" +
-          "Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: not-a-key\r\n" +
-          "X-Client-IP: 203.0.113.9\r\n\r\n",
-      );
-      expect(await reply).toMatch(/^HTTP\/1\.1 400/);
-    }
     await expect(
       opened(open(host, { "x-client-ip": "203.0.113.9" }).socket),
     ).resolves.toBeUndefined();
@@ -1166,23 +1093,6 @@ describe("WebSocket", () => {
     expect((await last.next("error")).code).toBe("too_many_lobbies");
     last.send({ type: "play" });
     expect((await last.next("lobby")).visibility).toBe("public");
-  });
-
-  it("drops a client that stops reading what it is sent", async () => {
-    const host = await startOnSocket();
-    const client = await player(host, "A");
-    client.send({ type: "create" });
-    await client.next("lobby");
-    const [room] = [...(server?.games.all() ?? [])];
-    const peer = room?.seatOf(1)?.peer;
-    if (!peer) throw new Error("not seated");
-    const gone = closed(client.socket);
-    // The client reads nothing for a while: what the server sends piles up on its side.
-    client.socket.pause();
-    const frame = "x".repeat(1024 * 1024);
-    for (let i = 0; i < 64; i++) peer.send(frame);
-    client.socket.resume();
-    expect(await gone).toBe(1006);
   });
 
   it("caps the solo games one address keeps running, Play now included", async () => {
