@@ -3,6 +3,7 @@ import type { Game } from "./game.ts";
 import type { MissileSize } from "./missiles.ts";
 import { packRoute, unpackRoute } from "./sea-routes.ts";
 import { SnapshotError, SnapshotReader, SnapshotWriter, checksum } from "./snapshot-bytes.ts";
+import { writable } from "./state/lists.ts";
 import type { StructureKind } from "./structures.ts";
 
 /** Version of the snapshot format of docs/engine.md; a reader refuses any other. */
@@ -218,6 +219,22 @@ function writeState(game: Game, out: SnapshotWriter): void {
 }
 
 function readState(game: Game, tick: number, from: SnapshotReader): void {
+  // The loader is the one module besides their owners that writes the lists (ADR 0010).
+  const lists = {
+    attacks: writable(game, "attacks"),
+    boats: writable(game, "boats"),
+    structures: writable(game, "structures"),
+    tradeShips: writable(game, "tradeShips"),
+    warships: writable(game, "warships"),
+    missiles: writable(game, "missiles"),
+    fallout: writable(game, "fallout"),
+    fights: writable(game, "fights"),
+    alliances: writable(game, "alliances"),
+    allianceRequests: writable(game, "allianceRequests"),
+    requestCooldowns: writable(game, "requestCooldowns"),
+    embargoes: writable(game, "embargoes"),
+    quickCooldowns: writable(game, "quickCooldowns"),
+  };
   const size = game.terrain.topology.size;
   const { territory } = game;
   const tile = (): number => from.below(size, "tile");
@@ -279,16 +296,16 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
   for (let n = from.count(); n > 0; n--) {
     const [attackId, owner, target, aim, troops] = [id(), player(), player(), tile(), id()];
     const pressure = game.rules.collapsingFronts ? id() : 0;
-    game.attacks.push({ id: attackId, player: owner, target, aim, troops, pressure });
+    lists.attacks.push({ id: attackId, player: owner, target, aim, troops, pressure });
   }
   game.nextBoatId = id();
   for (let n = from.count(); n > 0; n--) {
     const [boatId, owner, target, troops, step] = [id(), player(), tile(), id(), id()];
-    game.boats.push({ id: boatId, player: owner, target, troops, step, path: from.path(size) });
+    lists.boats.push({ id: boatId, player: owner, target, troops, step, path: from.path(size) });
   }
   game.nextStructureId = id();
   for (let n = from.count(); n > 0; n--) {
-    game.structures.push({
+    lists.structures.push({
       id: id(),
       player: player(),
       kind: from.below(7, "structure kind") as StructureKind,
@@ -300,7 +317,7 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
   game.nextTradeShipId = id();
   for (let n = from.count(); n > 0; n--) {
     const [shipId, owner, port, start, end, step] = [id(), player(), id(), tile(), tile(), id()];
-    game.tradeShips.push({
+    lists.tradeShips.push({
       id: shipId,
       player: owner,
       port,
@@ -321,7 +338,7 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
       id(),
       id(),
     ];
-    game.warships.push({
+    lists.warships.push({
       id: shipId,
       player: owner,
       tile: at,
@@ -345,16 +362,16 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
       tried: [] as number[],
     };
     for (let t = from.count(); t > 0; t--) missile.tried.push(id());
-    game.missiles.push(missile);
+    lists.missiles.push(missile);
   }
   for (let n = from.count(); n > 0; n--) {
-    game.fallout.push({ tile: tile(), radius: id(), until: id() });
+    lists.fallout.push({ tile: tile(), radius: id(), until: id() });
   }
   for (let n = from.count(); n > 0; n--) {
-    game.fights.push({ a: player(), b: player(), until: id() });
+    lists.fights.push({ a: player(), b: player(), until: id() });
   }
   for (let n = from.count(); n > 0; n--) {
-    game.alliances.push({
+    lists.alliances.push({
       a: player(),
       b: player(),
       until: id(),
@@ -364,16 +381,16 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
     });
   }
   for (let n = from.count(); n > 0; n--) {
-    game.allianceRequests.push({ from: player(), to: player(), expiresAt: id() });
+    lists.allianceRequests.push({ from: player(), to: player(), expiresAt: id() });
   }
   for (let n = from.count(); n > 0; n--) {
-    game.requestCooldowns.push({ from: player(), to: player(), until: id() });
+    lists.requestCooldowns.push({ from: player(), to: player(), until: id() });
   }
   for (let n = from.count(); n > 0; n--) {
-    game.embargoes.push({ from: player(), to: player(), since: id(), until: id() });
+    lists.embargoes.push({ from: player(), to: player(), since: id(), until: id() });
   }
   for (let n = from.count(); n > 0; n--) {
-    game.quickCooldowns.push({ player: player(), until: id() });
+    lists.quickCooldowns.push({ player: player(), until: id() });
   }
   game.winner = optional();
   game.winningTeam = optional();

@@ -5,6 +5,7 @@ import { OPERATOR_FACTOR } from "./modes.ts";
 import { divFloor, mulDiv } from "./integer-math.ts";
 import { PLAY_PHASE, defineOrder, tileError } from "./order-rules.ts";
 import { spawnSettings } from "./spawn.ts";
+import { writable } from "./state/lists.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /** What a structure is (R-BUILD). The number is its code in build orders: never renumber. */
@@ -52,7 +53,7 @@ export function isStructureKind(kind: number): kind is StructureKind {
   return Number.isInteger(kind) && kind >= 0 && kind <= HIGHEST_KIND;
 }
 
-export function isReady(game: Game, structure: Structure): boolean {
+export function isReady(game: Game, structure: Readonly<Structure>): boolean {
   return game.tick >= structure.readyAt;
 }
 
@@ -65,12 +66,21 @@ export function isReady(game: Game, structure: Structure): boolean {
  */
 export type StructureState = "building" | "reloading" | "active";
 
-export function structureState(game: Game, structure: Structure): StructureState {
+export function structureState(game: Game, structure: Readonly<Structure>): StructureState {
   if (!isReady(game, structure)) return "building";
   return game.tick < structure.reloadAt ? "reloading" : "active";
 }
 
-export function structureAt(game: Game, tile: number): Structure | undefined {
+/**
+ * R-BUILD-04, R-BUILD-05: a silo that launched, or an air defense that
+ * stopped a missile, reloads for `ticks` from now. The missile rules call it;
+ * the structures are this module's to change (ADR 0010).
+ */
+export function startReload(game: Game, structure: Readonly<Structure>, ticks: number): void {
+  (structure as Structure).reloadAt = game.tick + ticks;
+}
+
+export function structureAt(game: Game, tile: number): Readonly<Structure> | undefined {
   return game.structures.find((structure) => structure.tile === tile);
 }
 
@@ -294,11 +304,11 @@ interface FortCache {
   readonly game: Game;
   readonly tick: number;
   readonly length: number;
-  readonly last: Structure | undefined;
+  readonly last: Readonly<Structure> | undefined;
   readonly nextId: number;
   readonly handovers: number;
   readonly radius: number;
-  readonly byPlayer: (Structure[] | undefined)[];
+  readonly byPlayer: (Readonly<Structure>[] | undefined)[];
 }
 
 // One game at a time: a game only finds its own forts here, and others rebuild them.
@@ -330,7 +340,7 @@ function readyForts(game: Game): FortCache {
   ) {
     return cache;
   }
-  const byPlayer: (Structure[] | undefined)[] = [];
+  const byPlayer: (Readonly<Structure>[] | undefined)[] = [];
   for (const structure of structures) {
     if (structure.kind !== StructureKind.Fort || !isReady(game, structure)) continue;
     const forts = byPlayer[structure.player];
@@ -367,7 +377,7 @@ export const BUILD_ORDER = defineOrder("build", {
   },
   execute(game, player, { kind, tile }) {
     player.gold -= structureCost(game, player.id, kind);
-    game.structures.push({
+    writable(game, "structures").push({
       id: game.nextStructureId++,
       player: player.id,
       kind,
@@ -390,7 +400,7 @@ export const DEMOLISH_ORDER = defineOrder("demolish", {
     return index < 0 ? "no structure of yours on the tile" : { index };
   },
   execute(game, _player, { index }) {
-    game.structures.splice(index, 1);
+    writable(game, "structures").splice(index, 1);
     return true;
   },
 });
@@ -403,7 +413,7 @@ export const DEMOLISH_ORDER = defineOrder("demolish", {
  * tile. Structures live in `game.structures`, oldest first.
  */
 export function installStructures(game: Game): void {
-  const structures = game.structures;
+  const structures = writable(game, "structures");
 
   game.onOrder(BUILD_ORDER);
   game.onOrder(DEMOLISH_ORDER);

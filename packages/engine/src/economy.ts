@@ -194,22 +194,31 @@ export function conquestGold(game: Game, player: Player): number {
 }
 
 /**
+ * R-ECO-08: the player who took the last tile of `player`, if still alive,
+ * takes `conquestGold` of theirs, and every player is told. The ledger of a
+ * player is shared (ADR 0010): this function is the one place a fallen
+ * player's gold goes to another.
+ */
+export function passOnGold(game: Game, player: Player): void {
+  const taker = game.player(game.territory.lastTakerOf(player.id));
+  if (taker?.alive !== true) return;
+  const gold = conquestGold(game, player);
+  taker.gold += gold;
+  logEvent(game, {
+    tick: game.tick,
+    type: "eliminated",
+    a: taker.id,
+    b: player.id,
+    gold,
+  });
+}
+
+/**
  * R-ECO-05: an eliminated player keeps nothing. R-ECO-08: the player who took
  * their last tile takes their gold, half of it from a human.
  */
 function eliminate(game: Game, player: Player): void {
-  const taker = game.player(game.territory.lastTakerOf(player.id));
-  if (taker?.alive === true) {
-    const gold = conquestGold(game, player);
-    taker.gold += gold;
-    logEvent(game, {
-      tick: game.tick,
-      type: "eliminated",
-      a: taker.id,
-      b: player.id,
-      gold,
-    });
-  }
+  passOnGold(game, player);
   player.alive = false;
   player.troops = 0;
   player.gold = 0;

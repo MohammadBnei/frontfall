@@ -219,3 +219,153 @@ describe("package rules (ADR 0014)", () => {
     expect(cycles(graph)).toEqual([["a.ts", "b.ts", "c.ts"], ["d.ts"]]);
   });
 });
+
+/** Where the engine's lists are declared, with their owner modules in the comment of each field. */
+const LISTS_FILE = "packages/engine/src/state/lists.ts";
+/** Modules that write every list: the snapshot loader, and the file that hands out the lists. */
+const WRITE_ANY = ["packages/engine/src/snapshot.ts", LISTS_FILE];
+
+interface OwnedList {
+  readonly name: string;
+  /** The entity type of the list, as `GameLists` names it. */
+  readonly entity: string;
+  /** Owner modules, from the root of the repository. */
+  readonly owners: readonly string[];
+}
+
+/** The lists of `GameLists`, each with its entity type and its owners. */
+function ownedLists(source: string): OwnedList[] {
+  const file = ts.createSourceFile("lists.ts", source, ts.ScriptTarget.Latest, true);
+  const lists: OwnedList[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isInterfaceDeclaration(node) && node.name.text === "GameLists") {
+      for (const member of node.members) {
+        if (!ts.isPropertySignature(member) || !member.type) continue;
+        if (!ts.isArrayTypeNode(member.type)) continue;
+        const docs = ts
+          .getJSDocCommentsAndTags(member)
+          .map((doc) => ts.getTextOfJSDocComment(doc.comment) ?? "");
+        lists.push({
+          name: member.name.getText(file),
+          entity: member.type.elementType.getText(file),
+          owners: docs
+            .join(",")
+            .split(",")
+            .map((owner) => owner.trim())
+            .filter((owner) => owner !== "")
+            .map((owner) => `packages/engine/src/${owner}`),
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return lists;
+}
+
+/**
+ * ADR 0010: who writes the engine's lists. In each file, a call of
+ * `writable(game, "list")` must name its list with a string and be made in
+ * an owner of that list; and an entity type of a list (`Attack`, `Alliance`
+ * and the others) may be named outside its owners only as `Readonly<T>`,
+ * never bare nor in a cast, so that no other module writes an entity it reads.
+ */
+function ownerViolations(
+  files: readonly { readonly path: string; readonly source: string }[],
+  lists: readonly OwnedList[],
+): string[] {
+  const byName = new Map(lists.map((list) => [list.name, list]));
+  const byEntity = new Map(lists.map((list) => [list.entity, list]));
+  const found: string[] = [];
+  for (const { path, source } of files) {
+    const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true);
+    const owns = (list: OwnedList) => WRITE_ANY.includes(path) || list.owners.includes(path);
+    const at = (node: ts.Node) =>
+      `${path}:${String(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1)}`;
+    const visit = (node: ts.Node): void => {
+      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return;
+      if (
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === "writable"
+      ) {
+        const name = node.arguments[1];
+        const list = name && ts.isStringLiteral(name) ? byName.get(name.text) : undefined;
+        if (!list) found.push(`${at(node)} writes a list it does not name`);
+        else if (!owns(list)) {
+          found.push(`${at(node)} writes ${list.name}, owned by ${list.owners.join(", ")}`);
+        }
+      }
+      if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) {
+        const list = byEntity.get(node.typeName.text);
+        const parent = node.parent;
+        const readonly =
+          ts.isTypeReferenceNode(parent) &&
+          ts.isIdentifier(parent.typeName) &&
+          parent.typeName.text === "Readonly";
+        let cast = false;
+        for (let up: ts.Node = node; !ts.isSourceFile(up); up = up.parent) {
+          if (ts.isAsExpression(up) || ts.isTypeAssertionExpression(up)) cast = true;
+        }
+        if (list && !owns(list) && cast) {
+          found.push(`${at(node)} casts to ${list.entity} outside ${list.owners.join(", ")}`);
+        } else if (list && !owns(list) && !readonly) {
+          found.push(
+            `${at(node)} names ${list.entity} without Readonly outside ${list.owners.join(", ")}`,
+          );
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+  }
+  return found;
+}
+
+describe("owner-only writes of the engine's lists (ADR 0010)", () => {
+  const lists = ownedLists(readFileSync(join(root, LISTS_FILE), "utf8"));
+  const engineFiles = sourceFiles(join(root, "packages/engine/src"));
+
+  it("names owner modules that exist for every list", () => {
+    expect(lists.length).toBeGreaterThanOrEqual(16);
+    const known = new Set(engineFiles.map((file) => relative(root, file)));
+    for (const list of lists) {
+      expect(list.owners.length, list.name).toBeGreaterThan(0);
+      for (const owner of list.owners)
+        expect(known.has(owner), `${list.name}: ${owner}`).toBe(true);
+    }
+  });
+
+  it("lets only the owners of each list, and the snapshot loader, write it", () => {
+    const files = engineFiles.map((file) => ({
+      path: relative(root, file),
+      source: readFileSync(file, "utf8"),
+    }));
+    expect(ownerViolations(files, lists)).toEqual([]);
+  });
+
+  it("finds a write by a module that does not own the list, a cast, and a bare entity type", () => {
+    const sample: OwnedList[] = [
+      { name: "boats", entity: "Boat", owners: ["packages/engine/src/boats.ts"] },
+    ];
+    const source = [
+      'import type { Boat } from "./boats.ts";',
+      'writable(game, "boats").push(boat);',
+      "writable(game, name);",
+      "const kept: Readonly<Boat>[] = [];",
+      "const seen: Boat[] = [];",
+      "(game.boats as Readonly<Boat>[]).pop();",
+    ].join("\n");
+    const outside = "packages/engine/src/warships.ts";
+    const owner = "packages/engine/src/boats.ts";
+    expect(ownerViolations([{ path: outside, source }], sample)).toEqual([
+      `${outside}:2 writes boats, owned by ${owner}`,
+      `${outside}:3 writes a list it does not name`,
+      `${outside}:5 names Boat without Readonly outside ${owner}`,
+      `${outside}:6 casts to Boat outside ${owner}`,
+    ]);
+    expect(ownerViolations([{ path: owner, source }], sample)).toEqual([
+      `${owner}:3 writes a list it does not name`,
+    ]);
+  });
+});

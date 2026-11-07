@@ -11,6 +11,7 @@ import { BuildError, StructureKind } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { WarshipError } from "../src/warships.ts";
 import { WorldGrid } from "../src/world-grid.ts";
+import { writable } from "../src/state/lists.ts";
 
 /** A 40 × 20 plain: Ada holds the west half, Bea the east half, Cy one column of each. */
 function newGame(disabled = 0) {
@@ -62,7 +63,7 @@ function newGame(disabled = 0) {
 
 /** An alliance that outlasts the test, put in place as an order would have. */
 function ally(game: ReturnType<typeof newGame>["game"], a: number, b: number): void {
-  game.alliances.push({
+  writable(game, "alliances").push({
     a,
     b,
     until: game.tick + 1_000_000,

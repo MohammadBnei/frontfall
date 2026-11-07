@@ -21,10 +21,12 @@ import type {
   RequestCooldown,
 } from "./diplomacy.ts";
 import type { Fallout, Missile, MissileEvent } from "./missiles.ts";
+import type { QuickCooldown } from "./quick-messages.ts";
 import { eraseRule, planOrder, type OrderRule } from "./order-rules.ts";
 import { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 import { Random } from "./random.ts";
 import type { SnapshotReader, SnapshotWriter } from "./snapshot-bytes.ts";
+import { newLists } from "./state/lists.ts";
 import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
 import type { TradeShip } from "./trade.ts";
@@ -84,6 +86,16 @@ const RULES_TAG = 0x72756c65;
 /** Marks the operator's bonuses in the state hash (R-MODE-09). */
 const OPERATOR_TAG = 0x6f706572;
 
+/**
+ * A player's ledger. Unlike the entity lists, which only their owner module
+ * writes (ADR 0010), it is shared: growth, income, attacks, ships, missiles,
+ * gifts, tribute, trade and capitals all add to or take from `troops` and
+ * `gold`, each under its own rule. The other fields belong to one rule each
+ * and are written by it only, and by the snapshot loader: `alive`,
+ * `goldRemainder` and `workShare` by the economy, `start` by the spawn
+ * phase, `traitorUntil` by diplomacy, `doctrine` by the doctrines and
+ * `capital` by the capitals.
+ */
 export interface Player {
   readonly id: number;
   readonly name: string;
@@ -149,16 +161,16 @@ export class Game {
   readonly seed: number;
   readonly balance: Balance;
   /** Attacks under way, oldest first. Owned by the attack rules; read only elsewhere. */
-  readonly attacks: Attack[] = [];
+  readonly attacks: readonly Readonly<Attack>[];
   nextAttackId = 1;
   /** Transport ships at sea, oldest first. Owned by the boat rules; read only elsewhere. */
-  readonly boats: Boat[] = [];
+  readonly boats: readonly Readonly<Boat>[];
   nextBoatId = 1;
   /** Structures on the map, oldest first. Owned by the structure rules; read only elsewhere. */
-  readonly structures: Structure[] = [];
+  readonly structures: readonly Readonly<Structure>[];
   nextStructureId = 1;
   /** Trade ships at sea, oldest first. Owned by the trade rules; read only elsewhere. */
-  readonly tradeShips: TradeShip[] = [];
+  readonly tradeShips: readonly Readonly<TradeShip>[];
   /**
    * What a computer player's difficulty does to its population, in percent:
    * its starting troops, its cap, its growth and its gold (R-BOT-04, R-BOT-29). Set again by whoever installs the
@@ -179,40 +191,40 @@ export class Game {
   readonly cityStates = new Set<number>();
   nextTradeShipId = 1;
   /** Warships, oldest first. Owned by the warship rules; read only elsewhere. */
-  readonly warships: Warship[] = [];
+  readonly warships: readonly Readonly<Warship>[];
   nextWarshipId = 1;
   /** Missiles in flight, oldest first. Owned by the missile rules; read only elsewhere. */
-  readonly missiles: Missile[] = [];
+  readonly missiles: readonly Readonly<Missile>[];
   nextMissileId = 1;
   /** Fallout of heavy missiles still on the land, oldest first (R-UNIT-06). */
-  readonly fallout: Fallout[] = [];
+  readonly fallout: readonly Readonly<Fallout>[];
   /**
    * First tick each tile is free of fallout again; 0 if it never had any.
    * It follows from `fallout`, which the state hash covers.
    */
   readonly falloutUntil: Uint32Array;
   /** Fights between players, remembered for B-WAR-MEMORY, by ascending pair of ids. */
-  readonly fights: Fight[] = [];
+  readonly fights: readonly Readonly<Fight>[];
   /** Alliances by ascending pair of ids. Owned by the diplomacy rules; read only elsewhere. */
-  readonly alliances: Alliance[] = [];
+  readonly alliances: readonly Readonly<Alliance>[];
   /** Alliance requests waiting for an answer, oldest first. */
-  readonly allianceRequests: AllianceRequest[] = [];
+  readonly allianceRequests: readonly Readonly<AllianceRequest>[];
   /** Players who may not ask a given player again yet, oldest first. */
-  readonly requestCooldowns: RequestCooldown[] = [];
+  readonly requestCooldowns: readonly Readonly<RequestCooldown>[];
   /** Embargoes, oldest first (R-DIPLO-05). */
-  readonly embargoes: Embargo[] = [];
+  readonly embargoes: readonly Readonly<Embargo>[];
   /** Players waiting to send another quick message (R-DIPLO-07), by player id. */
-  readonly quickCooldowns: { readonly player: number; readonly until: number }[] = [];
+  readonly quickCooldowns: readonly Readonly<QuickCooldown>[];
   /**
    * What happened between players, oldest first, for interfaces to read and
    * empty. No rule reads it back, so it is not part of the state hash.
    */
-  readonly diplomacyEvents: DiplomacyEvent[] = [];
+  readonly diplomacyEvents: readonly Readonly<DiplomacyEvent>[];
   /**
    * How each missile ended, oldest first, for interfaces to read and empty.
    * No rule reads it back, so it is not part of the state hash.
    */
-  readonly missileEvents: MissileEvent[] = [];
+  readonly missileEvents: readonly Readonly<MissileEvent>[];
   /** Number of teams, 0 in a free-for-all (R-MODE-02). */
   readonly teams: number;
   /** `Disable` bits of what this game leaves out (R-MODE-03). */
@@ -222,7 +234,7 @@ export class Game {
   /** The operator's test bonuses (R-MODE-09); `NO_OPERATOR` in nearly every game. */
   readonly operator: OperatorBonuses;
   /** Capitals taken or razed, oldest first (R-CAP-03, R-CAP-04). Owned by the capital rules. */
-  readonly capitalFalls: CapitalFall[] = [];
+  readonly capitalFalls: readonly Readonly<CapitalFall>[];
   /**
    * Winner once the game is decided (R-WIN), and the tick it happened. In a
    * team game, the member of the winning team with the most land.
@@ -243,6 +255,23 @@ export class Game {
   private readonly balanceDigest: number;
 
   constructor(setup: GameSetup) {
+    const lists = newLists(this);
+    this.attacks = lists.attacks;
+    this.boats = lists.boats;
+    this.structures = lists.structures;
+    this.tradeShips = lists.tradeShips;
+    this.warships = lists.warships;
+    this.missiles = lists.missiles;
+    this.fallout = lists.fallout;
+    this.fights = lists.fights;
+    this.alliances = lists.alliances;
+    this.allianceRequests = lists.allianceRequests;
+    this.requestCooldowns = lists.requestCooldowns;
+    this.embargoes = lists.embargoes;
+    this.quickCooldowns = lists.quickCooldowns;
+    this.diplomacyEvents = lists.diplomacyEvents;
+    this.missileEvents = lists.missileEvents;
+    this.capitalFalls = lists.capitalFalls;
     this.terrain = setup.terrain;
     this.random = new Random(setup.seed);
     this.seed = setup.seed >>> 0;

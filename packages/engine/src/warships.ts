@@ -7,7 +7,9 @@ import { DrawUsage, derivedRandom } from "./random.ts";
 import { spawnSettings } from "./spawn.ts";
 import { StructureKind, structureAt, structureState } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
-import { tradeGold } from "./trade.ts";
+import { sinkBoat } from "./boats.ts";
+import { writable } from "./state/lists.ts";
+import { takeTradeShip, tradeGold } from "./trade.ts";
 
 /** A warship on patrol (R-UNIT-04). */
 export interface Warship {
@@ -143,10 +145,8 @@ interface PatrolPlan {
 
 function patrolPlan(game: Game, player: Player, ship: number, tile: number): string | PatrolPlan {
   if (game.phase !== "play") return WarshipError.Early;
-  const warship = game.warships.find((w) => w.id === ship);
-  if (warship?.player !== player.id || warshipState(game, warship) === "sunk") {
-    return WarshipError.Ship;
-  }
+  const warship = writable(game, "warships").find((w) => w.id === ship);
+  if (warship?.player !== player.id) return WarshipError.Ship;
   if (!Number.isInteger(tile) || tile < 0 || tile >= game.terrain.topology.size) {
     return "the tile is outside the map";
   }
@@ -162,7 +162,7 @@ export const WARSHIP_ORDER = defineOrder("warship", {
     tileError(game, order.port) ?? warshipPlan(game, player, order.port),
   execute(game, player, { start }) {
     player.gold -= warshipCost(game, player.id);
-    game.warships.push({
+    writable(game, "warships").push({
       id: game.nextWarshipId++,
       player: player.id,
       tile: start,
@@ -208,7 +208,8 @@ export function installWarships(game: Game): void {
   const { balance, terrain } = game;
   const topology = terrain.topology;
   const search = searchFor(game);
-  const ships = game.warships;
+  const ships = writable(game, "warships");
+  const fights = writable(game, "fights");
 
   game.onOrder(WARSHIP_ORDER);
   game.onOrder(PATROL_ORDER);
@@ -242,17 +243,17 @@ export function installWarships(game: Game): void {
       if (x === y || x === 0 || y === 0) return;
       const a = Math.min(x, y);
       const b = Math.max(x, y);
-      const fight = game.fights.find((f) => f.a === a && f.b === b);
+      const fight = fights.find((f) => f.a === a && f.b === b);
       if (fight) fight.until = until;
-      else game.fights.push({ a, b, until });
+      else fights.push({ a, b, until });
     };
     for (const attack of game.attacks) if (attack.troops > 0) mark(attack.player, attack.target);
     for (const boat of game.boats) mark(boat.player, game.territory.ownerOf(boat.target));
     for (const missile of game.missiles) mark(missile.player, game.territory.ownerOf(missile.to));
     let kept = 0;
-    for (const fight of game.fights) if (game.tick < fight.until) game.fights[kept++] = fight;
-    game.fights.length = kept;
-    game.fights.sort((x, y) => x.a - y.a || x.b - y.b);
+    for (const fight of fights) if (game.tick < fight.until) fights[kept++] = fight;
+    fights.length = kept;
+    fights.sort((x, y) => x.a - y.a || x.b - y.b);
   }
 
   function sail(ship: Warship): void {
@@ -286,9 +287,8 @@ export function installWarships(game: Game): void {
         embargoedSince(ship.player, prize.player) <= game.tick - balance.embargoNoticeTicks
       );
     });
-    const prize = trade[index];
-    if (!prize) return false;
-    trade.splice(index, 1);
+    if (index < 0) return false;
+    const prize = takeTradeShip(game, index);
     owner.gold += tradeGold(prize.path.length);
     logEvent(game, { tick: game.tick, type: "captured", a: ship.player, b: prize.player });
     return true;
@@ -344,7 +344,7 @@ export function installWarships(game: Game): void {
       ship.firedAt = game.tick;
       ship.aim = at;
     }
-    game.boats.splice(boat, 1);
+    sinkBoat(game, boat);
     return true;
   }
 }

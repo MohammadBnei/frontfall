@@ -1,8 +1,9 @@
 import { Disable } from "@frontfall/contracts";
 import type { Game, Player } from "./game.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
-import { percentOf } from "./integer-math.ts";
+import { recallAttacks } from "./attack-recall.ts";
 import { ANY_PHASE, defineOrder } from "./order-rules.ts";
+import { writable } from "./state/lists.ts";
 
 /** Two players at peace until `until` (R-DIPLO-02, R-DIPLO-03). `a` is always the lower id. */
 export interface Alliance {
@@ -26,7 +27,7 @@ export interface Alliance {
  */
 export type AllianceState = "running" | "renewable" | "ended";
 
-export function allianceState(game: Game, alliance: Alliance): AllianceState {
+export function allianceState(game: Game, alliance: Readonly<Alliance>): AllianceState {
   const left = alliance.until - game.tick;
   if (left <= 0) return "ended";
   return left <= game.balance.allianceRenewTicks ? "renewable" : "running";
@@ -148,12 +149,22 @@ export function isAllied(game: Game, a: number, b: number): boolean {
   return sameTeam(game, a, b) || allianceOf(game, a, b) !== undefined;
 }
 
-export function allianceOf(game: Game, a: number, b: number): Alliance | undefined {
+export function allianceOf(game: Game, a: number, b: number): Readonly<Alliance> | undefined {
+  return findAlliance(game, game.alliances, a, b);
+}
+
+/** The alliance or truce of `a` and `b` in `alliances` that has not ended. */
+function findAlliance<T extends Readonly<Alliance>>(
+  game: Game,
+  alliances: readonly T[],
+  a: number,
+  b: number,
+): T | undefined {
   if (a === b) return undefined;
   const low = Math.min(a, b);
   const high = Math.max(a, b);
   // A plain loop: border scans ask this about every tile next to a player's land.
-  for (const alliance of game.alliances) {
+  for (const alliance of alliances) {
     if (alliance.a === low && alliance.b === high && allianceState(game, alliance) !== "ended") {
       return alliance;
     }
@@ -207,7 +218,11 @@ function partnersOf(game: Game, player: number, truces: boolean): number[] {
   return allies.sort((x, y) => x - y);
 }
 
-export function requestBetween(game: Game, from: number, to: number): AllianceRequest | undefined {
+export function requestBetween(
+  game: Game,
+  from: number,
+  to: number,
+): Readonly<AllianceRequest> | undefined {
   return game.allianceRequests.find(
     (request) => request.from === from && request.to === to && game.tick < request.expiresAt,
   );
@@ -219,7 +234,7 @@ export function isTraitor(game: Game, player: Player): boolean {
 }
 
 /** Whether a renewal may be asked for now: in the last part of the alliance (R-DIPLO-03). */
-export function canRenew(game: Game, alliance: Alliance): boolean {
+export function canRenew(game: Game, alliance: Readonly<Alliance>): boolean {
   return allianceState(game, alliance) !== "running";
 }
 
@@ -308,7 +323,7 @@ export const ALLY_ORDER = defineOrder("ally", {
   execute(game, player, order) {
     const { balance } = game;
     const target = order.target;
-    const alliance = allianceOf(game, player.id, target);
+    const alliance = findAlliance(game, writable(game, "alliances"), player.id, target);
     if (alliance) {
       if (player.id === alliance.a) alliance.renewA = true;
       else alliance.renewB = true;
@@ -321,14 +336,14 @@ export const ALLY_ORDER = defineOrder("ally", {
     }
     const asked = requestBetween(game, target, player.id);
     if (!asked) {
-      game.allianceRequests.push({
+      writable(game, "allianceRequests").push({
         from: player.id,
         to: target,
         expiresAt: game.tick + balance.allianceRequestTicks,
       });
       return true;
     }
-    removeWhere(game.allianceRequests, (r) => r === asked);
+    removeWhere(writable(game, "allianceRequests"), (r) => r === asked);
     form(game, player.id, target);
     return true;
   },
@@ -365,11 +380,11 @@ export const BETRAY_ORDER = defineOrder("betray", {
   execute(game, player, order) {
     const { balance } = game;
     const broken = allianceOf(game, player.id, order.target);
-    removeWhere(game.alliances, (a) => a === broken);
+    removeWhere(writable(game, "alliances"), (a) => a === broken);
     player.traitorUntil = game.tick + balance.traitorTicks;
     logEvent(game, { tick: game.tick, type: "betrayed", a: player.id, b: order.target });
     // No asking the betrayed player straight back.
-    game.requestCooldowns.push({
+    writable(game, "requestCooldowns").push({
       from: player.id,
       to: order.target,
       until: game.tick + balance.allianceCooldownTicks,
@@ -385,11 +400,13 @@ export const EMBARGO_ORDER = defineOrder("embargo", {
     playerError(order.target) ?? embargoError(game, player, order.target, order.on) ?? order,
   execute(game, player, order) {
     const target = order.target;
-    const lasting = game.embargoes.find((e) => e.from === player.id && e.to === target);
+    const lasting = writable(game, "embargoes").find(
+      (e) => e.from === player.id && e.to === target,
+    );
     if (order.on === 1 && lasting) lasting.until = 0;
     else if (order.on === 1) {
-      game.embargoes.push({ from: player.id, to: target, since: game.tick, until: 0 });
-    } else removeWhere(game.embargoes, (e) => e.from === player.id && e.to === target);
+      writable(game, "embargoes").push({ from: player.id, to: target, since: game.tick, until: 0 });
+    } else removeWhere(writable(game, "embargoes"), (e) => e.from === player.id && e.to === target);
     logEvent(game, {
       tick: game.tick,
       type: order.on === 1 ? "embargo" : "lifted",
@@ -423,7 +440,7 @@ export function installDiplomacy(game: Game): void {
     const victim = game.territory.ownerOf(order.target);
     if (victim === NEUTRAL || victim === player.id || !game.player(victim)?.alive) return;
     if (embargoed(game, victim, player.id)) return;
-    game.embargoes.push({
+    writable(game, "embargoes").push({
       from: victim,
       to: player.id,
       since: game.tick,
@@ -436,19 +453,19 @@ export function installDiplomacy(game: Game): void {
     const tick = game.tick;
     const alive = (id: number) => game.player(id)?.alive === true;
     removeWhere(
-      game.embargoes,
+      writable(game, "embargoes"),
       (e) => !alive(e.from) || !alive(e.to) || (e.until !== 0 && tick >= e.until),
     );
     for (const request of game.allianceRequests) {
       if (tick < request.expiresAt || !alive(request.from) || !alive(request.to)) continue;
-      game.requestCooldowns.push({
+      writable(game, "requestCooldowns").push({
         from: request.from,
         to: request.to,
         until: request.expiresAt + balance.allianceCooldownTicks,
       });
     }
     removeWhere(
-      game.allianceRequests,
+      writable(game, "allianceRequests"),
       (r) => tick >= r.expiresAt || !alive(r.from) || !alive(r.to),
     );
     for (const alliance of game.alliances) {
@@ -458,10 +475,10 @@ export function installDiplomacy(game: Game): void {
       logEvent(game, { tick, type: "ended", a: alliance.a, b: alliance.b });
     }
     removeWhere(
-      game.alliances,
+      writable(game, "alliances"),
       (a) => allianceState(game, a) === "ended" || !alive(a.a) || !alive(a.b),
     );
-    removeWhere(game.requestCooldowns, (c) => tick >= c.until);
+    removeWhere(writable(game, "requestCooldowns"), (c) => tick >= c.until);
   });
 }
 
@@ -471,10 +488,10 @@ function form(game: Game, first: number, second: number, truce = false): void {
   const low = Math.min(first, second);
   const high = Math.max(first, second);
   removeWhere(
-    game.allianceRequests,
+    writable(game, "allianceRequests"),
     (r) => (r.from === high && r.to === low) || (r.from === low && r.to === high),
   );
-  game.alliances.push({
+  writable(game, "alliances").push({
     a: low,
     b: high,
     until: game.tick + (truce ? balance.tributeTruceTicks : balance.allianceTicks),
@@ -482,23 +499,14 @@ function form(game: Game, first: number, second: number, truce = false): void {
     renewB: false,
     truce,
   });
-  game.alliances.sort((x, y) => x.a - y.a || x.b - y.b);
+  writable(game, "alliances").sort((x, y) => x.a - y.a || x.b - y.b);
   removeWhere(
-    game.embargoes,
+    writable(game, "embargoes"),
     (e) =>
       e.until !== 0 && ((e.from === low && e.to === high) || (e.from === high && e.to === low)),
   );
   if (!truce) logEvent(game, { tick: game.tick, type: "allied", a: low, b: high });
-  for (const attack of game.attacks) {
-    const against =
-      (attack.player === low && attack.target === high) ||
-      (attack.player === high && attack.target === low);
-    if (!against || attack.troops <= 0) continue;
-    const owner = game.player(attack.player);
-    if (owner)
-      owner.troops += attack.troops - percentOf(attack.troops, balance.retreatPenaltyPercent);
-    attack.troops = 0;
-  }
+  recallAttacks(game, low, high);
 }
 
 function removeWhere<T>(list: T[], drop: (item: T) => boolean): void {
@@ -507,11 +515,20 @@ function removeWhere<T>(list: T[], drop: (item: T) => boolean): void {
   list.length = kept;
 }
 
+/**
+ * The events logged since the last call, oldest first, taken out of the log:
+ * an interface reads each one once (`game.diplomacyEvents` shows them without
+ * taking them).
+ */
+export function takeDiplomacyEvents(game: Game): DiplomacyEvent[] {
+  return writable(game, "diplomacyEvents").splice(0);
+}
+
 /** Events kept when nobody reads the log, in a server, a bench or a replay. */
 export const DIPLOMACY_LOG_SIZE = 256;
 
 export function logEvent(game: Game, event: DiplomacyEvent): void {
-  const log = game.diplomacyEvents;
+  const log = writable(game, "diplomacyEvents");
   log.push(event);
   if (log.length > DIPLOMACY_LOG_SIZE) log.splice(0, log.length - DIPLOMACY_LOG_SIZE);
 }

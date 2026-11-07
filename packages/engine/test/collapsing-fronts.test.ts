@@ -7,6 +7,7 @@ import { StructureKind } from "../src/structures.ts";
 import { Terrain, TileKind } from "../src/terrain.ts";
 import { WorldGrid } from "../src/world-grid.ts";
 import { WHOLE_PRICES } from "./whole-prices.ts";
+import { writable } from "../src/state/lists.ts";
 
 const balance: Balance = {
   ...DEFAULT_BALANCE,
@@ -125,7 +126,7 @@ describe("collapsing fronts (R-ATTACK-10)", () => {
 
   it("does not give way within reach of a ready fort (R-BUILD-03)", () => {
     const { grid, game, ada, run, attack } = newGame(true, { fortRadius: 4 });
-    game.structures.push({
+    writable(game, "structures").push({
       id: 1,
       player: 2,
       kind: StructureKind.Fort,

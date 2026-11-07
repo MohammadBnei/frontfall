@@ -2,6 +2,7 @@ import { ATTACK_EARLY, captureCost, defenderLoss, targetError } from "./attacks.
 import { isAllied } from "./diplomacy.ts";
 import type { Game } from "./game.ts";
 import { PLAY_PHASE, defineOrder } from "./order-rules.ts";
+import { writable } from "./state/lists.ts";
 import { TileKind } from "./terrain.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
@@ -70,7 +71,7 @@ export const EMBARK_ORDER = defineOrder("embark", {
     const route = seaRoute(game, player.id, order.target);
     if (!route) return false;
     player.troops -= order.troops;
-    game.boats.push({
+    writable(game, "boats").push({
       id: game.nextBoatId++,
       player: player.id,
       target: order.target,
@@ -90,7 +91,7 @@ export const EMBARK_ORDER = defineOrder("embark", {
  */
 export function installBoats(game: Game): void {
   const { territory, terrain, balance } = game;
-  const boats = game.boats;
+  const boats = writable(game, "boats");
   const around = new Int32Array(4);
 
   game.onOrder(EMBARK_ORDER);
@@ -141,6 +142,15 @@ export function installBoats(game: Game): void {
       return;
     }
   }
+}
+
+/**
+ * R-UNIT-04: the transport ship at `index` of `game.boats` sinks with its
+ * troops, hit by a warship. The warship rules call it; the boats are this
+ * module's to change (ADR 0010).
+ */
+export function sinkBoat(game: Game, index: number): void {
+  writable(game, "boats").splice(index, 1);
 }
 
 const searches = new WeakMap<Game, SeaSearch>();

@@ -10,6 +10,7 @@ import { capitalsStand, guardedByCapital } from "./capitals.ts";
 import { LandmarkEffect, guardedByLandmark, heldLandmarks } from "./landmarks.ts";
 import { PLAY_PHASE, defineOrder, tileError, type Refusal } from "./order-rules.ts";
 import { spawnSettings } from "./spawn.ts";
+import { writable } from "./state/lists.ts";
 import { fortRadius, fortified, isReady, StructureKind } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
 import { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
@@ -85,7 +86,7 @@ export const ATTACK_ORDER = defineOrder("attack", {
   wrongPhase: ATTACK_EARLY,
   validate: (game, player, order) => targetError(game, player, order.target, order.troops) ?? order,
   execute(game, player, order) {
-    const attacks = game.attacks;
+    const attacks = writable(game, "attacks");
     const target = game.territory.ownerOf(order.target);
     if (target !== NEUTRAL && !game.player(target)?.alive) return false;
     const existing = attacks.find((a) => a.player === player.id && a.target === target);
@@ -121,7 +122,9 @@ export const RETREAT_ORDER = defineOrder("retreat", {
   validate: (_game, _player, order) =>
     !Number.isSafeInteger(order.attack) || order.attack < 1 ? "invalid attack id" : order,
   execute(game, player, order) {
-    const attack = game.attacks.find((a) => a.id === order.attack && a.player === player.id);
+    const attack = writable(game, "attacks").find(
+      (a) => a.id === order.attack && a.player === player.id,
+    );
     if (!attack || attack.troops <= 0) return false;
     player.troops += attack.troops - percentOf(attack.troops, game.balance.retreatPenaltyPercent);
     attack.troops = 0;
@@ -138,7 +141,7 @@ export const RETREAT_ORDER = defineOrder("retreat", {
 export function installAttacks(game: Game): void {
   const { territory, terrain, balance } = game;
   const topology = terrain.topology;
-  const attacks = game.attacks;
+  const attacks = writable(game, "attacks");
   // Read directly in the loops below, past the checks of ownerOf().
   const owners = territory.owners;
 

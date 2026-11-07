@@ -1,4 +1,4 @@
-import { TileKind } from "@frontfall/engine";
+import { TileKind, type Alliance, type Attack, type Structure } from "@frontfall/engine";
 import { describe, expect, it } from "vitest";
 import { GENERATED_MAPS, generateMap } from "../src/game/maps.ts";
 import { HUMAN_ID, SoloGame, type SoloOptions } from "../src/game/solo-game.ts";
@@ -202,7 +202,8 @@ describe("SoloGame incoming attacks", () => {
     let update = solo.step([{ type: "spawn", tile: firstLand(options.map) }]);
     while (update.phase === "spawn") update = solo.step([]);
     expect(update.incoming).toEqual([]);
-    const { attacks } = solo.game;
+    // The engine's lists are its rules' to write: the test writes this one itself.
+    const attacks = solo.game.attacks as Attack[];
     attacks.push({
       id: 9001,
       player: 2,
@@ -487,8 +488,10 @@ describe("SoloGame clicks", () => {
     expect(solo.orderForClick(land, 30, "port")).toEqual(port);
 
     // Next to a structure, every coast in reach is too close: the refusal says so.
-    // (Stepping would end the game: the player holds all the land.)
-    solo.game.structures.push({
+    // (Stepping would end the game: the player holds all the land.) The
+    // engine's lists are its rules' to write: the test writes this one itself.
+    const structures = solo.game.structures as Structure[];
+    structures.push({
       id: 99,
       player: HUMAN_ID,
       kind: 0,
@@ -497,7 +500,7 @@ describe("SoloGame clicks", () => {
       reloadAt: 0,
     });
     expect(solo.orderForClick(sea, 30, "port")).toEqual({ refused: "crowded" });
-    solo.game.structures.pop();
+    structures.pop();
 
     // Without the gold, the closest coast says so.
     human.gold = 0;
@@ -656,8 +659,9 @@ describe("SoloGame clicks", () => {
     if (!human) throw new Error("no human");
     human.gold = 1_000_000;
     expect(solo.orderForClick(land, 30, "silo")).toEqual({ refused: "disabled" });
-    // Gifts go to allies only (R-DIPLO-06).
-    solo.game.alliances.push({
+    // Gifts go to allies only (R-DIPLO-06). The test makes the alliance itself.
+    const alliances = solo.game.alliances as Alliance[];
+    alliances.push({
       a: HUMAN_ID,
       b: 2,
       until: 1_000_000,
@@ -669,7 +673,7 @@ describe("SoloGame clicks", () => {
     expect(solo.game.player(2)?.gold).toBeGreaterThanOrEqual(400_000);
     expect(update.events).toContainEqual({ type: "gift", a: HUMAN_ID, b: 2 });
     expect(update.diplomacy.atWar).toEqual([]);
-    solo.game.alliances.length = 0;
+    alliances.length = 0;
     update = solo.step([{ type: "embargo", target: 2, on: 1 }]);
     expect(update.diplomacy.atWar).toEqual([2]);
     expect(solo.game.disabled).toBe(8);

@@ -21,6 +21,8 @@ import {
   sameTeam,
   structureCost,
   structureState,
+  takeDiplomacyEvents,
+  takeMissileEvents,
   troopGrowth,
   warshipCost,
   type Game,
@@ -107,7 +109,7 @@ function moods(game: Game, you: number): DiplomacyView["moods"] {
 }
 
 function diplomacyEvents(game: Game): DiplomacyEvent[] {
-  return game.diplomacyEvents.splice(0).map(({ type, a, b, phrase, tile, gold, landmark }) => {
+  return takeDiplomacyEvents(game).map(({ type, a, b, phrase, tile, gold, landmark }) => {
     const event: DiplomacyEvent = { type, a, b };
     if (phrase !== undefined) event.phrase = phrase;
     if (tile !== undefined) event.tile = tile;
@@ -212,9 +214,8 @@ export function gameUpdate(game: Game, you: number, labelSpace: LabelSpace): Gam
         costPercent: game.balance.falloutCostPercent,
       };
     }),
-    missileEvents: game.missileEvents
-      .splice(0)
-      .map(({ type, id, player, size, from, to, tile, by, site }) => ({
+    missileEvents: takeMissileEvents(game).map(
+      ({ type, id, player, size, from, to, tile, by, site }) => ({
         type,
         id,
         player,
@@ -224,7 +225,8 @@ export function gameUpdate(game: Game, you: number, labelSpace: LabelSpace): Gam
         tile,
         by,
         ...(site === undefined ? {} : { site }),
-      })),
+      }),
+    ),
     structures: game.structures.map((structure) => ({
       id: structure.id,
       player: structure.player,

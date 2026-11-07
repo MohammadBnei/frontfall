@@ -2,6 +2,7 @@ import { isAllied, logEvent } from "./diplomacy.ts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv, percentOf } from "./integer-math.ts";
 import { spawnSettings } from "./spawn.ts";
+import { writable } from "./state/lists.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /**
@@ -86,6 +87,24 @@ export function capitalAim(game: Game, tile: number): number {
 }
 
 /**
+ * R-CAP-03: the player who took `player`'s capital takes all of their land,
+ * in tile order, and B-CAPITAL-SPOILS of their troops; `player` keeps none.
+ * The economy carries out the elimination in this tick's growth, the land
+ * being gone, and hands the captor, who took the last tile, the gold
+ * (R-ECO-05, R-ECO-08). The land and the two ledgers are shared state
+ * (ADR 0010): this function is the one place capitals change them.
+ */
+export function handOverCapital(game: Game, player: Player, captor: Player): void {
+  const { territory } = game;
+  const owners = territory.owners;
+  for (let t = 0; t < owners.length; t++) {
+    if (owners[t] === player.id) territory.setOwner(t, captor.id);
+  }
+  captor.troops += percentOf(player.troops, game.balance.capitalSpoilsPercent);
+  player.troops = 0;
+}
+
+/**
  * Capital mode (R-CAP-01 to R-CAP-04). When play starts, every player's
  * start tile becomes their capital. After the attacks, ships and missiles of
  * each tick, a capital whose tile another player now holds falls: that
@@ -100,7 +119,7 @@ export function installCapitals(game: Game): void {
   if (!game.rules.capitals) return;
   const { territory, balance } = game;
   const topology = game.terrain.topology;
-  const falls = game.capitalFalls;
+  const falls = writable(game, "capitalFalls");
 
   game.persist("capitals", {
     save(out) {
@@ -148,14 +167,7 @@ export function installCapitals(game: Game): void {
 
   /** R-CAP-03: the holder of the capital's tile takes everything; its owner falls. */
   function conquer(player: Player, captor: Player, tile: number): void {
-    const owners = territory.owners;
-    for (let t = 0; t < owners.length; t++) {
-      if (owners[t] === player.id) territory.setOwner(t, captor.id);
-    }
-    captor.troops += percentOf(player.troops, balance.capitalSpoilsPercent);
-    // R-ECO-05 carries out the elimination in this tick's growth, the land being
-    // gone, and hands the captor, who took the last tile, the gold (R-ECO-08).
-    player.troops = 0;
+    handOverCapital(game, player, captor);
     player.capital = undefined;
     falls.push({ tick: game.tick, player: player.id, by: captor.id, tile });
     logEvent(game, { tick: game.tick, type: "capital", a: captor.id, b: player.id });

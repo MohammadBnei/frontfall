@@ -6,7 +6,14 @@ import { DrawUsage, derivedRandom } from "./random.ts";
 import { shieldedBy } from "./landmarks.ts";
 import { spawnSettings } from "./spawn.ts";
 import type { Topology } from "./topology.ts";
-import { MOSQUE_TRIES, StructureKind, structureState, type Structure } from "./structures.ts";
+import { writable } from "./state/lists.ts";
+import {
+  MOSQUE_TRIES,
+  StructureKind,
+  startReload,
+  structureState,
+  type Structure,
+} from "./structures.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /** How strong a missile is: its code in missile orders, never renumbered. */
@@ -59,11 +66,19 @@ export interface MissileEvent {
   readonly site?: number;
 }
 
+/**
+ * The missile events logged since the last call, oldest first, taken out of
+ * the log: an interface reads each one once.
+ */
+export function takeMissileEvents(game: Game): MissileEvent[] {
+  return writable(game, "missileEvents").splice(0);
+}
+
 /** Events kept when nobody reads them, in a server, a bench or a replay. */
 export const MISSILE_LOG_SIZE = 64;
 
 function logMissile(game: Game, event: MissileEvent): void {
-  const log = game.missileEvents;
+  const log = writable(game, "missileEvents");
   log.push(event);
   if (log.length > MISSILE_LOG_SIZE) log.splice(0, log.length - MISSILE_LOG_SIZE);
 }
@@ -105,7 +120,7 @@ export function airDefenseRadius(game: Game): number {
 }
 
 /** Whether a structure is a ready silo of `player` with a missile loaded. */
-function loaded(game: Game, structure: Structure, player: number): boolean {
+function loaded(game: Game, structure: Readonly<Structure>, player: number): boolean {
   return (
     structure.kind === StructureKind.Silo &&
     structure.player === player &&
@@ -114,9 +129,13 @@ function loaded(game: Game, structure: Structure, player: number): boolean {
 }
 
 /** The player's loaded silo closest to `target`, the oldest on a tie; undefined if none. */
-export function launchSilo(game: Game, player: number, target: number): Structure | undefined {
+export function launchSilo(
+  game: Game,
+  player: number,
+  target: number,
+): Readonly<Structure> | undefined {
   const topology = game.terrain.topology;
-  let best: Structure | undefined;
+  let best: Readonly<Structure> | undefined;
   let bestDistance = 0;
   for (const structure of game.structures) {
     if (!loaded(game, structure, player)) continue;
@@ -143,7 +162,7 @@ export function missileError(
 interface MissilePlan {
   readonly size: MissileSize;
   readonly target: number;
-  readonly silo: Structure;
+  readonly silo: Readonly<Structure>;
 }
 
 function missilePlan(
@@ -176,9 +195,9 @@ export const MISSILE_ORDER = defineOrder("missile", {
   execute(game, player, { size, target, silo }) {
     const { balance } = game;
     player.gold -= missileCost(game, size);
-    silo.reloadAt = game.tick + balance.siloReloadTicks;
+    startReload(game, silo, balance.siloReloadTicks);
     const distance = isqrt(game.terrain.topology.squaredDistance(silo.tile, target));
-    game.missiles.push({
+    writable(game, "missiles").push({
       id: game.nextMissileId++,
       player: player.id,
       size,
@@ -257,6 +276,26 @@ export function missileTile(game: Game, missile: Missile, tick: number): number 
 }
 
 /**
+ * R-UNIT-05: the troops a strike kills, before its tiles go back to nobody.
+ * Each player hit, by id, loses B-MISSILE-TROOPS (or B-HEAVY-MISSILE-TROOPS)
+ * of the share of their land among `lost`, their tiles under the blast, so
+ * the land they held before the strike. The ledger of a player is shared
+ * (ADR 0010): this function is the one place missiles change it.
+ */
+export function killTroops(game: Game, lost: ReadonlyMap<number, number>, heavy: boolean): void {
+  const { balance, territory } = game;
+  for (const [owner, tiles] of [...lost].sort((a, b) => a[0] - b[0])) {
+    const player = game.player(owner);
+    if (!player) continue;
+    const share = Math.min(
+      territory.tileCount(owner),
+      mulDiv(tiles, heavy ? balance.heavyMissileTroopsPercent : balance.missileTroopsPercent, 100),
+    );
+    player.troops -= mulDiv(player.troops, share, territory.tileCount(owner));
+  }
+}
+
+/**
  * Missiles (R-BUILD-04, R-BUILD-05, R-UNIT-05, R-UNIT-06). A `missile` order
  * pays for one and launches it from the player's loaded silo closest to the
  * target, which reloads for B-SILO-RELOAD. It flies B-MISSILE-SPEED tiles a
@@ -273,13 +312,13 @@ export function missileTile(game: Game, missile: Missile, tick: number): number 
 export function installMissiles(game: Game): void {
   const { balance, terrain, territory } = game;
   const topology = terrain.topology;
-  const missiles = game.missiles;
+  const missiles = writable(game, "missiles");
+  const fallout = writable(game, "fallout");
 
   game.onOrder(MISSILE_ORDER);
 
   game.onTick(() => {
     const tick = game.tick;
-    const fallout = game.fallout;
     let kept = 0;
     for (const zone of fallout) if (tick < zone.until) fallout[kept++] = zone;
     fallout.length = kept;
@@ -345,7 +384,7 @@ export function installMissiles(game: Game): void {
     });
   }
 
-  function byAirDefense(missile: Missile, at: number): Structure | undefined {
+  function byAirDefense(missile: Missile, at: number): Readonly<Structure> | undefined {
     const radius = airDefenseRadius(game);
     const reach = radius * radius;
     for (const defense of game.structures) {
@@ -379,7 +418,7 @@ export function installMissiles(game: Game): void {
         stopped = roll % 100 < balance.airDefenseChancePercent;
       }
       if (stopped) {
-        defense.reloadAt = game.tick + balance.airDefenseReloadTicks;
+        startReload(game, defense, balance.airDefenseReloadTicks);
         logEvent(game, { tick: game.tick, type: "stopped", a: defense.player, b: missile.player });
         return defense;
       }
@@ -390,35 +429,22 @@ export function installMissiles(game: Game): void {
   function strike(missile: Missile): void {
     const radius = blastRadius(game, missile.size);
     const heavy = missile.size === MissileSize.Heavy;
-    const fallout = heavy ? balance.falloutTicks : balance.lightFalloutTicks;
-    const until = game.tick + 1 + fallout;
+    const lasting = heavy ? balance.falloutTicks : balance.lightFalloutTicks;
+    const until = game.tick + 1 + lasting;
     const lost = new Map<number, number>();
     const disc = tilesInDisc(topology, missile.to, radius);
     for (const tile of disc) {
       if (!terrain.isOwnable(tile)) continue;
-      if (fallout > 0) game.falloutUntil[tile] = Math.max(game.falloutUntil[tile] as number, until);
+      if (lasting > 0) game.falloutUntil[tile] = Math.max(game.falloutUntil[tile] as number, until);
       const owner = territory.ownerOf(tile);
       if (owner === NEUTRAL) continue;
       lost.set(owner, (lost.get(owner) ?? 0) + 1);
     }
-    // Troops first, against the land each player held before the strike.
-    for (const [owner, tiles] of [...lost].sort((a, b) => a[0] - b[0])) {
-      const player = game.player(owner);
-      if (!player) continue;
-      const share = Math.min(
-        territory.tileCount(owner),
-        mulDiv(
-          tiles,
-          heavy ? balance.heavyMissileTroopsPercent : balance.missileTroopsPercent,
-          100,
-        ),
-      );
-      player.troops -= mulDiv(player.troops, share, territory.tileCount(owner));
-    }
+    killTroops(game, lost, heavy);
     for (const tile of disc) {
       if (!terrain.isOwnable(tile)) continue;
       if (territory.ownerOf(tile) !== NEUTRAL) territory.setOwner(tile, NEUTRAL);
     }
-    if (fallout > 0) game.fallout.push({ tile: missile.to, radius, until });
+    if (lasting > 0) fallout.push({ tile: missile.to, radius, until });
   }
 }

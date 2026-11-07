@@ -40,7 +40,7 @@ flowchart TD
 
 The server does not import the engine: it relays orders and never simulates ([ADR 0001](adr/0001-deterministic-lockstep.md)).
 
-`tools/test/boundaries.test.ts` states these rules ([0014](adr/0014-enforced-boundaries.md)). It enforces the package rules and the absence of runtime cycles in every package and app today; the client layer table and owner-only writes are the target. The server may still import `ws` until it moves to `Bun.serve`.
+`tools/test/boundaries.test.ts` states these rules ([0014](adr/0014-enforced-boundaries.md)). It enforces the package rules, the absence of runtime cycles in every package and app, and owner-only writes of the engine's lists today; the client layer table is the target. The server may still import `ws` until it moves to `Bun.serve`.
 
 - The contracts import nothing.
 - The engine imports `@frontfall/contracts` only.
@@ -110,7 +110,7 @@ flowchart LR
 | Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Target                                |
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today                                 |
-| Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Target                                |
+| Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Today                                 |
 | Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Target                                |
 | Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Target                                |
 | App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Target                                |
