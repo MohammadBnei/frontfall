@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { MAP_COLORS, STRUCTURE_COLORS } from "../palette.ts";
+import { MAP_COLORS } from "../palette.ts";
 import { probe } from "../probe.ts";
 import type { CameraView } from "./camera.ts";
 import type { EffectsLayer } from "./effects-layer.ts";
@@ -17,16 +17,20 @@ import type {
   UnitMark,
 } from "./renderer.ts";
 import type * as Territories from "./territory-layer.ts";
+import {
+  MISSILE_CAPACITY,
+  SHIP_CAPACITY,
+  STRUCTURE_CAPACITY,
+  STRUCTURE_TYPES,
+  TRADE_CAPACITY,
+  WARSHIP_CAPACITY,
+  placeMarks,
+  placeOutlined,
+  sortShips,
+  structuresOfType,
+} from "./marks.ts";
 import type { TerritoryLayer } from "./territory-layer.ts";
 import { UnitLayer } from "./unit-layer.ts";
-
-/** Ships at sea at once: B-BOAT-MAX for each of up to 26 players, with room to spare. */
-const SHIP_CAPACITY = 128;
-
-/** Trade ships at sea at once: B-TRADE-MAX for each port of a crowded map. */
-const TRADE_CAPACITY = 512;
-/** Warships at once: B-WARSHIP-MAX for each of up to 64 players. */
-const WARSHIP_CAPACITY = 256;
 
 /**
  * Size of each kind of ship in tiles, and its smallest size on screen in CSS
@@ -47,9 +51,6 @@ export function shipScale(
 ): number {
   return Math.max(1, (size.minPixels * tilesPerPixel) / size.tiles);
 }
-
-/** Missiles in flight at once: one per silo, with room to spare. */
-const MISSILE_CAPACITY = 256;
 
 /**
  * Smallest size of a piece on screen, in CSS pixels, however far the view is
@@ -88,9 +89,6 @@ const COUNT_SHIFT = [0.4, -0.12] as const;
 const COIN_PIXELS = 18;
 /** Zoom must change by this much (a ratio's logarithm) before the groups are worked out again. */
 const REGROUP_STEP = 0.02;
-
-/** Structures drawn at once; each player's land rarely holds more than a few. */
-const STRUCTURE_CAPACITY = 1024;
 
 /** What the map draws pieces with: plain shapes (UnitLayer) or token plates (PieceLayer). */
 interface Marker {
@@ -461,50 +459,32 @@ export class MapView implements Renderer {
 
   /** Ships at sea, replacing the previous ones. */
   setShips(ships: readonly UnitMark[]): void {
-    let transports = 0;
-    let trade = 0;
-    let warships = 0;
-    let missiles = 0;
-    let heavy = 0;
-    const hulls: Record<Hulls.ShipKind, Hulls.Hull[]> = { trade: [], transport: [], warship: [] };
-    for (const ship of ships) {
-      // A ship leaving the sea is not drawn as a plate: it is for the layer that draws hulls.
-      if (ship.state) continue;
-      if (ship.kind === "missile" || ship.kind === "heavyMissile") {
-        // The effects draw the missile itself, once their code is here.
-        if (this.effects?.drawsMissiles) continue;
-      }
-      if (ship.kind === "missile") {
-        if (missiles < MISSILE_CAPACITY) this.missiles.set(missiles++, ship.x, ship.y, ship.color);
-      } else if (ship.kind === "heavyMissile") {
-        if (heavy < MISSILE_CAPACITY) this.heavyMissiles.set(heavy++, ship.x, ship.y, ship.color);
-      } else if (this.hulls) {
-        const kind = ship.kind ?? "transport";
-        hulls[kind].push({
-          kind,
-          x: ship.x,
-          y: ship.y,
-          heading: ship.heading ?? 0,
-          speed: ship.speed ?? 0,
-          color: ship.color,
-          seed: (ship.id ?? 0) % 10,
-          ...(ship.shot ? { flash: 1 - ship.shot.age } : {}),
-        });
-      } else if (ship.kind === "trade") {
-        if (trade < TRADE_CAPACITY) this.tradeShips?.set(trade++, ship.x, ship.y, ship.color);
-      } else if (ship.kind === "warship") {
-        if (warships < WARSHIP_CAPACITY) this.warships?.set(warships++, ship.x, ship.y, ship.color);
-      } else if (transports < SHIP_CAPACITY) {
-        this.ships?.set(transports++, ship.x, ship.y, ship.color);
-      }
+    // The effects draw the missiles themselves, once their code is here.
+    const sorted = sortShips(ships, this.effects?.drawsMissiles ?? false);
+    placeMarks(this.missiles, sorted.missiles, MISSILE_CAPACITY);
+    placeMarks(this.heavyMissiles, sorted.heavyMissiles, MISSILE_CAPACITY);
+    if (this.hulls) {
+      const hull = (ship: UnitMark, kind: Hulls.ShipKind): Hulls.Hull => ({
+        kind,
+        x: ship.x,
+        y: ship.y,
+        heading: ship.heading ?? 0,
+        speed: ship.speed ?? 0,
+        color: ship.color,
+        seed: (ship.id ?? 0) % 10,
+        ...(ship.shot ? { flash: 1 - ship.shot.age } : {}),
+      });
+      // The warships over the transports, and those over the trade ships.
+      this.hulls.setHulls([
+        ...sorted.trade.map((ship) => hull(ship, "trade")),
+        ...sorted.transports.map((ship) => hull(ship, "transport")),
+        ...sorted.warships.map((ship) => hull(ship, "warship")),
+      ]);
+    } else {
+      placeMarks(this.tradeShips, sorted.trade, TRADE_CAPACITY);
+      placeMarks(this.warships, sorted.warships, WARSHIP_CAPACITY);
+      placeMarks(this.ships, sorted.transports, SHIP_CAPACITY);
     }
-    // The warships over the transports, and those over the trade ships.
-    this.hulls?.setHulls([...hulls.trade, ...hulls.transport, ...hulls.warship]);
-    if (this.ships) this.ships.count = transports;
-    if (this.tradeShips) this.tradeShips.count = trade;
-    if (this.warships) this.warships.count = warships;
-    this.missiles.count = missiles;
-    this.heavyMissiles.count = heavy;
     this.effects?.ships(ships, this.clock());
   }
 
@@ -556,17 +536,7 @@ export class MapView implements Renderer {
   private layOut(tilesPerPixel: number): void {
     this.marksChanged = false;
     this.laidOutAt = tilesPerPixel;
-    for (const type of [
-      "city",
-      "palace",
-      "mosque",
-      "fort",
-      "port",
-      "silo",
-      "airDefense",
-      "capital",
-      "landmark",
-    ] as const) {
+    for (const type of STRUCTURE_TYPES) {
       const { outline, fill, size, minPixels } = this.structures[type];
       const kept = isGrouped(type) ? this.grouped[type] : undefined;
       const coins = isGrouped(type) ? this.counts[type] : undefined;
@@ -574,13 +544,7 @@ export class MapView implements Renderer {
       const placed = (structure: StructureMark, shiftX = 0, shiftY = 0): void => {
         if (count >= STRUCTURE_CAPACITY) return;
         if (outline) {
-          outline.set(count, structure.x, structure.y, STRUCTURE_COLORS.outline);
-          fill.set(
-            count,
-            structure.x,
-            structure.y,
-            structure.ready ? STRUCTURE_COLORS.fill : STRUCTURE_COLORS.building,
-          );
+          placeOutlined(outline, fill, count, structure);
         } else {
           fill.set(
             count,
@@ -594,7 +558,7 @@ export class MapView implements Renderer {
         }
         count++;
       };
-      const own = this.marks.filter((structure) => structure.type === type);
+      const own = structuresOfType(this.marks, type);
       if (isGrouped(type) && coins && kept) {
         // Finished pieces of a known owner group; pieces still being built stay one by one.
         const single = own.filter((structure) => !structure.ready || !structure.color);

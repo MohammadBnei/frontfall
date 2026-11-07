@@ -1,9 +1,20 @@
 import * as THREE from "three";
-import { STRUCTURE_COLORS } from "../palette.ts";
 import type { CameraView } from "./camera.ts";
 import { GlobeMarkers } from "./globe-markers.ts";
 import { GLOBE_FOV, globePose, globeRays } from "./globe-projection.ts";
 import { SHIP_SIZES, shipScale } from "./map-view.ts";
+import {
+  MISSILE_CAPACITY,
+  SHIP_CAPACITY,
+  STRUCTURE_CAPACITY,
+  STRUCTURE_TYPES,
+  TRADE_CAPACITY,
+  WARSHIP_CAPACITY,
+  placeMarks,
+  placeOutlinedAll,
+  sortShips,
+  structuresOfType,
+} from "./marks.ts";
 import type {
   FalloutZone,
   Renderer,
@@ -13,18 +24,11 @@ import type {
 } from "./renderer.ts";
 import { TerritoryLayer } from "./territory-layer.ts";
 
-/** Same limits as the flat map's (map-view.ts). */
-const SHIP_CAPACITY = 128;
-const TRADE_CAPACITY = 512;
-/** Warships at once: B-WARSHIP-MAX for each of up to 64 players. */
-const WARSHIP_CAPACITY = 256;
 /** Flashes of shots at once: a muzzle and a target for each of 32 shots. */
 const FLASH_CAPACITY = 64;
 /** The pale rim of a warship and the hot colour of a shot. */
 const HALO_COLOR = "#F4F8FC";
 const SHOT_COLOR = "#FFD27A";
-const STRUCTURE_CAPACITY = 1024;
-const MISSILE_CAPACITY = 256;
 const STRUCTURE_MIN_PIXELS = 9;
 
 /** Space around the planet: the brand's ink, darker than the deep sea. */
@@ -158,41 +162,21 @@ export class GlobeView implements Renderer {
   }
 
   setShips(ships: readonly UnitMark[]): void {
-    let transports = 0;
-    let trade = 0;
-    let warships = 0;
+    const sorted = sortShips(ships);
+    placeMarks(this.ships, sorted.transports, SHIP_CAPACITY);
+    placeMarks(this.tradeShips, sorted.trade, TRADE_CAPACITY);
+    placeMarks(this.warships, sorted.warships, WARSHIP_CAPACITY);
+    placeMarks(this.warshipHalos, sorted.warships, WARSHIP_CAPACITY, HALO_COLOR);
+    placeMarks(this.missiles, sorted.missiles, MISSILE_CAPACITY);
+    placeMarks(this.heavyMissiles, sorted.heavyMissiles, MISSILE_CAPACITY);
     let flashes = 0;
-    let missiles = 0;
-    let heavy = 0;
-    for (const ship of ships) {
-      // A ship leaving the sea is not drawn as a plate: it is for the layer that draws hulls.
-      if (ship.state) continue;
-      if (ship.kind === "missile") {
-        if (missiles < MISSILE_CAPACITY) this.missiles.set(missiles++, ship.x, ship.y, ship.color);
-      } else if (ship.kind === "heavyMissile") {
-        if (heavy < MISSILE_CAPACITY) this.heavyMissiles.set(heavy++, ship.x, ship.y, ship.color);
-      } else if (ship.kind === "trade") {
-        if (trade < TRADE_CAPACITY) this.tradeShips.set(trade++, ship.x, ship.y, ship.color);
-      } else if (ship.kind === "warship") {
-        if (warships < WARSHIP_CAPACITY) {
-          this.warshipHalos.set(warships, ship.x, ship.y, HALO_COLOR);
-          this.warships.set(warships++, ship.x, ship.y, ship.color);
-        }
-        if (ship.shot && flashes + 2 <= FLASH_CAPACITY) {
-          this.flashes.set(flashes++, ship.x, ship.y, SHOT_COLOR);
-          this.flashes.set(flashes++, ship.shot.x, ship.shot.y, SHOT_COLOR);
-        }
-      } else if (transports < SHIP_CAPACITY) {
-        this.ships.set(transports++, ship.x, ship.y, ship.color);
+    for (const ship of sorted.warships) {
+      if (ship.shot && flashes + 2 <= FLASH_CAPACITY) {
+        this.flashes.set(flashes++, ship.x, ship.y, SHOT_COLOR);
+        this.flashes.set(flashes++, ship.shot.x, ship.shot.y, SHOT_COLOR);
       }
     }
-    this.ships.count = transports;
-    this.tradeShips.count = trade;
-    this.warships.count = warships;
-    this.warshipHalos.count = warships;
     this.flashes.count = flashes;
-    this.missiles.count = missiles;
-    this.heavyMissiles.count = heavy;
   }
 
   setFallout(zones: readonly FalloutZone[]): boolean {
@@ -200,32 +184,9 @@ export class GlobeView implements Renderer {
   }
 
   setStructures(structures: readonly StructureMark[]): void {
-    for (const type of [
-      "city",
-      "palace",
-      "mosque",
-      "fort",
-      "port",
-      "silo",
-      "airDefense",
-      "capital",
-      "landmark",
-    ] as const) {
+    for (const type of STRUCTURE_TYPES) {
       const { outline, fill } = this.structures[type];
-      let count = 0;
-      for (const structure of structures) {
-        if (structure.type !== type || count >= STRUCTURE_CAPACITY) continue;
-        outline.set(count, structure.x, structure.y, STRUCTURE_COLORS.outline);
-        fill.set(
-          count,
-          structure.x,
-          structure.y,
-          structure.ready ? STRUCTURE_COLORS.fill : STRUCTURE_COLORS.building,
-        );
-        count++;
-      }
-      outline.count = count;
-      fill.count = count;
+      placeOutlinedAll(outline, fill, structuresOfType(structures, type));
     }
   }
 
