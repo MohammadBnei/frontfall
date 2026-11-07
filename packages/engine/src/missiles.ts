@@ -6,7 +6,7 @@ import { DrawUsage, derivedRandom } from "./random.ts";
 import { shieldedBy } from "./landmarks.ts";
 import { spawnSettings } from "./spawn.ts";
 import type { Topology } from "./topology.ts";
-import { MOSQUE_TRIES, StructureKind, isReady, type Structure } from "./structures.ts";
+import { MOSQUE_TRIES, StructureKind, structureState, type Structure } from "./structures.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /** How strong a missile is: its code in missile orders, never renumbered. */
@@ -109,8 +109,7 @@ function loaded(game: Game, structure: Structure, player: number): boolean {
   return (
     structure.kind === StructureKind.Silo &&
     structure.player === player &&
-    isReady(game, structure) &&
-    game.tick >= structure.reloadAt
+    structureState(game, structure) === "active"
   );
 }
 
@@ -354,8 +353,7 @@ export function installMissiles(game: Game): void {
         (defense.kind !== StructureKind.AirDefense && defense.kind !== StructureKind.Mosque) ||
         // Burnt or taken earlier in this tick, before structures change hands.
         territory.ownerOf(defense.tile) !== defense.player ||
-        !isReady(game, defense) ||
-        game.tick < defense.reloadAt ||
+        structureState(game, defense) !== "active" ||
         defense.player === missile.player ||
         isAllied(game, defense.player, missile.player) ||
         missile.tried.includes(defense.id) ||

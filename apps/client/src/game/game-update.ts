@@ -3,16 +3,15 @@ import {
   blastRadius,
   StructureKind,
   allianceOf,
+  allianceState,
   alliesOf,
   truceMatesOf,
   tributePrice,
   atWar,
-  canRenew,
   cityLimit,
   capitalThreat,
   cityShare,
   structureCount,
-  isReady,
   launchSilo,
   missileCost,
   missileTile,
@@ -21,6 +20,7 @@ import {
   quickAllowedAt,
   sameTeam,
   structureCost,
+  structureState,
   troopGrowth,
   warshipCost,
   type Game,
@@ -56,7 +56,7 @@ function diplomacy(game: Game, you: number): DiplomacyView {
       return {
         id,
         ticksLeft: until - tick,
-        renewable: alliance !== undefined && canRenew(game, alliance),
+        renewable: alliance !== undefined && allianceState(game, alliance) === "renewable",
         renewing:
           alliance !== undefined && (you === alliance.a ? alliance.renewA : alliance.renewB),
       };
@@ -230,7 +230,7 @@ export function gameUpdate(game: Game, you: number, labelSpace: LabelSpace): Gam
       player: structure.player,
       type: STRUCTURE_TYPES[structure.kind],
       tile: structure.tile,
-      ready: isReady(game, structure),
+      ready: structureState(game, structure) !== "building",
     })),
     build: {
       cityCost: structureCost(game, you, StructureKind.City),

@@ -17,6 +17,21 @@ export interface Alliance {
   truce: boolean;
 }
 
+/**
+ * Where an alliance, or a truce, is in its life, from its `until` alone:
+ * running, then renewable in its last B-ALLIANCE-RENEWAL (R-DIPLO-03), then
+ * ended from `until` on (R-DIPLO-02, R-DIPLO-10). Nothing of it is stored.
+ * Queries treat an ended alliance as gone at once; the list drops it at the
+ * end of the tick.
+ */
+export type AllianceState = "running" | "renewable" | "ended";
+
+export function allianceState(game: Game, alliance: Alliance): AllianceState {
+  const left = alliance.until - game.tick;
+  if (left <= 0) return "ended";
+  return left <= game.balance.allianceRenewTicks ? "renewable" : "running";
+}
+
 /** An alliance asked for and not answered yet (R-DIPLO-01). */
 export interface AllianceRequest {
   readonly from: number;
@@ -138,9 +153,10 @@ export function allianceOf(game: Game, a: number, b: number): Alliance | undefin
   const low = Math.min(a, b);
   const high = Math.max(a, b);
   // A plain loop: border scans ask this about every tile next to a player's land.
-  const tick = game.tick;
   for (const alliance of game.alliances) {
-    if (alliance.a === low && alliance.b === high && tick < alliance.until) return alliance;
+    if (alliance.a === low && alliance.b === high && allianceState(game, alliance) !== "ended") {
+      return alliance;
+    }
   }
   return undefined;
 }
@@ -183,10 +199,10 @@ export function truceMatesOf(game: Game, player: number): number[] {
 
 function partnersOf(game: Game, player: number, truces: boolean): number[] {
   const allies: number[] = [];
-  for (const { a, b, until, truce } of game.alliances) {
-    if (game.tick >= until || truce !== truces) continue;
-    if (a === player) allies.push(b);
-    else if (b === player) allies.push(a);
+  for (const alliance of game.alliances) {
+    if (alliance.truce !== truces || allianceState(game, alliance) === "ended") continue;
+    if (alliance.a === player) allies.push(alliance.b);
+    else if (alliance.b === player) allies.push(alliance.a);
   }
   return allies.sort((x, y) => x - y);
 }
@@ -204,7 +220,7 @@ export function isTraitor(game: Game, player: Player): boolean {
 
 /** Whether a renewal may be asked for now: in the last part of the alliance (R-DIPLO-03). */
 export function canRenew(game: Game, alliance: Alliance): boolean {
-  return alliance.until - game.tick <= game.balance.allianceRenewTicks;
+  return allianceState(game, alliance) !== "running";
 }
 
 /** Why `player` cannot send `ally` to `target` now, or undefined. */
@@ -220,7 +236,9 @@ export function allyError(game: Game, player: Player, target: number): string | 
   if (alliance?.truce) return DiplomacyError.Truce;
   if (alliance) {
     const voted = player.id === alliance.a ? alliance.renewA : alliance.renewB;
-    return canRenew(game, alliance) && !voted ? undefined : DiplomacyError.Renewal;
+    return allianceState(game, alliance) === "renewable" && !voted
+      ? undefined
+      : DiplomacyError.Renewal;
   }
   // Answering the other side's request is always allowed.
   if (requestBetween(game, target, player.id)) return undefined;
@@ -435,10 +453,14 @@ export function installDiplomacy(game: Game): void {
     );
     for (const alliance of game.alliances) {
       // An alliance with a player who fell ends with them, unremarked.
-      if (tick < alliance.until || !alive(alliance.a) || !alive(alliance.b)) continue;
+      const ended = allianceState(game, alliance) === "ended";
+      if (!ended || !alive(alliance.a) || !alive(alliance.b)) continue;
       logEvent(game, { tick, type: "ended", a: alliance.a, b: alliance.b });
     }
-    removeWhere(game.alliances, (a) => tick >= a.until || !alive(a.a) || !alive(a.b));
+    removeWhere(
+      game.alliances,
+      (a) => allianceState(game, a) === "ended" || !alive(a.a) || !alive(a.b),
+    );
     removeWhere(game.requestCooldowns, (c) => tick >= c.until);
   });
 }

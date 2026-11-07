@@ -42,6 +42,7 @@ export { STANDARD_RULES, assertOrderRules, createGame, type Rule } from "./creat
 export {
   DiplomacyError,
   allianceOf,
+  allianceState,
   alliesOf,
   truceMatesOf,
   tributeError,
@@ -59,6 +60,7 @@ export {
   sameTeam,
   type Alliance,
   type AllianceRequest,
+  type AllianceState,
   type DiplomacyEvent,
   type Embargo,
   type RequestCooldown,
@@ -180,8 +182,10 @@ export {
   buildTime,
   structureCost,
   structureCount,
+  structureState,
   workingCities,
   type Structure,
+  type StructureState,
 } from "./structures.ts";
 export {
   MissileError,
@@ -208,8 +212,10 @@ export {
   patrolRadius,
   warshipCost,
   warshipError,
+  warshipState,
   type Fight,
   type Warship,
+  type WarshipState,
 } from "./warships.ts";
 export { BoundedFloodFill } from "./territory/bounded-flood-fill.ts";
 export { MAX_PLAYER_ID, NEUTRAL, TerritoryMap } from "./territory/territory-map.ts";

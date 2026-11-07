@@ -1,7 +1,14 @@
 import { captureCost } from "../attacks.ts";
 import { soldiers } from "../economy.ts";
 import { reachableCoasts } from "../boats.ts";
-import { allianceOf, alliesOf, canRenew, isAllied, isTraitor, sameTeam } from "../diplomacy.ts";
+import {
+  allianceOf,
+  allianceState,
+  alliesOf,
+  isAllied,
+  isTraitor,
+  sameTeam,
+} from "../diplomacy.ts";
 import { Disable } from "@frontfall/contracts";
 import type { Game, Player } from "../game.ts";
 import { isqrt, mulDiv } from "../integer-math.ts";
@@ -330,7 +337,9 @@ export function answerAlliances(
   }
   for (const ally of alliesOf(game, bot.id)) {
     const alliance = allianceOf(game, bot.id, ally);
-    if (!alliance || !canRenew(game, alliance) || !worth(ally)) continue;
+    if (alliance === undefined || allianceState(game, alliance) !== "renewable" || !worth(ally)) {
+      continue;
+    }
     // Its vote stands until the other side's comes.
     if (bot.id === alliance.a ? alliance.renewA : alliance.renewB) continue;
     game.apply(bot.id, { type: "ally", target: ally });

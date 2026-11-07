@@ -56,6 +56,20 @@ export function isReady(game: Game, structure: Structure): boolean {
   return game.tick >= structure.readyAt;
 }
 
+/**
+ * Where a structure is in its life, from the ticks it already holds: being
+ * built until `readyAt` (R-BUILD-01), then reloading until `reloadAt` after a
+ * silo launched or an air defense stopped a missile (R-BUILD-04, R-BUILD-05),
+ * and active otherwise. Nothing of it is stored. A structure on land gone
+ * back to nobody, or demolished, is no longer in the list.
+ */
+export type StructureState = "building" | "reloading" | "active";
+
+export function structureState(game: Game, structure: Structure): StructureState {
+  if (!isReady(game, structure)) return "building";
+  return game.tick < structure.reloadAt ? "reloading" : "active";
+}
+
 export function structureAt(game: Game, tile: number): Structure | undefined {
   return game.structures.find((structure) => structure.tile === tile);
 }

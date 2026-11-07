@@ -109,7 +109,7 @@ flowchart LR
 | Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Today                                 |
 | Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Target                                |
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
-| Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Target                                |
+| Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Today                                 |
 | Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Target                                |
 | Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Target                                |
 | Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Target                                |

@@ -5,7 +5,7 @@ import { mulDiv } from "./integer-math.ts";
 import { ANY_PHASE, defineOrder, refusalOf, tileError } from "./order-rules.ts";
 import { DrawUsage, derivedRandom } from "./random.ts";
 import { spawnSettings } from "./spawn.ts";
-import { StructureKind, isReady, structureAt } from "./structures.ts";
+import { StructureKind, structureAt, structureState } from "./structures.ts";
 import { TileKind } from "./terrain.ts";
 import { tradeGold } from "./trade.ts";
 
@@ -30,6 +30,20 @@ export interface Warship {
    */
   firedAt?: number;
   aim?: number;
+}
+
+/**
+ * Where a warship is in its life (R-UNIT-04), from what it already holds:
+ * sunk once its health is gone or its owner has fallen, idle once it has
+ * reached the end of its path (it draws its next point on its next move),
+ * patrolling while it sails. Nothing of it is stored; sunk ships leave the
+ * list at the end of the tick.
+ */
+export type WarshipState = "sunk" | "idle" | "patrolling";
+
+export function warshipState(game: Game, ship: Warship): WarshipState {
+  if (ship.health <= 0 || game.player(ship.player)?.alive !== true) return "sunk";
+  return ship.step >= ship.path.length ? "idle" : "patrolling";
 }
 
 /** Two players at war until `until` (R-UNIT-04): `a` is always the lower id. */
@@ -97,7 +111,7 @@ function warshipPlan(game: Game, player: Player, port: number): WarshipError | W
   if (
     structure?.kind !== StructureKind.Port ||
     structure.player !== player.id ||
-    !isReady(game, structure)
+    structureState(game, structure) === "building"
   ) {
     return WarshipError.Port;
   }
@@ -130,7 +144,9 @@ interface PatrolPlan {
 function patrolPlan(game: Game, player: Player, ship: number, tile: number): string | PatrolPlan {
   if (game.phase !== "play") return WarshipError.Early;
   const warship = game.warships.find((w) => w.id === ship);
-  if (warship?.player !== player.id) return WarshipError.Ship;
+  if (warship?.player !== player.id || warshipState(game, warship) === "sunk") {
+    return WarshipError.Ship;
+  }
   if (!Number.isInteger(tile) || tile < 0 || tile >= game.terrain.topology.size) {
     return "the tile is outside the map";
   }
@@ -202,12 +218,12 @@ export function installWarships(game: Game): void {
     recordFights();
     let kept = 0;
     for (const ship of ships) {
-      if (ship.health > 0 && game.player(ship.player)?.alive) ships[kept++] = ship;
+      if (warshipState(game, ship) !== "sunk") ships[kept++] = ship;
     }
     ships.length = kept;
     // In age order: a warship sunk earlier in the tick does nothing more.
     for (const ship of ships) {
-      if (ship.health <= 0) continue;
+      if (warshipState(game, ship) === "sunk") continue;
       sail(ship);
       // A capture takes the turn of a shot.
       if (tick >= ship.reloadAt && (capture(ship) || fire(ship))) {
@@ -215,7 +231,7 @@ export function installWarships(game: Game): void {
       }
     }
     kept = 0;
-    for (const ship of ships) if (ship.health > 0) ships[kept++] = ship;
+    for (const ship of ships) if (warshipState(game, ship) !== "sunk") ships[kept++] = ship;
     ships.length = kept;
   });
 
@@ -240,7 +256,7 @@ export function installWarships(game: Game): void {
   }
 
   function sail(ship: Warship): void {
-    if (ship.step >= ship.path.length) {
+    if (warshipState(game, ship) === "idle") {
       const area = search.area(ship.patrol, patrolRadius(game));
       const draw = derivedRandom(game.seed, game.tick, ship.id, DrawUsage.WarshipPatrol);
       const target = area[draw % area.length] as number;
@@ -294,7 +310,7 @@ export function installWarships(game: Game): void {
     let best: Warship | undefined;
     let bestDistance = 0;
     for (const other of ships) {
-      if (other.health <= 0 || other.player === ship.player) continue;
+      if (other.player === ship.player || warshipState(game, other) === "sunk") continue;
       const distance = topology.distance(ship.tile, other.tile);
       if (distance > balance.warshipRange || !atWar(game, ship.player, other.player)) continue;
       if (!best || distance < bestDistance) {
