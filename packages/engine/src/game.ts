@@ -26,6 +26,7 @@ import { eraseRule, planOrder, type OrderRule } from "./order-rules.ts";
 import { NO_OPERATOR, OPERATOR_FACTOR, leftOut, ruleBits, type OperatorBonuses } from "./modes.ts";
 import { Random } from "./random.ts";
 import type { SnapshotReader, SnapshotWriter } from "./snapshot-bytes.ts";
+import { FNV_OFFSET, FNV_PRIME, mix, mixUnit, mixWord } from "./state/fnv.ts";
 import { newLists } from "./state/lists.ts";
 import type { Structure } from "./structures.ts";
 import type { Terrain } from "./terrain.ts";
@@ -381,13 +382,13 @@ export class Game {
     // The running hash stays in a local rather than a variable captured by
     // closures, which the loop over every tile of the map reads and writes
     // far faster, and no array is built per entity.
-    let hash = 0x811c9dc5;
+    let hash = FNV_OFFSET;
     hash = mix(hash, this.currentTick);
     hash = mixWord(hash, this.balanceDigest);
     for (const word of this.random.state()) hash = mix(hash, word);
     const owners = this.territory.owners;
     for (let tile = 0; tile < owners.length; tile++) {
-      hash = Math.imul(hash ^ (owners[tile] as number), 0x01000193);
+      hash = Math.imul(hash ^ (owners[tile] as number), FNV_PRIME);
     }
     for (const p of this.sortedPlayers) {
       hash = mix(hash, p.id);
@@ -591,36 +592,27 @@ export class Game {
   }
 
   private digestSetup(): number {
-    let hash = 0x811c9dc5;
-    const mix = (value: number): void => {
-      for (const word of [value >>> 0, Math.floor(value / 2 ** 32) >>> 0]) {
-        for (let shift = 0; shift < 32; shift += 8) {
-          hash = Math.imul(hash ^ ((word >>> shift) & 0xff), 0x01000193);
-        }
-      }
-    };
-    mix(this.seed);
-    mix(this.balanceDigest);
+    let hash = FNV_OFFSET;
+    hash = mix(hash, this.seed);
+    hash = mix(hash, this.balanceDigest);
     const { topology, kinds } = this.terrain;
-    mix(topology.width);
-    mix(topology.height);
-    for (let tile = 0; tile < kinds.length; tile++) {
-      hash = Math.imul(hash ^ (kinds[tile] as number), 0x01000193);
-    }
+    hash = mix(hash, topology.width);
+    hash = mix(hash, topology.height);
+    for (let tile = 0; tile < kinds.length; tile++) hash = mixUnit(hash, kinds[tile] as number);
     for (const p of this.sortedPlayers) {
-      mix(p.id);
-      mix(p.home ?? -1);
-      mix(p.team);
-      mix(p.name.length);
-      for (let i = 0; i < p.name.length; i++) mix(p.name.charCodeAt(i));
+      hash = mix(hash, p.id);
+      hash = mix(hash, p.home ?? -1);
+      hash = mix(hash, p.team);
+      hash = mix(hash, p.name.length);
+      for (let i = 0; i < p.name.length; i++) hash = mix(hash, p.name.charCodeAt(i));
     }
-    mix(this.teams);
-    mix(this.disabled);
-    if (ruleBits(this.rules) !== 0) mix(ruleBits(this.rules));
+    hash = mix(hash, this.teams);
+    hash = mix(hash, this.disabled);
+    if (ruleBits(this.rules) !== 0) hash = mix(hash, ruleBits(this.rules));
     if (this.operator.bonuses !== 0) {
-      mix(OPERATOR_TAG);
-      mix(this.operator.player);
-      mix(this.operator.bonuses);
+      hash = mix(hash, OPERATOR_TAG);
+      hash = mix(hash, this.operator.player);
+      hash = mix(hash, this.operator.bonuses);
     }
     return hash >>> 0;
   }
@@ -690,40 +682,23 @@ export class Game {
   }
 }
 
-/** One FNV-1a round per byte of a 32-bit word, lowest byte first. */
-function mixWord(hash: number, word: number): number {
-  hash = Math.imul(hash ^ (word & 0xff), 0x01000193);
-  hash = Math.imul(hash ^ ((word >>> 8) & 0xff), 0x01000193);
-  hash = Math.imul(hash ^ ((word >>> 16) & 0xff), 0x01000193);
-  return Math.imul(hash ^ (word >>> 24), 0x01000193);
-}
-
-/** Feeds a value as two 32-bit halves, low then high, so counts above 2^32 are not truncated. */
-function mix(hash: number, value: number): number {
-  return mixWord(mixWord(hash, value >>> 0), Math.floor(value / 2 ** 32) >>> 0);
-}
-
 /**
  * FNV-1a over the balance values, by key name, so the order fields were
  * written in does not matter. The values of a special rule count only in a
  * game played with it, so other games hash as they did before it existed.
  */
 function digestBalance(balance: Balance, rules: GameRules, landmarks: boolean): number {
-  let digest = 0x811c9dc5;
+  let digest = FNV_OFFSET;
   const record = balance as unknown as Record<string, number | readonly number[]>;
   for (const key of Object.keys(record).sort()) {
     if (!rules.capitals && key.startsWith("capital")) continue;
     // Likewise landmarks (R-LAND) count only on a map that has some.
     if (!landmarks && key.startsWith("landmark")) continue;
-    for (let i = 0; i < key.length; i++) digest = Math.imul(digest ^ key.charCodeAt(i), 0x01000193);
+    for (let i = 0; i < key.length; i++) digest = mixUnit(digest, key.charCodeAt(i));
     const value = record[key];
+    // Halves, like the state hash: balance values are safe integers.
     for (const number of typeof value === "number" ? [value] : (value ?? [])) {
-      // Halves, like the state hash: balance values are safe integers.
-      for (const word of [number >>> 0, Math.floor(number / 2 ** 32) >>> 0]) {
-        for (let shift = 0; shift < 32; shift += 8) {
-          digest = Math.imul(digest ^ ((word >>> shift) & 0xff), 0x01000193);
-        }
-      }
+      digest = mix(digest, number);
     }
   }
   return digest >>> 0;

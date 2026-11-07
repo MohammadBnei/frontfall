@@ -222,8 +222,16 @@ describe("package rules (ADR 0014)", () => {
 
 /** Where the engine's lists are declared, with their owner modules in the comment of each field. */
 const LISTS_FILE = "packages/engine/src/state/lists.ts";
-/** Modules that write every list: the snapshot loader, and the file that hands out the lists. */
-const WRITE_ANY = ["packages/engine/src/snapshot.ts", LISTS_FILE];
+/**
+ * Modules that write every list: the snapshot loader with the record codecs
+ * it reads entities by, and the file that hands out the lists.
+ */
+const WRITE_ANY = [
+  "packages/engine/src/snapshot.ts",
+  "packages/engine/src/state/codec.ts",
+  "packages/engine/src/state/records.ts",
+  LISTS_FILE,
+];
 
 interface OwnedList {
   readonly name: string;
@@ -264,9 +272,9 @@ function ownedLists(source: string): OwnedList[] {
 }
 
 /**
- * ADR 0010: who writes the engine's lists. In each file, a call of
- * `writable(game, "list")` must name its list with a string and be made in
- * an owner of that list; and an entity type of a list (`Attack`, `Alliance`
+ * ADR 0010: who writes the engine's lists. In each file but those of
+ * `WRITE_ANY`, a call of `writable(game, "list")` must name its list with a
+ * string and be made in an owner of that list; and an entity type of a list (`Attack`, `Alliance`
  * and the others) may be named outside its owners only as `Readonly<T>`,
  * never bare nor in a cast, so that no other module writes an entity it reads.
  */
@@ -291,8 +299,10 @@ function ownerViolations(
       ) {
         const name = node.arguments[1];
         const list = name && ts.isStringLiteral(name) ? byName.get(name.text) : undefined;
-        if (!list) found.push(`${at(node)} writes a list it does not name`);
-        else if (!owns(list)) {
+        // The snapshot loader walks every list by name.
+        if (!list && !WRITE_ANY.includes(path)) {
+          found.push(`${at(node)} writes a list it does not name`);
+        } else if (list && !owns(list)) {
           found.push(`${at(node)} writes ${list.name}, owned by ${list.owners.join(", ")}`);
         }
       }

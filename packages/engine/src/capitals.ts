@@ -2,7 +2,9 @@ import { isAllied, logEvent } from "./diplomacy.ts";
 import type { Game, Player } from "./game.ts";
 import { mulDiv, percentOf } from "./integer-math.ts";
 import { spawnSettings } from "./spawn.ts";
+import { readList, writeList } from "./state/codec.ts";
 import { writable } from "./state/lists.ts";
+import { CAPITAL_FALL_RECORD } from "./state/records.ts";
 import { NEUTRAL } from "./territory/territory-map.ts";
 
 /**
@@ -124,17 +126,14 @@ export function installCapitals(game: Game): void {
   game.persist("capitals", {
     save(out) {
       for (const player of game.players()) out.int(player.capital ?? -1);
-      out.uint(falls.length);
-      for (const f of falls) for (const value of [f.tick, f.player, f.by, f.tile]) out.uint(value);
+      writeList(out, CAPITAL_FALL_RECORD, falls, game);
     },
     load(from) {
       for (const player of game.players()) {
         const tile = from.int();
         player.capital = tile < 0 ? undefined : tile;
       }
-      for (let n = from.count(); n > 0; n--) {
-        falls.push({ tick: from.uint(), player: from.uint(), by: from.uint(), tile: from.uint() });
-      }
+      readList(from, CAPITAL_FALL_RECORD, falls, game);
     },
   });
 

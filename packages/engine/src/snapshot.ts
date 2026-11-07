@@ -1,10 +1,31 @@
-import { DOCTRINE_COUNT } from "./doctrines.ts";
 import type { Game } from "./game.ts";
-import type { MissileSize } from "./missiles.ts";
-import { packRoute, unpackRoute } from "./sea-routes.ts";
 import { SnapshotError, SnapshotReader, SnapshotWriter, checksum } from "./snapshot-bytes.ts";
-import { writable } from "./state/lists.ts";
-import type { StructureKind } from "./structures.ts";
+import {
+  optional,
+  readInto,
+  readList,
+  tile,
+  writeList,
+  writeRecord,
+  type Codec,
+} from "./state/codec.ts";
+import { writable, type GameLists } from "./state/lists.ts";
+import {
+  ALLIANCE_RECORD,
+  ALLIANCE_REQUEST_RECORD,
+  ATTACK_RECORD,
+  BOAT_RECORD,
+  EMBARGO_RECORD,
+  FALLOUT_RECORD,
+  FIGHT_RECORD,
+  MISSILE_RECORD,
+  PLAYER_RECORD,
+  QUICK_COOLDOWN_RECORD,
+  REQUEST_COOLDOWN_RECORD,
+  STRUCTURE_RECORD,
+  TRADE_SHIP_RECORD,
+  WARSHIP_RECORD,
+} from "./state/records.ts";
 
 /** Version of the snapshot format of docs/engine.md; a reader refuses any other. */
 export const SNAPSHOT_FORMAT = 5;
@@ -113,19 +134,56 @@ function header(from: SnapshotReader): SnapshotHeader | undefined {
   return { format, build, setup, tick, hash: from.word(), check: from.word() };
 }
 
+/** The game's own counters of ids, which come before the list they number. */
+type NextId =
+  | "nextAttackId"
+  | "nextBoatId"
+  | "nextStructureId"
+  | "nextTradeShipId"
+  | "nextWarshipId"
+  | "nextMissileId";
+
+interface ListLayout {
+  readonly list: keyof GameLists;
+  /** The codec of the list's records, which `layout` matched to the list. */
+  readonly codec: Codec<object>;
+  readonly next?: NextId;
+}
+
+function layout<K extends keyof GameLists>(
+  list: K,
+  codec: Codec<GameLists[K][number]>,
+  next?: NextId,
+): ListLayout {
+  const erased = codec as unknown as Codec<object>;
+  return next === undefined ? { list, codec: erased } : { list, codec: erased, next };
+}
+
+/**
+ * The entity lists in the order a snapshot holds them, each behind the
+ * counter of its ids when it has one. Their records follow their codecs
+ * (state/records.ts).
+ */
+const LISTS: readonly ListLayout[] = [
+  layout("attacks", ATTACK_RECORD, "nextAttackId"),
+  layout("boats", BOAT_RECORD, "nextBoatId"),
+  layout("structures", STRUCTURE_RECORD, "nextStructureId"),
+  layout("tradeShips", TRADE_SHIP_RECORD, "nextTradeShipId"),
+  layout("warships", WARSHIP_RECORD, "nextWarshipId"),
+  layout("missiles", MISSILE_RECORD, "nextMissileId"),
+  layout("fallout", FALLOUT_RECORD),
+  layout("fights", FIGHT_RECORD),
+  layout("alliances", ALLIANCE_RECORD),
+  layout("allianceRequests", ALLIANCE_REQUEST_RECORD),
+  layout("requestCooldowns", REQUEST_COOLDOWN_RECORD),
+  layout("embargoes", EMBARGO_RECORD),
+  layout("quickCooldowns", QUICK_COOLDOWN_RECORD),
+];
+
 function writeState(game: Game, out: SnapshotWriter): void {
   // As they are: the generator keeps some words signed, and the state hash sees the difference.
   for (const word of game.random.state()) out.int(word);
-  for (const p of game.players()) {
-    out.int(p.troops);
-    out.int(p.gold);
-    out.int(p.goldRemainder);
-    out.uint(p.workShare);
-    out.uint(p.alive ? 1 : 0);
-    out.int(p.start ?? -1);
-    out.uint(p.traitorUntil);
-    if (game.rules.doctrines) out.uint(p.doctrine);
-  }
+  for (const p of game.players()) writeRecord(out, PLAYER_RECORD, p, game);
 
   const { territory } = game;
   writeRuns(out, territory.owners);
@@ -136,74 +194,10 @@ function writeState(game: Game, out: SnapshotWriter): void {
   }
   writeRuns(out, game.falloutUntil);
 
-  out.uint(game.nextAttackId);
-  out.uint(game.attacks.length);
-  for (const a of game.attacks) {
-    for (const value of [a.id, a.player, a.target, a.aim, a.troops]) out.uint(value);
-    if (game.rules.collapsingFronts) out.uint(a.pressure);
+  for (const { list, codec, next } of LISTS) {
+    if (next !== undefined) out.uint(game[next]);
+    writeList(out, codec, game[list] as readonly object[], game);
   }
-  out.uint(game.nextBoatId);
-  out.uint(game.boats.length);
-  for (const b of game.boats) {
-    for (const value of [b.id, b.player, b.target, b.troops, b.step]) out.uint(value);
-    out.path(b.path);
-  }
-  out.uint(game.nextStructureId);
-  out.uint(game.structures.length);
-  for (const s of game.structures) {
-    for (const value of [s.id, s.player, s.kind, s.tile, s.readyAt, s.reloadAt]) out.uint(value);
-  }
-  out.uint(game.nextTradeShipId);
-  out.uint(game.tradeShips.length);
-  for (const t of game.tradeShips) {
-    for (const value of [t.id, t.player, t.port, t.from, t.to, t.step]) out.uint(value);
-    // A trade ship's route can cross the whole sea, thousands of tiles: packed, two bits a tile.
-    const route = packRoute(game.terrain.topology, t.path);
-    out.uint(route.length);
-    if (route.length > 0) {
-      out.uint(route.first);
-      out.blob(route.moves);
-    }
-  }
-  out.uint(game.nextWarshipId);
-  out.uint(game.warships.length);
-  for (const w of game.warships) {
-    for (const value of [w.id, w.player, w.tile, w.health, w.patrol, w.step, w.reloadAt]) {
-      out.uint(value);
-    }
-    out.path(w.path);
-  }
-  out.uint(game.nextMissileId);
-  out.uint(game.missiles.length);
-  for (const m of game.missiles) {
-    for (const value of [m.id, m.player, m.size, m.from, m.to, m.launchedAt, m.arrivesAt]) {
-      out.uint(value);
-    }
-    out.uint(m.tried.length);
-    for (const id of m.tried) out.uint(id);
-  }
-  out.uint(game.fallout.length);
-  for (const f of game.fallout) for (const value of [f.tile, f.radius, f.until]) out.uint(value);
-  out.uint(game.fights.length);
-  for (const f of game.fights) for (const value of [f.a, f.b, f.until]) out.uint(value);
-  out.uint(game.alliances.length);
-  for (const a of game.alliances) {
-    for (const value of [a.a, a.b, a.until, a.renewA ? 1 : 0, a.renewB ? 1 : 0, a.truce ? 1 : 0]) {
-      out.uint(value);
-    }
-  }
-  out.uint(game.allianceRequests.length);
-  for (const r of game.allianceRequests) {
-    for (const value of [r.from, r.to, r.expiresAt]) out.uint(value);
-  }
-  out.uint(game.requestCooldowns.length);
-  for (const c of game.requestCooldowns)
-    for (const value of [c.from, c.to, c.until]) out.uint(value);
-  out.uint(game.embargoes.length);
-  for (const e of game.embargoes)
-    for (const value of [e.from, e.to, e.since, e.until]) out.uint(value);
-  out.uint(game.quickCooldowns.length);
-  for (const c of game.quickCooldowns) for (const value of [c.player, c.until]) out.uint(value);
   out.int(game.winner ?? -1);
   out.int(game.winningTeam ?? -1);
   out.int(game.decidedAt ?? -1);
@@ -219,46 +213,8 @@ function writeState(game: Game, out: SnapshotWriter): void {
 }
 
 function readState(game: Game, tick: number, from: SnapshotReader): void {
-  // The loader is the one module besides their owners that writes the lists (ADR 0010).
-  const lists = {
-    attacks: writable(game, "attacks"),
-    boats: writable(game, "boats"),
-    structures: writable(game, "structures"),
-    tradeShips: writable(game, "tradeShips"),
-    warships: writable(game, "warships"),
-    missiles: writable(game, "missiles"),
-    fallout: writable(game, "fallout"),
-    fights: writable(game, "fights"),
-    alliances: writable(game, "alliances"),
-    allianceRequests: writable(game, "allianceRequests"),
-    requestCooldowns: writable(game, "requestCooldowns"),
-    embargoes: writable(game, "embargoes"),
-    quickCooldowns: writable(game, "quickCooldowns"),
-  };
   const size = game.terrain.topology.size;
   const { territory } = game;
-  const tile = (): number => from.below(size, "tile");
-  const player = (): number => from.below(territory.maxPlayers + 1, "player");
-  const id = (): number => from.uint();
-  const optional = (): number | undefined => {
-    const value = from.int();
-    if (value < -1) throw new SnapshotError("value out of range");
-    return value === -1 ? undefined : value;
-  };
-
-  const tradeRoute = (): Int32Array => {
-    const length = from.below(size + 1, "path length");
-    if (length === 0) return new Int32Array(0);
-    const first = tile();
-    const moves = from.blob();
-    if (moves.length !== Math.ceil((length - 1) / 4))
-      throw new SnapshotError("trade route of another length");
-    try {
-      return unpackRoute(game.terrain.topology, { first, length, moves });
-    } catch {
-      throw new SnapshotError("trade route off the map");
-    }
-  };
 
   game.restoreTick(tick);
   const word = (): number => {
@@ -268,133 +224,27 @@ function readState(game: Game, tick: number, from: SnapshotReader): void {
     return value;
   };
   game.random.restore([word(), word(), word(), word()]);
-  for (const p of game.players()) {
-    p.troops = from.int();
-    p.gold = from.int();
-    p.goldRemainder = from.int();
-    p.workShare = from.below(game.balance.workMaxPercent + 1, "work share");
-    p.alive = from.below(2, "alive") === 1;
-    const start = optional();
-    if (start !== undefined && start >= size) throw new SnapshotError("start out of range");
-    p.start = start;
-    p.traitorUntil = from.uint();
-    if (game.rules.doctrines) p.doctrine = from.below(DOCTRINE_COUNT, "doctrine");
-  }
+  for (const p of game.players()) readInto(from, PLAYER_RECORD, p, game);
 
   const owners = new Uint16Array(size);
   readRuns(from, owners, territory.maxPlayers + 1);
   const borders: Int32Array[] = [];
   for (let p = 1; p <= territory.maxPlayers; p++) {
     const list = new Int32Array(from.count());
-    for (let i = 0; i < list.length; i++) list[i] = tile();
+    for (let i = 0; i < list.length; i++) list[i] = tile.read(from, game);
     borders.push(list);
   }
   territory.restore(owners, borders);
   readRuns(from, game.falloutUntil, 2 ** 32);
 
-  game.nextAttackId = id();
-  for (let n = from.count(); n > 0; n--) {
-    const [attackId, owner, target, aim, troops] = [id(), player(), player(), tile(), id()];
-    const pressure = game.rules.collapsingFronts ? id() : 0;
-    lists.attacks.push({ id: attackId, player: owner, target, aim, troops, pressure });
+  // The loader is the one module besides their owners that writes the lists (ADR 0010).
+  for (const { list, codec, next } of LISTS) {
+    if (next !== undefined) game[next] = from.uint();
+    readList(from, codec, writable(game, list) as object[], game);
   }
-  game.nextBoatId = id();
-  for (let n = from.count(); n > 0; n--) {
-    const [boatId, owner, target, troops, step] = [id(), player(), tile(), id(), id()];
-    lists.boats.push({ id: boatId, player: owner, target, troops, step, path: from.path(size) });
-  }
-  game.nextStructureId = id();
-  for (let n = from.count(); n > 0; n--) {
-    lists.structures.push({
-      id: id(),
-      player: player(),
-      kind: from.below(7, "structure kind") as StructureKind,
-      tile: tile(),
-      readyAt: id(),
-      reloadAt: id(),
-    });
-  }
-  game.nextTradeShipId = id();
-  for (let n = from.count(); n > 0; n--) {
-    const [shipId, owner, port, start, end, step] = [id(), player(), id(), tile(), tile(), id()];
-    lists.tradeShips.push({
-      id: shipId,
-      player: owner,
-      port,
-      from: start,
-      to: end,
-      step,
-      path: tradeRoute(),
-    });
-  }
-  game.nextWarshipId = id();
-  for (let n = from.count(); n > 0; n--) {
-    const [shipId, owner, at, health, patrol, step, reloadAt] = [
-      id(),
-      player(),
-      tile(),
-      id(),
-      tile(),
-      id(),
-      id(),
-    ];
-    lists.warships.push({
-      id: shipId,
-      player: owner,
-      tile: at,
-      health,
-      patrol,
-      step,
-      reloadAt,
-      path: from.path(size),
-    });
-  }
-  game.nextMissileId = id();
-  for (let n = from.count(); n > 0; n--) {
-    const missile = {
-      id: id(),
-      player: player(),
-      size: from.below(2, "missile size") as MissileSize,
-      from: tile(),
-      to: tile(),
-      launchedAt: id(),
-      arrivesAt: id(),
-      tried: [] as number[],
-    };
-    for (let t = from.count(); t > 0; t--) missile.tried.push(id());
-    lists.missiles.push(missile);
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.fallout.push({ tile: tile(), radius: id(), until: id() });
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.fights.push({ a: player(), b: player(), until: id() });
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.alliances.push({
-      a: player(),
-      b: player(),
-      until: id(),
-      renewA: from.below(2, "renewal") === 1,
-      renewB: from.below(2, "renewal") === 1,
-      truce: from.below(2, "truce") === 1,
-    });
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.allianceRequests.push({ from: player(), to: player(), expiresAt: id() });
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.requestCooldowns.push({ from: player(), to: player(), until: id() });
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.embargoes.push({ from: player(), to: player(), since: id(), until: id() });
-  }
-  for (let n = from.count(); n > 0; n--) {
-    lists.quickCooldowns.push({ player: player(), until: id() });
-  }
-  game.winner = optional();
-  game.winningTeam = optional();
-  game.decidedAt = optional();
+  game.winner = optional.read(from, game);
+  game.winningTeam = optional.read(from, game);
+  game.decidedAt = optional.read(from, game);
 
   const parts = game.persistedParts();
   if (from.uint() !== parts.length) throw new SnapshotError("snapshot of other rules");
