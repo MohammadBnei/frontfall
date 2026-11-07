@@ -150,9 +150,7 @@ Today: write `packages/engine/src/<rule>.ts` with an `installX(game)` function, 
 
 ### A nation strategy
 
-Today: nations and the strategy table live under `packages/engine/src/bots/`. Add the name to `NationStrategy` in `bots/difficulty.ts`, give it a place in the difficulty tables, and implement it in `nations.ts`. Draw randomness only from the game's `Random`, and keep the order of draws stable, since a change moves every nation game.
-
-**Target** ([0009](adr/0009-rule-table-and-lifecycles.md)): add a phase module under `bots/nations/`, using the shared `NationContext`, and register it on the strategy table.
+Nations live under `packages/engine/src/bots/nations/` ([0009](adr/0009-rule-table-and-lifecycles.md)): `decide.ts` runs the phases of a decision in order, and every phase takes the one `NationContext` of its call to `installNations` (`context.ts`). Add the name to `NationStrategy` in `bots/difficulty.ts`, give it a place in the difficulty tables, and implement it in `NATION_STRATEGIES` (`strategies.ts`), as a function of the context and the turn's `NationTurn`; the compiler refuses a strategy without one. Draw randomness only from the game's `Random`, and keep the order of draws stable, since a change moves every nation game.
 
 ### A screen
 
