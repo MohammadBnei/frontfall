@@ -38,7 +38,7 @@ export {
   installCapitals,
 } from "./capitals.ts";
 export { installBoats, reachableCoasts, seaRoute, type Boat, type SeaRoute } from "./boats.ts";
-export { createGame } from "./create-game.ts";
+export { STANDARD_RULES, createGame, type Rule } from "./create-game.ts";
 export {
   DiplomacyError,
   allianceOf,

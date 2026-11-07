@@ -15,29 +15,47 @@ import { installTrade } from "./trade.ts";
 import { installVictory } from "./victory.ts";
 import { installWarships } from "./warships.ts";
 
+/** One rule of the engine: its name, and the function that installs it on a game. */
+export interface Rule {
+  readonly name: string;
+  /**
+   * Registers the rule's orders, tick systems, observers and parts. A rule
+   * the game does not play with installs nothing: capitals without capital
+   * mode (R-CAP), landmarks on a map that has none (R-LAND).
+   */
+  readonly install: (game: Game) => void;
+}
+
 /**
- * A game with every rule of the engine installed, in the order the rules
- * expect: spawns, then alliances, gifts and messages, then attacks, then warships, then missiles, then transport ships, then capitals (R-CAP), then structures changing hands
- * with their tiles, then trade, then growth, then landmarks changing hands, then victory. Order handlers and
- * tick systems run in registration order, so this order is part of the game.
+ * Every rule of the engine, in the order the rules expect: spawns, then
+ * doctrines, then alliances, gifts and messages, then attacks, then warships,
+ * then missiles, then transport ships, then capitals (R-CAP), then structures
+ * changing hands with their tiles, then trade, then growth, then landmarks
+ * changing hands, then victory. Order rules, tick systems and observers run
+ * in registration order, so this order is part of the game.
  */
+export const STANDARD_RULES: readonly Rule[] = Object.freeze([
+  { name: "spawn", install: installSpawn },
+  { name: "doctrines", install: installDoctrines },
+  { name: "diplomacy", install: installDiplomacy },
+  { name: "gifts", install: installGifts },
+  { name: "quick-messages", install: installQuickMessages },
+  { name: "attacks", install: installAttacks },
+  { name: "warships", install: installWarships },
+  { name: "missiles", install: installMissiles },
+  { name: "boats", install: installBoats },
+  { name: "capitals", install: installCapitals },
+  { name: "structures", install: installStructures },
+  { name: "trade", install: installTrade },
+  { name: "economy", install: installEconomy },
+  { name: "landmarks", install: installLandmarks },
+  { name: "victory", install: installVictory },
+]);
+
+/** A game with every rule of `STANDARD_RULES` installed, in its order. */
 export function createGame(setup: GameSetup): Game {
   const game = new Game(setup);
   game.terrain.prepare();
-  installSpawn(game);
-  installDoctrines(game);
-  installDiplomacy(game);
-  installGifts(game);
-  installQuickMessages(game);
-  installAttacks(game);
-  installWarships(game);
-  installMissiles(game);
-  installBoats(game);
-  installCapitals(game);
-  installStructures(game);
-  installTrade(game);
-  installEconomy(game);
-  installLandmarks(game);
-  installVictory(game);
+  for (const rule of STANDARD_RULES) rule.install(game);
   return game;
 }

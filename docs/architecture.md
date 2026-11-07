@@ -108,7 +108,7 @@ flowchart LR
 | One order spec                    | Contracts, protocol and engine share it ([0006](adr/0006-contracts-package.md))                   | Today                                 |
 | Order registry                    | `defineOrder`: phases, validate, plan, execute ([0007](adr/0007-order-dispatch.md))               | Target                                |
 | Rule-owned parts, codecs          | State of a rule, snapshot and hash from one description ([0008](adr/0008-rule-state-and-hash.md)) | Target                                |
-| Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Target                                |
+| Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Today                                 |
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Target                                |
 | Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Target                                |
 | Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Target                                |
@@ -137,9 +137,9 @@ Today:
 
 ### A rule and its state
 
-Today: write `packages/engine/src/<rule>.ts` with an `installX(game)` function, add the call to `createGame` after the rules it reads from, and put the rule's state on `Game` or `Player`. Add the state to `hash()` and to the snapshot writer and reader, and bump `SNAPSHOT_FORMAT` if the layout changes. Name the rule identifiers in the code and the tests.
+Today: write `packages/engine/src/<rule>.ts` with an `installX(game)` function, add an entry to `STANDARD_RULES` in `create-game.ts` after the rules it reads from, and put the rule's state on `Game` or `Player`. Add the state to `hash()` and to the snapshot writer and reader, and bump `SNAPSHOT_FORMAT` if the layout changes. Name the rule identifiers in the code and the tests.
 
-**Target** ([0008](adr/0008-rule-state-and-hash.md), [0009](adr/0009-rule-table-and-lifecycles.md)): add an entry to `STANDARD_RULES` with its place and condition. Keep the state in a part owned by the rule, keyed by entity id, with one record codec. Never add a field to `Game` or to an entity. Other rules change your collections through functions you export ([0010](adr/0010-collection-ownership.md)).
+**Target** ([0008](adr/0008-rule-state-and-hash.md)): keep the state in a part owned by the rule, keyed by entity id, with one record codec. Never add a field to `Game` or to an entity. Other rules change your collections through functions you export ([0010](adr/0010-collection-ownership.md)).
 
 ### A balance value
 
