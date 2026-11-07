@@ -27,7 +27,16 @@ export {
   troopsPerTile,
   type Attack,
 } from "./attacks.ts";
-export { DEFAULT_BALANCE, type Balance } from "./balance.ts";
+export {
+  BALANCE_SPEC,
+  DEFAULT_BALANCE,
+  checkBalance,
+  digestBalance,
+  type Balance,
+  type BalanceKeySpec,
+  type BalanceRange,
+  type DigestGate,
+} from "./balance.ts";
 export {
   capitalAim,
   capitalAlertDistance,

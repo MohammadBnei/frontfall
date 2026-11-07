@@ -1,4 +1,4 @@
-import { DEFAULT_BALANCE, type Balance } from "./balance.ts";
+import { DEFAULT_BALANCE, digestGate, type Balance } from "./balance.ts";
 import {
   BOT_DIFFICULTIES,
   installBots,
@@ -168,7 +168,7 @@ export function readGame(report: Record<string, unknown>): RecordedGame {
   for (const key of Object.keys(DEFAULT_BALANCE) as (keyof Balance)[]) {
     const expected = DEFAULT_BALANCE[key];
     // Records from before capital mode or landmarks leave their values out: they take the defaults.
-    if ((key.startsWith("capital") || key.startsWith("landmark")) && balance[key] === undefined) {
+    if (digestGate(key) !== undefined && balance[key] === undefined) {
       balance[key] = expected;
     }
     // Records from before light missiles left fallout play on as they were played.

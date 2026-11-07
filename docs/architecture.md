@@ -145,9 +145,8 @@ Today: write `packages/engine/src/<rule>.ts` with an `installX(game)` function, 
 
 1. Add the key to the `Balance` type and to `DEFAULT_BALANCE` in `packages/engine/src/balance.ts`, in the units the engine uses.
 2. Document it in [balance.md](balance.md) with its `B-` identifier.
-3. Rebuild the golden replays, because the value is part of the balance digest.
-
-**Target** ([0009](adr/0009-rule-table-and-lifecycles.md)): also add the key to `BALANCE_SPEC` with its range, and, if it matters only under a rule or a map feature, the gate that keeps the digest the same when that feature is off.
+3. Add the key to `BALANCE_SPEC` in the same file with its range, or `"unchecked"`, and, if it matters only under a rule or a map feature, the digest gate that keeps the digest the same when that feature is off ([0009](adr/0009-rule-table-and-lifecycles.md)). The compiler refuses a key without an entry.
+4. Rebuild the golden replays, because the value is part of the balance digest.
 
 ### A nation strategy
 

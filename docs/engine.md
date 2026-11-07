@@ -108,7 +108,7 @@ The state objects are live: read them, never write them. The lists are typed `re
 
 ## Balance
 
-`DEFAULT_BALANCE` holds the values of [balance.md](balance.md), converted to ticks and integers. Each field names its `B-` key. Tests and private lobbies may pass their own `balance`; a multiplayer game must use the same one on every client.
+`DEFAULT_BALANCE` holds the values of [balance.md](balance.md), converted to ticks and integers. Each field names its `B-` key. `BALANCE_SPEC` gives every key its range, or `"unchecked"`, and its digest gate: the values of capital mode count in the balance digest only in games played with it, those of landmarks only on a map that has some, so that other games hash as they did before either existed. A game refuses a balance outside the ranges when it is created, naming the first wrong key in the order of the spec. Tests and private lobbies may pass their own `balance`; a multiplayer game must use the same one on every client.
 
 ## Desync reports
 
