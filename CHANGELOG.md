@@ -4,6 +4,10 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-09
+
+The image now applies the Alpine security updates published since its base was pinned (musl, zlib), which the vulnerability scan of the release required. No change in play.
+
 ## [1.0.1] - 2026-11-08
 
 A maintenance release: no change in play.
