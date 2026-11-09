@@ -868,6 +868,12 @@ main.join {
   color: var(--ff-slate-300);
 }
 
+.version-tag {
+  color: var(--ff-slate-300);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
 .beta-menu {
   margin-top: 8px;
 }
