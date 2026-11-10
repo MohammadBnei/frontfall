@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import {
   DecodeError,
   decodeFrame,
@@ -75,10 +75,10 @@ export const ErrorCode = z.enum([
 export type ErrorCode = z.infer<typeof ErrorCode>;
 
 /** Game ids and reconnect tokens: URL-safe base64. */
-const gameId = z.string().regex(/^[A-Za-z0-9_-]{8,32}$/);
-const token = z.string().regex(/^[A-Za-z0-9_-]{16,64}$/);
-const tick = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
-const stateHash = z.number().int().min(0).max(0xffffffff);
+const gameId = z.string().check(z.regex(/^[A-Za-z0-9_-]{8,32}$/));
+const token = z.string().check(z.regex(/^[A-Za-z0-9_-]{16,64}$/));
+const tick = z.int().check(z.minimum(0), z.maximum(Number.MAX_SAFE_INTEGER));
+const stateHash = z.int().check(z.minimum(0), z.maximum(0xffffffff));
 
 /** How hard the bots play. Every client runs them at the level the game was set to. */
 export const Difficulty = z.enum(["easy", "normal", "hard"]);
@@ -89,22 +89,20 @@ export const Teams = z.union([z.literal(0), z.literal(2), z.literal(3), z.litera
 export type Teams = z.infer<typeof Teams>;
 
 /** What a private game leaves out (R-MODE-03): the engine's `Disable` bits, 0 for nothing. */
-export const Disabled = z.number().int().min(0).max(0x3f);
+export const Disabled = z.int().check(z.minimum(0), z.maximum(0x3f));
 
 /**
  * Special rules of a game (R-MODE-08), the engine's `GameRules`: each one is
  * on or off for the whole game, chosen by the host before the start.
  */
-export const GameRules = z
-  .object({
-    /** R-ATTACK-10: outnumbered fronts give way by stretches. */
-    collapsingFronts: z.boolean(),
-    /** R-CAP: taking a player's capital conquers them. */
-    capitals: z.boolean(),
-    /** R-DOCTRINE: each player picks one of three doctrines at the start. */
-    doctrines: z.boolean(),
-  })
-  .strict();
+export const GameRules = z.strictObject({
+  /** R-ATTACK-10: outnumbered fronts give way by stretches. */
+  collapsingFronts: z.boolean(),
+  /** R-CAP: taking a player's capital conquers them. */
+  capitals: z.boolean(),
+  /** R-DOCTRINE: each player picks one of three doctrines at the start. */
+  doctrines: z.boolean(),
+});
 export type GameRules = z.infer<typeof GameRules>;
 
 /** The rules of public games and quick play, chosen by the balance pass (R-MODE-08). */
@@ -123,12 +121,13 @@ export function isDefaultRules(rules: GameRules): boolean {
 }
 
 /** The operator's test bonuses (R-MODE-09): the engine's `OperatorBonus` bits, 0 for none. */
-export const OperatorBonusBits = z.number().int().min(0).max(0xf);
+export const OperatorBonusBits = z.int().check(z.minimum(0), z.maximum(0xf));
 
 /** Who has the operator's bonuses in a game (R-MODE-09), and which. */
-export const OperatorBonuses = z
-  .object({ player: PlayerNumber, bonuses: OperatorBonusBits.min(1) })
-  .strict();
+export const OperatorBonuses = z.strictObject({
+  player: PlayerNumber,
+  bonuses: OperatorBonusBits.check(z.minimum(1)),
+});
 export type OperatorBonuses = z.infer<typeof OperatorBonuses>;
 
 /** Why a player reports another (R-MODE-06): no free text, so a report carries nothing else. */
@@ -143,95 +142,86 @@ export const Visibility = z.enum(["public", "private"]);
 export type Visibility = z.infer<typeof Visibility>;
 
 /** Name of a public game as typed, before `normalizeGameName` checks it. */
-const rawGameName = z.string().max(64);
+const rawGameName = z.string().check(z.maxLength(64));
 
 /** What the host of a game chooses before the start. */
-export const GameOptions = z
-  .object({
-    /** Id of a map in `maps/index.json`. */
-    map: z
-      .string()
-      .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
-      .max(64),
-    bots: z.number().int().min(0).max(255),
-    difficulty: Difficulty,
-    /** Whether the nations of the map's manifest play (R-BOT-07). */
-    nations: z.boolean(),
-    teams: Teams,
-    disabled: Disabled,
-    /** Seats for human players; the server gives fewer when the map and bots leave fewer. */
-    capacity: z.number().int().min(MIN_SEATS).max(MAX_SEATS),
-    /** Start as soon as every seat is taken. */
-    autoStart: z.boolean(),
-    /** Pace of a private game (R-MODE-07); left out, it stays as it was, 1 at first. */
-    speed: GameSpeed.optional(),
-    /** Special rules (R-MODE-08); left out, they stay as they were. */
-    rules: GameRules.optional(),
-  })
-  .strict();
+export const GameOptions = z.strictObject({
+  /** Id of a map in `maps/index.json`. */
+  map: z.string().check(z.regex(/^[a-z0-9]+(-[a-z0-9]+)*$/), z.maxLength(64)),
+  bots: z.int().check(z.minimum(0), z.maximum(255)),
+  difficulty: Difficulty,
+  /** Whether the nations of the map's manifest play (R-BOT-07). */
+  nations: z.boolean(),
+  teams: Teams,
+  disabled: Disabled,
+  /** Seats for human players; the server gives fewer when the map and bots leave fewer. */
+  capacity: z.int().check(z.minimum(MIN_SEATS), z.maximum(MAX_SEATS)),
+  /** Start as soon as every seat is taken. */
+  autoStart: z.boolean(),
+  /** Pace of a private game (R-MODE-07); left out, it stays as it was, 1 at first. */
+  speed: z.optional(GameSpeed),
+  /** Special rules (R-MODE-08); left out, they stay as they were. */
+  rules: z.optional(GameRules),
+});
 export type GameOptions = z.infer<typeof GameOptions>;
 
 export const ClientMessage = z.discriminatedUnion("type", [
   /** First message of every connection. The name is checked by `normalizeName`. */
   z.object({
     type: z.literal("hello"),
-    version: z.number().int(),
-    name: z.string().max(64),
+    version: z.int(),
+    name: z.string().check(z.maxLength(64)),
     /** Simulation build of the page; the server turns away other ones, except "dev". */
-    build: z.string().max(64).optional(),
+    build: z.optional(z.string().check(z.maxLength(64))),
   }),
   /**
    * Join the fullest public game still waiting, or open a new one under
    * `name`, which starts on its own a while after the second player arrives.
    */
-  z.object({ type: z.literal("play"), name: rawGameName.optional() }).strict(),
+  z.strictObject({ type: z.literal("play"), name: z.optional(rawGameName) }),
   /** Open a game; the creator is its host. A public one is listed under `name`. */
-  z
-    .object({
-      type: z.literal("create"),
-      visibility: Visibility.optional(),
-      name: rawGameName.optional(),
-    })
-    .strict(),
+  z.strictObject({
+    type: z.literal("create"),
+    visibility: z.optional(Visibility),
+    name: z.optional(rawGameName),
+  }),
   /** Join a game by id, from the public list or an invite link. */
-  z.object({ type: z.literal("join"), game: gameId }).strict(),
+  z.strictObject({ type: z.literal("join"), game: gameId }),
   /**
    * Take back a seat after a dropped connection: in a running game, receiving
    * every turn from `from`; before the start, back in the lobby.
    */
-  z.object({ type: z.literal("rejoin"), token, from: tick }).strict(),
+  z.strictObject({ type: z.literal("rejoin"), token, from: tick }),
   /** Host only: change the options, and the name of a public game, before the start. */
-  z
-    .object({
-      type: z.literal("configure"),
-      options: GameOptions,
-      name: rawGameName.optional(),
-      /** Counts the player's `configure` messages, echoed as `configured` in `lobby`. */
-      seq: z.number().int().nonnegative().optional(),
-      /**
-       * The operator's test bonuses (R-MODE-09), as `OperatorBonus` bits: the
-       * host, signed in to an account the server lists as an operator's, gives
-       * them to themselves in a private game. Left out, they stay as they were.
-       */
-      operatorBonuses: OperatorBonusBits.optional(),
-    })
-    .strict(),
+  z.strictObject({
+    type: z.literal("configure"),
+    options: GameOptions,
+    name: z.optional(rawGameName),
+    /** Counts the player's `configure` messages, echoed as `configured` in `lobby`. */
+    seq: z.optional(z.int().check(z.nonnegative())),
+    /**
+     * The operator's test bonuses (R-MODE-09), as `OperatorBonus` bits: the
+     * host, signed in to an account the server lists as an operator's, gives
+     * them to themselves in a private game. Left out, they stay as they were.
+     */
+    operatorBonuses: z.optional(OperatorBonusBits),
+  }),
   /** Host only: start now, with at least the game's minimum of players. */
-  z.object({ type: z.literal("start") }).strict(),
+  z.strictObject({ type: z.literal("start") }),
   /** Host only, once per game: stop the countdown; the game then waits for the host. */
-  z.object({ type: z.literal("hold") }).strict(),
+  z.strictObject({ type: z.literal("hold") }),
   /** The player is at the screen: keeps the host's role while the lobby waits. */
-  z.object({ type: z.literal("active") }).strict(),
+  z.strictObject({ type: z.literal("active") }),
   /** Host only, before the start: remove a player, who cannot join this game again. */
-  z.object({ type: z.literal("kick"), player: PlayerNumber }).strict(),
+  z.strictObject({ type: z.literal("kick"), player: PlayerNumber }),
   /** Tell the operator of the server that another player of this game misbehaves. */
-  z.object({ type: z.literal("report"), player: PlayerNumber, reason: ReportReason }).strict(),
+  z.strictObject({ type: z.literal("report"), player: PlayerNumber, reason: ReportReason }),
   /** Leave the current game for good. */
-  z.object({ type: z.literal("leave") }).strict(),
+  z.strictObject({ type: z.literal("leave") }),
   /** Hash of the client's game state after running `tick`. */
-  z.object({ type: z.literal("hash"), tick, hash: stateHash }).strict(),
+  z.strictObject({ type: z.literal("hash"), tick, hash: stateHash }),
   /** Sent as a binary frame. */
-  z.object({ type: z.literal("order"), order: Order }).strict(),
+  z.strictObject({ type: z.literal("order"), order: Order }),
 ]);
 export type ClientMessage = z.infer<typeof ClientMessage>;
 
@@ -239,53 +229,53 @@ const PlayerInfo = z.object({ id: PlayerNumber, name: z.string() });
 export type PlayerInfo = z.infer<typeof PlayerInfo>;
 
 export const ServerMessage = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("welcome"), version: z.number().int() }),
+  z.object({ type: z.literal("welcome"), version: z.int() }),
   /** State of the game being filled. Sent again after every change. */
   z.object({
     type: z.literal("lobby"),
     game: gameId,
     visibility: Visibility,
     /** Name of a public game, as listed; null for a private one. */
-    name: z.string().nullable(),
+    name: z.nullable(z.string()),
     map: z.string(),
-    bots: z.number().int().nonnegative(),
+    bots: z.int().check(z.nonnegative()),
     difficulty: Difficulty,
     nations: z.boolean(),
     teams: Teams,
     disabled: Disabled,
-    capacity: z.number().int().positive(),
+    capacity: z.int().check(z.positive()),
     autoStart: z.boolean(),
     /** Ticks per beat (R-MODE-07): always 1 in a public game. */
     speed: GameSpeed,
     /** Special rules the game will play with (R-MODE-08). */
     rules: GameRules,
     /** Players the host needs before starting. */
-    minPlayers: z.number().int().positive(),
+    minPlayers: z.int().check(z.positive()),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
     /** The player who sets the options and starts the game. */
     host: PlayerNumber,
     /** Milliseconds before the game starts, when a countdown runs. */
-    startsIn: z.number().int().nonnegative().nullable(),
+    startsIn: z.nullable(z.int().check(z.nonnegative())),
     /** Secret that takes this seat back after a dropped connection, before the start and after. */
     token,
     /** Whether the host can still stop the countdown. */
     holdable: z.boolean(),
     /** `seq` of the last `configure` from this player the server handled, 0 before any. */
-    configured: z.number().int().nonnegative(),
+    configured: z.int().check(z.nonnegative()),
     /** Whether this player may turn on the operator's bonuses (R-MODE-09). */
     operator: z.boolean(),
     /** Who has the operator's bonuses (R-MODE-09) and which, or null. */
-    operatorBonuses: OperatorBonuses.nullable(),
+    operatorBonuses: z.nullable(OperatorBonuses),
   }),
   /** The game starts, or the player rejoined it. Player numbers are final from here. */
   z.object({
     type: z.literal("started"),
     game: gameId,
     map: z.string(),
-    seed: z.number().int().min(0).max(0x7fffffff),
+    seed: z.int().check(z.minimum(0), z.maximum(0x7fffffff)),
     /** Bots that every client adds to the game and runs itself. */
-    bots: z.number().int().nonnegative(),
+    bots: z.int().check(z.nonnegative()),
     difficulty: Difficulty,
     /** Whether every client adds the map's nations after the bots, in the manifest's order. */
     nations: z.boolean(),
@@ -294,13 +284,13 @@ export const ServerMessage = z.discriminatedUnion("type", [
     /** What every client leaves out of the game (R-MODE-03). */
     disabled: Disabled,
     /** Beats per second; the server closes `speed` turns at each one, on average. */
-    tickRate: z.number().int().positive(),
+    tickRate: z.int().check(z.positive()),
     /** Ticks per beat (R-MODE-07): turns come `tickRate` × `speed` per second. */
     speed: GameSpeed,
     /** Special rules every client plays with (R-MODE-08). */
     rules: GameRules,
     /** The operator's bonuses every client plays with (R-MODE-09), or null. */
-    operatorBonuses: OperatorBonuses.nullable(),
+    operatorBonuses: z.nullable(OperatorBonuses),
     players: z.array(PlayerInfo),
     you: PlayerNumber,
     /** Secret that lets this player rejoin after a dropped connection. */
@@ -314,7 +304,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
     ),
   }),
   /** This player's state hash for `tick` differed from the majority's, if any. */
-  z.object({ type: z.literal("desync"), tick, hash: stateHash, expected: stateHash.nullable() }),
+  z.object({ type: z.literal("desync"), tick, hash: stateHash, expected: z.nullable(stateHash) }),
   /** The game is over for this connection, which may join another one. */
   z.object({
     type: z.literal("ended"),
@@ -327,7 +317,7 @@ export const ServerMessage = z.discriminatedUnion("type", [
    * The server restarts for an update in `inMs` milliseconds, stopping the
    * games still running then; `null` when the restart was called off.
    */
-  z.object({ type: z.literal("maintenance"), inMs: z.number().int().nonnegative().nullable() }),
+  z.object({ type: z.literal("maintenance"), inMs: z.nullable(z.int().check(z.nonnegative())) }),
 ]);
 export type ServerMessage = z.infer<typeof ServerMessage>;
 
@@ -341,13 +331,13 @@ export const PublicGame = z.object({
   /** Name of the host, who starts the game. */
   host: z.string(),
   map: z.string(),
-  bots: z.number().int().nonnegative(),
+  bots: z.int().check(z.nonnegative()),
   nations: z.boolean(),
   teams: Teams,
   disabled: Disabled,
   rules: GameRules,
-  players: z.number().int().nonnegative(),
-  capacity: z.number().int().positive(),
+  players: z.int().check(z.nonnegative()),
+  capacity: z.int().check(z.positive()),
   /** Waiting for players, or already running and closed to newcomers. */
   state: z.enum(["waiting", "running"]),
 });
@@ -358,7 +348,7 @@ export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string
 /** A WebSocket payload: text for JSON messages, bytes for binary frames. */
 export type Frame = string | Uint8Array;
 
-function parseJson<T>(schema: z.ZodType<T>, raw: string, binaryType: string): ParseResult<T> {
+function parseJson<T>(schema: z.ZodMiniType<T>, raw: string, binaryType: string): ParseResult<T> {
   let json: unknown;
   try {
     json = JSON.parse(raw);

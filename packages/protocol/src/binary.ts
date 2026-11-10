@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 import { ORDER_KINDS, Order, PlayerNumber, type Turn } from "./orders.ts";
 
 /** First byte of every binary frame. */
@@ -175,7 +175,7 @@ export function decodeFrame(bytes: Uint8Array): BinaryFrame {
   throw new DecodeError("unknown frame kind");
 }
 
-function validate<T>(schema: z.ZodType<T>, value: unknown): T {
+function validate<T>(schema: z.ZodMiniType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) throw new DecodeError(z.prettifyError(result.error));
   return result.data;

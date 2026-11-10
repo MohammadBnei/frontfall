@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 // The page imports this before anything that builds a schema. zod tries `Function("")` as it
 // builds its first object schema, to see whether it may compile its parsers; under the page's

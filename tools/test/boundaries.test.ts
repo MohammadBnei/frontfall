@@ -46,7 +46,7 @@ describe("package boundaries", () => {
   });
 
   it("lets the protocol depend on zod only", () => {
-    expect(violations("packages/protocol", ["zod"])).toEqual([]);
+    expect(violations("packages/protocol", ["zod", "zod/mini"])).toEqual([]);
   });
 
   it("detects an import that reaches into an app", () => {

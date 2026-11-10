@@ -67,11 +67,12 @@ const SavedFile = z
       .object({
         id: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/),
         seed: z.number().int().min(0),
-        settings: GameOptions.extend({
+        settings: z.strictObject({
+          ...GameOptions.shape,
           visibility: z.enum(["public", "private"]),
           name: z.string().max(64).nullable(),
           // Saved before the speeds of R-MODE-07: such a game ran at 1.
-          speed: GameSpeed.default(1),
+          speed: z._default(GameSpeed, 1),
           // Saved before the special rules of R-MODE-08: such a game had none.
           rules: z.preprocess(
             (saved) => ({
@@ -83,7 +84,7 @@ const SavedFile = z
             GameRules,
           ),
           // Saved before the operator's bonuses of R-MODE-09: such a game had none.
-          operatorBonuses: OperatorBonuses.nullable().default(null),
+          operatorBonuses: z.nullable(OperatorBonuses).default(null),
         }),
         elapsedMs: z.number().min(0),
         seats: z

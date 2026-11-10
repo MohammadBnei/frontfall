@@ -1,13 +1,13 @@
-import { z } from "zod";
+import * as z from "zod/mini";
 
 /** Largest tile index a message may carry: maps stay well below 2^31 tiles. */
 export const MAX_TILE = 2 ** 31 - 1;
 
-const tile = z.number().int().min(0).max(MAX_TILE);
-const amount = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
-const share = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+const tile = z.int().check(z.minimum(0), z.maximum(MAX_TILE));
+const amount = z.int().check(z.positive(), z.maximum(Number.MAX_SAFE_INTEGER));
+const share = z.int().check(z.minimum(0), z.maximum(Number.MAX_SAFE_INTEGER));
 /** Code of a structure kind (the engine's StructureKind); the engine refuses codes it does not know. */
-const structure = z.number().int().min(0).max(255);
+const structure = z.int().check(z.minimum(0), z.maximum(255));
 
 /**
  * Every kind of order, in wire order: the position of a kind in this list is
@@ -35,48 +35,49 @@ export const ORDER_KINDS = [
 ] as const;
 
 /** Player number inside one game, from 1. Zero is the neutral owner of the engine. */
-export const PlayerNumber = z.number().int().min(1).max(0xffff);
+export const PlayerNumber = z.int().check(z.minimum(1), z.maximum(0xffff));
 
 /** An order from a player. The server relays orders; every client executes them. */
 export const Order = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("spawn"), tile }).strict(),
-  z.object({ type: z.literal("attack"), target: tile, troops: amount }).strict(),
-  z.object({ type: z.literal("retreat"), attack: amount }).strict(),
-  z.object({ type: z.literal("embark"), target: tile, troops: amount }).strict(),
-  z.object({ type: z.literal("build"), structure, tile }).strict(),
-  z.object({ type: z.literal("demolish"), tile }).strict(),
-  z.object({ type: z.literal("ally"), target: PlayerNumber }).strict(),
-  z.object({ type: z.literal("betray"), target: PlayerNumber }).strict(),
+  z.strictObject({ type: z.literal("spawn"), tile }),
+  z.strictObject({ type: z.literal("attack"), target: tile, troops: amount }),
+  z.strictObject({ type: z.literal("retreat"), attack: amount }),
+  z.strictObject({ type: z.literal("embark"), target: tile, troops: amount }),
+  z.strictObject({ type: z.literal("build"), structure, tile }),
+  z.strictObject({ type: z.literal("demolish"), tile }),
+  z.strictObject({ type: z.literal("ally"), target: PlayerNumber }),
+  z.strictObject({ type: z.literal("betray"), target: PlayerNumber }),
   /** `on`: 1 starts an embargo, 0 lifts it. */
-  z
-    .object({
-      type: z.literal("embargo"),
-      target: PlayerNumber,
-      on: z.number().int().min(0).max(1),
-    })
-    .strict(),
-  z.object({ type: z.literal("warship"), port: tile }).strict(),
-  z.object({ type: z.literal("patrol"), ship: amount, tile }).strict(),
+  z.strictObject({
+    type: z.literal("embargo"),
+    target: PlayerNumber,
+    on: z.int().check(z.minimum(0), z.maximum(1)),
+  }),
+  z.strictObject({ type: z.literal("warship"), port: tile }),
+  z.strictObject({ type: z.literal("patrol"), ship: amount, tile }),
   /** `size`: the engine's MissileSize code, which it checks. */
-  z
-    .object({ type: z.literal("missile"), target: tile, size: z.number().int().min(0).max(255) })
-    .strict(),
+  z.strictObject({
+    type: z.literal("missile"),
+    target: tile,
+    size: z.int().check(z.minimum(0), z.maximum(255)),
+  }),
   /** Troops and gold sent to another player; the engine refuses a gift of neither. */
-  z.object({ type: z.literal("gift"), target: PlayerNumber, troops: share, gold: share }).strict(),
+  z.strictObject({ type: z.literal("gift"), target: PlayerNumber, troops: share, gold: share }),
   /** `phrase`: the engine's preset quick message, which it checks. */
-  z
-    .object({
-      type: z.literal("quick"),
-      target: PlayerNumber,
-      phrase: z.number().int().min(0).max(255),
-    })
-    .strict(),
+  z.strictObject({
+    type: z.literal("quick"),
+    target: PlayerNumber,
+    phrase: z.int().check(z.minimum(0), z.maximum(255)),
+  }),
   /** `share`: % of the troops at home put to work, which the engine checks against B-WORK-MAX. */
-  z.object({ type: z.literal("work"), share: z.number().int().min(0).max(100) }).strict(),
+  z.strictObject({ type: z.literal("work"), share: z.int().check(z.minimum(0), z.maximum(100)) }),
   /** Pays the price of a tribute to `target`, which the engine works out, for a truce. */
-  z.object({ type: z.literal("tribute"), target: PlayerNumber }).strict(),
+  z.strictObject({ type: z.literal("tribute"), target: PlayerNumber }),
   /** `pick`: the engine's Doctrine code, which it checks. */
-  z.object({ type: z.literal("doctrine"), pick: z.number().int().min(0).max(255) }).strict(),
+  z.strictObject({
+    type: z.literal("doctrine"),
+    pick: z.int().check(z.minimum(0), z.maximum(255)),
+  }),
 ]);
 export type Order = z.infer<typeof Order>;
 
