@@ -236,6 +236,30 @@ describe("TerritoryLayer", () => {
     expect(texture.version).toBe(version + 1);
   });
 
+  it("bakes a map's ground once, and gives a later layer the ground clean of fallout", () => {
+    const terrain = new Uint8Array(64).fill(1);
+    const make = (): TerritoryLayer =>
+      new TerritoryLayer({
+        width: 8,
+        height: 8,
+        owners: new Uint16Array(64),
+        terrain,
+        wrapsX: false,
+        maxOwner: 1,
+      });
+    const first = make();
+    const clean = (first.groundTexture.image.data as Uint8Array).slice();
+    const second = make();
+    expect(second.groundTexture.image.data).toBe(first.groundTexture.image.data);
+    expect(second.heightTexture.image.data).toBe(first.heightTexture.image.data);
+    second.setFallout([{ x: 3, y: 3, radius: 2 }]);
+    expect(Array.from(second.groundTexture.image.data as Uint8Array)).not.toEqual(
+      Array.from(clean),
+    );
+    const third = make();
+    expect(Array.from(third.groundTexture.image.data as Uint8Array)).toEqual(Array.from(clean));
+  });
+
   it("wraps fallout across the edge of a cylinder, and clips it on a flat map", () => {
     const wrapping = new TerritoryLayer({
       width: 8,

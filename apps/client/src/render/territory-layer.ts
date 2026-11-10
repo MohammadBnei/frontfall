@@ -7,7 +7,7 @@ import {
   bakeTerrainColors,
   type Latitudes,
 } from "./terrain-colors.ts";
-import { takeBakedGround } from "./prebaked-ground.ts";
+import { takeBakedGround, type BakedGround } from "./prebaked-ground.ts";
 
 export interface TerritoryLayerOptions {
   readonly width: number;
@@ -54,6 +54,14 @@ const FRONT_COLOR = "#F25C2A";
 
 /** How long a tile that changed hands takes to fade into its new colour. */
 const FADE_SECONDS = 0.08;
+
+/**
+ * The ground baked for a map's terrain, kept for as long as the map is: a renderer made
+ * again for the same game, after the switch to the globe or to the lighter graphics,
+ * takes it instead of baking it again, a second or more of the page's own thread.
+ * A layer scorches its own ground under fallout, so it hands a clean copy over first.
+ */
+const bakedGrounds = new WeakMap<Uint8Array, BakedGround>();
 
 /** Ground under fallout (R-UNIT-06): a scorched olive, mixed into the land's own colour. */
 const FALLOUT = [96, 102, 34] as const;
@@ -899,6 +907,7 @@ export class TerritoryLayer {
   private readonly wrapsX: boolean;
   /** Ground colours as baked, to put back where fallout clears; made on first use. */
   private pristineGround: Uint8Array | undefined;
+  private readonly heightData: Uint8Array;
   /** Tiles drawn under fallout now, and the zones they come from. */
   private scorched: number[] = [];
   private falloutKey = "";
@@ -923,22 +932,23 @@ export class TerritoryLayer {
     this.ownerTexture.internalFormat = "R16UI";
 
     const source = options.groundSource;
-    const ahead = source && takeBakedGround(source.id, source.sha256);
+    const ahead =
+      bakedGrounds.get(terrain) ?? (source && takeBakedGround(source.id, source.sha256));
     const heights = ahead?.heights ?? new Uint8Array(width * height);
-    this.groundTexture = new THREE.DataTexture(
+    const colors =
       ahead?.colors ??
-        bakeTerrainColors({
-          width,
-          height,
-          kinds: terrain,
-          relief: options.relief ?? new Uint8Array(width * height),
-          wrapsX,
-          latitudes: options.latitudes,
-          heightOut: heights,
-        }),
-      width,
-      height,
-    );
+      bakeTerrainColors({
+        width,
+        height,
+        kinds: terrain,
+        relief: options.relief ?? new Uint8Array(width * height),
+        wrapsX,
+        latitudes: options.latitudes,
+        heightOut: heights,
+      });
+    bakedGrounds.set(terrain, { colors, heights });
+    this.heightData = heights;
+    this.groundTexture = new THREE.DataTexture(colors, width, height);
     this.heightTexture = new THREE.DataTexture(
       heights,
       width,
@@ -1079,7 +1089,11 @@ export class TerritoryLayer {
     this.falloutKey = key;
     const { width, height, terrain } = this.options;
     const data = this.groundTexture.image.data as Uint8Array;
-    this.pristineGround ??= data.slice();
+    if (!this.pristineGround) {
+      this.pristineGround = data.slice();
+      // A layer made later for this map starts from the clean ground, not from this scorched one.
+      bakedGrounds.set(terrain, { colors: this.pristineGround, heights: this.heightData });
+    }
     const pristine = this.pristineGround;
     let wrapped = false;
     let x0 = width;
