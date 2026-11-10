@@ -342,11 +342,26 @@ and 71 forts.
 
 | Files                                       | Raw       | Sent (gzip) | Brotli   | Budget   |
 | ------------------------------------------- | --------- | ----------- | -------- | -------- |
-| First visit: page, code, styles, Latin font | 270.6 kB  | 117.1 kB    | 112.9 kB | 275.0 kB |
-| Simulation worker                           | 73.8 kB   | 23.5 kB     | 22.5 kB  | 50.0 kB  |
-| World map                                   | 2103.5 kB | 150.0 kB    | 137.1 kB | 175.0 kB |
-| Every map                                   | 7194.7 kB | 442.2 kB    | 390.4 kB | 520.0 kB |
-| Whole build but maps                        | 1356.2 kB | 730.0 kB    | 709.3 kB | 850.0 kB |
+| First visit: page, code, styles, Latin font | 425.1 kB  | 170.3 kB    | 163.7 kB | 275.0 kB |
+| Simulation worker                           | 139.2 kB  | 44.1 kB     | 41.3 kB  | 50.0 kB  |
+| World map                                   | 2104.1 kB | 150.1 kB    | 137.3 kB | 175.0 kB |
+| Every map                                   | 7964.9 kB | 482.7 kB    | 425.1 kB | 520.0 kB |
+| Whole build but maps                        | 1715.7 kB | 744.8 kB    | 715.5 kB | 850.0 kB |
+
+Measured on 2026-11-10, after two cuts that took the whole build from 846.0 kB
+to 744.8 kB. The font now ships for Latin letters only (`src/fonts.css`): the
+Cyrillic, Greek and Vietnamese faces of the package were 85 kB that the game, written
+in English and French, never asked for. The protocol's schemas use `zod/mini`,
+whose checks are functions the bundler can leave out, rather than methods every
+schema carries: the first visit went from 186.4 kB to 170.3 kB.
+
+Two waits of the page's thread went away at the same time. The building
+markers were painted on the CPU from pictograms drawn on a canvas on the GPU,
+read back at each of the 18 copies: about 400 ms of the start of a game in
+headless Chromium, 6 ms now. And a renderer made again in a running game, for
+the globe or for the lighter graphics when frames are slow, baked the map's
+ground again: the territory layer keeps it with the map's terrain, 1.2 s of
+frozen game less in the same browser.
 
 The game screen, the renderer (Three.js) and the territory layer are no longer
 part of the first visit (2026-10-28): the menu loads without them, and the page

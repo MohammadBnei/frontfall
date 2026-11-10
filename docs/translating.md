@@ -16,6 +16,8 @@ English is the reference: every interface text is a key in `apps/client/src/i18n
 
 Keep the `{placeholders}` of each English message, spelled the same. Plural forms are keys ending in `.one`, `.other` and so on; give the forms your language uses ([CLDR plural rules](https://cldr.unicode.org/index/cldr-spec/plural-rules)).
 
+The game ships the Inter font for Latin letters only (`apps/client/src/fonts.css`). A language written in another script, such as Cyrillic or Greek, adds the matching `@font-face` from `@fontsource-variable/inter/wght.css` to that file, with its `unicode-range`; the browser downloads it only for players who see such text.
+
 The picker names the language in itself, from its code. A language with `complete: false` is not offered, not detected from the browser and not restored from storage, so a partial translation can be merged and finished later. To try it in the game, set `complete: true` locally and don't commit that.
 
 ## Known gap

@@ -6,6 +6,7 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ### Changed
 
+- **Lighter and quicker to start.** The build is 101 kB lighter (744.6 kB of the 850 kB budget, 16 kB less on the first visit): the font now ships for Latin letters only, and the messages are checked with the small zod API. A game starts without waiting on the graphics card to paint the building markers, and switching to the globe or to the lighter graphics no longer bakes the map's ground again, a freeze of a second or more.
 - **The language picker lists only complete languages.** A language still being translated can be merged without showing up for players, and `docs/translating.md` explains how to add one. Thanks to Priyansh-Tyagi (#174).
 
 ### For self-hosters and contributors
