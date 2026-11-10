@@ -166,33 +166,6 @@ const fragmentShader = /* glsl */ `
 
   uint ownerAt(ivec2 tile) { return texelFetch(owners, wrapTile(tile), 0).r; }
 
-#ifdef SPHERE
-  /**
-   * The owner most of a pixel's tiles agree on, for a pixel that covers several.
-   * One texel per pixel would pick another tile each time the globe turns a
-   * little, and the borders of small lands would shimmer. Four samples spread
-   * over the pixel's footprint vote; a tie goes to land over sea.
-   */
-  uint ownerAcross(vec2 at, float pixel) {
-    float r = 0.25 * pixel;
-    uint o0 = ownerAt(ivec2(floor(at + vec2(-r, -r))));
-    uint o1 = ownerAt(ivec2(floor(at + vec2(r, -r))));
-    uint o2 = ownerAt(ivec2(floor(at + vec2(-r, r))));
-    uint o3 = ownerAt(ivec2(floor(at + vec2(r, r))));
-    int c0 = 1 + int(o1 == o0) + int(o2 == o0) + int(o3 == o0);
-    int c1 = 1 + int(o0 == o1) + int(o2 == o1) + int(o3 == o1);
-    int c2 = 1 + int(o0 == o2) + int(o1 == o2) + int(o3 == o2);
-    int c3 = 1 + int(o0 == o3) + int(o1 == o3) + int(o2 == o3);
-    uint best = o0;
-    int most = c0;
-    // A land owner outweighs sea by half a vote, so a one-tile island is not lost to the water around it.
-    if (c1 * 2 + int(o1 != 0u) > most * 2 + int(best != 0u)) { best = o1; most = c1; }
-    if (c2 * 2 + int(o2 != 0u) > most * 2 + int(best != 0u)) { best = o2; most = c2; }
-    if (c3 * 2 + int(o3 != 0u) > most * 2 + int(best != 0u)) { best = o3; most = c3; }
-    return best;
-  }
-#endif
-
   /** Signed distance to the coast in tiles, land above 0, from the ground's alpha (encodeCoast). */
   /**
    * Distance in tiles from the point to the nearest of the sides marked:
@@ -463,14 +436,9 @@ const fragmentShader = /* glsl */ `
       // for the dearest part of the shader: each tile takes its own owner and
       // borders follow its edges, as on the flat map.
       owner = ownerAt(tile);
-      uint own = owner;
-    #ifdef SPHERE
-      if (pixel > 1.4) owner = ownerAcross(ato, pixel);
-    #endif
       uvec4 around = uvec4(ownerAt(tile + ivec2(1, 0)), ownerAt(tile - ivec2(1, 0)),
         ownerAt(tile + ivec2(0, 1)), ownerAt(tile - ivec2(0, 1)));
-      // Edges follow the tile's own owner; only the fill takes the vote of the pixel.
-      bvec4 other = notEqual(around, uvec4(own));
+      bvec4 other = notEqual(around, uvec4(owner));
       bvec4 touch = bvec4(vec4(other) * vec4(greaterThan(around, uvec4(0u))));
       ownerEdge = edgeDistance(fract(ato), other);
       contactEdge = edgeDistance(fract(ato), touch);
