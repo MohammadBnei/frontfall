@@ -118,13 +118,13 @@ export class MapScene {
     /** The layer the canvas goes in. */
     private readonly surface: HTMLElement,
     map: MapInfo,
-    /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
+    /** The view to start with; G and the HUD button switch views on a map of the whole planet. */
     view: ViewKind,
     /** No renderer could be made; the key names the message to show. */
     private readonly onFailure: (key: MessageKey) => void,
   ) {
-    this.globeAllowed = view === "globe" && fitsGlobe(map) && globeLoaded();
-    this.viewKind = this.globeAllowed ? "globe" : "flat";
+    this.globeAllowed = fitsGlobe(map) && globeLoaded();
+    this.viewKind = this.globeAllowed && view === "globe" ? "globe" : "flat";
     this.mapSize = { width: map.width, height: map.height };
     this.cam = createCamera(map, this.viewKind);
     this.profile = chooseProfile(

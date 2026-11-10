@@ -188,7 +188,7 @@ export class GameScreen {
     private readonly actions: GameScreenActions,
     /** Online: the connection the game's orders go to; the game then never pauses. */
     private readonly link?: ServerLink,
-    /** The view to start with; "globe" also lets G switch views (a prototype, ADR 0005). */
+    /** The view to start with; G and the HUD button switch views on a map of the whole planet. */
     view: ViewKind = "flat",
     /** What the usage report says about the game; a game without it is not reported. */
     facts?: Omit<GameFacts, "view">,
@@ -229,6 +229,11 @@ export class GameScreen {
         onMenu: () => {
           this.leave();
         },
+        onView: this.scene.globeAllowed
+          ? () => {
+              this.switchView();
+            }
+          : undefined,
         onRetreat: (attack) => {
           this.orders.retreat(attack);
         },

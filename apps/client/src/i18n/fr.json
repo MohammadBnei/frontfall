@@ -477,6 +477,8 @@
   "a11y.scale": "Taille de l’interface",
   "a11y.motion": "Réduire les animations",
   "a11y.contrast": "Contraste renforcé",
+  "a11y.globe": "Ouvrir les cartes du monde entier sur le globe",
+  "hud.view": "Globe ou carte plate (G)",
   "a11y.flatMap": "Carte plate, plus légère pour les appareils anciens",
   "a11y.haptics": "Vibrations légères aux moments clés (téléphones)",
   "fullscreen.enter": "Plein écran",

@@ -37,3 +37,23 @@ test("shows the World on a globe, picks tiles on it, and switches to the flat ma
   await expect(page.locator("#map canvas")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
+
+// The globe is an option: a world game starts flat and the HUD button switches views.
+test("starts flat on the World and switches to the globe and back with the HUD button", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName === "firefox", "globe checked in Chromium only");
+  test.setTimeout(60_000);
+  const pageErrors: Error[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error));
+  await page.goto("./?map=world");
+  await page.locator("#play").click();
+  await expect(page.locator("#map canvas")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("#view")).toBeVisible();
+  await page.locator("#view").click();
+  await expect(page.locator("#map canvas")).toHaveCount(1);
+  await page.locator("#view").click();
+  await expect(page.locator("#map canvas")).toHaveCount(1);
+  expect(pageErrors).toEqual([]);
+});

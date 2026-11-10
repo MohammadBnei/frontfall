@@ -48,6 +48,8 @@ export interface HudActions {
   onPause(): void;
   onHelp(): void;
   onMenu(): void;
+  /** Switches between the flat map and the globe; only given where the map allows both. */
+  onView?: (() => void) | undefined;
   /** Calls back one of the player's attacks, by id. */
   onRetreat(attack: number): void;
   /** A line of the threats was picked: show where it happens. */
@@ -294,6 +296,19 @@ export class Hud {
     help.addEventListener("click", () => {
       actions.onHelp();
     });
+    const view = actions.onView
+      ? h("button", {
+          type: "button",
+          class: "icon-button icon-view",
+          id: "view",
+          "aria-keyshortcuts": "g",
+          "data-i18n-attr": "aria-label:hud.view;title:hud.view",
+        })
+      : undefined;
+    view?.append(icon("globe"));
+    view?.addEventListener("click", () => {
+      actions.onView?.();
+    });
     const fullscreen = fullscreenButton("icon-button icon-fullscreen");
     const menu = h("button", {
       type: "button",
@@ -507,6 +522,7 @@ export class Hud {
         { class: "toolbar" },
         this.buildToggle,
         help,
+        ...(view ? [view] : []),
         ...(fullscreen ? [fullscreen] : []),
         ...(pausable ? [pause] : []),
         menu,

@@ -16,6 +16,8 @@ export interface AccessibilitySettings {
   highContrast: boolean;
   /** The map in square tiles, without smooth coasts and borders: lighter on older devices. */
   flatMap: boolean;
+  /** Start a game on a map of the whole planet on the globe instead of the flat map. */
+  globe: boolean;
   /** How the map is drawn: chosen by the device, light, or as sharp as it goes. */
   graphics: GraphicsMode;
   /** Short vibrations on a phone at a few moments of a game. */
@@ -29,6 +31,7 @@ const DEFAULTS: AccessibilitySettings = {
   reduceMotion: false,
   highContrast: false,
   flatMap: false,
+  globe: false,
   graphics: "auto",
   haptics: true,
 };
@@ -46,6 +49,7 @@ export function parseSettings(raw: string | null | undefined): AccessibilitySett
     settings.reduceMotion = stored["reduceMotion"] === true;
     settings.highContrast = stored["highContrast"] === true;
     settings.flatMap = stored["flatMap"] === true;
+    settings.globe = stored["globe"] === true;
     const graphics = GRAPHICS_MODES.find((mode) => mode === stored["graphics"]);
     if (graphics) settings.graphics = graphics;
     settings.haptics = stored["haptics"] !== false;
@@ -127,7 +131,7 @@ export function accessibilityPanel(): HTMLDetailsElement {
 
   const toggle = (
     id: string,
-    key: "reduceMotion" | "highContrast" | "flatMap" | "haptics",
+    key: "reduceMotion" | "highContrast" | "flatMap" | "globe" | "haptics",
     label: string,
   ): HTMLElement => {
     const input = h("input", { type: "checkbox", id });
@@ -161,6 +165,7 @@ export function accessibilityPanel(): HTMLDetailsElement {
       toggle("reduce-motion", "reduceMotion", "a11y.motion"),
       toggle("high-contrast", "highContrast", "a11y.contrast"),
       toggle("flat-map", "flatMap", "a11y.flatMap"),
+      toggle("globe-view", "globe", "a11y.globe"),
       // Only a device that can vibrate has a use for the switch.
       ...("vibrate" in navigator ? [toggle("haptics", "haptics", "a11y.haptics")] : []),
       ...fullscreenRow(),

@@ -20,6 +20,7 @@ export const ICON_NAMES = [
   "pause",
   "help",
   "leave",
+  "globe",
   "fullscreen",
   "fullscreenExit",
   "close",
@@ -57,6 +58,7 @@ const SPRITE = `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" foc
   <symbol id="i-fullscreen" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></g></symbol>
   <symbol id="i-fullscreenExit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></g></symbol>
   <symbol id="i-leave" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3.5H5.5a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1H10M15.5 7.5 20 12l-4.5 4.5M20 12H9.5"/></g></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.2"/><path d="M2.8 12h18.4M12 2.8c2.6 2.6 3.6 5.7 3.6 9.2s-1 6.6-3.6 9.2c-2.6-2.6-3.6-5.7-3.6-9.2s1-6.6 3.6-9.2z"/></g></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M5.8 4 12 10.2 18.2 4 20 5.8 13.8 12 20 18.2 18.2 20 12 13.8 5.8 20 4 18.2 10.2 12 4 5.8z"/></symbol>
   <symbol id="i-build" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2.8 22 11.5h-2.8V21H4.8v-9.5H2zM11 11.6v2.4H8.6v2H11v2.4h2V16h2.4v-2H13v-2.4z"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6.5 2.5h11V9a5.5 5.5 0 0 1-11 0zM10.8 14.2h2.4v3.3h-2.4zM7 18.5h10v2.5H7z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6.5 4.8H3.8V7a3.2 3.2 0 0 0 3.2 3.2M17.5 4.8h2.7V7a3.2 3.2 0 0 1-3.2 3.2"/></symbol>

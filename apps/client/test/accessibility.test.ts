@@ -9,6 +9,7 @@ describe("accessibility settings", () => {
       reduceMotion: false,
       highContrast: false,
       flatMap: false,
+      globe: false,
       graphics: "auto",
       haptics: true,
     };
@@ -21,13 +22,14 @@ describe("accessibility settings", () => {
   it("keeps what was chosen", () => {
     expect(
       parseSettings(
-        '{"scale":125,"reduceMotion":true,"highContrast":true,"flatMap":true,"graphics":"saver"}',
+        '{"scale":125,"reduceMotion":true,"highContrast":true,"flatMap":true,"globe":true,"graphics":"saver"}',
       ),
     ).toEqual({
       scale: 125,
       reduceMotion: true,
       highContrast: true,
       flatMap: true,
+      globe: true,
       graphics: "saver",
       haptics: true,
     });

@@ -477,6 +477,8 @@
   "a11y.scale": "Interface size",
   "a11y.motion": "Reduce motion",
   "a11y.contrast": "High contrast",
+  "a11y.globe": "Start maps of the whole planet on the globe",
+  "hud.view": "Globe or flat map (G)",
   "a11y.flatMap": "Flat map, lighter for older devices",
   "a11y.haptics": "Light vibrations on key moments (phones)",
   "fullscreen.enter": "Full screen",

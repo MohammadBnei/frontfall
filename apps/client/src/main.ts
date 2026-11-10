@@ -42,7 +42,7 @@ import {
 import type { ViewKind } from "./render/renderer.ts";
 import { FEATURE_LABELS, missingFeatures } from "./compat.ts";
 import { hasWebGL2 } from "./render/webgl-support.ts";
-import { loadAccessibility } from "./ui/accessibility.ts";
+import { accessibility, loadAccessibility } from "./ui/accessibility.ts";
 import type { GameScreen } from "./ui/game-screen.ts";
 import { LobbyScreen, botLimit, onlineMaps, seatLimit } from "./ui/lobby.ts";
 import { h } from "./ui/dom.ts";
@@ -225,12 +225,16 @@ const testing = (() => {
 })();
 
 /**
- * `?view=globe` shows a map of the whole planet on a globe, and G switches
- * between globe and flat map: a prototype (ADR 0005). Read once, before the
+ * `?view=globe`, or the Globe setting, starts a map of the whole planet on a globe;
+ * G and the HUD button switch between globe and flat map. Read once, before the
  * address bar is rewritten.
  */
-const startView: ViewKind =
-  new URLSearchParams(location.search).get("view") === "globe" ? "globe" : "flat";
+const askedForGlobe = new URLSearchParams(location.search).get("view") === "globe";
+
+/** The view a game starts in: the address asked for the globe, or the player chose it in the settings. */
+function startView(): ViewKind {
+  return askedForGlobe || accessibility().globe ? "globe" : "flat";
+}
 
 function play(chosen: GameSetup): void {
   setup = chosen;
@@ -352,7 +356,7 @@ function begin(map: MapInfo, code: GameModule, chosen: GameSetup = setup, saved?
       },
     },
     undefined,
-    startView,
+    startView(),
     facts,
   );
   menu?.dispose();
@@ -546,7 +550,7 @@ async function watch(file: File): Promise<void> {
       },
     },
     undefined,
-    startView,
+    startView(),
   );
   menu?.dispose();
   menu = undefined;
@@ -1071,7 +1075,7 @@ function startOnline(
         client.report(player, reason);
       },
     },
-    startView,
+    startView(),
     {
       mode: visibility,
       map: map.manifest ? map.id : "generated",
