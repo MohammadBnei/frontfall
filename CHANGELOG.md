@@ -4,6 +4,16 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-11-10
+
+### Changed
+
+- **Unreadable errors say where they come from.** Errors from hidden scripts, extensions or other addresses carry no message or place by design; they now carry a coarse origin (hidden, extension, foreign), so a group of them can be told from a bug of the game. No address or text is sent.
+
+### For self-hosters and contributors
+
+- **Dependencies updated:** three 0.187, nodemailer 10.3, ws 8.22.1, vitest 5.1, eslint 10.14 and the CodeQL action 4.39.2.
+
 ## [1.0.2] - 2026-11-09
 
 ### Changed
