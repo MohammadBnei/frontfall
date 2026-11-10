@@ -190,3 +190,25 @@ describe("GlobeCamera", () => {
     expect(lat).toBeCloseTo(85, 5);
   });
 });
+
+describe("ground scale", () => {
+  it("matches the scale at the middle, shrinks toward the rim and is 0 behind the planet", () => {
+    const globe = camera();
+    globe.focus(512 * WIDTH + 1024, 3);
+    const middle = globe.groundScale(512 * WIDTH + 1024);
+    expect(middle).toBeGreaterThan(0.95 * globe.scale);
+    expect(middle).toBeLessThan(1.05 * globe.scale);
+    // 60 degrees of longitude away, still in sight, but foreshortened.
+    const aside = globe.groundScale(512 * WIDTH + 1024 + Math.round(WIDTH / 6));
+    expect(aside).toBeGreaterThan(0);
+    expect(aside).toBeLessThan(0.7 * middle);
+    // The opposite side of the planet.
+    expect(globe.groundScale(512 * WIDTH + 0)).toBe(0);
+  });
+
+  it("narrows with the latitude", () => {
+    const globe = camera();
+    globe.focus(100 * WIDTH + 1024, 3);
+    expect(globe.groundScale(100 * WIDTH + 1024)).toBeLessThan(globe.scale);
+  });
+});

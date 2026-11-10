@@ -49,6 +49,13 @@ export interface ViewCamera extends Camera {
   readonly zoom: number;
   /** Screen pixels per tile at the middle of the screen. */
   readonly scale: number;
+  /**
+   * Screen pixels per tile around one tile, the smaller of its east-west and
+   * north-south extents; 0 when the tile is out of sight. Only a view that
+   * foreshortens the ground (the globe) gives it: on a flat map it is `scale`
+   * everywhere and the method is left out.
+   */
+  groundScale?(tile: number): number;
 }
 
 export interface FlatCameraOptions {

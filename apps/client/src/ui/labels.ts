@@ -156,7 +156,7 @@ export class PlayerLabels {
   }
 
   /** Moves the labels to follow the camera; call every frame. */
-  place(camera: Camera, scale: number): void {
+  place(camera: Camera & { groundScale?(tile: number): number }, scale: number): void {
     const shown = new Set<number>();
     const { viewportWidth, viewportHeight } = camera;
     // Largest lands first: where two names would overlap, the smaller one gives way.
@@ -164,10 +164,16 @@ export class PlayerLabels {
     for (const anchor of this.anchors) {
       const label = this.labels.get(anchor.player);
       if (!label) continue;
+      // On the globe the ground is foreshortened toward the rim: size from the local scale.
+      const local = camera.groundScale ? camera.groundScale(anchor.tile) : scale;
       // The size follows the depth of the land alone, so it does not jump with the name.
-      const across = 2 * anchor.depth * scale;
+      const across = 2 * anchor.depth * local;
       // Anchors come largest first: from here on no land carries even the smallest name.
-      if (across < MIN_ACROSS) break;
+      // On the globe the local scale varies, so a hidden name does not end the list.
+      if (across < MIN_ACROSS) {
+        if (camera.groundScale) continue;
+        break;
+      }
       const room = across * OVERFLOW;
       // Widest line in ems: the name, or the troops below it at three quarters of its size.
       const length = Math.max(label.name.length, 0.75 * label.count.length) * CHAR_EM;

@@ -79,6 +79,30 @@ describe("player labels", () => {
     expect(FakeElement.created).toBeLessThanOrEqual(1 + 20 * 3);
   });
 
+  it("sizes a name from the local scale of the ground on the globe, and hides it behind the horizon", () => {
+    fakeDocument();
+    const labels = new PlayerLabels();
+    labels.update(
+      [player(1), player(2), player(3)],
+      [
+        { player: 1, tile: 505, depth: 40 },
+        { player: 2, tile: 1010, depth: 40 },
+        { player: 3, tile: 1515, depth: 40 },
+      ],
+    );
+    // Land 1 faces the camera, land 2 is squeezed toward the rim, land 3 is behind the planet.
+    const ground: Record<number, number> = { 505: 1, 1010: 0.05, 1515: 0 };
+    const globe = {
+      ...camera,
+      groundScale: (tile: number) => ground[tile] ?? 0,
+    } as unknown as Camera;
+    labels.place(globe, 1);
+    const shown = [
+      ...(labels as unknown as { labels: Map<number, { shown: boolean }> }).labels.values(),
+    ].map((label) => label.shown);
+    expect(shown).toEqual([true, false, false]);
+  });
+
   it("writes no style again when nothing moved", () => {
     fakeDocument();
     const labels = new PlayerLabels();

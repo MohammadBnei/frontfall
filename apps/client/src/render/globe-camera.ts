@@ -103,6 +103,37 @@ export class GlobeCamera implements ViewCamera {
     return projectLatLon(this.pose(), lat, lon) ?? HIDDEN;
   }
 
+  /**
+   * Screen pixels per tile around a tile: the ground is foreshortened toward
+   * the rim and its columns narrow toward the poles, so a name sized from the
+   * middle of the screen would spill over the land. 0 behind the horizon.
+   */
+  groundScale(tile: number): number {
+    const { width, height } = this.options;
+    const column = tile % width;
+    const x = column + 0.5;
+    const y = (tile - column) / width + 0.5;
+    const pose = this.pose();
+    const at = (dx: number, dy: number): ScreenPoint | undefined => {
+      const { lat, lon } = tileToLatLon(
+        x + dx,
+        Math.min(height, Math.max(0, y + dy)),
+        width,
+        height,
+      );
+      return projectLatLon(pose, lat, lon);
+    };
+    const west = at(-0.5, 0);
+    const east = at(0.5, 0);
+    const north = at(0, -0.5);
+    const south = at(0, 0.5);
+    if (!west || !east || !north || !south) return 0;
+    return Math.min(
+      Math.hypot(east.x - west.x, east.y - west.y),
+      Math.hypot(south.x - north.x, south.y - north.y),
+    );
+  }
+
   /** The camera for the current view, also what the renderer draws from. */
   pose(): GlobePose {
     const { width, height } = this.options;
