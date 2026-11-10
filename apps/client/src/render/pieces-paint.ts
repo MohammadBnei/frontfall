@@ -52,7 +52,9 @@ function band(
 
 /** The pictogram in white, its cut-outs cleared, on its own canvas so they show the disc. */
 function glyph(canvas: HTMLCanvasElement, kind: BuildingKind, level: Level): HTMLCanvasElement {
-  const g = canvas.getContext("2d");
+  // Drawn on the CPU like the atlas: a canvas on the GPU would be read back at every copy into
+  // it, a wait on the GPU each time that held the game's start for a few hundred milliseconds.
+  const g = canvas.getContext("2d", { willReadFrequently: true });
   if (!g) throw new Error("no 2D canvas for the pieces");
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.clearRect(0, 0, CELL, CELL);
