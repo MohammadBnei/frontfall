@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { STRUCTURE_COLORS } from "../palette.ts";
 import type { CameraView } from "./camera.ts";
+import { flightPoint } from "./globe-flight.ts";
 import { GlobeMarkers } from "./globe-markers.ts";
 import { GLOBE_FOV, globePose, globeRays } from "./globe-projection.ts";
 import { SHIP_SIZES, shipScale } from "./map-view.ts";
@@ -168,9 +169,9 @@ export class GlobeView implements Renderer {
       // A ship leaving the sea is not drawn as a plate: it is for the layer that draws hulls.
       if (ship.state) continue;
       if (ship.kind === "missile") {
-        if (missiles < MISSILE_CAPACITY) this.missiles.set(missiles++, ship.x, ship.y, ship.color);
+        if (missiles < MISSILE_CAPACITY) this.placeMissile(this.missiles, missiles++, ship);
       } else if (ship.kind === "heavyMissile") {
-        if (heavy < MISSILE_CAPACITY) this.heavyMissiles.set(heavy++, ship.x, ship.y, ship.color);
+        if (heavy < MISSILE_CAPACITY) this.placeMissile(this.heavyMissiles, heavy++, ship);
       } else if (ship.kind === "trade") {
         if (trade < TRADE_CAPACITY) this.tradeShips.set(trade++, ship.x, ship.y, ship.color);
       } else if (ship.kind === "warship") {
@@ -193,6 +194,17 @@ export class GlobeView implements Renderer {
     this.flashes.count = flashes;
     this.missiles.count = missiles;
     this.heavyMissiles.count = heavy;
+  }
+
+  /** A missile on its great circle, lifted off the planet; one that does not say where it goes lies on its tile. */
+  private placeMissile(layer: GlobeMarkers, index: number, ship: UnitMark): void {
+    const { from, to, flown } = ship;
+    if (from && to && flown !== undefined) {
+      const { width, height } = this.options;
+      layer.setPoint(index, flightPoint(from, to, flown, width, height), ship.color);
+    } else {
+      layer.set(index, ship.x, ship.y, ship.color);
+    }
   }
 
   setFallout(zones: readonly FalloutZone[]): boolean {

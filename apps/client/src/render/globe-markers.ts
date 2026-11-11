@@ -20,7 +20,10 @@ const vertexShader = /* glsl */ `
 
   void main() {
     // The instance's translation is the marker's point on the unit sphere.
-    vec3 normal = normalize((instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+    vec3 centre = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    vec3 normal = normalize(centre);
+    // A marker in flight is above the surface: its distance from the middle is 1 plus its altitude.
+    float radius = length(centre);
     vColor = instanceColor;
     // Behind the horizon: out of the clip volume. The planet writes no depth.
     if (dot(normal, cameraPosition) < 1.0) {
@@ -30,7 +33,7 @@ const vertexShader = /* glsl */ `
     vec3 east = cross(vec3(0.0, 1.0, 0.0), normal);
     east = length(east) < 1e-4 ? vec3(1.0, 0.0, 0.0) : normalize(east);
     vec3 north = cross(normal, east);
-    vec3 world = normal + (east * position.x + north * position.y) * unitScale;
+    vec3 world = normal * radius + (east * position.x + north * position.y) * unitScale;
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }
 `;
@@ -93,6 +96,22 @@ export class GlobeMarkers {
     const { worldWidth, worldHeight } = this.options;
     const { lat, lon } = tileToLatLon(x + 0.5, y + 0.5, worldWidth, worldHeight);
     this.matrix.makeTranslation(...surfacePoint(lat, lon));
+    this.mesh.setMatrixAt(index, this.matrix);
+    this.mesh.setColorAt(index, this.color.set(color));
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+
+  /** Places marker `index` at a point of space around the unit sphere: its direction is the ground it is over, its length 1 plus its altitude. */
+  setPoint(
+    index: number,
+    point: readonly [number, number, number],
+    color: THREE.ColorRepresentation,
+  ): void {
+    if (!Number.isInteger(index) || index < 0 || index >= this.options.capacity) {
+      throw new RangeError(`marker ${String(index)} is outside the capacity`);
+    }
+    this.matrix.makeTranslation(point[0], point[1], point[2]);
     this.mesh.setMatrixAt(index, this.matrix);
     this.mesh.setColorAt(index, this.color.set(color));
     this.mesh.instanceMatrix.needsUpdate = true;
