@@ -82,6 +82,8 @@ const CORE = 1.05;
 
 /** Tiles per pixel above which each tile takes its own owner, with no vote. */
 const VOTE_PIXEL = 0.95;
+/** How far the globe's atmosphere reaches beyond the surface, in planet radii. */
+const HALO_WIDTH = 0.06;
 
 /** Each row is tracked as at most 32 column chunks, one bit each. */
 const CHUNKS_PER_ROW = 32;
@@ -380,6 +382,16 @@ const fragmentShader = /* glsl */ `
     return acc / 4.0;
   }
 
+#ifdef SPHERE
+  /** The halo of air around the planet seen past its edge: false where the ray passes too far for it. */
+  bool atmosphere(vec3 origin, vec3 ray, out vec4 shade) {
+    float miss = length(origin - dot(origin, ray) * ray);
+    float halo = 1.0 - (miss - 1.0) / ${String(HALO_WIDTH)};
+    shade = linearToOutputTexel(vec4(mix(vec3(0.02, 0.035, 0.055), vec3(0.30, 0.55, 1.0), halo * halo * 0.55), 1.0));
+    return halo > 0.0;
+  }
+#endif
+
   void main() {
   #ifdef SPHERE
     // Where the ray meets the unit sphere. Off the planet the root is clamped
@@ -554,7 +566,15 @@ const fragmentShader = /* glsl */ `
     // Pixels clear of the rim stop here, once every derivative is taken: after
     // a discard, derivatives are undefined on some GPUs. Those next to it go
     // on, so the rim keeps its derivatives.
-    if (hit < -rim) discard;
+    if (hit < -rim) {
+    #ifdef SPHERE
+      // Off the planet: a thin halo of atmosphere where the ray passes close to its edge.
+      if (!atmosphere(eye, ray, outColor)) discard;
+      return;
+    #else
+      discard;
+    #endif
+    }
   #endif
 
     vec3 color;
@@ -854,9 +874,15 @@ const fragmentShader = /* glsl */ `
   #endif
   #endif
   #ifdef SPHERE
-    if (hit < 0.0) discard;
+    if (hit < 0.0) {
+      if (!atmosphere(eye, ray, outColor)) discard;
+      return;
+    }
     // Darker toward the rim, so the planet reads as round.
-    color *= mix(0.45, 1.0, sqrt(max(dot(point, -ray), 0.0)));
+    float facing = max(dot(point, -ray), 0.0);
+    color *= mix(0.45, 1.0, sqrt(facing));
+    // The air seen along the ground at a grazing angle scatters blue light back.
+    color = mix(color, vec3(0.30, 0.55, 1.0), 0.5 * pow(1.0 - facing, 3.0));
   #endif
     outColor = linearToOutputTexel(vec4(color, 1.0));
   }
