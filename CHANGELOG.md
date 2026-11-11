@@ -4,6 +4,12 @@ Every release of Frontfall and what it changes in play, newest first. The format
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-11
+
+### Added
+
+- **The globe.** On the maps of the whole planet (World and Ring) the game can be played on a 3D globe: spin it, zoom from the whole Earth down to single tiles, and click any tile. It is an option: the flat map stays the default. Turn on **Globe** in the Accessibility settings to start games on it, or switch during a game with the globe button in the toolbar or the G key; the switch keeps the game running and takes about a third of a second. Names of players are sized for the ground under them and hidden behind the horizon, missiles fly on a great circle and rise off the planet, and a thin atmosphere surrounds it.
+
 ### Changed
 
 - **Lighter and quicker to start.** The build is 101 kB lighter (744.6 kB of the 850 kB budget, 16 kB less on the first visit): the font now ships for Latin letters only, and the messages are checked with the small zod API. A game starts without waiting on the graphics card to paint the building markers, and switching to the globe or to the lighter graphics no longer bakes the map's ground again, a freeze of a second or more.

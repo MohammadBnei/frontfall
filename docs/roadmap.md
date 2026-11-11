@@ -6,7 +6,7 @@ The game was in beta until v1.0, and its page said so. v1.0 is the first version
 
 The game ships as a series of playable versions instead of one release at the end. Each version is something a person can open and play on the public server, and each one says exactly what "playable" means for it. The work that does not serve the next version waits for a later one.
 
-**Where it stands.** v1.0 is live, out of beta, and v1.1 (the 3D globe) is next; v0.9.9 was the last version with new features before it; the paragraph below is the story of the early versions. v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps and three generated quick maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. People I do not know now play it every day, so the next versions put running the game first: v0.5 makes deployments harmless and measures how games actually go, before any balance number changes. The globe moves from v0.6 to v0.9.x, the first releases after v0.9.0, after a redesign of the look (v0.7) and rules that are Frontfall's own (v0.8), so that the globe shows the final game. [Changes after v0.4](#changes-after-v04) and [Changes after v0.4.1](#changes-after-v041) say what moved and why.
+**Where it stands.** v1.0 is live, out of beta, and v1.1 (the 3D globe, as an option) is out; v0.9.9 was the last version with new features before it; the paragraph below is the story of the early versions. v0.1 to v0.4 are live: a solo game against bots, online games with friends on eight maps and three generated quick maps, structures, diplomacy and nations, then the sea, missiles, teams and replays. v0.3 and v0.4 were released together as `v0.4.0` on 25 October 2026, with every rule of v1 in the game. People I do not know now play it every day, so the next versions put running the game first: v0.5 makes deployments harmless and measures how games actually go, before any balance number changes. The globe moves from v0.6 to v0.9.x, the first releases after v0.9.0, after a redesign of the look (v0.7) and rules that are Frontfall's own (v0.8), so that the globe shows the final game. [Changes after v0.4](#changes-after-v04) and [Changes after v0.4.1](#changes-after-v041) say what moved and why.
 
 ## Overview
 
@@ -25,7 +25,7 @@ The game ships as a series of playable versions instead of one release at the en
 | [v0.9 · Load, smoothness and polish](#v09--load-smoothness-and-polish) | Play smoothly on a modest laptop and a phone, with a quick response to every click, sound and music, and a server that holds under load. | Shipped |     14 |        – |
 | [v0.9.9 · Release candidate](#v099--release-candidate)                 | The last new features, with graphics, performance, balance and operations brought to the level of v1.0.                                  | Shipped |     15 |        – |
 | [v1.0 · Out of beta](#v10--out-of-beta)                                | The complete, polished game on the flat map, online, balanced and run without interruptions. The beta label comes off.                   | Shipped |      5 |   5 days |
-| [v1.1 · 3D globe](#v11--3d-globe)                                      | The same game on a planet you can spin, and switch between the flat map and the globe mid-game.                                          | Planned |      9 |  27 days |
+| [v1.1 · 3D globe](#v11--3d-globe)                                      | The same game on a planet you can spin, and switch between the flat map and the globe mid-game.                                          | Shipped |      9 |  27 days |
 | [v1.x · Community maps](#v1x--community-maps)                          | Play maps and translations made by other players, share a replay by link and watch games as a spectator.                                 | Planned |      8 |  16 days |
 
 M0 (foundations and specification) is done: repository, rules, CI, container image and deployment are in place.
@@ -493,6 +493,8 @@ The trademark filing for the name and logo ([#135](https://github.com/nic0lasm/f
 | M6-07  | [#59](https://github.com/nic0lasm/frontfall/issues/59) Globe maps                                       | M    | M2-08        |
 | M7-07  | [#66](https://github.com/nic0lasm/frontfall/issues/66) Switch between map and globe during a game       | M    | M6-04, M7-04 |
 | V11-01 | The look of v0.7 on the globe: pictograms as markers, lighting and atmosphere                           | M    | M6-06, V7-04 |
+
+Shipped as `v1.1.0`, with the flat map still the default and the globe an option (setting, toolbar button, G). Left for later: a World map at 4,096 x 2,048 (#59), which would multiply the maps' weight, and smoothing the borders of small lands when the globe turns zoomed far out (#64), which no measurement showed to matter.
 
 9 items, about 27 days. The spike of v0.3 already draws World on a sphere behind `?view=globe` and switches with G; what is left is listed in [ADR 0005](adr/0005-globe-spike.md).
 
