@@ -14,8 +14,6 @@ Each record captures one decision that shapes the code: the context, what was de
 | [0008](0008-rule-state-and-hash.md)       | Rules own their state; one codec drives snapshot and hash     | Proposed |
 | [0009](0009-rule-table-and-lifecycles.md) | An ordered rule table, nations as phases, derived lifecycles  | Proposed |
 | [0010](0010-collection-ownership.md)      | Only the owning module writes a collection                    | Proposed |
-| [0011](0011-bun-toolchain-and-runtime.md) | Bun runs install, scripts and the server; tests stay on Node  | Proposed |
-| [0012](0012-server-ports-and-stores.md)   | The server uses ports, one SQLite file and strict config      | Proposed |
 | [0013](0013-client-shell-and-signals.md)  | An app shell tied to the URL, sessions per mode, signals      | Proposed |
 | [0014](0014-enforced-boundaries.md)       | Layer, cycle and ownership rules are tests on the syntax tree | Proposed |
 

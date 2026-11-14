@@ -44,7 +44,7 @@ Today, `tools/test/boundaries.test.ts` enforces that the engine imports nothing 
 
 - The engine imports `@frontfall/contracts` only.
 - The protocol imports zod and contracts.
-- The server imports the protocol, zod, nodemailer, `node:*` and `bun:*`.
+- The server imports the protocol, zod, nodemailer and `node:*`.
 - The client follows a layer table. `app/` may import anything. `ui/` imports game, render, input, audio, achievements, stats, root files, and `net` for types. `game/` and `net/` import root files. `render/` imports root files. `input/` imports render types. `audio/`, `achievements/` and `stats/` import game types and root files. Root files import root files and `i18n` only.
 - No import cycle at runtime.
 - Only the owning module writes an engine collection ([0010](adr/0010-collection-ownership.md)).
@@ -110,8 +110,6 @@ flowchart LR
 | Rule table                        | `STANDARD_RULES` ([0009](adr/0009-rule-table-and-lifecycles.md))                                  | Target                                |
 | Derived lifecycles                | `structureState`, `allianceState`, `warshipState` ([0009](adr/0009-rule-table-and-lifecycles.md)) | Target                                |
 | Owner functions                   | Cross-rule changes to a collection ([0010](adr/0010-collection-ownership.md))                     | Target                                |
-| Ports and fakes                   | Server clock, ids, transport, stores ([0012](adr/0012-server-ports-and-stores.md))                | Target                                |
-| Room transition table, outbox     | Server rooms ([0012](adr/0012-server-ports-and-stores.md))                                        | Target                                |
 | App state machine                 | Client screens kept in step with the URL ([0013](adr/0013-client-shell-and-signals.md))           | Target                                |
 | Sessions with capabilities        | Solo, Online, Replay ([0013](adr/0013-client-shell-and-signals.md))                               | Target                                |
 | Signals with `select`             | Client panels ([0013](adr/0013-client-shell-and-signals.md))                                      | Target                                |
@@ -167,13 +165,9 @@ Today: write the screen in `apps/client/src/ui/`, build the DOM with the helpers
 3. Handle it in `apps/client/src/net/`.
 4. Raise `PROTOCOL_VERSION` if old clients cannot understand it, and update [protocol.md](protocol.md); a test in `tools/test/protocol-doc.test.ts` checks that the document and the code agree.
 
-**Target** ([0012](adr/0012-server-ports-and-stores.md)): the handler is an entry in the typed handler map, and a test drives it through the `FakeTransport` with a fake clock.
-
 ### A store
 
 Today: a store is a class that loads a JSON file from the data directory at start and writes it atomically (`apps/server/src/moderation.ts` is a good model). Keep file mode 0600 for personal data and document what it holds in [privacy.md](privacy.md).
-
-**Target** ([0012](adr/0012-server-ports-and-stores.md)): a store is a class over the `SqlDriver` port, with a table, a one-time import if it replaces a file, and a command in `frontfall-admin` if an operator needs to change it by hand. Its test runs on `node:sqlite` under Vitest.
 
 ### A map
 

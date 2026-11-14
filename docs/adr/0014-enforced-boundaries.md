@@ -14,7 +14,7 @@ Extend that test, keeping its approach, to state each rule as data and check it 
 
 - **Engine** imports `@frontfall/contracts` and nothing else.
 - **Protocol** imports `zod` and `@frontfall/contracts`.
-- **Server** imports the protocol, `zod`, `nodemailer`, `bun`, `node:*` and `bun:*`.
+- **Server** imports the protocol, `zod`, `nodemailer` and `node:*`.
 - **Client** follows a layer table:
   - `app/` may import anything.
   - `ui/`, including `ui/screen/`, imports game, render, input, audio, achievements, stats, net (types only) and the root files.
